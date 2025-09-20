@@ -19,15 +19,24 @@ export type Address = {
 export default function AddressAutocomplete({
   placeholder = "Escribe tu dirección",
   country = "us",
+  /** NEW: controlled value (preferred) */
+  value,
+  /** NEW: controlled onChange (preferred) */
+  onChangeText,
+  /** legacy: fallback initial value when uncontrolled */
   defaultValue = "",
   onSelect,
 }: {
   placeholder?: string;
   country?: string;
+  value?: string;                    // <-- NEW
+  onChangeText?: (text: string) => void; // <-- NEW
   defaultValue?: string;
   onSelect: (addr: Address) => void;
 }) {
   const [ready, setReady] = useState(false);
+
+  // Internal query state is used for predictions but mirrors the external value when provided
   const [query, setQuery] = useState(defaultValue);
   const [preds, setPreds] = useState<google.maps.places.AutocompletePrediction[]>([]);
   const [open, setOpen] = useState(false);
@@ -36,6 +45,11 @@ export default function AddressAutocomplete({
   const acSvcRef = useRef<google.maps.places.AutocompleteService | null>(null);
   const placesRef = useRef<google.maps.places.PlacesService | null>(null);
   const dummyDiv = useRef<HTMLDivElement | null>(null);
+
+  // Keep internal query in sync with external controlled value
+  useEffect(() => {
+    if (typeof value === "string") setQuery(value);
+  }, [value]);
 
   useEffect(() => {
     let mounted = true;
@@ -55,14 +69,15 @@ export default function AddressAutocomplete({
 
   useEffect(() => {
     if (!ready) return;
-    if (!query.trim()) {
+    const q = (query || "").trim();
+    if (!q) {
       setPreds([]);
       setOpen(false);
       return;
     }
     const h = setTimeout(() => {
       acSvcRef.current?.getPlacePredictions(
-        { input: query, componentRestrictions: { country }, types: ["address"] },
+        { input: q, componentRestrictions: { country }, types: ["address"] },
         (res) => {
           setPreds(res || []);
           setOpen((res?.length || 0) > 0);
@@ -113,9 +128,18 @@ export default function AddressAutocomplete({
           lat: place.geometry?.location?.lat(),
           lng: place.geometry?.location?.lng(),
         };
+
+        // Update visible input immediately for uncontrolled usage
         setQuery(addr.fullAddress);
+
+        // Close dropdown
         setPreds([]);
         setOpen(false);
+
+        // IMPORTANT: do not call onChangeText here; the parent (RHF) will set the field value
+        // in its onSelect handler (e.g., to a formatted string). Our input will update because
+        // we sync to `value` via the effect above.
+
         onSelect(addr);
       }
     );
@@ -138,13 +162,20 @@ export default function AddressAutocomplete({
     }
   };
 
+  const handleChange = (text: string) => {
+    // Always update internal query for predictions
+    setQuery(text);
+    // If controlled, notify parent
+    onChangeText?.(text);
+  };
+
   return (
     <div className="relative">
       <input
         className="input"
         placeholder={placeholder}
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        onChange={(e) => handleChange(e.target.value)}
         onKeyDown={onKeyDown}
         onFocus={() => {
           if (preds.length) setOpen(true);
@@ -158,16 +189,14 @@ export default function AddressAutocomplete({
         <ul
           id="addr-listbox"
           role="listbox"
-          className="absolute z-20 mt-2 w-full rounded-xl2 border border-gray-200 bg-white shadow-soft max-h-64 overflow-auto"
+          className="absolute z-20 mt-2 w-full rounded-xl border border-gray-200 bg-white shadow-soft max-h-64 overflow-auto"
         >
           {preds.map((p, idx) => (
             <li
               key={p.place_id}
               role="option"
               aria-selected={idx === activeIndex}
-              className={`px-3 py-2 cursor-pointer ${
-                idx === activeIndex ? "bg-gray-50" : ""
-              }`}
+              className={`px-3 py-2 cursor-pointer ${idx === activeIndex ? "bg-gray-50" : ""}`}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => selectPrediction(p)}
               onMouseEnter={() => setActiveIndex(idx)}
