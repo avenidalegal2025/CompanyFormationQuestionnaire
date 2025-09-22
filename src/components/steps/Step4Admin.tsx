@@ -2,7 +2,8 @@
 
 import { Controller, type UseFormReturn } from "react-hook-form";
 import SegmentedToggle from "@/components/SegmentedToggle";
-import AddressAutocomplete from "@/components/AddressAutocomplete";
+// IMPORTANT: use relative import so Amplify/Linux resolves it correctly
+import AddressAutocomplete from "../AddressAutocomplete";
 import HeroBanner from "@/components/HeroBanner";
 import { type AllSteps } from "@/lib/schema";
 
@@ -11,19 +12,20 @@ type Props = {
   setStep: (n: number) => void;
 };
 
+type YesNo = "Yes" | "No";
+
 export default function Step4Admin({ form, setStep }: Props) {
-  const { control, register, watch, setValue } = form;
+  const { control, register, watch } = form;
 
   const entityType = watch("company.entityType");
 
   // directors / officers (C-Corp)
-  const directorsAllOwners = watch("admin.directorsAllOwners");
+  const directorsAllOwners = watch("admin.directorsAllOwners") as YesNo | undefined;
   const directorsCount = watch("admin.directorsCount") || 1;
-
-  const officersAllOwners = watch("admin.officersAllOwners");
+  const officersAllOwners = watch("admin.officersAllOwners") as YesNo | undefined;
 
   // managers (LLC)
-  const managersAllOwners = watch("admin.managersAllOwners");
+  const managersAllOwners = watch("admin.managersAllOwners") as YesNo | undefined;
 
   return (
     <section className="space-y-6">
@@ -60,7 +62,7 @@ export default function Step4Admin({ form, setStep }: Props) {
                   control={control}
                   render={({ field }) => (
                     <SegmentedToggle
-                      value={(field.value as any) || "No"}
+                      value={(field.value as YesNo | undefined) ?? "No"}
                       onChange={field.onChange}
                       options={[
                         { value: "Yes", label: "Sí" },
@@ -88,7 +90,7 @@ export default function Step4Admin({ form, setStep }: Props) {
                     render={({ field }) => (
                       <AddressAutocomplete
                         placeholder="Escriba y seleccione la dirección"
-                        defaultValue={field.value ?? ""}
+                        defaultValue={(field.value as string) ?? ""}
                         onSelect={(addr) => {
                           const formatted =
                             addr.fullAddress ||
@@ -116,7 +118,7 @@ export default function Step4Admin({ form, setStep }: Props) {
                 control={control}
                 render={({ field }) => (
                   <SegmentedToggle
-                    value={(field.value as any) || "Yes"}
+                    value={(field.value as YesNo | undefined) ?? "Yes"}
                     onChange={field.onChange}
                     options={[
                       { value: "Yes", label: "Sí" },
@@ -164,7 +166,7 @@ export default function Step4Admin({ form, setStep }: Props) {
                         render={({ field }) => (
                           <AddressAutocomplete
                             placeholder="Escriba y seleccione la dirección"
-                            defaultValue={field.value ?? ""}
+                            defaultValue={(field.value as string) ?? ""}
                             onSelect={(addr) => {
                               const formatted =
                                 addr.fullAddress ||
@@ -204,7 +206,7 @@ export default function Step4Admin({ form, setStep }: Props) {
                 control={control}
                 render={({ field }) => (
                   <SegmentedToggle
-                    value={(field.value as any) || "Yes"}
+                    value={(field.value as YesNo | undefined) ?? "Yes"}
                     onChange={field.onChange}
                     options={[
                       { value: "Yes", label: "Sí" },
@@ -231,7 +233,7 @@ export default function Step4Admin({ form, setStep }: Props) {
                     render={({ field }) => (
                       <AddressAutocomplete
                         placeholder="Escriba y seleccione la dirección"
-                        defaultValue={field.value ?? ""}
+                        defaultValue={(field.value as string) ?? ""}
                         onSelect={(addr) => {
                           const formatted =
                             addr.fullAddress ||
