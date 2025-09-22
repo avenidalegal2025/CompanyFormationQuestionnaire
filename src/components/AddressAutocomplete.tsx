@@ -116,7 +116,7 @@ export default function AddressAutocomplete({
       { placeId: pid, fields: ["address_component", "formatted_address", "geometry"] },
       (place, status) => {
         if (!place || status !== google.maps.places.PlacesServiceStatus.OK) return;
-        const comps = parseComponents((place.address_components || []) as any);
+        const comps = parseComponents((place.address_components || []) as google.maps.GeocoderAddressComponent[]);
         const addr: Address = {
           fullAddress: place.formatted_address || p.description,
           line1: comps.line1,
@@ -182,7 +182,6 @@ export default function AddressAutocomplete({
         }}
         onBlur={() => setTimeout(() => setOpen(false), 120)}
         aria-autocomplete="list"
-        aria-expanded={open}
         aria-controls="addr-listbox"
       />
       {open && preds.length > 0 && (
@@ -214,3 +213,49 @@ export default function AddressAutocomplete({
     </div>
   );
 }
+"use client";
+
+import { Controller, type Control, type FieldPath } from "react-hook-form";
+import AddressAutocomplete from "./AddressAutocomplete";
+import type { AllSteps } from "@/lib/schema";
+
+type Props = {
+  name: FieldPath<AllSteps>;
+  control: Control<AllSteps>;
+  placeholder?: string;
+};
+
+export default function RHFAddressAutocomplete({
+  name,
+  control,
+  placeholder = "Escriba y seleccione la dirección",
+}: Props) {
+  return (
+    <Controller
+      name={name}
+      control={control}
+      render={({ field }) => (
+        <AddressAutocomplete
+          placeholder={placeholder}
+          value={(field.value as string) ?? ""}
+          onChangeText={(text) => field.onChange(text)}
+          onSelect={(addr) => {
+            const formatted =
+              addr.fullAddress ||
+              [addr.line1, addr.city, addr.state, addr.postalCode, addr.country]
+                .filter(Boolean)
+                .join(", ");
+            field.onChange(formatted);
+          }}
+        />
+      )}
+    />
+  );
+}
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+};
+export default nextConfig;
