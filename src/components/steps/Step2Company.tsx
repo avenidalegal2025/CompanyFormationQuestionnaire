@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ChangeEvent, type KeyboardEvent } from "react";
 import Image from "next/image";
 import { Controller, type UseFormReturn } from "react-hook-form";
 
@@ -67,7 +67,7 @@ export default function Step2Company({ form, setStep }: Props) {
     return `${PHONE_PREFIX}${a} ${b} ${c}`;
   };
 
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhoneChange = (e: ChangeEvent<HTMLInputElement>) => {
     const digits = e.target.value.replace(/[^\d]/g, "");
     const dropCountry = digits.startsWith("1") ? digits.slice(1) : digits;
     const formatted = formatUsPhone(dropCountry);
@@ -80,7 +80,7 @@ export default function Step2Company({ form, setStep }: Props) {
     });
   };
 
-  const preventDeletePrefix = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const preventDeletePrefix = (e: KeyboardEvent<HTMLInputElement>) => {
     const el = e.currentTarget;
     const start = el.selectionStart ?? 0;
     const end = el.selectionEnd ?? 0;
@@ -128,7 +128,9 @@ export default function Step2Company({ form, setStep }: Props) {
                 </option>
               ))}
             </select>
-            <p className="help">{errors.company?.formationState?.message as any}</p>
+            {errors.company?.formationState?.message && (
+              <p className="help">{String(errors.company.formationState.message)}</p>
+            )}
           </div>
 
           <div>
@@ -175,7 +177,9 @@ export default function Step2Company({ form, setStep }: Props) {
             </button>
           </div>
           <input type="hidden" {...register("company.companyName")} />
-          <p className="help">{errors.company?.companyName?.message as any}</p>
+          {errors.company?.companyName?.message && (
+            <p className="help">{String(errors.company.companyName.message)}</p>
+          )}
         </div>
 
         {/* Dirección */}
