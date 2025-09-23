@@ -2,7 +2,7 @@
 
 import { Controller, type UseFormReturn } from "react-hook-form";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
-import HeroBanner from "@/components/HeroBanner";
+import SegmentedToggle from "@/components/SegmentedToggle";
 import { type AllSteps } from "@/lib/schema";
 
 type Props = {
@@ -11,65 +11,177 @@ type Props = {
 };
 
 export default function Step3Owners({ form, setStep }: Props) {
-  const { control, register, watch } = form;
-  const ownersCount = watch("owners.count") || 1;
+  const { control, register, watch, setValue } = form;
+
+  // Prefer an explicit ownersCount field if you have one; otherwise fall back to owners.length.
+  const owners = (watch("owners") ?? []) as NonNullable<AllSteps["owners"]>;
+  const ownersCount =
+    (watch("ownersCount") as number | undefined) ??
+    (Array.isArray(owners) ? owners.length : 0) ||
+    1;
 
   return (
     <section className="space-y-6">
-      <HeroBanner title="Datos de los Socios / Accionistas" />
-
       <div className="card">
-        <h2 className="text-xl font-semibold text-gray-900">Información de Propietarios</h2>
+        <h2 className="text-xl font-semibold text-gray-900">Propietarios</h2>
+        <p className="mt-1 text-sm text-gray-600">
+          Indique los datos de cada propietario/accionista.
+        </p>
 
+        {/* Owners count (optional helper) */}
         <div className="mt-4">
-          <label className="label">Número de socios / accionistas</label>
+          <label className="label">¿Cuántos propietarios?</label>
           <input
-            className="input w-24"
+            className="input w-28"
             type="number"
             min={1}
             step={1}
-            {...register("owners.count", { valueAsNumber: true })}
+            // If you keep an ownersCount field in your form, uncomment the next line and comment setValue logic below.
+            {...register("ownersCount", {
+              valueAsNumber: true,
+              onChange: (e) => {
+                const next = Number(e.target.value || 1);
+                // Ensure owners array has exactly 'next' slots (expand with empty objects if needed)
+                const current = (form.getValues("owners") ?? []) as any[];
+                if (next > current.length) {
+                  setValue(
+                    "owners",
+                    [
+                      ...current,
+                      ...Array.from({ length: next - current.length }, () => ({
+                        fullName: "",
+                        email: "",
+                        phone: "",
+                        ownership: undefined,
+                        address: "",
+                        isUsCitizen: "No",
+                      })),
+                    ],
+                    { shouldDirty: true }
+                  );
+                } else if (next < current.length) {
+                  setValue("owners", current.slice(0, next), { shouldDirty: true });
+                }
+              },
+            })}
+            defaultValue={ownersCount}
           />
+          <p className="help">Puede ajustar este número según sea necesario.</p>
         </div>
 
-        {Array.from({ length: ownersCount }).map((_, idx) => (
-          <div
-            key={idx}
-            className="mt-6 grid grid-cols-1 gap-4 rounded-2xl border border-gray-100 p-4"
-          >
-            <div>
-              <label className="label">Nombre completo del Socio {idx + 1}</label>
-              <input
-                className="input w-full"
-                {...register(`owners.owner${idx + 1}Name` as const)}
-              />
-            </div>
+        {/* Owner blocks */}
+        <div className="mt-6 space-y-6">
+          {Array.from({ length: ownersCount }).map((_, idx) => {
+            const n = idx + 1;
+            return (
+              <div
+                key={idx}
+                className="rounded-2xl border border-gray-100 p-4 space-y-4 bg-white"
+              >
+                <h3 className="font-medium text-gray-900">Propietario {n}</h3>
 
-            <div>
-              <label className="label">Dirección del Socio {idx + 1}</label>
-              <Controller
-                name={`owners.owner${idx + 1}Address` as const}
-                control={control}
-                render={({ field }) => (
-                  <AddressAutocomplete
-                    placeholder="Escriba y seleccione la dirección"
-                    defaultValue={field.value ?? ""}
-                    onSelect={(addr) => field.onChange(addr.fullAddress)}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="label">Nombre completo</label>
+                    <input
+                      className="input"
+                      {...register(`owners.${idx}.fullName` as const)}
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Porcentaje de propiedad (%)</label>
+                    <input
+                      className="input"
+                      type="number"
+                      min={0}
+                      max={100}
+                      step="any"
+                      {...register(`owners.${idx}.ownership` as const, {
+                        valueAsNumber: true,
+                      })}
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Email</label>
+                    <input
+                      className="input"
+                      type="email"
+                      {...register(`owners.${idx}.email` as const)}
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Teléfono</label>
+                    <input
+                      className="input"
+                      type="tel"
+                      {...register(`owners.${idx}.phone` as const)}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="label">Dirección</label>
+                  <Controller
+                    name={`owners.${idx}.address` as const}
+                    control={control}
+                    render={({ field }) => (
+                      <AddressAutocomplete
+                        placeholder="Escriba y seleccione la dirección"
+                        defaultValue={(field.value as string) ?? ""}
+                        onSelect={(addr) => {
+                          const formatted =
+                            addr.fullAddress ||
+                            [addr.line1, addr.city, addr.state, addr.postalCode, addr.country]
+                              .filter(Boolean)
+                              .join(", ");
+                          field.onChange(formatted);
+                        }}
+                      />
+                    )}
                   />
-                )}
-              />
-            </div>
-          </div>
-        ))}
+                </div>
 
-        {/* footer */}
+                <div className="max-w-sm">
+                  <label className="label">¿Es ciudadano o residente de USA?</label>
+                  <Controller
+                    name={`owners.${idx}.isUsCitizen` as const}
+                    control={control}
+                    render={({ field }) => (
+                      <SegmentedToggle
+                        value={(field.value as string) ?? "No"}
+                        onChange={field.onChange}
+                        options={[
+                          { value: "Yes", label: "Sí" },
+                          { value: "No", label: "No" },
+                        ]}
+                        ariaLabel="Ciudadanía/Residencia USA"
+                        name={field.name}
+                      />
+                    )}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Footer actions */}
         <div className="mt-8 flex items-center justify-between">
           <button type="button" className="btn" onClick={() => setStep(2)}>
             Atrás
           </button>
-          <button type="button" className="btn btn-primary" onClick={() => setStep(4)}>
-            Siguiente
-          </button>
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              className="text-sm text-gray-700 hover:underline"
+              onClick={() => alert("Se guardará como borrador…")}
+            >
+              Guardar y continuar más tarde
+            </button>
+            <button type="button" className="btn btn-primary" onClick={() => setStep(4)}>
+              Continuar
+            </button>
+          </div>
         </div>
       </div>
     </section>
