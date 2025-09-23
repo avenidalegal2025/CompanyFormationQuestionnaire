@@ -3,7 +3,7 @@ import NextAuth from "next-auth";
 import Cognito from "next-auth/providers/cognito";
 import type { JWT } from "next-auth/jwt";
 
-// --- Module augmentation so we can store accessToken without using `any`
+// Augment types so we can stash the access token without `any`
 declare module "next-auth" {
   interface Session {
     accessToken?: string;
@@ -17,27 +17,25 @@ declare module "next-auth/jwt" {
 
 const {
   COGNITO_CLIENT_ID,
-  COGNITO_CLIENT_SECRET, // optional: omit if you created a public client
+  COGNITO_CLIENT_SECRET,  // <-- required
   COGNITO_ISSUER,        // e.g. https://cognito-idp.us-west-1.amazonaws.com/us-west-1_XXXX
   NEXTAUTH_SECRET,
 } = process.env;
 
-if (!COGNITO_CLIENT_ID || !COGNITO_ISSUER || !NEXTAUTH_SECRET) {
+if (!COGNITO_CLIENT_ID || !COGNITO_CLIENT_SECRET || !COGNITO_ISSUER || !NEXTAUTH_SECRET) {
   throw new Error(
-    "Missing env: COGNITO_CLIENT_ID, COGNITO_ISSUER, NEXTAUTH_SECRET must be set."
+    "Missing env: COGNITO_CLIENT_ID, COGNITO_CLIENT_SECRET, COGNITO_ISSUER, NEXTAUTH_SECRET must be set."
   );
 }
 
-// Create the NextAuth instance (no extra exports)
 const auth = NextAuth({
   secret: NEXTAUTH_SECRET,
   session: { strategy: "jwt" },
-  // Optional: send users to our custom sign-in page
   pages: { signIn: "/signin" },
   providers: [
     Cognito({
       clientId: COGNITO_CLIENT_ID,
-      ...(COGNITO_CLIENT_SECRET ? { clientSecret: COGNITO_CLIENT_SECRET } : {}),
+      clientSecret: COGNITO_CLIENT_SECRET,  // pass a definite string
       issuer: COGNITO_ISSUER,
     }),
   ],
@@ -53,6 +51,5 @@ const auth = NextAuth({
   },
 });
 
-// Only export HTTP handlers so the file is a valid Next.js Route
 export const GET = auth.handlers.GET;
 export const POST = auth.handlers.POST;
