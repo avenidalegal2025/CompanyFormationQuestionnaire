@@ -2,8 +2,7 @@
 
 import { Controller, type UseFormReturn } from "react-hook-form";
 import SegmentedToggle from "@/components/SegmentedToggle";
-// IMPORTANT: use relative import so Amplify/Linux resolves it correctly
-import AddressAutocomplete from "../AddressAutocomplete";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 import HeroBanner from "@/components/HeroBanner";
 import { type AllSteps } from "@/lib/schema";
 
@@ -12,20 +11,14 @@ type Props = {
   setStep: (n: number) => void;
 };
 
-type YesNo = "Yes" | "No";
-
 export default function Step4Admin({ form, setStep }: Props) {
   const { control, register, watch } = form;
 
   const entityType = watch("company.entityType");
-
-  // directors / officers (C-Corp)
-  const directorsAllOwners = watch("admin.directorsAllOwners") as YesNo | undefined;
+  const directorsAllOwners = watch("admin.directorsAllOwners");
   const directorsCount = watch("admin.directorsCount") || 1;
-  const officersAllOwners = watch("admin.officersAllOwners") as YesNo | undefined;
-
-  // managers (LLC)
-  const managersAllOwners = watch("admin.managersAllOwners") as YesNo | undefined;
+  const officersAllOwners = watch("admin.officersAllOwners");
+  const managersAllOwners = watch("admin.managersAllOwners");
 
   return (
     <section className="space-y-6">
@@ -39,6 +32,7 @@ export default function Step4Admin({ form, setStep }: Props) {
             : "Configure gerentes de la LLC."}
         </p>
 
+        {/* LLC */}
         {entityType === "LLC" ? (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end mt-6">
@@ -62,7 +56,7 @@ export default function Step4Admin({ form, setStep }: Props) {
                   control={control}
                   render={({ field }) => (
                     <SegmentedToggle
-                      value={(field.value as YesNo | undefined) ?? "No"}
+                      value={field.value || "No"}
                       onChange={field.onChange}
                       options={[
                         { value: "Yes", label: "Sí" },
@@ -90,15 +84,8 @@ export default function Step4Admin({ form, setStep }: Props) {
                     render={({ field }) => (
                       <AddressAutocomplete
                         placeholder="Escriba y seleccione la dirección"
-                        defaultValue={(field.value as string) ?? ""}
-                        onSelect={(addr) => {
-                          const formatted =
-                            addr.fullAddress ||
-                            [addr.line1, addr.city, addr.state, addr.postalCode, addr.country]
-                              .filter(Boolean)
-                              .join(", ");
-                          field.onChange(formatted);
-                        }}
+                        defaultValue={field.value ?? ""}
+                        onSelect={(addr) => field.onChange(addr.fullAddress)}
                       />
                     )}
                   />
@@ -118,7 +105,7 @@ export default function Step4Admin({ form, setStep }: Props) {
                 control={control}
                 render={({ field }) => (
                   <SegmentedToggle
-                    value={(field.value as YesNo | undefined) ?? "Yes"}
+                    value={field.value || "Yes"}
                     onChange={field.onChange}
                     options={[
                       { value: "Yes", label: "Sí" },
@@ -142,10 +129,9 @@ export default function Step4Admin({ form, setStep }: Props) {
                     step={1}
                     {...register("admin.directorsCount", { valueAsNumber: true })}
                   />
-                  <p className="help">Debe elegir al menos un director.</p>
                 </div>
 
-                {Array.from({ length: directorsCount || 0 }).map((_, idx) => (
+                {Array.from({ length: directorsCount }).map((_, idx) => (
                   <div
                     key={idx}
                     className="mt-6 grid grid-cols-1 gap-4 rounded-2xl border border-gray-100 p-4"
@@ -166,15 +152,8 @@ export default function Step4Admin({ form, setStep }: Props) {
                         render={({ field }) => (
                           <AddressAutocomplete
                             placeholder="Escriba y seleccione la dirección"
-                            defaultValue={(field.value as string) ?? ""}
-                            onSelect={(addr) => {
-                              const formatted =
-                                addr.fullAddress ||
-                                [addr.line1, addr.city, addr.state, addr.postalCode, addr.country]
-                                  .filter(Boolean)
-                                  .join(", ");
-                              field.onChange(formatted);
-                            }}
+                            defaultValue={field.value ?? ""}
+                            onSelect={(addr) => field.onChange(addr.fullAddress)}
                           />
                         )}
                       />
@@ -194,7 +173,6 @@ export default function Step4Admin({ form, setStep }: Props) {
                 step={1}
                 {...register("admin.officersCount", { valueAsNumber: true })}
               />
-              <p className="help">Debe elegir al menos un oficial con el rol de Presidente.</p>
             </div>
 
             <div className="mt-6 flex flex-col">
@@ -206,7 +184,7 @@ export default function Step4Admin({ form, setStep }: Props) {
                 control={control}
                 render={({ field }) => (
                   <SegmentedToggle
-                    value={(field.value as YesNo | undefined) ?? "Yes"}
+                    value={field.value || "Yes"}
                     onChange={field.onChange}
                     options={[
                       { value: "Yes", label: "Sí" },
@@ -233,15 +211,8 @@ export default function Step4Admin({ form, setStep }: Props) {
                     render={({ field }) => (
                       <AddressAutocomplete
                         placeholder="Escriba y seleccione la dirección"
-                        defaultValue={(field.value as string) ?? ""}
-                        onSelect={(addr) => {
-                          const formatted =
-                            addr.fullAddress ||
-                            [addr.line1, addr.city, addr.state, addr.postalCode, addr.country]
-                              .filter(Boolean)
-                              .join(", ");
-                          field.onChange(formatted);
-                        }}
+                        defaultValue={field.value ?? ""}
+                        onSelect={(addr) => field.onChange(addr.fullAddress)}
                       />
                     )}
                   />
@@ -256,18 +227,9 @@ export default function Step4Admin({ form, setStep }: Props) {
           <button type="button" className="btn" onClick={() => setStep(3)}>
             Atrás
           </button>
-          <div className="flex items-center gap-4">
-            <button
-              type="button"
-              className="text-sm text-gray-700 hover:underline"
-              onClick={() => alert("Se guardará como borrador…")}
-            >
-              Guardar y continuar más tarde
-            </button>
-            <button type="submit" className="btn btn-primary">
-              Enviar
-            </button>
-          </div>
+          <button type="submit" className="btn btn-primary">
+            Enviar
+          </button>
         </div>
       </div>
     </section>
