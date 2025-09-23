@@ -10,10 +10,13 @@ type Props = {
   setStep: (n: number) => void;
 };
 
+// Helper type for owners
+type Owner = NonNullable<AllSteps["owners"]>[number];
+
 export default function Step3Owners({ form, setStep }: Props) {
   const { control, register, watch, setValue, getValues } = form;
 
-  // Prefer an explicit ownersCount field if you have one; otherwise fall back to owners.length.
+  // Prefer an explicit ownersCount field if present; otherwise fall back to owners.length.
   const owners = (watch("owners") ?? []) as NonNullable<AllSteps["owners"]>;
   const ownersCount =
     ((watch("ownersCount") as number | undefined) ??
@@ -39,24 +42,21 @@ export default function Step3Owners({ form, setStep }: Props) {
               valueAsNumber: true,
               onChange: (e) => {
                 const next = Number(e.target.value || 1);
-                // Ensure owners array has exactly 'next' slots (expand with empty objects if needed)
-                const current = (getValues("owners") ?? []) as any[];
+                const current = (getValues("owners") ?? []) as Owner[];
+
                 if (next > current.length) {
-                  setValue(
-                    "owners",
-                    [
-                      ...current,
-                      ...Array.from({ length: next - current.length }, () => ({
-                        fullName: "",
-                        email: "",
-                        phone: "",
-                        ownership: undefined,
-                        address: "",
-                        isUsCitizen: "No",
-                      })),
-                    ],
-                    { shouldDirty: true }
+                  const blanks: Owner[] = Array.from(
+                    { length: next - current.length },
+                    () => ({
+                      fullName: "",
+                      email: "",
+                      phone: "",
+                      ownership: undefined,
+                      address: "",
+                      isUsCitizen: "No",
+                    })
                   );
+                  setValue("owners", [...current, ...blanks], { shouldDirty: true });
                 } else if (next < current.length) {
                   setValue("owners", current.slice(0, next), { shouldDirty: true });
                 }
