@@ -16,14 +16,20 @@ type Owner = NonNullable<AllSteps["owners"]>[number];
 export default function Step3Owners({ form, setStep }: Props) {
   const { control, register, watch, setValue, getValues } = form;
 
-  // Safely read owners array
+  // Safely read owners array (watch is fine here)
   const owners = (watch("owners") as Owner[] | undefined) ?? [];
 
-  // Safely read ownersCount (number | undefined), then fall back to owners.length, then 1
-  const watchedOwnersCount = watch("ownersCount") as number | undefined;
+  // Read ownersCount in a schema-agnostic way to dodge the RHF typing overloads
+  const ownersCountRaw = getValues("ownersCount" as unknown as keyof AllSteps) as
+    | number
+    | undefined;
+
+  // Final count: prefer a valid ownersCount number; else fall back to owners.length; else 1
   const ownersCount =
-    (typeof watchedOwnersCount === "number" && !Number.isNaN(watchedOwnersCount)
-      ? watchedOwnersCount
+    (typeof ownersCountRaw === "number" &&
+    !Number.isNaN(ownersCountRaw) &&
+    ownersCountRaw > 0
+      ? ownersCountRaw
       : owners.length) || 1;
 
   return (
@@ -34,7 +40,7 @@ export default function Step3Owners({ form, setStep }: Props) {
           Indique los datos de cada propietario/accionista.
         </p>
 
-        {/* Owners count (optional helper) */}
+        {/* Owners count (optional helper to quickly add/remove owner slots) */}
         <div className="mt-4">
           <label className="label">¿Cuántos propietarios?</label>
           <input
@@ -42,7 +48,8 @@ export default function Step3Owners({ form, setStep }: Props) {
             type="number"
             min={1}
             step={1}
-            {...register("ownersCount", {
+            // Keep this registered so the user can edit it; we’ll still compute the UI from ownersCount above
+            {...register("ownersCount" as unknown as keyof AllSteps, {
               valueAsNumber: true,
               onChange: (e) => {
                 const next = Number(e.target.value || 1);
