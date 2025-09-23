@@ -1,23 +1,22 @@
-// src/app/layout.tsx
-import "./globals.css";
 import type { Metadata } from "next";
-import Image from "next/image";
+import "./globals.css";
+import AuthProvider from "@/components/providers/AuthProvider";
 
 export const metadata: Metadata = {
-  title: "Company Formation Questionnaire",
-  description: "Guided onboarding to collect details to open your company.",
+  title: "Avenida Legal — Company Formation Questionnaire",
+  description: "Questionnaire to create your U.S. company.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  // Server component wrapping a client provider is OK in the App Router
   return (
     <html lang="es">
-      <body className="bg-gray-50">
-        <header className="bg-white border-b border-gray-100">
-          <div className="px-4 md:px-8 py-3">
-            <Image src="/logo.png" alt="Avenida Legal" width={160} height={40} priority />
-          </div>
-        </header>
-        {children}
+      <body className="bg-gray-50 text-gray-900 antialiased">
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );
