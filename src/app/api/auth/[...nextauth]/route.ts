@@ -6,7 +6,6 @@ const COGNITO_CLIENT_SECRET = process.env.COGNITO_CLIENT_SECRET!;
 const COGNITO_ISSUER = process.env.COGNITO_ISSUER!; // e.g. https://cognito-idp.<region>.amazonaws.com/<userPoolId>
 
 if (!COGNITO_CLIENT_ID || !COGNITO_CLIENT_SECRET || !COGNITO_ISSUER) {
-  // Fail fast during build if anything is missing
   throw new Error(
     "Missing Cognito env vars. Set COGNITO_CLIENT_ID, COGNITO_CLIENT_SECRET, and COGNITO_ISSUER in Amplify."
   );
@@ -21,12 +20,9 @@ const handler = NextAuth({
       issuer: COGNITO_ISSUER,
     }),
   ],
+  // Keep the default session; no custom fields to avoid `any`
   callbacks: {
-    async session({ session, token }) {
-      if (token?.sub) {
-        // attach user id from token to session if you want
-        (session.user as any).id = token.sub;
-      }
+    async session({ session }) {
       return session;
     },
   },
