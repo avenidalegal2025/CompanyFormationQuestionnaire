@@ -9,7 +9,7 @@ type Props = {
   onChange: (v: string) => void;
   options: (string | Opt)[];
   ariaLabel?: string;
-  name?: string; // optional: if provided, we’ll mirror the value in a hidden input
+  name?: string; // kept for RHF compatibility
 };
 
 export default function SegmentedToggle({
@@ -25,35 +25,35 @@ export default function SegmentedToggle({
 
   const buttonsRef = useRef<Array<HTMLButtonElement | null>>([]);
 
-  const activeIdx = Math.max(
-    0,
-    opts.findIndex((o) => o.value === value)
-  );
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const idx = opts.findIndex((o) => o.value === value);
+    if (idx < 0) return;
 
-  const onKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (e) => {
-    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
-
-    e.preventDefault();
-
-    let next = activeIdx;
-    if (e.key === "ArrowRight") next = (activeIdx + 1) % opts.length;
-    if (e.key === "ArrowLeft") next = (activeIdx - 1 + opts.length) % opts.length;
-    if (e.key === "Home") next = 0;
-    if (e.key === "End") next = opts.length - 1;
-
-    const nextVal = opts[next]?.value;
-    if (nextVal) {
-      onChange(nextVal);
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      e.preventDefault();
+      const next = (idx + 1) % opts.length;
+      onChange(opts[next].value);
       buttonsRef.current[next]?.focus();
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const prev = (idx - 1 + opts.length) % opts.length;
+      onChange(opts[prev].value);
+      buttonsRef.current[prev]?.focus();
     }
   };
 
   return (
-    <div className="inline-flex rounded-2xl border border-gray-300 overflow-hidden" role="radiogroup" aria-label={ariaLabel} onKeyDown={onKeyDown}>
+    <div
+      role="radiogroup"
+      aria-label={ariaLabel}
+      aria-labelledby={name}
+      className="grid grid-cols-2 w-full max-w-sm rounded-2xl border border-gray-300 overflow-hidden"
+      onKeyDown={onKeyDown}
+    >
       {opts.map((opt, idx) => {
         const active = value === opt.value;
         const base =
-          "px-4 py-2 text-sm font-medium text-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500";
+          "px-4 py-2 text-sm font-medium text-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500";
         const colors = active
           ? "bg-brand-600 text-white"
           : "bg-white text-gray-700 hover:bg-gray-50";
@@ -61,10 +61,14 @@ export default function SegmentedToggle({
         return (
           <button
             key={opt.value}
-            ref={(el) => (buttonsRef.current[idx] = el)}
+            ref={(el) => {
+              // IMPORTANT: do not return a value from a ref callback
+              buttonsRef.current[idx] = el;
+            }}
             type="button"
             role="radio"
             aria-checked={active}
+            aria-label={opt.label}
             onClick={() => onChange(opt.value)}
             className={`${base} ${colors}`}
           >
@@ -72,9 +76,6 @@ export default function SegmentedToggle({
           </button>
         );
       })}
-
-      {/* Optional hidden input for RHF forms that want a named field */}
-      {name ? <input type="hidden" name={name} value={value} readOnly /> : null}
     </div>
   );
 }
