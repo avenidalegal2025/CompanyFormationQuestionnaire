@@ -1,8 +1,8 @@
 "use client";
 
-import { Controller, type UseFormReturn } from "react-hook-form";
+import { Controller, type FieldPath, type UseFormReturn } from "react-hook-form";
 import SegmentedToggle from "@/components/SegmentedToggle";
-import AddressAutocomplete from "@/components/AddressAutocomplete";
+import { AddressAutocomplete } from "@/components/AddressAutocomplete";
 import HeroBanner from "@/components/HeroBanner";
 import { type AllSteps } from "@/lib/schema";
 
@@ -11,13 +11,20 @@ type Props = {
   setStep: (n: number) => void;
 };
 
+// Helper caster for dynamic paths
+const fp = (s: string) => s as unknown as FieldPath<AllSteps>;
+
 export default function Step4Admin({ form, setStep }: Props) {
   const { control, register, watch } = form;
 
   const entityType = watch("company.entityType");
+
+  // directors / officers (C-Corp)
   const directorsAllOwners = watch("admin.directorsAllOwners");
   const directorsCount = watch("admin.directorsCount") || 1;
   const officersAllOwners = watch("admin.officersAllOwners");
+
+  // managers (LLC)
   const managersAllOwners = watch("admin.managersAllOwners");
 
   return (
@@ -32,7 +39,6 @@ export default function Step4Admin({ form, setStep }: Props) {
             : "Configure gerentes de la LLC."}
         </p>
 
-        {/* LLC */}
         {entityType === "LLC" ? (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end mt-6">
@@ -52,11 +58,11 @@ export default function Step4Admin({ form, setStep }: Props) {
                   ¿Todos los socios y solo los socios son los gerentes?
                 </label>
                 <Controller
-                  name="admin.managersAllOwners"
+                  name={fp("admin.managersAllOwners")}
                   control={control}
                   render={({ field }) => (
                     <SegmentedToggle
-                      value={field.value || "No"}
+                      value={(field.value as string) ?? "No"}
                       onChange={field.onChange}
                       options={[
                         { value: "Yes", label: "Sí" },
@@ -79,13 +85,20 @@ export default function Step4Admin({ form, setStep }: Props) {
                 <div>
                   <label className="label">Dirección del Gerente 1</label>
                   <Controller
-                    name="admin.manager1Address"
+                    name={fp("admin.manager1Address")}
                     control={control}
                     render={({ field }) => (
                       <AddressAutocomplete
                         placeholder="Escriba y seleccione la dirección"
-                        defaultValue={field.value ?? ""}
-                        onSelect={(addr) => field.onChange(addr.fullAddress)}
+                        defaultValue={(field.value as string) ?? ""}
+                        onSelect={(addr) => {
+                          const formatted =
+                            addr.fullAddress ||
+                            [addr.line1, addr.city, addr.state, addr.postalCode, addr.country]
+                              .filter(Boolean)
+                              .join(", ");
+                          field.onChange(formatted);
+                        }}
                       />
                     )}
                   />
@@ -101,11 +114,11 @@ export default function Step4Admin({ form, setStep }: Props) {
                 ¿Todos los accionistas y solo los accionistas serán los directores?
               </label>
               <Controller
-                name="admin.directorsAllOwners"
+                name={fp("admin.directorsAllOwners")}
                 control={control}
                 render={({ field }) => (
                   <SegmentedToggle
-                    value={field.value || "Yes"}
+                    value={(field.value as string) ?? "Yes"}
                     onChange={field.onChange}
                     options={[
                       { value: "Yes", label: "Sí" },
@@ -129,9 +142,10 @@ export default function Step4Admin({ form, setStep }: Props) {
                     step={1}
                     {...register("admin.directorsCount", { valueAsNumber: true })}
                   />
+                  <p className="help">Debe elegir al menos un director.</p>
                 </div>
 
-                {Array.from({ length: directorsCount }).map((_, idx) => (
+                {Array.from({ length: directorsCount || 0 }).map((_, idx) => (
                   <div
                     key={idx}
                     className="mt-6 grid grid-cols-1 gap-4 rounded-2xl border border-gray-100 p-4"
@@ -147,13 +161,20 @@ export default function Step4Admin({ form, setStep }: Props) {
                     <div>
                       <label className="label">Dirección completa del Director {idx + 1}</label>
                       <Controller
-                        name={`admin.director${idx + 1}Address` as const}
+                        name={fp(`admin.director${idx + 1}Address`)}
                         control={control}
                         render={({ field }) => (
                           <AddressAutocomplete
                             placeholder="Escriba y seleccione la dirección"
-                            defaultValue={field.value ?? ""}
-                            onSelect={(addr) => field.onChange(addr.fullAddress)}
+                            defaultValue={(field.value as string) ?? ""}
+                            onSelect={(addr) => {
+                              const formatted =
+                                addr.fullAddress ||
+                                [addr.line1, addr.city, addr.state, addr.postalCode, addr.country]
+                                  .filter(Boolean)
+                                  .join(", ");
+                              field.onChange(formatted);
+                            }}
                           />
                         )}
                       />
@@ -173,6 +194,7 @@ export default function Step4Admin({ form, setStep }: Props) {
                 step={1}
                 {...register("admin.officersCount", { valueAsNumber: true })}
               />
+              <p className="help">Debe elegir al menos un oficial con el rol de Presidente.</p>
             </div>
 
             <div className="mt-6 flex flex-col">
@@ -180,11 +202,11 @@ export default function Step4Admin({ form, setStep }: Props) {
                 ¿Todos los accionistas y solo los accionistas serán los oficiales?
               </label>
               <Controller
-                name="admin.officersAllOwners"
+                name={fp("admin.officersAllOwners")}
                 control={control}
                 render={({ field }) => (
                   <SegmentedToggle
-                    value={field.value || "Yes"}
+                    value={(field.value as string) ?? "Yes"}
                     onChange={field.onChange}
                     options={[
                       { value: "Yes", label: "Sí" },
@@ -206,13 +228,20 @@ export default function Step4Admin({ form, setStep }: Props) {
                 <div className="w-full">
                   <label className="label">Dirección del Oficial 1</label>
                   <Controller
-                    name="admin.officer1Address"
+                    name={fp("admin.officer1Address")}
                     control={control}
                     render={({ field }) => (
                       <AddressAutocomplete
                         placeholder="Escriba y seleccione la dirección"
-                        defaultValue={field.value ?? ""}
-                        onSelect={(addr) => field.onChange(addr.fullAddress)}
+                        defaultValue={(field.value as string) ?? ""}
+                        onSelect={(addr) => {
+                          const formatted =
+                            addr.fullAddress ||
+                            [addr.line1, addr.city, addr.state, addr.postalCode, addr.country]
+                              .filter(Boolean)
+                              .join(", ");
+                          field.onChange(formatted);
+                        }}
                       />
                     )}
                   />
@@ -227,9 +256,18 @@ export default function Step4Admin({ form, setStep }: Props) {
           <button type="button" className="btn" onClick={() => setStep(3)}>
             Atrás
           </button>
-          <button type="submit" className="btn btn-primary">
-            Enviar
-          </button>
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              className="text-sm text-gray-700 hover:underline"
+              onClick={() => alert("Se guardará como borrador…")}
+            >
+              Guardar y continuar más tarde
+            </button>
+            <button type="submit" className="btn btn-primary">
+              Enviar
+            </button>
+          </div>
         </div>
       </div>
     </section>
