@@ -37,18 +37,19 @@ export default function Step2Company({ form, setStep }: Props) {
     formState: { errors },
   } = form;
 
-  // We only need the base name for the computed full name
+  // ====== Entity type / dynamic suffix ======
+  const entityType = watch("company.entityType");
   const companyNameBase = (watch("company.companyNameBase") || "").toUpperCase();
-  const entityTypeForSuffix = watch("company.entityType");
-  const suffixWord = entityTypeForSuffix === "C-Corp" ? "INC" : "LLC";
+  const suffixWord = entityType === "C-Corp" ? "INC" : "LLC";
 
   // keep the computed name in sync
   useEffect(() => {
     const base = companyNameBase.replace(/\s+(LLC|INC)\.?$/i, "").trim();
     const full = base ? `${base} ${suffixWord}` : "";
     setValue("company.companyName", full, { shouldValidate: true });
-  }, [companyNameBase, entityTypeForSuffix, setValue, suffixWord]);
+  }, [companyNameBase, entityType, setValue, suffixWord]);
 
+  // ====== Toggles ======
   const hasUsaAddress = watch("company.hasUsaAddress");
   const hasUsPhone = watch("company.hasUsPhone");
 
@@ -127,7 +128,9 @@ export default function Step2Company({ form, setStep }: Props) {
                 </option>
               ))}
             </select>
-            <p className="help">{(errors.company?.formationState?.message as unknown as string) || ""}</p>
+            {typeof errors.company?.formationState?.message === "string" && (
+              <p className="help">{errors.company?.formationState?.message}</p>
+            )}
           </div>
 
           <div>
@@ -137,7 +140,8 @@ export default function Step2Company({ form, setStep }: Props) {
               control={control}
               render={({ field }) => (
                 <SegmentedToggle
-                  value={field.value}
+                  // ⬇️ ensure a string is always passed
+                  value={field.value ?? entityTypes[0]}
                   onChange={field.onChange}
                   options={entityTypes.map((v) => ({ value: v, label: v }))}
                   ariaLabel="Tipo de entidad"
@@ -174,7 +178,9 @@ export default function Step2Company({ form, setStep }: Props) {
             </button>
           </div>
           <input type="hidden" {...register("company.companyName")} />
-          <p className="help">{(errors.company?.companyName?.message as unknown as string) || ""}</p>
+          {typeof errors.company?.companyName?.message === "string" && (
+            <p className="help">{errors.company?.companyName?.message}</p>
+          )}
         </div>
 
         {/* Dirección */}
@@ -185,7 +191,7 @@ export default function Step2Company({ form, setStep }: Props) {
             control={control}
             render={({ field }) => (
               <SegmentedToggle
-                value={field.value}
+                value={field.value ?? "No"}
                 onChange={(v) => {
                   field.onChange(v);
                   if (v === "Yes") {
@@ -267,7 +273,7 @@ export default function Step2Company({ form, setStep }: Props) {
             control={control}
             render={({ field }) => (
               <SegmentedToggle
-                value={field.value}
+                value={field.value ?? "No"}
                 onChange={field.onChange}
                 options={[
                   { value: "Yes", label: "Sí" },
