@@ -1,23 +1,35 @@
 import NextAuth from "next-auth";
-import Cognito from "next-auth/providers/cognito";
+import CognitoProvider from "next-auth/providers/cognito";
 
-/**
- * IMPORTANT
- * - These env vars must be set in Amplify (same names, no NEXT_PUBLIC_ prefix):
- *   COGNITO_CLIENT_ID
- *   COGNITO_CLIENT_SECRET
- *   COGNITO_ISSUER   (e.g. https://cognito-idp.<region>.amazonaws.com/<userPoolId>)
- *
- * - Do NOT export anything other than GET and POST from this route file.
- * - This uses NextAuth v5 API shape.
- */
-export const { handlers: { GET, POST } } = NextAuth({
+const COGNITO_CLIENT_ID = process.env.COGNITO_CLIENT_ID!;
+const COGNITO_CLIENT_SECRET = process.env.COGNITO_CLIENT_SECRET!;
+const COGNITO_ISSUER = process.env.COGNITO_ISSUER!; // e.g. https://cognito-idp.<region>.amazonaws.com/<userPoolId>
+
+if (!COGNITO_CLIENT_ID || !COGNITO_CLIENT_SECRET || !COGNITO_ISSUER) {
+  // Fail fast during build if anything is missing
+  throw new Error(
+    "Missing Cognito env vars. Set COGNITO_CLIENT_ID, COGNITO_CLIENT_SECRET, and COGNITO_ISSUER in Amplify."
+  );
+}
+
+const handler = NextAuth({
   pages: { signIn: "/signin" },
   providers: [
-    Cognito({
-      clientId: process.env.COGNITO_CLIENT_ID!,        // non-null assertion for TS
-      clientSecret: process.env.COGNITO_CLIENT_SECRET!,// required by provider types
-      issuer: process.env.COGNITO_ISSUER!,             // e.g. https://cognito-idp.us-east-1.amazonaws.com/us-east-1_XXXXXXXXX
+    CognitoProvider({
+      clientId: COGNITO_CLIENT_ID,
+      clientSecret: COGNITO_CLIENT_SECRET,
+      issuer: COGNITO_ISSUER,
     }),
   ],
+  callbacks: {
+    async session({ session, token }) {
+      if (token?.sub) {
+        // attach user id from token to session if you want
+        (session.user as any).id = token.sub;
+      }
+      return session;
+    },
+  },
 });
+
+export { handler as GET, handler as POST };
