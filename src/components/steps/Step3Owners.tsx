@@ -1,6 +1,6 @@
 "use client";
 
-import { Controller, type UseFormReturn } from "react-hook-form";
+import { Controller, type UseFormReturn, type FieldPath } from "react-hook-form";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import SegmentedToggle from "@/components/SegmentedToggle";
 import { type AllSteps } from "@/lib/schema";
@@ -10,8 +10,9 @@ type Props = {
   setStep: (n: number) => void;
 };
 
-// Helper type for owners
+// Helper type + helper caster for dynamic field paths
 type Owner = NonNullable<AllSteps["owners"]>[number];
+const fp = (s: string) => s as unknown as FieldPath<AllSteps>;
 
 export default function Step3Owners({ form, setStep }: Props) {
   const { control, register, watch, setValue, getValues } = form;
@@ -19,12 +20,11 @@ export default function Step3Owners({ form, setStep }: Props) {
   // Safely read owners array (watch is fine here)
   const owners = (watch("owners") as Owner[] | undefined) ?? [];
 
-  // Read ownersCount in a schema-agnostic way to dodge the RHF typing overloads
+  // Read ownersCount loosely and compute a safe final count
   const ownersCountRaw = getValues("ownersCount" as unknown as keyof AllSteps) as
     | number
     | undefined;
 
-  // Final count: prefer a valid ownersCount number; else fall back to owners.length; else 1
   const ownersCount =
     (typeof ownersCountRaw === "number" &&
     !Number.isNaN(ownersCountRaw) &&
@@ -48,7 +48,6 @@ export default function Step3Owners({ form, setStep }: Props) {
             type="number"
             min={1}
             step={1}
-            // Keep this registered so the user can edit it; we’ll still compute the UI from ownersCount above
             {...register("ownersCount" as unknown as keyof AllSteps, {
               valueAsNumber: true,
               onChange: (e) => {
@@ -131,7 +130,7 @@ export default function Step3Owners({ form, setStep }: Props) {
                 <div>
                   <label className="label">Dirección</label>
                   <Controller
-                    name={`owners.${idx}.address` as const}
+                    name={fp(`owners.${idx}.address`)}
                     control={control}
                     render={({ field }) => (
                       <AddressAutocomplete
@@ -153,7 +152,7 @@ export default function Step3Owners({ form, setStep }: Props) {
                 <div className="max-w-sm">
                   <label className="label">¿Es ciudadano o residente de USA?</label>
                   <Controller
-                    name={`owners.${idx}.isUsCitizen` as const}
+                    name={fp(`owners.${idx}.isUsCitizen`)}
                     control={control}
                     render={({ field }) => (
                       <SegmentedToggle
