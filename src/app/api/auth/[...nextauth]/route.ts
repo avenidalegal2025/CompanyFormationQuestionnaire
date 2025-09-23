@@ -1,22 +1,33 @@
+// src/app/api/auth/[...nextauth]/route.ts
 import NextAuth from "next-auth";
 import CognitoProvider from "next-auth/providers/cognito";
 
-const handler = NextAuth({
+export const authOptions = {
   providers: [
     CognitoProvider({
       clientId: process.env.COGNITO_CLIENT_ID!,
-      clientSecret: process.env.COGNITO_CLIENT_SECRET!,
-      issuer: process.env.COGNITO_ISSUER!, // e.g. https://cognito-idp.us-east-1.amazonaws.com/us-east-1_XXXX
+      clientSecret: process.env.COGNITO_CLIENT_SECRET || "",
+      issuer: process.env.COGNITO_ISSUER,
     }),
   ],
   secret: process.env.NEXTAUTH_SECRET,
-  // Optional callbacks if you want to inspect tokens/sessions
+  session: {
+    strategy: "jwt" as const,
+  },
   callbacks: {
+    async jwt({ token, account }) {
+      if (account) {
+        token.accessToken = account.access_token;
+      }
+      return token;
+    },
     async session({ session, token }) {
-      // you can put token info on session.user if needed
+      (session as any).accessToken = token.accessToken;
       return session;
     },
   },
-});
+};
+
+const handler = NextAuth(authOptions);
 
 export { handler as GET, handler as POST };
