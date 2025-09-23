@@ -1,9 +1,13 @@
 import NextAuth from "next-auth";
 import CognitoProvider from "next-auth/providers/cognito";
 
-const COGNITO_CLIENT_ID = process.env.COGNITO_CLIENT_ID!;
-const COGNITO_CLIENT_SECRET = process.env.COGNITO_CLIENT_SECRET!;
-const COGNITO_ISSUER = process.env.COGNITO_ISSUER!; // e.g. https://cognito-idp.<region>.amazonaws.com/<userPoolId>
+const {
+  COGNITO_CLIENT_ID,
+  COGNITO_CLIENT_SECRET,
+  COGNITO_ISSUER,
+  AUTH_SECRET,
+  NEXTAUTH_SECRET, // fallback if you had this set
+} = process.env;
 
 if (!COGNITO_CLIENT_ID || !COGNITO_CLIENT_SECRET || !COGNITO_ISSUER) {
   throw new Error(
@@ -12,6 +16,8 @@ if (!COGNITO_CLIENT_ID || !COGNITO_CLIENT_SECRET || !COGNITO_ISSUER) {
 }
 
 const handler = NextAuth({
+  // Make the secret explicit so we’re not dependent on a specific env name
+  secret: AUTH_SECRET || NEXTAUTH_SECRET,
   pages: { signIn: "/signin" },
   providers: [
     CognitoProvider({
@@ -20,7 +26,6 @@ const handler = NextAuth({
       issuer: COGNITO_ISSUER,
     }),
   ],
-  // Keep the default session; no custom fields to avoid `any`
   callbacks: {
     async session({ session }) {
       return session;
