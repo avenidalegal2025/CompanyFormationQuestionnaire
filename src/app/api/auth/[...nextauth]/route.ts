@@ -3,7 +3,7 @@ import NextAuth from "next-auth";
 import Cognito from "next-auth/providers/cognito";
 import type { JWT } from "next-auth/jwt";
 
-// Augment types so we can stash the access token without `any`
+// ---- Type augmentation so we can carry the access token without `any`
 declare module "next-auth" {
   interface Session {
     accessToken?: string;
@@ -15,27 +15,29 @@ declare module "next-auth/jwt" {
   }
 }
 
+// ---- Env (required)
 const {
   COGNITO_CLIENT_ID,
-  COGNITO_CLIENT_SECRET,  // <-- required
-  COGNITO_ISSUER,        // e.g. https://cognito-idp.us-west-1.amazonaws.com/us-west-1_XXXX
+  COGNITO_CLIENT_SECRET,
+  COGNITO_ISSUER,   // e.g. https://cognito-idp.us-east-1.amazonaws.com/us-east-1_ABC123
   NEXTAUTH_SECRET,
 } = process.env;
 
 if (!COGNITO_CLIENT_ID || !COGNITO_CLIENT_SECRET || !COGNITO_ISSUER || !NEXTAUTH_SECRET) {
   throw new Error(
-    "Missing env: COGNITO_CLIENT_ID, COGNITO_CLIENT_SECRET, COGNITO_ISSUER, NEXTAUTH_SECRET must be set."
+    "Missing env: COGNITO_CLIENT_ID, COGNITO_CLIENT_SECRET, COGNITO_ISSUER, NEXTAUTH_SECRET."
   );
 }
 
-const auth = NextAuth({
+// ---- Configure NextAuth (v5 style)
+export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: NEXTAUTH_SECRET,
   session: { strategy: "jwt" },
   pages: { signIn: "/signin" },
   providers: [
     Cognito({
       clientId: COGNITO_CLIENT_ID,
-      clientSecret: COGNITO_CLIENT_SECRET,  // pass a definite string
+      clientSecret: COGNITO_CLIENT_SECRET,
       issuer: COGNITO_ISSUER,
     }),
   ],
@@ -51,5 +53,6 @@ const auth = NextAuth({
   },
 });
 
-export const GET = auth.handlers.GET;
-export const POST = auth.handlers.POST;
+// ---- Route exports for the App Router
+export const GET = handlers.GET;
+export const POST = handlers.POST;
