@@ -1,7 +1,7 @@
 "use client";
 
 import { Controller, type Control, type FieldPath } from "react-hook-form";
-import AddressAutocomplete from "./AddressAutocomplete";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 import type { AllSteps } from "@/lib/schema";
 
 type Props = {

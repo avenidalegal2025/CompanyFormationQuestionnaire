@@ -1,9 +1,9 @@
 "use client";
 
-import { Controller, type FieldPath, type UseFormReturn } from "react-hook-form";
-import SegmentedToggle from "@/components/SegmentedToggle";
-import { AddressAutocomplete } from "@/components/AddressAutocomplete";
+import { Controller, type UseFormReturn, type FieldPath } from "react-hook-form";
 import HeroBanner from "@/components/HeroBanner";
+import SegmentedToggle from "@/components/SegmentedToggle";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { type AllSteps } from "@/lib/schema";
 
 type Props = {
@@ -11,7 +11,7 @@ type Props = {
   setStep: (n: number) => void;
 };
 
-// Helper caster for dynamic paths
+// helper for dynamic field paths
 const fp = (s: string) => s as unknown as FieldPath<AllSteps>;
 
 export default function Step4Admin({ form, setStep }: Props) {
@@ -58,7 +58,7 @@ export default function Step4Admin({ form, setStep }: Props) {
                   ¿Todos los socios y solo los socios son los gerentes?
                 </label>
                 <Controller
-                  name={fp("admin.managersAllOwners")}
+                  name="admin.managersAllOwners"
                   control={control}
                   render={({ field }) => (
                     <SegmentedToggle
@@ -85,20 +85,13 @@ export default function Step4Admin({ form, setStep }: Props) {
                 <div>
                   <label className="label">Dirección del Gerente 1</label>
                   <Controller
-                    name={fp("admin.manager1Address")}
+                    name="admin.manager1Address"
                     control={control}
                     render={({ field }) => (
                       <AddressAutocomplete
                         placeholder="Escriba y seleccione la dirección"
                         defaultValue={(field.value as string) ?? ""}
-                        onSelect={(addr) => {
-                          const formatted =
-                            addr.fullAddress ||
-                            [addr.line1, addr.city, addr.state, addr.postalCode, addr.country]
-                              .filter(Boolean)
-                              .join(", ");
-                          field.onChange(formatted);
-                        }}
+                        onSelect={(addr) => field.onChange(addr.fullAddress)}
                       />
                     )}
                   />
@@ -114,7 +107,7 @@ export default function Step4Admin({ form, setStep }: Props) {
                 ¿Todos los accionistas y solo los accionistas serán los directores?
               </label>
               <Controller
-                name={fp("admin.directorsAllOwners")}
+                name="admin.directorsAllOwners"
                 control={control}
                 render={({ field }) => (
                   <SegmentedToggle
@@ -167,14 +160,7 @@ export default function Step4Admin({ form, setStep }: Props) {
                           <AddressAutocomplete
                             placeholder="Escriba y seleccione la dirección"
                             defaultValue={(field.value as string) ?? ""}
-                            onSelect={(addr) => {
-                              const formatted =
-                                addr.fullAddress ||
-                                [addr.line1, addr.city, addr.state, addr.postalCode, addr.country]
-                                  .filter(Boolean)
-                                  .join(", ");
-                              field.onChange(formatted);
-                            }}
+                            onSelect={(addr) => field.onChange(addr.fullAddress)}
                           />
                         )}
                       />
@@ -202,7 +188,7 @@ export default function Step4Admin({ form, setStep }: Props) {
                 ¿Todos los accionistas y solo los accionistas serán los oficiales?
               </label>
               <Controller
-                name={fp("admin.officersAllOwners")}
+                name="admin.officersAllOwners"
                 control={control}
                 render={({ field }) => (
                   <SegmentedToggle
@@ -228,20 +214,13 @@ export default function Step4Admin({ form, setStep }: Props) {
                 <div className="w-full">
                   <label className="label">Dirección del Oficial 1</label>
                   <Controller
-                    name={fp("admin.officer1Address")}
+                    name="admin.officer1Address"
                     control={control}
                     render={({ field }) => (
                       <AddressAutocomplete
                         placeholder="Escriba y seleccione la dirección"
                         defaultValue={(field.value as string) ?? ""}
-                        onSelect={(addr) => {
-                          const formatted =
-                            addr.fullAddress ||
-                            [addr.line1, addr.city, addr.state, addr.postalCode, addr.country]
-                              .filter(Boolean)
-                              .join(", ");
-                          field.onChange(formatted);
-                        }}
+                        onSelect={(addr) => field.onChange(addr.fullAddress)}
                       />
                     )}
                   />
