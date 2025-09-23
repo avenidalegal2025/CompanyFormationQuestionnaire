@@ -128,9 +128,7 @@ export default function Step2Company({ form, setStep }: Props) {
                 </option>
               ))}
             </select>
-            {typeof errors.company?.formationState?.message === "string" && (
-              <p className="help">{errors.company?.formationState?.message}</p>
-            )}
+            <p className="help">{(errors.company?.formationState?.message as unknown as string) || ""}</p>
           </div>
 
           <div>
@@ -140,8 +138,7 @@ export default function Step2Company({ form, setStep }: Props) {
               control={control}
               render={({ field }) => (
                 <SegmentedToggle
-                  // ⬇️ ensure a string is always passed
-                  value={field.value ?? entityTypes[0]}
+                  value={(field.value as string) ?? "LLC"}
                   onChange={field.onChange}
                   options={entityTypes.map((v) => ({ value: v, label: v }))}
                   ariaLabel="Tipo de entidad"
@@ -178,9 +175,7 @@ export default function Step2Company({ form, setStep }: Props) {
             </button>
           </div>
           <input type="hidden" {...register("company.companyName")} />
-          {typeof errors.company?.companyName?.message === "string" && (
-            <p className="help">{errors.company?.companyName?.message}</p>
-          )}
+          <p className="help">{(errors.company?.companyName?.message as unknown as string) || ""}</p>
         </div>
 
         {/* Dirección */}
@@ -191,7 +186,7 @@ export default function Step2Company({ form, setStep }: Props) {
             control={control}
             render={({ field }) => (
               <SegmentedToggle
-                value={field.value ?? "No"}
+                value={(field.value as string) ?? "No"}
                 onChange={(v) => {
                   field.onChange(v);
                   if (v === "Yes") {
@@ -273,7 +268,7 @@ export default function Step2Company({ form, setStep }: Props) {
             control={control}
             render={({ field }) => (
               <SegmentedToggle
-                value={field.value ?? "No"}
+                value={(field.value as string) ?? "No"}
                 onChange={field.onChange}
                 options={[
                   { value: "Yes", label: "Sí" },
@@ -290,7 +285,10 @@ export default function Step2Company({ form, setStep }: Props) {
           <div className="mt-4">
             <label className="label">Número de teléfono (USA)</label>
             <input
-              ref={(el) => (phoneRef.current = el)}
+              ref={(el) => {
+                // FIX: return void, not the element
+                phoneRef.current = el;
+              }}
               className="input"
               inputMode="numeric"
               autoComplete="tel"
