@@ -11,14 +11,13 @@ type Props = {
 };
 
 export default function Step3Owners({ form, setStep }: Props) {
-  const { control, register, watch, setValue } = form;
+  const { control, register, watch, setValue, getValues } = form;
 
   // Prefer an explicit ownersCount field if you have one; otherwise fall back to owners.length.
   const owners = (watch("owners") ?? []) as NonNullable<AllSteps["owners"]>;
   const ownersCount =
-    (watch("ownersCount") as number | undefined) ??
-    (Array.isArray(owners) ? owners.length : 0) ||
-    1;
+    ((watch("ownersCount") as number | undefined) ??
+      (Array.isArray(owners) ? owners.length : 0)) || 1;
 
   return (
     <section className="space-y-6">
@@ -36,13 +35,12 @@ export default function Step3Owners({ form, setStep }: Props) {
             type="number"
             min={1}
             step={1}
-            // If you keep an ownersCount field in your form, uncomment the next line and comment setValue logic below.
             {...register("ownersCount", {
               valueAsNumber: true,
               onChange: (e) => {
                 const next = Number(e.target.value || 1);
                 // Ensure owners array has exactly 'next' slots (expand with empty objects if needed)
-                const current = (form.getValues("owners") ?? []) as any[];
+                const current = (getValues("owners") ?? []) as any[];
                 if (next > current.length) {
                   setValue(
                     "owners",
