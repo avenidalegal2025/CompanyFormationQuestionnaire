@@ -16,11 +16,15 @@ type Owner = NonNullable<AllSteps["owners"]>[number];
 export default function Step3Owners({ form, setStep }: Props) {
   const { control, register, watch, setValue, getValues } = form;
 
-  // Prefer an explicit ownersCount field if present; otherwise fall back to owners.length.
-  const owners = (watch("owners") ?? []) as NonNullable<AllSteps["owners"]>;
+  // Safely read owners array
+  const owners = (watch("owners") as Owner[] | undefined) ?? [];
+
+  // Safely read ownersCount (number | undefined), then fall back to owners.length, then 1
+  const watchedOwnersCount = watch("ownersCount") as number | undefined;
   const ownersCount =
-    ((watch("ownersCount") as number | undefined) ??
-      (Array.isArray(owners) ? owners.length : 0)) || 1;
+    (typeof watchedOwnersCount === "number" && !Number.isNaN(watchedOwnersCount)
+      ? watchedOwnersCount
+      : owners.length) || 1;
 
   return (
     <section className="space-y-6">
