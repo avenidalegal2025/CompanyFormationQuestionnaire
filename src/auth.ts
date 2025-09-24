@@ -1,47 +1,35 @@
-// src/auth.ts
-import NextAuth from "next-auth";
-import Cognito from "next-auth/providers/cognito";
+import NextAuth, { AuthOptions } from "next-auth";
+import Auth0Provider from "next-auth/providers/auth0";
 
-const {
-  COGNITO_CLIENT_ID = "",
-  COGNITO_CLIENT_SECRET,
-  COGNITO_DOMAIN = "",
-  // Either issuer OR wellKnown work. Using wellKnown (Hosted UI) is the least error-prone.
-  // COGNITO_ISSUER can remain in Amplify; not required when using wellKnown.
-} = process.env;
-
-export const {
-  handlers,   // { GET, POST }
-  auth,
-  signIn,
-  signOut,
-} = NextAuth({
-  // Make prod behind Amplify proxies just work:
-  trustHost: true,
-
-  // If you prefer JWTs (no database):
+// ⚠️ Ensure these are set in Vercel → Project Settings → Environment Variables
+const authOptions: AuthOptions = {
   session: { strategy: "jwt" },
 
-  // Our only provider: Cognito
   providers: [
-    Cognito({
-      clientId: COGNITO_CLIENT_ID,
-      // If your Cognito App Client has a secret, include it; otherwise remove this line.
-      // Type is fine when undefined in Auth.js v5.
-      clientSecret: COGNITO_CLIENT_SECRET,
-      // Use wellKnown endpoint based on Hosted UI domain
-      wellKnown: `${COGNITO_DOMAIN}/.well-known/openid-configuration`,
-      // If you prefer issuer style instead, you can switch to:
-      // issuer: process.env.COGNITO_ISSUER, // e.g. https://cognito-idp.us-west-1.amazonaws.com/us-west-1_XXXX
-      checks: ["pkce", "state"], // good defaults
+    Auth0Provider({
+      clientId: process.env.AUTH0_CLIENT_ID!,
+      clientSecret: process.env.AUTH0_CLIENT_SECRET!,
+      issuer: process.env.AUTH0_ISSUER, // e.g. https://your-tenant.us.auth0.com
     }),
   ],
 
-  // Send users to our custom sign-in page
-  pages: {
-    signIn: "/signin",
-  },
+  callbacks: {
+    async jwt({ token, account, profile }) {
+      // Add custom claims if needed
+      if (account) {
+        token.accessToken = account.access_token;
+      }
+      return token;
+    },
 
-  // (Optional) turn on debug temporarily if you need more logs
-  // debug: process.env.NODE_ENV !== "production",
-});
+    async session({ session, token }) {
+      if (token?.accessToken) {
+        (session as any).accessToken = token.accessToken;
+      }
+      return session;
+    },
+  },
+};
+
+// Export for NextAuth App Router
+export const { handlers, signIn, signOut, auth } = NextAuth(authOptions);
