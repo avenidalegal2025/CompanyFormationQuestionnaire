@@ -1,23 +1,17 @@
 import NextAuth from "next-auth";
 import CognitoProvider from "next-auth/providers/cognito";
 
-const {
-  COGNITO_CLIENT_ID,
-  COGNITO_CLIENT_SECRET,
-  COGNITO_ISSUER,
-  AUTH_SECRET,
-  NEXTAUTH_SECRET, // fallback if you had this set
-} = process.env;
+const COGNITO_CLIENT_ID = process.env.COGNITO_CLIENT_ID!;
+const COGNITO_CLIENT_SECRET = process.env.COGNITO_CLIENT_SECRET!;
+const COGNITO_ISSUER = process.env.COGNITO_ISSUER!;
+const AUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
 
-if (!COGNITO_CLIENT_ID || !COGNITO_CLIENT_SECRET || !COGNITO_ISSUER) {
-  throw new Error(
-    "Missing Cognito env vars. Set COGNITO_CLIENT_ID, COGNITO_CLIENT_SECRET, and COGNITO_ISSUER in Amplify."
-  );
+if (!COGNITO_CLIENT_ID || !COGNITO_CLIENT_SECRET || !COGNITO_ISSUER || !AUTH_SECRET) {
+  throw new Error("Missing Cognito or NextAuth env vars.");
 }
 
 const handler = NextAuth({
-  // Make the secret explicit so we’re not dependent on a specific env name
-  secret: AUTH_SECRET || NEXTAUTH_SECRET,
+  secret: AUTH_SECRET,
   pages: { signIn: "/signin" },
   providers: [
     CognitoProvider({
