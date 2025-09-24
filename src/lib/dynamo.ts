@@ -2,19 +2,24 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 
-// Use region from env or default
-const REGION = process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || "us-east-1";
+export const TABLE_NAME =
+  process.env.DDB_TABLE_NAME || "Company_Creation_Questionaire_Avenida_Legal";
 
-// Create DynamoDB client
-const base = new DynamoDBClient({ region: REGION });
+// Prefer the region from env; default to us-east-1 if not set
+const REGION = process.env.AWS_REGION || "us-east-1";
 
-// DocumentClient wrapper for easier JSON use
-export const ddb = DynamoDBDocumentClient.from(base, {
-  marshallOptions: { removeUndefinedValues: true, convertClassInstanceToMap: true },
-  unmarshallOptions: { wrapNumbers: false },
+// The AWS SDK will automatically use the usual env vars if present:
+// AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN (optional)
+// On Vercel, set those in Project Settings → Environment Variables.
+const client = new DynamoDBClient({
+  region: REGION,
 });
 
-// Hard-coded table name for now
-export const TABLE_NAME = "Company_Creation_Questionaire_Avenida_Legal";
-// If you prefer env-based, swap to:
-// export const TABLE_NAME = process.env.DDB_TABLE || "Company_Creation_Questionaire_Avenida_Legal";
+export const ddb = DynamoDBDocumentClient.from(client, {
+  marshallOptions: {
+    // keep undefined out of items
+    removeUndefinedValues: true,
+    // leave numbers as numbers (don’t stringify)
+    convertClassInstanceToMap: true,
+  },
+});
