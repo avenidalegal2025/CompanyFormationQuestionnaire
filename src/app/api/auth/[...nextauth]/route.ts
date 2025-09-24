@@ -1,34 +1,34 @@
 import NextAuth from "next-auth";
-import CognitoProvider from "next-auth/providers/cognito";
+import Auth0Provider from "next-auth/providers/auth0";
 
-const clientId = process.env.COGNITO_CLIENT_ID!;
-const clientSecret = process.env.COGNITO_CLIENT_SECRET!;
-const issuer = process.env.COGNITO_ISSUER!;
-const authSecret = process.env.AUTH_SECRET;
-const nextAuthUrl = process.env.NEXTAUTH_URL;
+const clientId = process.env.AUTH0_CLIENT_ID!;
+const clientSecret = process.env.AUTH0_CLIENT_SECRET!;
+const issuer = process.env.AUTH0_ISSUER!; // e.g. https://your-tenant.us.auth0.com
+const secret = process.env.AUTH_SECRET!;
 
-if (!clientId || !clientSecret || !issuer) {
-  console.error("Missing Cognito env vars", {
-    clientId: !!clientId,
-    clientSecret: !!clientSecret,
-    issuer: !!issuer,
+if (!clientId || !clientSecret || !issuer || !secret) {
+  console.error("Missing Auth0 env vars", {
+    AUTH0_CLIENT_ID: !!clientId,
+    AUTH0_CLIENT_SECRET: !!clientSecret,
+    AUTH0_ISSUER: !!issuer,
+    AUTH_SECRET: !!secret,
   });
-  throw new Error("Missing Cognito environment variables");
+  throw new Error("Missing Auth0 environment variables");
 }
 
 const handler = NextAuth({
-  secret: authSecret,
+  secret,
+  pages: { signIn: "/signin" },
   providers: [
-    CognitoProvider({
+    Auth0Provider({
       clientId,
       clientSecret,
       issuer,
     }),
   ],
-  pages: { signIn: "/signin" },
   callbacks: {
     async session({ session }) {
-      return session;
+      return session; // default session is fine
     },
   },
 });
