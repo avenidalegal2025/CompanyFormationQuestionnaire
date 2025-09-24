@@ -3,8 +3,6 @@ frontend:
   phases:
     preBuild:
       commands:
-        - nvm install 20
-        - node -v
         - npm ci --cache .npm --prefer-offline
     build:
       commands:
@@ -15,5 +13,20 @@ frontend:
       - '**/*'
   cache:
     paths:
-      - .npm/**/*
-      - node_modules/**/*
+      - '.next/cache/**/*'
+      - '.npm/**/*'
+  environment:
+    # ---- expose these to the SSR runtime ----
+    AUTH_SECRET: ${AUTH_SECRET}
+    AUTH_TRUST_HOST: ${AUTH_TRUST_HOST}
+    NEXTAUTH_URL: ${NEXTAUTH_URL}
+
+    COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID}
+    COGNITO_CLIENT_SECRET: ${COGNITO_CLIENT_SECRET}
+    COGNITO_ISSUER: ${COGNITO_ISSUER}
+    COGNITO_DOMAIN: ${COGNITO_DOMAIN}
+    COGNITO_REGION: ${COGNITO_REGION}
+    COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID}
+
+    # any other public/server vars you rely on:
+    NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
