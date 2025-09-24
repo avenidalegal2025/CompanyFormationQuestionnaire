@@ -1,10 +1,11 @@
-import NextAuth, { AuthOptions } from "next-auth";
+import NextAuth, { type AuthOptions } from "next-auth";
 import Auth0Provider from "next-auth/providers/auth0";
 
-// ⚠️ Ensure these are set in Vercel → Project Settings → Environment Variables
 const authOptions: AuthOptions = {
+  // Use stateless JWT sessions (no DB needed)
   session: { strategy: "jwt" },
 
+  // Auth0 (socials like Google/Microsoft can be enabled inside Auth0)
   providers: [
     Auth0Provider({
       clientId: process.env.AUTH0_CLIENT_ID!,
@@ -14,22 +15,19 @@ const authOptions: AuthOptions = {
   ],
 
   callbacks: {
-    async jwt({ token, account, profile }) {
-      // Add custom claims if needed
-      if (account) {
-        token.accessToken = account.access_token;
+    // Store provider access token in the JWT (optional, safe typing)
+    async jwt({ token, account }) {
+      if (account?.access_token) {
+        (token as Record<string, unknown>).accessToken = account.access_token;
       }
       return token;
     },
 
-    async session({ session, token }) {
-      if (token?.accessToken) {
-        (session as any).accessToken = token.accessToken;
-      }
+    // Keep session shape default to avoid `any` typing issues
+    async session({ session }) {
       return session;
     },
   },
 };
 
-// Export for NextAuth App Router
 export const { handlers, signIn, signOut, auth } = NextAuth(authOptions);
