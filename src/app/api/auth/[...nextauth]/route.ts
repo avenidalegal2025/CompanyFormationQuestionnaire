@@ -4,9 +4,11 @@ import CognitoProvider from "next-auth/providers/cognito";
 const clientId = process.env.COGNITO_CLIENT_ID!;
 const clientSecret = process.env.COGNITO_CLIENT_SECRET!;
 const issuer = process.env.COGNITO_ISSUER!;
+const authSecret = process.env.AUTH_SECRET;
+const nextAuthUrl = process.env.NEXTAUTH_URL;
 
 if (!clientId || !clientSecret || !issuer) {
-  console.error("❌ Missing Cognito env vars", {
+  console.error("Missing Cognito env vars", {
     clientId: !!clientId,
     clientSecret: !!clientSecret,
     issuer: !!issuer,
@@ -15,7 +17,7 @@ if (!clientId || !clientSecret || !issuer) {
 }
 
 const handler = NextAuth({
-  pages: { signIn: "/signin" },
+  secret: authSecret,
   providers: [
     CognitoProvider({
       clientId,
@@ -23,6 +25,7 @@ const handler = NextAuth({
       issuer,
     }),
   ],
+  pages: { signIn: "/signin" },
   callbacks: {
     async session({ session }) {
       return session;
