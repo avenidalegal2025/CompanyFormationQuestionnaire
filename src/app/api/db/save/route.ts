@@ -4,26 +4,39 @@ import { PutCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb } from "@/lib/dynamo";
 import { randomUUID } from "crypto";
 
+type SaveRequestBody = {
+  data?: unknown;   // questionnaire payload (any JSON)
+  id?: string;      // optional existing id if you later support updates
+};
+
+function errMsg(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return String(err);
+  }
+}
+
 export async function POST(req: Request) {
   try {
-    const body = await req.json(); // parse request
-    const { data } = body;
+    const body = (await req.json()) as SaveRequestBody;
 
-    if (!data) {
+    if (!body || typeof body !== "object" || body.data == null) {
       return NextResponse.json(
-        { ok: false, error: "Missing data in request body" },
+        { ok: false, error: "Missing `data` in request body" },
         { status: 400 }
       );
     }
 
-    const id = randomUUID();
+    const id = body.id ?? randomUUID();
     const now = new Date().toISOString();
 
     const item = {
       id,
-      pk: "ANON",
+      pk: "ANON",            // swap to user id once you wire auth
       sk: `DRAFT#${id}`,
-      data,
+      data: body.data,       // store the JSON as-is
       updatedAt: now,
     };
 
@@ -35,10 +48,10 @@ export async function POST(req: Request) {
     );
 
     return NextResponse.json({ ok: true, ...item });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Save route error:", err);
     return NextResponse.json(
-      { ok: false, error: err.message || "Unknown error" },
+      { ok: false, error: errMsg(err) },
       { status: 500 }
     );
   }
