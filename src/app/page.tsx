@@ -2,28 +2,17 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
-import { useSession } from "next-auth/react";
-
 import Step1Profile from "@/components/steps/Step1Profile";
 import Step2Company from "@/components/steps/Step2Company";
 import Step3Owners from "@/components/steps/Step3Owners";
 import Step4Admin from "@/components/steps/Step4Admin";
 import ProgressSidebar, { type ProgressItem } from "@/components/ProgressSidebar";
-
 import type { AllSteps } from "@/lib/schema";
 import { saveDraft, loadDraft } from "@/lib/drafts";
 
+type SaveState = "idle" | "saving" | "saved" | "error";
+
 export default function Page() {
-  const { data: session, status } = useSession();
-  const [step, setStep] = useState(1);
-  const totalSteps = 4;
-
-  // Stable per-user draft id (email preferred, fallback to sub)
-  const draftId = useMemo(() => {
-    const u = session?.user as any;
-    return (u?.email as string) || (u?.id as string) || (u?.sub as string) || "";
-  }, [session]);
-
   const form = useForm<AllSteps>({
     defaultValues: {
       profile: {},
@@ -33,74 +22,91 @@ export default function Page() {
       banking: {},
       attachments: {},
     },
-    mode: "onChange",
   });
 
-  const items: ProgressItem[] = [
-    { key: "step1", label: "Tu perfil",        status: step === 1 ? "active" : step > 1 ? "done" : "todo" },
-    { key: "step2", label: "Empresa",          status: step === 2 ? "active" : step > 2 ? "done" : "todo" },
-    { key: "step3", label: "Propietarios",     status: step === 3 ? "active" : step > 3 ? "done" : "todo" },
-    { key: "step4", label: "Administrativo",   status: step === 4 ? "active" : step > 4 ? "done" : "todo" },
-  ];
+  const [step, setStep] = useState<number>(1);
+  const totalSteps = 4;
 
-  // Load any existing draft on mount
+  // persistent draft id (stored in localStorage)
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  // progress sidebar items
+  const items: ProgressItem[] = useMemo(
+    () => [
+      { key: "step1", label: "Tu perfil",        status: step === 1 ? "active" : step > 1 ? "done" : "todo" },
+      { key: "step2", label: "Empresa",          status: step === 2 ? "active" : step > 2 ? "done" : "todo" },
+      { key: "step3", label: "Propietarios",     status: step === 3 ? "active" : step > 3 ? "done" : "todo" },
+      { key: "step4", label: "Administrativo",   status: step === 4 ? "active" : "todo" },
+    ],
+    [step]
+  );
+
+  // Load existing draft on first mount (if any)
   useEffect(() => {
-    if (!draftId) return; // not logged in yet
-    loadDraft(draftId)
-      .then((res) => {
+    const stored = typeof window !== "undefined" ? window.localStorage.getItem("draftId") : null;
+    if (!stored) return;
+
+    (async () => {
+      try {
+        const res = await loadDraft(stored);
         if (res.item?.data) {
           form.reset(res.item.data);
-          // Optional: jump to last step user was on, if you store it
-          // setStep(res.item.data?.__meta?.lastStep ?? 1);
+          setDraftId(res.item.id);
         }
-      })
-      .catch((err) => {
-        // No draft yet is fine—avoid noisy alerts
-        console.debug("No existing draft to load:", err?.message || err);
-      });
-  }, [draftId, form]);
-
-  // Auto-save every 30s (only when logged in)
-  useEffect(() => {
-    if (!draftId) return;
-    const interval = setInterval(() => {
-      const values = form.getValues();
-      saveDraft(draftId, values).catch((err) =>
-        console.error("Auto-save failed:", err)
-      );
-    }, 30_000);
-    return () => clearInterval(interval);
-  }, [draftId, form]);
-
-  async function handleSave(nextStep?: number) {
-    try {
-      if (!draftId) {
-        alert("Debes iniciar sesión antes de guardar.");
-        return;
+      } catch (err) {
+        setLoadError(err instanceof Error ? err.message : String(err));
       }
-      const values = form.getValues();
-      await saveDraft(draftId, values);
-      if (typeof nextStep === "number") setStep(nextStep);
-      // Tiny toast/notification
-      console.log("Draft saved");
-    } catch (err: any) {
-      console.error(err);
-      alert(`No se pudo guardar: ${err?.message || String(err)}`);
-    }
-  }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Gate UI until session is known to avoid firing fetches while logged-out
-  if (status === "loading") {
-    return <div className="p-6">Cargando…</div>;
-  }
-  if (!draftId) {
-    // You said middleware already forces login; this is just a friendly fallback
-    return (
-      <div className="p-6">
-        Debes iniciar sesión para continuar.
-      </div>
-    );
-  }
+  // Save helper (returns the draft id)
+  const doSave = async (): Promise<string> => {
+    setSaveState("saving");
+    const data = form.getValues();
+    const result = await saveDraft(draftId, data);
+    setSaveState("saved");
+    setLastSavedAt(Date.now());
+    if (!draftId || result.id !== draftId) {
+      setDraftId(result.id);
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("draftId", result.id);
+      }
+    }
+    return result.id;
+  };
+
+  // Autosave every 30s
+  useEffect(() => {
+    const id: number = window.setInterval(() => {
+      // avoid autosave spam right after a manual save
+      if (saveState === "saving") return;
+      doSave().catch(() => setSaveState("error"));
+    }, 30_000);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftId, form, saveState]);
+
+  // Button handlers
+  const onGuardarYContinuar = async () => {
+    try {
+      await doSave();
+    } catch {
+      setSaveState("error");
+    }
+  };
+
+  const onContinuar = async () => {
+    try {
+      await doSave();
+      setStep((s) => Math.min(totalSteps, s + 1));
+    } catch {
+      setSaveState("error");
+    }
+  };
 
   return (
     <div className="flex min-h-screen">
@@ -111,46 +117,64 @@ export default function Page() {
 
       {/* Main content */}
       <main className="flex-1 p-6">
+        {/* tiny status bar */}
+        <div className="mb-4 text-xs text-gray-500">
+          {loadError && <span className="text-red-600">Error al cargar: {loadError}</span>}
+          {!loadError && (
+            <>
+              <span>ID del borrador: {draftId ?? "nuevo"}</span>
+              {" • "}
+              <span>
+                estado:{" "}
+                {saveState === "idle" && "inactivo"}
+                {saveState === "saving" && "guardando…"}
+                {saveState === "saved" && (lastSavedAt ? `guardado ${new Date(lastSavedAt).toLocaleTimeString()}` : "guardado")}
+                {saveState === "error" && <span className="text-red-600">error</span>}
+              </span>
+            </>
+          )}
+        </div>
+
         <form
-          onSubmit={form.handleSubmit(async (data) => {
-            await saveDraft(draftId, data);
-            alert("Guardado final");
-            // …then navigate to review/checkout, etc.
-          })}
+          onSubmit={(e) => {
+            e.preventDefault();
+            // final submit could also do a doSave() and then route to a review page
+            void onContinuar();
+          }}
           className="space-y-6"
         >
-          {step === 1 && <Step1Profile form={form} setStep={setStep} />}
-          {step === 2 && <Step2Company form={form} setStep={setStep} />}
-          {step === 3 && <Step3Owners form={form} setStep={setStep} />}
-          {step === 4 && <Step4Admin form={form} setStep={setStep} />}
-
-          {/* Footer actions */}
-          <div className="mt-6 flex gap-3">
-            <button
-              type="button"
-              onClick={() => handleSave()} // stay on same step
-              className="rounded-lg border px-4 py-2"
-            >
-              Guardar y continuar después
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleSave(Math.min(step + 1, totalSteps))}
-              className="rounded-lg bg-brand-600 text-white px-4 py-2"
-            >
-              Continuar
-            </button>
-
-            {step === totalSteps && (
-              <button
-                type="submit"
-                className="ml-auto rounded-lg bg-black text-white px-4 py-2"
-              >
-                Enviar
-              </button>
-            )}
-          </div>
+          {step === 1 && (
+            <Step1Profile
+              form={form}
+              setStep={setStep}
+              onSave={onGuardarYContinuar}
+              onNext={onContinuar}
+            />
+          )}
+          {step === 2 && (
+            <Step2Company
+              form={form}
+              setStep={setStep}
+              onSave={onGuardarYContinuar}
+              onNext={onContinuar}
+            />
+          )}
+          {step === 3 && (
+            <Step3Owners
+              form={form}
+              setStep={setStep}
+              onSave={onGuardarYContinuar}
+              onNext={onContinuar}
+            />
+          )}
+          {step === 4 && (
+            <Step4Admin
+              form={form}
+              setStep={setStep}
+              onSave={onGuardarYContinuar}
+              onNext={onContinuar}
+            />
+          )}
         </form>
       </main>
     </div>
