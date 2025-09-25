@@ -1,73 +1,51 @@
-import { NextResponse } from "next/server";
-import { PutCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
-import { randomUUID } from "crypto";
-import { ddb, TABLE_NAME } from "@/lib/dynamo";
-import { auth } from "@/auth";
-import type { Session } from "next-auth";
+import { NextRequest, NextResponse } from "next/server";
+import { PutCommand } from "@aws-sdk/lib-dynamodb";
+import { ddbDoc } from "@/lib/dynamo"; // our DynamoDB client
 
-type SaveBody = {
-  draftId?: string;
-  data?: unknown;
-};
-
-type IdLike = { id?: string; sub?: string };
-
-function getUserId(session: Session): string {
-  const email = session.user?.email ?? undefined;
-  const idFields = (session.user as IdLike) || {};
-  return email ?? idFields.id ?? idFields.sub ?? "anonymous";
+// Define the payload type
+interface SaveRequest {
+  data: Record<string, unknown>;
+  pk?: string;
+  sk?: string;
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session) {
-      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    const body = (await req.json()) as SaveRequest;
+
+    if (!body.data) {
+      return NextResponse.json(
+        { ok: false, error: "Missing 'data' in request body" },
+        { status: 400 }
+      );
     }
 
-    const body = (await req.json().catch(() => ({}))) as SaveBody;
-    const incomingDraftId = (body.draftId ?? "").trim();
-    const draftId = incomingDraftId.length > 0 ? incomingDraftId : randomUUID();
-    const data = body.data ?? {};
+    // Auto-generate keys if not provided
+    const pk = body.pk ?? "user#demo"; // replace later with Auth0 user id
+    const sk = body.sk ?? "draft";
 
-    const userId = getUserId(session);
     const now = new Date().toISOString();
 
-    const pk = `user#${userId}`;
-    const sk = `draft#${draftId}`;
+    const item = {
+      pk,
+      sk,
+      data: body.data,
+      updatedAt: now,
+    };
 
-    // Preserve createdAt if updating an existing draft
-    let createdAt = now;
-    const existing = await ddb.send(
-      new GetCommand({
-        TableName: TABLE_NAME,
-        Key: { pk, sk },
-        ProjectionExpression: "#ca",
-        ExpressionAttributeNames: { "#ca": "createdAt" },
-      })
-    );
-    if (existing.Item && typeof existing.Item.createdAt === "string") {
-      createdAt = existing.Item.createdAt;
-    }
-
-    await ddb.send(
+    await ddbDoc.send(
       new PutCommand({
-        TableName: TABLE_NAME,
-        Item: {
-          pk,
-          sk,
-          owner: userId,
-          draftId,
-          data,
-          createdAt,
-          updatedAt: now,
-        },
+        TableName: process.env.DYNAMO_TABLE_NAME!,
+        Item: item,
       })
     );
 
-    return NextResponse.json({ ok: true, draftId, updatedAt: now });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return NextResponse.json({ ok: true, item });
+  } catch (err: any) {
+    console.error("Save error:", err);
+    return NextResponse.json(
+      { ok: false, error: err.message ?? "Unknown error" },
+      { status: 500 }
+    );
   }
 }
