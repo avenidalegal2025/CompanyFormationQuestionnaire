@@ -2,11 +2,14 @@ import { NextResponse } from "next/server";
 import { GetCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, TABLE_NAME } from "@/lib/dynamo";
 import { auth } from "@/auth";
+import type { Session } from "next-auth";
 
-function getUserId(session: any) {
-  const email = session?.user?.email as string | undefined;
-  const sub = (session as any)?.user?.id || (session as any)?.user?.sub;
-  return email ?? sub ?? "anonymous";
+type IdLike = { id?: string; sub?: string };
+
+function getUserId(session: Session): string {
+  const email = session.user?.email ?? undefined;
+  const idFields = (session.user as IdLike) || {};
+  return email ?? idFields.id ?? idFields.sub ?? "anonymous";
 }
 
 export async function GET(req: Request) {
@@ -38,7 +41,7 @@ export async function GET(req: Request) {
     }
 
     return NextResponse.json({ ok: true, item: res.Item });
-  } catch (err: unknown) {
+  } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
