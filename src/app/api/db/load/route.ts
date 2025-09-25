@@ -1,48 +1,58 @@
-import { NextResponse } from "next/server";
+// src/app/api/db/load/route.ts
+import { NextRequest, NextResponse } from "next/server";
 import { GetCommand } from "@aws-sdk/lib-dynamodb";
-import { ddb, TABLE_NAME } from "@/lib/dynamo";
-import { auth } from "@/auth";
-import type { Session } from "next-auth";
+import { ddbDoc } from "@/lib/dynamo";
 
-type IdLike = { id?: string; sub?: string };
+export const runtime = "nodejs";
 
-function getUserId(session: Session): string {
-  const email = session.user?.email ?? undefined;
-  const idFields = (session.user as IdLike) || {};
-  return email ?? idFields.id ?? idFields.sub ?? "anonymous";
-}
+const TABLE = process.env.DYNAMO_TABLE;
 
-export async function GET(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session) {
-      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    if (!TABLE) {
+      return NextResponse.json(
+        { ok: false, error: "Missing DYNAMO_TABLE env var" },
+        { status: 500 }
+      );
     }
 
-    const { searchParams } = new URL(req.url);
-    const draftId = (searchParams.get("draftId") || "").trim();
-    if (!draftId) {
-      return NextResponse.json({ ok: false, error: "Missing draftId" }, { status: 400 });
+    const bodyUnknown = await req.json();
+    if (typeof bodyUnknown !== "object" || bodyUnknown === null) {
+      return NextResponse.json(
+        { ok: false, error: "Body must be a JSON object" },
+        { status: 400 }
+      );
     }
 
-    const userId = getUserId(session);
-    const pk = `user#${userId}`;
-    const sk = `draft#${draftId}`;
+    const { id, userId } = bodyUnknown as { id?: string; userId?: string };
+    if (!id) {
+      return NextResponse.json(
+        { ok: false, error: "`id` is required" },
+        { status: 400 }
+      );
+    }
 
-    const res = await ddb.send(
+    const pk = userId ? `USER#${userId}` : "ANON";
+    const sk = `DRAFT#${id}`;
+
+    const res = await ddbDoc.send(
       new GetCommand({
-        TableName: TABLE_NAME,
+        TableName: TABLE,
         Key: { pk, sk },
       })
     );
 
     if (!res.Item) {
-      return NextResponse.json({ ok: false, error: "Draft not found" }, { status: 404 });
+      return NextResponse.json(
+        { ok: false, error: "Not found", id, pk, sk },
+        { status: 404 }
+      );
     }
 
     return NextResponse.json({ ok: true, item: res.Item });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+  } catch (err: unknown) {
+    const message =
+      err instanceof Error ? `${err.name}: ${err.message}` : "Unknown error";
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }
