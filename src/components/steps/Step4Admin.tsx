@@ -1,20 +1,17 @@
+// src/components/steps/Step4Admin.tsx
 "use client";
 
-import { Controller, type UseFormReturn, type FieldPath } from "react-hook-form";
+import { Controller, type FieldPath } from "react-hook-form";
 import HeroBanner from "@/components/HeroBanner";
 import SegmentedToggle from "@/components/SegmentedToggle";
-import AddressAutocomplete from "@/components/AddressAutocomplete";
-import { type AllSteps } from "@/lib/schema";
-
-type Props = {
-  form: UseFormReturn<AllSteps>;
-  setStep: (n: number) => void;
-};
+import AddressAutocomplete from "@/components/AddressAutocomplete"; // default import ✅
+import type { AllSteps } from "@/lib/schema";
+import type { StepProps } from "./types";
 
 // helper for dynamic field paths
 const fp = (s: string) => s as unknown as FieldPath<AllSteps>;
 
-export default function Step4Admin({ form, setStep }: Props) {
+export default function Step4Admin({ form, setStep, onSave, onNext }: StepProps) {
   const { control, register, watch } = form;
 
   const entityType = watch("company.entityType");
@@ -80,7 +77,7 @@ export default function Step4Admin({ form, setStep }: Props) {
               <div className="mt-6 grid grid-cols-1 gap-4">
                 <div>
                   <label className="label">Nombre completo del Gerente 1</label>
-                  <input className="input w-full" {...register("admin.manager1Name")} />
+                  <input className="input w/full" {...register("admin.manager1Name")} />
                 </div>
                 <div>
                   <label className="label">Dirección del Gerente 1</label>
@@ -239,11 +236,15 @@ export default function Step4Admin({ form, setStep }: Props) {
             <button
               type="button"
               className="text-sm text-gray-700 hover:underline"
-              onClick={() => alert("Se guardará como borrador…")}
+              onClick={() => void onSave?.()}
             >
               Guardar y continuar más tarde
             </button>
-            <button type="submit" className="btn btn-primary">
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => void onNext?.()}
+            >
               Enviar
             </button>
           </div>

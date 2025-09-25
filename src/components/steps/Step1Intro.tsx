@@ -1,17 +1,20 @@
+// src/components/steps/Step1Profile.tsx
 "use client";
 
-import { type UseFormReturn } from "react-hook-form";
+import type { UseFormReturn } from "react-hook-form";
 import HeroBanner from "@/components/HeroBanner";
-import { type AllSteps } from "@/lib/schema";
+import type { AllSteps } from "@/lib/schema";
+import type { StepProps } from "./types";
 
-type Props = {
+type StepProps = {
   form: UseFormReturn<AllSteps>;
   setStep: (n: number) => void;
+  onSave?: () => void | Promise<void>;
+  onNext?: () => void | Promise<void>;
 };
 
-export default function Step1Profile({ form, setStep }: Props) {
-  // We’re not binding to specific fields yet to avoid schema mismatches.
-  // This is a minimal placeholder to satisfy the import and compile cleanly.
+export default function Step1Profile({ form, setStep, onSave, onNext }: StepProps) {
+  // Minimal placeholders to keep layout consistent; wire real fields later with form.register(...)
   return (
     <section className="space-y-6">
       <HeroBanner title="Información del solicitante" />
@@ -22,7 +25,6 @@ export default function Step1Profile({ form, setStep }: Props) {
           Comencemos con tus datos básicos. Puedes completarlos más tarde.
         </p>
 
-        {/* Placeholder content to keep the layout consistent */}
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="label">Nombre completo (placeholder)</label>
@@ -35,11 +37,18 @@ export default function Step1Profile({ form, setStep }: Props) {
         </div>
 
         {/* Footer actions */}
-        <div className="mt-8 flex items-center justify-end">
+        <div className="mt-8 flex items-center justify-end gap-3">
+          <button
+            type="button"
+            className="btn"
+            onClick={() => void onSave?.()}
+          >
+            Guardar y continuar
+          </button>
           <button
             type="button"
             className="btn btn-primary"
-            onClick={() => setStep(2)}
+            onClick={() => void onNext?.() ?? setStep(2)}
           >
             Continuar
           </button>

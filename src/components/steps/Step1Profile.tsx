@@ -1,15 +1,16 @@
+// src/components/steps/Step1Profile.tsx
 "use client";
 
-import { type UseFormReturn } from "react-hook-form";
 import HeroBanner from "@/components/HeroBanner";
-import { type AllSteps } from "@/lib/schema";
+import type { StepProps } from "./types";
+import type { AllSteps } from "@/lib/schema";
 
-type Props = {
-  form: UseFormReturn<AllSteps>;
-  setStep: (n: number) => void;
-};
+export default function Step1Profile({ form, setStep, onSave, onNext }: StepProps) {
+  const {
+    register,
+    formState: { errors },
+  } = form;
 
-export default function Step1Profile({ form, setStep }: Props) {
   return (
     <section className="space-y-6">
       <HeroBanner title="Información del solicitante" />
@@ -23,22 +24,44 @@ export default function Step1Profile({ form, setStep }: Props) {
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="label">Nombre completo</label>
-            <input className="input" placeholder="Ej: Juan Pérez" />
+            <input
+              className="input"
+              placeholder="Ej: Juan Pérez"
+              {...register("profile.fullName" as const)}
+            />
+            <p className="help">{(errors.profile?.fullName as unknown as string) || ""}</p>
           </div>
+
           <div>
             <label className="label">Email</label>
-            <input className="input" type="email" placeholder="tu@email.com" />
+            <input
+              className="input"
+              type="email"
+              placeholder="tu@email.com"
+              {...register("profile.email" as const)}
+            />
+            <p className="help">{(errors.profile?.email as unknown as string) || ""}</p>
           </div>
         </div>
 
-        <div className="mt-8 flex items-center justify-end">
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => setStep(2)}
-          >
-            Continuar
-          </button>
+        <div className="mt-8 flex items-center justify-between">
+          <div />
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              className="text-sm text-gray-700 hover:underline"
+              onClick={() => void onSave?.()}
+            >
+              Guardar y continuar más tarde
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => void onNext?.()}
+            >
+              Continuar
+            </button>
+          </div>
         </div>
       </div>
     </section>

@@ -1,17 +1,14 @@
+// src/components/steps/Step2Company.tsx
 "use client";
 
 import { useEffect, useRef } from "react";
 import Image from "next/image";
-import { Controller, type UseFormReturn } from "react-hook-form";
+import { Controller } from "react-hook-form";
 
 import SegmentedToggle from "@/components/SegmentedToggle";
-import AddressAutocomplete from "@/components/AddressAutocomplete";
+import AddressAutocomplete from "@/components/AddressAutocomplete"; // default import ✅
 import { type AllSteps } from "@/lib/schema";
-
-type Props = {
-  form: UseFormReturn<AllSteps>;
-  setStep: (n: number) => void;
-};
+import type { StepProps } from "./types";
 
 const formationStates = [
   "Florida",
@@ -27,7 +24,7 @@ const formationStates = [
 
 const entityTypes = ["LLC", "C-Corp"] as const;
 
-export default function Step2Company({ form, setStep }: Props) {
+export default function Step2Company({ form, setStep, onSave, onNext }: StepProps) {
   const {
     control,
     register,
@@ -286,7 +283,7 @@ export default function Step2Company({ form, setStep }: Props) {
             <label className="label">Número de teléfono (USA)</label>
             <input
               ref={(el) => {
-                // FIX: return void, not the element
+                // keep the ref without returning a value
                 phoneRef.current = el;
               }}
               className="input"
@@ -309,11 +306,15 @@ export default function Step2Company({ form, setStep }: Props) {
             <button
               type="button"
               className="text-sm text-gray-700 hover:underline"
-              onClick={() => alert("Se guardará como borrador…")}
+              onClick={() => void onSave?.()}
             >
               Guardar y continuar más tarde
             </button>
-            <button type="button" className="btn btn-primary" onClick={() => setStep(3)}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => (onNext ? void onNext() : setStep(3))}
+            >
               Continuar
             </button>
           </div>

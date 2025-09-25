@@ -1,20 +1,17 @@
+// src/components/steps/Step3Owners.tsx
 "use client";
 
-import { Controller, type UseFormReturn, type FieldPath } from "react-hook-form";
-import AddressAutocomplete from "@/components/AddressAutocomplete";
+import { Controller, type FieldPath } from "react-hook-form";
+import AddressAutocomplete from "@/components/AddressAutocomplete"; // default import ✅
 import SegmentedToggle from "@/components/SegmentedToggle";
-import { type AllSteps } from "@/lib/schema";
-
-type Props = {
-  form: UseFormReturn<AllSteps>;
-  setStep: (n: number) => void;
-};
+import type { AllSteps } from "@/lib/schema";
+import type { StepProps } from "./types";
 
 // Helper type + helper caster for dynamic field paths
 type Owner = NonNullable<AllSteps["owners"]>[number];
 const fp = (s: string) => s as unknown as FieldPath<AllSteps>;
 
-export default function Step3Owners({ form, setStep }: Props) {
+export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps) {
   const { control, register, watch, setValue, getValues } = form;
 
   // Safely read owners array (watch is fine here)
@@ -182,11 +179,15 @@ export default function Step3Owners({ form, setStep }: Props) {
             <button
               type="button"
               className="text-sm text-gray-700 hover:underline"
-              onClick={() => alert("Se guardará como borrador…")}
+              onClick={() => void onSave?.()}
             >
               Guardar y continuar más tarde
             </button>
-            <button type="button" className="btn btn-primary" onClick={() => setStep(4)}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => (onNext ? void onNext() : setStep(4))}
+            >
               Continuar
             </button>
           </div>
