@@ -4,48 +4,72 @@ import { useEffect, useRef } from "react";
 
 const GOOGLE_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
-// Keep one loader Promise in the window to avoid “already defined” spam
+/** Minimal runtime shapes so we don’t rely on @types/google.maps */
+type AcAddressComponent = { long_name: string; types: string[] };
+type AcPlace = { address_components?: AcAddressComponent[]; formatted_address?: string };
+type AcListener = { remove: () => void };
+type AcInstance = {
+  addListener: (eventName: "place_changed", handler: () => void) => AcListener;
+  getPlace: () => AcPlace;
+};
+type GoogleRuntime = {
+  maps?: {
+    places?: {
+      Autocomplete: new (
+        input: HTMLInputElement,
+        opts: Record<string, unknown>
+      ) => AcInstance;
+    };
+  };
+};
+
+/** Extend window to keep a single loader promise */
 declare global {
   interface Window {
     __gmapsLoader?: Promise<void>;
+    __noop__?: () => void;
+    google?: GoogleRuntime;
   }
 }
 
+/** Load Maps JS + Places exactly once */
 function loadMapsOnce(): Promise<void> {
   if (!window.__gmapsLoader) {
-    window.__gmapsLoader = new Promise((resolve, reject) => {
+    window.__gmapsLoader = new Promise<void>((resolve, reject) => {
       if (!GOOGLE_KEY) {
         reject(new Error("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is missing"));
         return;
       }
-      // If script already present, resolve
+
+      // Already loaded?
       if (document.querySelector('script[data-gmaps="js"]')) {
         resolve();
         return;
       }
-      const s = document.createElement("script");
-      s.dataset.gmaps = "js";
-      s.async = true;
-      s.defer = true;
-      s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
+
+      // Core JS with Places lib
+      const core = document.createElement("script");
+      core.dataset.gmaps = "js";
+      core.async = true;
+      core.defer = true;
+      core.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
         GOOGLE_KEY
       )}&libraries=places`;
-      s.onload = () => resolve();
-      s.onerror = () => reject(new Error("Failed to load Google Maps JS"));
-      document.head.appendChild(s);
+      core.onload = () => resolve();
+      core.onerror = () => reject(new Error("Failed to load Google Maps JS"));
+      document.head.appendChild(core);
 
-      // Also load the Web Components bundle once (future-proof for migration)
+      // Optional: elements bundle (future-proof)
       if (!document.querySelector('script[data-gmaps="elements"]')) {
-        const w = document.createElement("script");
-        w.dataset.gmaps = "elements";
-        w.type = "module";
-        w.src =
-          "https://maps.googleapis.com/maps/api/js?key=" +
-          encodeURIComponent(GOOGLE_KEY) +
-          "&v=weekly&libraries=places,marker&callback=__noop";
-        // callback no-op so Google doesn’t complain
-        (window as any).__noop = () => {};
-        document.head.appendChild(w);
+        const el = document.createElement("script");
+        el.dataset.gmaps = "elements";
+        el.type = "module";
+        el.src =
+          `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
+            GOOGLE_KEY
+          )}&v=weekly&libraries=places,marker&callback=__noop__`;
+        window.__noop__ = () => {};
+        document.head.appendChild(el);
       }
     });
   }
@@ -55,7 +79,7 @@ function loadMapsOnce(): Promise<void> {
 type Props = {
   placeholder?: string;
   defaultValue?: string;
-  country?: string; // e.g., "us"
+  country?: string; // e.g. "us"
   onSelect: (addr: {
     fullAddress: string;
     line1: string;
@@ -67,7 +91,7 @@ type Props = {
 };
 
 export default function AddressAutocomplete({
-  placeholder = "Start typing an address…",
+  placeholder = "Escriba y seleccione la dirección…",
   defaultValue = "",
   country,
   onSelect,
@@ -75,35 +99,30 @@ export default function AddressAutocomplete({
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    let listener: google.maps.MapsEventListener | undefined;
+    let listener: AcListener | null = null;
 
     loadMapsOnce()
       .then(() => {
-        if (!inputRef.current || !(window as any).google?.maps?.places) return;
+        const g = window.google;
+        if (!inputRef.current || !g?.maps?.places) return;
 
-        const autocomplete = new google.maps.places.Autocomplete(
-          inputRef.current,
-          {
-            fields: ["address_components", "formatted_address"],
-            ...(country ? { componentRestrictions: { country } } : {}),
-          }
-        );
+        const ac = new g.maps.places.Autocomplete(inputRef.current, {
+          fields: ["address_components", "formatted_address"],
+          ...(country ? { componentRestrictions: { country } } : {}),
+        });
 
-        listener = autocomplete.addListener("place_changed", () => {
-          const p = autocomplete.getPlace();
-          const comps = (p.address_components || []) as google.maps.GeocoderAddressComponent[];
+        listener = ac.addListener("place_changed", () => {
+          const place = ac.getPlace();
+          const comps = place.address_components ?? [];
 
           const byType = (t: string) =>
-            comps.find((c) => c.types.includes(t))?.long_name || "";
+            comps.find((c) => c.types.includes(t))?.long_name ?? "";
 
-          const line1 = [
-            byType("street_number"),
-            byType("route"),
-          ]
+          const line1 = [byType("street_number"), byType("route")]
             .filter(Boolean)
             .join(" ");
 
-            const city =
+          const city =
             byType("locality") ||
             byType("postal_town") ||
             byType("sublocality") ||
@@ -118,7 +137,7 @@ export default function AddressAutocomplete({
           const countryName = byType("country");
 
           onSelect({
-            fullAddress: p.formatted_address || "",
+            fullAddress: place.formatted_address ?? "",
             line1,
             city,
             state,
@@ -128,8 +147,6 @@ export default function AddressAutocomplete({
         });
       })
       .catch((e) => {
-        // Helpful during bring-up
-        // eslint-disable-next-line no-console
         console.error("Google Maps loader error:", e);
       });
 
