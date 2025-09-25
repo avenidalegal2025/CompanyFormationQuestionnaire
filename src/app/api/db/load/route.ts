@@ -1,117 +1,60 @@
 import { NextResponse } from "next/server";
 import { GetCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, TABLE_NAME } from "@/lib/dynamo";
-import { auth } from "@/auth"; // optional: if not signed in, we fall back to "ANON"
 
-function errMsg(err: unknown): string {
-  if (err instanceof Error) return err.message;
-  try {
-    return JSON.stringify(err);
-  } catch {
-    return String(err);
-  }
+function errMsg(err: unknown) {
+  return err instanceof Error ? err.message : String(err);
 }
 
-type LoadedItem<Data> = {
-  draftId: string;
-  owner: string;
-  data: Data;
-  updatedAt: number;
-};
-
-async function getOwner(): Promise<string> {
-  try {
-    const session = await auth();
-    const email = session?.user?.email;
-    if (email && typeof email === "string" && email.length > 0) return email;
-  } catch {
-    // ignore
-  }
-  return "ANON";
-}
-
-async function loadById(draftId: string) {
-  const owner = await getOwner();
-  const res = await ddb.send(
+async function fetchDraft(draftId: string) {
+  const owner = "ANON"; // TODO: session user
+  const result = await ddb.send(
     new GetCommand({
       TableName: TABLE_NAME,
-      Key: {
-        pk: owner,
-        sk: `DRAFT#${draftId}`,
-      },
+      Key: { pk: owner, sk: `DRAFT#${draftId}` },
     })
   );
-
-  if (!res.Item) {
-    return { found: false as const };
-  }
-
-  // Normalize the response payload
-  const item: LoadedItem<unknown> = {
-    draftId,
-    owner,
-    data: (res.Item as Record<string, unknown>).data ?? {},
-    updatedAt: (res.Item as Record<string, unknown>).updatedAt as number,
-  };
-
-  return { found: true as const, item };
+  return result.Item;
 }
 
-// --- GET /api/db/load?draftId=XYZ ---
 export async function GET(req: Request) {
   try {
-    const url = new URL(req.url);
-    const draftId = url.searchParams.get("draftId") ?? "";
-
+    const { searchParams } = new URL(req.url);
+    const draftId = searchParams.get("draftId");
     if (!draftId) {
       return NextResponse.json(
-        { ok: false, error: "Missing `draftId` query parameter" },
+        { ok: false, error: "Missing `draftId` query param" },
         { status: 400 }
       );
     }
 
-    const result = await loadById(draftId);
-    if (!result.found) {
-      return NextResponse.json(
-        { ok: false, error: "Item not found" },
-        { status: 404 }
-      );
+    const item = await fetchDraft(draftId);
+    if (!item) {
+      return NextResponse.json({ ok: true, item: null });
     }
-
-    return NextResponse.json({ ok: true, item: result.item });
-  } catch (err: unknown) {
-    console.error("Load route error:", err);
+    return NextResponse.json({ ok: true, item });
+  } catch (err) {
+    console.error("load GET error", err);
     return NextResponse.json({ ok: false, error: errMsg(err) }, { status: 500 });
   }
 }
 
-// --- POST also supported: { draftId } in JSON body ---
+// Optional: still accept POST with { draftId }
 export async function POST(req: Request) {
   try {
-    const bodyJson = (await req.json().catch(() => null)) as unknown;
-    const draftId =
-      bodyJson && typeof bodyJson === "object" && bodyJson !== null
-        ? (bodyJson as { draftId?: unknown }).draftId
-        : undefined;
-
-    if (typeof draftId !== "string" || draftId.length === 0) {
+    const body = (await req.json()) as { draftId?: string | null };
+    const draftId = body?.draftId ? String(body.draftId) : "";
+    if (!draftId) {
       return NextResponse.json(
-        { ok: false, error: "Missing `draftId` in request body" },
+        { ok: false, error: "Missing `draftId` in body" },
         { status: 400 }
       );
     }
-
-    const result = await loadById(draftId);
-    if (!result.found) {
-      return NextResponse.json(
-        { ok: false, error: "Item not found" },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({ ok: true, item: result.item });
-  } catch (err: unknown) {
-    console.error("Load route error (POST):", err);
+    const item = await fetchDraft(draftId);
+    if (!item) return NextResponse.json({ ok: true, item: null });
+    return NextResponse.json({ ok: true, item });
+  } catch (err) {
+    console.error("load POST error", err);
     return NextResponse.json({ ok: false, error: errMsg(err) }, { status: 500 });
   }
 }
