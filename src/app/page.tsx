@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
-import Step1Profile from "@/components/steps/Step1Profile";
 import Step2Company from "@/components/steps/Step2Company";
 import Step3Owners from "@/components/steps/Step3Owners";
 import Step4Admin from "@/components/steps/Step4Admin";
@@ -15,7 +14,6 @@ type SaveState = "idle" | "saving" | "saved" | "error";
 export default function Page() {
   const form = useForm<AllSteps>({
     defaultValues: {
-      profile: {},
       company: {},
       owners: [],
       admin: {},
@@ -24,8 +22,8 @@ export default function Page() {
     },
   });
 
-  const [step, setStep] = useState<number>(1);
-  const totalSteps = 4;
+  const [step, setStep] = useState<number>(2); // start at Step 2
+  const totalSteps = 3; // only 3 steps now
 
   // persistent draft id (stored in localStorage)
   const [draftId, setDraftId] = useState<string | null>(null);
@@ -36,10 +34,9 @@ export default function Page() {
   // progress sidebar items
   const items: ProgressItem[] = useMemo(
     () => [
-      { key: "step1", label: "Tu perfil",        status: step === 1 ? "active" : step > 1 ? "done" : "todo" },
-      { key: "step2", label: "Empresa",          status: step === 2 ? "active" : step > 2 ? "done" : "todo" },
-      { key: "step3", label: "Propietarios",     status: step === 3 ? "active" : step > 3 ? "done" : "todo" },
-      { key: "step4", label: "Administrativo",   status: step === 4 ? "active" : "todo" },
+      { key: "step2", label: "Empresa", status: step === 2 ? "active" : step > 2 ? "done" : "todo" },
+      { key: "step3", label: "Propietarios", status: step === 3 ? "active" : step > 3 ? "done" : "todo" },
+      { key: "step4", label: "Administrativo", status: step === 4 ? "active" : "todo" },
     ],
     [step]
   );
@@ -82,7 +79,6 @@ export default function Page() {
   // Autosave every 30s
   useEffect(() => {
     const id: number = window.setInterval(() => {
-      // avoid autosave spam right after a manual save
       if (saveState === "saving") return;
       doSave().catch(() => setSaveState("error"));
     }, 30_000);
@@ -102,7 +98,7 @@ export default function Page() {
   const onContinuar = async () => {
     try {
       await doSave();
-      setStep((s) => Math.min(totalSteps, s + 1));
+      setStep((s) => Math.min(4, s + 1));
     } catch {
       setSaveState("error");
     }
@@ -128,7 +124,8 @@ export default function Page() {
                 estado:{" "}
                 {saveState === "idle" && "inactivo"}
                 {saveState === "saving" && "guardando…"}
-                {saveState === "saved" && (lastSavedAt ? `guardado ${new Date(lastSavedAt).toLocaleTimeString()}` : "guardado")}
+                {saveState === "saved" &&
+                  (lastSavedAt ? `guardado ${new Date(lastSavedAt).toLocaleTimeString()}` : "guardado")}
                 {saveState === "error" && <span className="text-red-600">error</span>}
               </span>
             </>
@@ -138,42 +135,18 @@ export default function Page() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            // final submit could also do a doSave() and then route to a review page
             void onContinuar();
           }}
           className="space-y-6"
         >
-          {step === 1 && (
-            <Step1Profile
-              form={form}
-              setStep={setStep}
-              onSave={onGuardarYContinuar}
-              onNext={onContinuar}
-            />
-          )}
           {step === 2 && (
-            <Step2Company
-              form={form}
-              setStep={setStep}
-              onSave={onGuardarYContinuar}
-              onNext={onContinuar}
-            />
+            <Step2Company form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />
           )}
           {step === 3 && (
-            <Step3Owners
-              form={form}
-              setStep={setStep}
-              onSave={onGuardarYContinuar}
-              onNext={onContinuar}
-            />
+            <Step3Owners form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />
           )}
           {step === 4 && (
-            <Step4Admin
-              form={form}
-              setStep={setStep}
-              onSave={onGuardarYContinuar}
-              onNext={onContinuar}
-            />
+            <Step4Admin form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />
           )}
         </form>
       </main>
