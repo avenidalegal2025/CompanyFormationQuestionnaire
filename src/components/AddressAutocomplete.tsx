@@ -23,11 +23,11 @@ type GoogleRuntime = {
   };
 };
 
-/** Extend window with only our loader helpers (avoid redeclaring `google`). */
+/** Extend window only with our loader promise + init callback */
 declare global {
   interface Window {
     __gmapsLoader?: Promise<void>;
-    __noop__?: () => void;
+    __gmapsInit?: () => void;
   }
 }
 
@@ -40,36 +40,32 @@ function loadMapsOnce(): Promise<void> {
         return;
       }
 
-      // Already loaded?
-      if (document.querySelector('script[data-gmaps="js"]')) {
+      // Already present?
+      if ((window as unknown as { google?: GoogleRuntime }).google?.maps?.places) {
         resolve();
         return;
       }
-
-      // Core JS with Places lib
-      const core = document.createElement("script");
-      core.dataset.gmaps = "js";
-      core.async = true;
-      core.defer = true;
-      core.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
-        GOOGLE_KEY
-      )}&libraries=places`;
-      core.onload = () => resolve();
-      core.onerror = () => reject(new Error("Failed to load Google Maps JS"));
-      document.head.appendChild(core);
-
-      // Optional: elements bundle (future-proof)
-      if (!document.querySelector('script[data-gmaps="elements"]')) {
-        const el = document.createElement("script");
-        el.dataset.gmaps = "elements";
-        el.type = "module";
-        el.src =
-          `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
-            GOOGLE_KEY
-          )}&v=weekly&libraries=places,marker&callback=__noop__`;
-        window.__noop__ = () => {};
-        document.head.appendChild(el);
+      if (document.querySelector('script[data-gmaps="js"]')) {
+        // If script tag exists but google is not ready, we’ll resolve on __gmapsInit
+        return;
       }
+
+      // Define the global callback the Google loader will call
+      window.__gmapsInit = () => {
+        resolve();
+      };
+
+      const s = document.createElement("script");
+      s.dataset.gmaps = "js";
+      s.async = true;
+      s.defer = true;
+      s.src =
+        `https://maps.googleapis.com/maps/api/js` +
+        `?key=${encodeURIComponent(GOOGLE_KEY)}` +
+        `&libraries=places` +
+        `&callback=__gmapsInit`;
+      s.onerror = () => reject(new Error("Failed to load Google Maps JS"));
+      document.head.appendChild(s);
     });
   }
   return window.__gmapsLoader;
@@ -153,14 +149,16 @@ export default function AddressAutocomplete({
             country: countryName,
           });
 
-          // If controlled, push the formatted address up so the parent updates the value
           if (onChangeText && place.formatted_address) {
             onChangeText(place.formatted_address);
           }
         });
       })
       .catch((e) => {
+        // Keep this log for quick diagnosis if env var or script fails
+        /* eslint-disable no-console */
         console.error("Google Maps loader error:", e);
+        /* eslint-enable no-console */
       });
 
     return () => {
