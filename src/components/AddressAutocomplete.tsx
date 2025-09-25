@@ -75,23 +75,32 @@ function loadMapsOnce(): Promise<void> {
   return window.__gmapsLoader;
 }
 
+export type AddressSelectPayload = {
+  fullAddress: string;
+  line1: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+};
+
 type Props = {
   placeholder?: string;
+  /** Uncontrolled initial value */
   defaultValue?: string;
+  /** Controlled current value */
+  value?: string;
+  /** Controlled onChange handler */
+  onChangeText?: (text: string) => void;
   country?: string; // e.g. "us"
-  onSelect: (addr: {
-    fullAddress: string;
-    line1: string;
-    city: string;
-    state: string;
-    postalCode: string;
-    country: string;
-  }) => void;
+  onSelect: (addr: AddressSelectPayload) => void;
 };
 
 export default function AddressAutocomplete({
   placeholder = "Escriba y seleccione la dirección…",
   defaultValue = "",
+  value,
+  onChangeText,
   country,
   onSelect,
 }: Props) {
@@ -102,7 +111,6 @@ export default function AddressAutocomplete({
 
     loadMapsOnce()
       .then(() => {
-        // Read google from window without redeclaring its type
         const g = (window as unknown as { google?: GoogleRuntime }).google;
         if (!inputRef.current || !g?.maps?.places) return;
 
@@ -144,6 +152,11 @@ export default function AddressAutocomplete({
             postalCode,
             country: countryName,
           });
+
+          // If controlled, push the formatted address up so the parent updates the value
+          if (onChangeText && place.formatted_address) {
+            onChangeText(place.formatted_address);
+          }
         });
       })
       .catch((e) => {
@@ -153,15 +166,27 @@ export default function AddressAutocomplete({
     return () => {
       if (listener) listener.remove();
     };
-  }, [country, onSelect]);
+  }, [country, onSelect, onChangeText]);
+
+  // Controlled vs uncontrolled configuration
+  const inputProps =
+    value !== undefined
+      ? {
+          value,
+          onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
+            onChangeText?.(e.target.value),
+        }
+      : {
+          defaultValue,
+        };
 
   return (
     <input
       ref={inputRef}
       className="input"
       placeholder={placeholder}
-      defaultValue={defaultValue}
       autoComplete="off"
+      {...inputProps}
     />
   );
 }
