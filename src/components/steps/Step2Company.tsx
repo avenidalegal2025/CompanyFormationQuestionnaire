@@ -23,7 +23,7 @@ const formationStates = [
 
 const entityTypes = ["LLC", "C-Corp"] as const;
 
-export default function Step2Company({ form }: StepProps) {
+export default function Step2Company({ form, setStep, onSave, onNext }: StepProps) {
   const {
     control,
     register,
@@ -32,16 +32,6 @@ export default function Step2Company({ form }: StepProps) {
     getValues,
     formState: { errors },
   } = form;
-
-  // ------ sensible defaults on first render ------
-  useEffect(() => {
-    if (!getValues("company.formationState")) {
-      setValue("company.formationState", "Florida", { shouldDirty: true });
-    }
-    if (!getValues("company.entityType")) {
-      setValue("company.entityType", "LLC", { shouldDirty: true });
-    }
-  }, [getValues, setValue]);
 
   // ====== Entity type / dynamic suffix ======
   const entityType = watch("company.entityType");
@@ -77,11 +67,7 @@ export default function Step2Company({ form }: StepProps) {
     const digits = e.target.value.replace(/[^\d]/g, "");
     const dropCountry = digits.startsWith("1") ? digits.slice(1) : digits;
     const formatted = formatUsPhone(dropCountry);
-    setValue("company.usPhoneNumber", formatted, {
-      shouldDirty: true,
-      shouldValidate: true,
-    });
-    // keep caret after +1
+    setValue("company.usPhoneNumber", formatted, { shouldDirty: true, shouldValidate: true });
     requestAnimationFrame(() => {
       const node = phoneRef.current;
       if (!node) return;
@@ -131,10 +117,7 @@ export default function Step2Company({ form }: StepProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end mt-6">
           <div>
             <div className="label-lg mb-2">Estado donde desea formar su empresa</div>
-            <select
-              className="input"
-              {...register("company.formationState", { required: true })}
-            >
+            <select className="input" {...register("company.formationState", { required: true })}>
               {formationStates.map((s) => (
                 <option key={s} value={s}>
                   {s}
@@ -197,9 +180,7 @@ export default function Step2Company({ form }: StepProps) {
 
         {/* Dirección */}
         <div className="mt-6">
-          <div className="label-lg mb-2">
-            ¿Cuenta con una dirección en USA para su empresa?
-          </div>
+          <div className="label-lg mb-2">¿Cuenta con una dirección en USA para su empresa?</div>
           <Controller
             name="company.hasUsaAddress"
             control={control}
@@ -209,9 +190,7 @@ export default function Step2Company({ form }: StepProps) {
                 onChange={(v) => {
                   field.onChange(v);
                   if (v === "Yes") {
-                    setValue("company.country", "Estados Unidos de América", {
-                      shouldDirty: true,
-                    });
+                    setValue("company.country", "Estados Unidos de América", { shouldDirty: true });
                     setValue("company.state", getValues("company.formationState"), {
                       shouldDirty: true,
                     });
@@ -239,14 +218,8 @@ export default function Step2Company({ form }: StepProps) {
                   shouldValidate: true,
                 });
                 setValue("company.addressLine2", "", { shouldDirty: true });
-                setValue("company.city", addr.city, {
-                  shouldDirty: true,
-                  shouldValidate: true,
-                });
-                setValue("company.state", addr.state, {
-                  shouldDirty: true,
-                  shouldValidate: true,
-                });
+                setValue("company.city", addr.city, { shouldDirty: true, shouldValidate: true });
+                setValue("company.state", addr.state, { shouldDirty: true, shouldValidate: true });
                 setValue("company.postalCode", addr.postalCode, {
                   shouldDirty: true,
                   shouldValidate: true,
@@ -289,9 +262,7 @@ export default function Step2Company({ form }: StepProps) {
 
         {/* Teléfono */}
         <div className="mt-6">
-          <div className="label-lg mb-2">
-            ¿Cuenta con número de teléfono de USA de su empresa?
-          </div>
+          <div className="label-lg mb-2">¿Cuenta con número de teléfono de USA de su empresa?</div>
           <Controller
             name="company.hasUsPhone"
             control={control}
@@ -315,8 +286,9 @@ export default function Step2Company({ form }: StepProps) {
             <label className="label">Número de teléfono (USA)</label>
             <input
               ref={(el) => {
+                // keep the ref without returning a value
                 phoneRef.current = el;
-              })}
+              }}
               className="input"
               inputMode="numeric"
               autoComplete="tel"
@@ -327,6 +299,29 @@ export default function Step2Company({ form }: StepProps) {
             <p className="help">Formato: +1 305 555 0123</p>
           </div>
         )}
+
+        {/* Acciones */}
+        <div className="mt-8 flex items-center justify-between">
+          <button type="button" className="btn" onClick={() => setStep(1)}>
+            Atrás
+          </button>
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              className="text-sm text-gray-700 hover:underline"
+              onClick={() => void onSave?.()}
+            >
+              Guardar y continuar más tarde
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => (onNext ? void onNext() : setStep(3))}
+            >
+              Continuar
+            </button>
+          </div>
+        </div>
       </div>
     </section>
   );
