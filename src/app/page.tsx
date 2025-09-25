@@ -8,7 +8,6 @@ import { Controller } from "react-hook-form";
 import SegmentedToggle from "@/components/SegmentedToggle";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import type { AllSteps } from "@/lib/schema";
-import type { StepProps } from "./types";
 
 const formationStates = [
   "Florida",
