@@ -23,12 +23,11 @@ type GoogleRuntime = {
   };
 };
 
-/** Extend window to keep a single loader promise */
+/** Extend window with only our loader helpers (avoid redeclaring `google`). */
 declare global {
   interface Window {
     __gmapsLoader?: Promise<void>;
     __noop__?: () => void;
-    google?: GoogleRuntime;
   }
 }
 
@@ -103,7 +102,8 @@ export default function AddressAutocomplete({
 
     loadMapsOnce()
       .then(() => {
-        const g = window.google;
+        // Read google from window without redeclaring its type
+        const g = (window as unknown as { google?: GoogleRuntime }).google;
         if (!inputRef.current || !g?.maps?.places) return;
 
         const ac = new g.maps.places.Autocomplete(inputRef.current, {
