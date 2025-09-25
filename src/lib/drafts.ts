@@ -1,40 +1,38 @@
 // src/lib/drafts.ts
 "use client";
+
 import type { AllSteps } from "@/lib/schema";
 
+// What the API may return
 export type DraftItem = {
-  id: string;
+  id?: string;         // some routes return "id"
+  draftId?: string;    // others may return "draftId"
   owner: string;
   data: AllSteps;
   updatedAt: number;
-  pk?: string;
-  sk?: string;
-  status?: string;
 };
 
-export async function saveDraft(draftId: string | null, data: AllSteps) {
+export async function saveDraft(currentId: string | null, data: AllSteps) {
   const res = await fetch("/api/db/save", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ draftId, data }),
+    body: JSON.stringify({ draftId: currentId ?? undefined, data }),
   });
-
-  const j: { ok?: boolean; id?: string; updatedAt?: number; error?: string } =
-    await res.json().catch(() => ({}));
-
-  if (!res.ok || !j.ok || !j.id) {
-    throw new Error(j.error || `Save failed (${res.status})`);
+  if (!res.ok) {
+    const j = await res.json().catch(() => ({}));
+    throw new Error(j.error || `Save failed with ${res.status}`);
   }
-  return { ok: true as const, id: j.id, updatedAt: j.updatedAt ?? Date.now() };
+  // Standardize on { id }
+  const j = (await res.json()) as { ok: true; id: string };
+  return j;
 }
 
 export async function loadDraft(draftId: string) {
-  const res = await fetch(`/api/db/load?draftId=${encodeURIComponent(draftId)}`);
-  const j: { ok?: boolean; item?: DraftItem | null; error?: string } =
-    await res.json().catch(() => ({}));
-
-  if (!res.ok || j.ok === false) {
-    throw new Error(j.error || `Load failed (${res.status})`);
+  const url = `/api/db/load?draftId=${encodeURIComponent(draftId)}`;
+  const res = await fetch(url, { method: "GET" });
+  if (!res.ok) {
+    const j = await res.json().catch(() => ({}));
+    throw new Error(j.error || `Load failed with ${res.status}`);
   }
-  return { ok: true as const, item: j.item ?? null };
+  return (await res.json()) as { ok: true; item?: DraftItem };
 }
