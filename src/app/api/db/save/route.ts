@@ -1,13 +1,7 @@
-// src/app/api/db/save/route.ts
 import { NextResponse } from "next/server";
 import { PutCommand } from "@aws-sdk/lib-dynamodb";
-import { ddb } from "@/lib/dynamo";
-import { randomUUID } from "crypto";
-
-type SaveRequestBody = {
-  data?: unknown;   // questionnaire payload (any JSON)
-  id?: string;      // optional existing id if you later support updates
-};
+import { ddb, TABLE_NAME } from "@/lib/dynamo";
+import { auth } from "@/auth";
 
 function errMsg(err: unknown): string {
   if (err instanceof Error) return err.message;
@@ -18,41 +12,68 @@ function errMsg(err: unknown): string {
   }
 }
 
+type SaveBody<Data> = {
+  draftId: string;
+  data: Data;
+};
+
+async function getOwner(): Promise<string> {
+  try {
+    const session = await auth();
+    const email = session?.user?.email;
+    if (email && typeof email === "string" && email.length > 0) return email;
+  } catch {
+    // ignore
+  }
+  return "ANON";
+}
+
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as SaveRequestBody;
+    const body = (await req.json()) as unknown;
 
-    if (!body || typeof body !== "object" || body.data == null) {
+    const draftId =
+      body && typeof body === "object" && body !== null
+        ? (body as SaveBody<unknown>).draftId
+        : undefined;
+    const data =
+      body && typeof body === "object" && body !== null
+        ? (body as SaveBody<unknown>).data
+        : undefined;
+
+    if (typeof draftId !== "string" || draftId.length === 0) {
       return NextResponse.json(
-        { ok: false, error: "Missing `data` in request body" },
+        { ok: false, error: "Missing `draftId` in body" },
+        { status: 400 }
+      );
+    }
+    if (typeof data !== "object" || data === null) {
+      return NextResponse.json(
+        { ok: false, error: "`data` must be an object" },
         { status: 400 }
       );
     }
 
-    const id = body.id ?? randomUUID();
-    const now = new Date().toISOString();
-
-    const item = {
-      id,
-      pk: "ANON",            // swap to user id once you wire auth
-      sk: `DRAFT#${id}`,
-      data: body.data,       // store the JSON as-is
-      updatedAt: now,
-    };
+    const owner = await getOwner();
+    const updatedAt = Date.now();
 
     await ddb.send(
       new PutCommand({
-        TableName: process.env.DYNAMO_TABLE,
-        Item: item,
+        TableName: TABLE_NAME,
+        Item: {
+          pk: owner,
+          sk: `DRAFT#${draftId}`,
+          owner,
+          draftId,
+          updatedAt,
+          data,
+        },
       })
     );
 
-    return NextResponse.json({ ok: true, ...item });
+    return NextResponse.json({ ok: true, key: `DRAFT#${draftId}` });
   } catch (err: unknown) {
     console.error("Save route error:", err);
-    return NextResponse.json(
-      { ok: false, error: errMsg(err) },
-      { status: 500 }
-    );
+    return NextResponse.json({ ok: false, error: errMsg(err) }, { status: 500 });
   }
 }
