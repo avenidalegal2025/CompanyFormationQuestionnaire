@@ -1,6 +1,6 @@
 // src/middleware.ts
 import { NextResponse, type NextRequest } from "next/server";
-import { auth } from "@/auth";
+import { getToken } from "next-auth/jwt";
 
 /**
  * Public routes that do NOT require a session.
@@ -8,7 +8,7 @@ import { auth } from "@/auth";
  */
 const PUBLIC_PATHS = [
   "/signin",
-  "/api/auth",   // next-auth callbacks
+  "/api/auth",   // next-auth routes & callbacks
   "/diag",
   "/api/diag",
   "/favicon.ico",
@@ -22,11 +22,11 @@ function isPublicPath(pathname: string) {
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Skip static assets entirely (/_next/*, files with extensions, etc.)
+  // Skip static assets/CDN files entirely
   if (
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/static/") ||
-    pathname.match(/^.*\.(png|jpg|jpeg|gif|svg|ico|css|js|map|txt|xml)$/i)
+    pathname.match(/\.(png|jpg|jpeg|gif|svg|ico|css|js|map|txt|xml)$/i)
   ) {
     return NextResponse.next();
   }
@@ -36,11 +36,14 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Require auth for everything else
-  const session = await auth();
-  if (!session?.user) {
+  // Require a NextAuth token for everything else (Edge-safe)
+  const token = await getToken({
+    req,
+    secret: process.env.AUTH_SECRET, // must be set in Vercel
+  });
+
+  if (!token) {
     const url = new URL("/signin", req.url);
-    // send users back where they intended to go after signing in
     url.searchParams.set("callbackUrl", req.nextUrl.pathname + req.nextUrl.search);
     return NextResponse.redirect(url);
   }
@@ -49,8 +52,7 @@ export async function middleware(req: NextRequest) {
 }
 
 /**
- * Run middleware broadly; we’ll filter inside.
- * Using a permissive matcher avoids fancy regex that Next.js disallows.
+ * Run on everything; we filter inside (no unsupported regex/lookaheads).
  */
 export const config = {
   matcher: ["/:path*"],
