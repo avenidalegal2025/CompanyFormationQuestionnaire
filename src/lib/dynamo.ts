@@ -2,19 +2,23 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 
-// The SDK will read AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_REGION from env.
-// You can optionally fall back to a region if not set.
-const region =
-  process.env.AWS_REGION ??
-  process.env.DYNAMO_REGION ??
-  "us-west-1";
+export const REGION = process.env.AWS_REGION || "us-west-1";
+export const TABLE_NAME =
+  process.env.DYNAMO_TABLE ||
+  "Company_Creation_Questionaire_Avenida_Legal"; // fallback for local/dev
 
-// Low-level client
-const ddb = new DynamoDBClient({ region });
-
-// High-level Document client (maps JS objects <-> DynamoDB JSON)
-const ddbDoc = DynamoDBDocumentClient.from(ddb, {
-  marshallOptions: { removeUndefinedValues: true },
+const ddbClient = new DynamoDBClient({
+  region: REGION,
+  // Optional: if you ever need to override creds locally
+  // credentials: {
+  //   accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+  //   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+  // },
 });
 
-export { ddb, ddbDoc };
+export const ddb = DynamoDBDocumentClient.from(ddbClient, {
+  marshallOptions: {
+    removeUndefinedValues: true,
+    convertClassInstanceToMap: true,
+  },
+});
