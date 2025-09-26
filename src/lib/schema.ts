@@ -11,14 +11,14 @@ export const ProfileSchema = z.object({
 export const EntityTypeEnum = z.enum(["LLC", "C-Corp"]);
 
 /**
- * Helper to accept numbers typed as strings in inputs (e.g. "1,000").
- * We strip commas/spaces and parse to number when possible.
+ * Helper: accept numbers typed as strings (e.g. "1,000")
+ * Strip commas/spaces and parse to number when possible.
  */
 const numberFromInput = z.preprocess((val) => {
   if (typeof val === "string") {
     const cleaned = val.replace(/[, ]+/g, "");
     const n = Number(cleaned);
-    return Number.isFinite(n) ? n : val;
+    return Number.isFinite(n) ? n : undefined;
   }
   return val;
 }, z.number().int().min(1, "Debe ser un entero positivo"));
@@ -33,7 +33,7 @@ export const CompanySchema = z.object({
 
   businessPurpose: z.string().optional(),
 
-  // NEW: only relevant for C-Corp, but we store it on the model
+  /** Only relevant for C-Corp, but stored on the model */
   numberOfShares: numberFromInput.optional(),
 
   // Address fields
@@ -53,7 +53,7 @@ export const CompanySchema = z.object({
 /** ------------ Owners (Step 3) ------------ */
 export const OwnerSchema = z.object({
   fullName: z.string().optional(),
-  ownership: z.union([z.number(), z.string()]).optional(), // allow user input before normalization
+  ownership: z.union([z.number(), z.string()]).optional(),
   email: z.string().email().optional(),
   phone: z.string().optional(),
   address: z.string().optional(),
@@ -76,13 +76,13 @@ export const AdminSchema = z
     managersAllOwners: z.enum(["Yes", "No"]).optional(),
     managersCount: z.number().int().min(1).optional(),
   })
-  // allow dynamic keys like director1Name, officer1Address, etc.
+  // Allow dynamic keys like director1Name, officer1Address, etc.
   .and(z.record(z.string(), z.unknown()).optional());
 
 /** ------------ Banking ------------ */
 export const BankingSchema = z.object({
   needBankAccount: z.enum(["Yes", "No"]).optional(),
-  bankPreference: z.string().optional(), // e.g., Mercury / Chase / Otro
+  bankPreference: z.string().optional(),
 });
 
 /** ------------ Attachments ------------ */
