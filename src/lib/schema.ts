@@ -11,18 +11,17 @@ export const ProfileSchema = z.object({
 export const EntityTypeEnum = z.enum(["LLC", "C-Corp"]);
 
 /**
- * Helper: coerce numbers that may come as strings with thousand separators,
- * e.g. "10,000" -> 10000. Rejects negatives and non-numeric input.
+ * Helper to accept numbers typed as strings in inputs (e.g. "1,000").
+ * We strip commas/spaces and parse to number when possible.
  */
-const sharesCountCoerced = z
-  .preprocess((val) => {
-    if (val === undefined || val === null || val === "") return undefined;
-    const s = String(val).replace(/[^\d]/g, ""); // strip anything not a digit
-    if (s === "") return undefined;
-    const n = Number.parseInt(s, 10);
-    return Number.isFinite(n) ? n : undefined;
-  }, z.number().int().nonnegative())
-  .optional();
+const numberFromInput = z.preprocess((val) => {
+  if (typeof val === "string") {
+    const cleaned = val.replace(/[, ]+/g, "");
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : val;
+  }
+  return val;
+}, z.number().int().min(1, "Debe ser un entero positivo"));
 
 export const CompanySchema = z.object({
   formationState: z.string().optional(),
@@ -32,11 +31,10 @@ export const CompanySchema = z.object({
   companyNameBase: z.string().optional(),
   companyName: z.string().optional(),
 
-  /** Describir fin de la empresa */
   businessPurpose: z.string().optional(),
 
-  /** Número de acciones (solo C-Corp). Coerced int; allows "10,000" style input. */
-  sharesCount: sharesCountCoerced,
+  // NEW: only relevant for C-Corp, but we store it on the model
+  numberOfShares: numberFromInput.optional(),
 
   // Address fields
   hasUsaAddress: z.enum(["Yes", "No"]).optional(),
@@ -64,7 +62,6 @@ export const OwnerSchema = z.object({
 export const OwnersSchema = z.array(OwnerSchema);
 
 /** ------------ Admin (Step 4) ------------ */
-/* Keep toggles & counts typed; allow extra dynamic keys (director1Name, etc.) */
 export const AdminSchema = z
   .object({
     // Directors (C-Corp)
@@ -79,6 +76,7 @@ export const AdminSchema = z
     managersAllOwners: z.enum(["Yes", "No"]).optional(),
     managersCount: z.number().int().min(1).optional(),
   })
+  // allow dynamic keys like director1Name, officer1Address, etc.
   .and(z.record(z.string(), z.unknown()).optional());
 
 /** ------------ Banking ------------ */
