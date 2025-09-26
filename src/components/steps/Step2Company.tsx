@@ -118,6 +118,37 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
     }
   };
 
+  // ====== For suffix positioning right after typed text ======
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
+  const mirrorRef = useRef<HTMLSpanElement | null>(null);
+  const [suffixLeft, setSuffixLeft] = useState<number>(0);
+
+  // Measure the visible width of the typed text + a space, then place the suffix there.
+  useEffect(() => {
+    const input = nameInputRef.current;
+    const mirror = mirrorRef.current;
+    if (!input || !mirror) return;
+
+    // mirror the input value (uppercase) plus one space before the suffix
+    mirror.textContent = `${companyNameBase.toUpperCase()} `;
+
+    // copy font styles so measurement matches
+    const cs = getComputedStyle(input);
+    mirror.style.fontFamily = cs.fontFamily;
+    mirror.style.fontSize = cs.fontSize;
+    mirror.style.fontWeight = cs.fontWeight;
+    mirror.style.letterSpacing = cs.letterSpacing;
+    mirror.style.padding = cs.padding; // padding matters for left inset
+    mirror.style.border = "0";
+
+    const padLeft = parseFloat(cs.paddingLeft || "0");
+    const rect = mirror.getBoundingClientRect();
+    const width = rect.width;
+
+    // left position inside the input: padding-left + text width
+    setSuffixLeft(padLeft + width);
+  }, [companyNameBase]);
+
   return (
     <section className="space-y-6">
       {/* HERO */}
@@ -194,21 +225,37 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
           <div className="label-lg mb-2">Nombre de la empresa</div>
           <div className="grid grid-cols-[1fr_auto] items-center gap-3">
             <div className="relative">
+              {/* The input itself */}
               <Controller
                 name="company.companyNameBase"
                 control={control}
                 render={({ field }) => (
                   <input
-                    className="input uppercase w-full pr-20"
+                    ref={nameInputRef}
+                    className="input uppercase w-full"
                     value={field.value?.toString().toUpperCase() ?? ""}
                     onChange={(e) => field.onChange(e.target.value.toUpperCase())}
                   />
                 )}
               />
-              {/* Render suffix with a leading space */}
+
+              {/* Invisible mirror to measure text width */}
+              <span
+                ref={mirrorRef}
+                aria-hidden
+                className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 whitespace-pre text-transparent"
+                style={{
+                  visibility: "hidden",
+                }}
+              />
+
+              {/* Suffix placed exactly after the typed text (one space) */}
               {companyNameBase.trim() !== "" && (
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
-                  {" "}{suffixWord}
+                <span
+                  className="pointer-events-none absolute top-1/2 -translate-y-1/2 text-sm text-gray-500"
+                  style={{ left: suffixLeft }}
+                >
+                  {suffixWord}
                 </span>
               )}
             </div>
