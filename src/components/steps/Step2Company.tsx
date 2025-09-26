@@ -88,14 +88,6 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
     }
   };
 
-  // ====== Shares (format thousands on input; store as string, schema coerces) ======
-  const nf = new Intl.NumberFormat("en-US");
-  const onSharesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/[^\d]/g, "");
-    const pretty = raw ? nf.format(Number(raw)) : "";
-    setValue("company.sharesCount" as any, pretty, { shouldDirty: true }); // schema will coerce
-  };
-
   return (
     <section className="space-y-6">
       {/* HERO */}
@@ -118,7 +110,13 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
 
       {/* CARD */}
       <div className="card">
-        <h2 className="text-xl font-semibold text-gray-900">Datos de la empresa</h2>
+        <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+          Datos de la empresa
+          <InfoTooltip
+            title="Datos de la empresa"
+            body="Información básica necesaria para la constitución legal."
+          />
+        </h2>
         <p className="mt-1 text-sm text-gray-600">Cuéntanos sobre la nueva empresa</p>
 
         {/* Estado / Tipo */}
@@ -127,8 +125,8 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
             <div className="label-lg mb-2 flex items-center gap-2">
               Estado donde desea formar su empresa
               <InfoTooltip
-                title="Estado de formación"
-                body={"El estado define leyes y costos estatales.\nPodemos asesorarte si tienes dudas."}
+                title="Estado"
+                body="Elija el estado donde se registrará su empresa."
               />
             </div>
             <select className="input" {...register("company.formationState", { required: true })}>
@@ -147,8 +145,8 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
             <div className="label-lg mb-2 flex items-center gap-2">
               Tipo de entidad
               <InfoTooltip
-                title="Tipo de entidad"
-                body={"LLC es flexible para pymes.\nC-Corp es recomendable si buscarás inversión."}
+                title="Entidad"
+                body="Seleccione entre LLC o C-Corp según su necesidad."
               />
             </div>
             <Controller
@@ -198,43 +196,44 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
           </p>
         </div>
 
-        {/* Describir fin de la empresa */}
+        {/* Business purpose */}
         <div className="mt-6">
           <div className="label-lg mb-2">Describir fin de la empresa</div>
+          <p className="help mb-2">Explique brevemente el propósito de la empresa.</p>
           <textarea
-            className="input min-h-[110px]"
-            placeholder="Ej.: Consultoría tecnológica, desarrollo de software, servicios a empresas…"
+            className="input min-h-[100px]"
             {...register("company.businessPurpose")}
           />
         </div>
 
-        {/* Número de acciones (solo C-Corp) */}
+        {/* Número de acciones for C-Corp */}
         {entityType === "C-Corp" && (
           <div className="mt-6">
             <div className="label-lg mb-2 flex items-center gap-2">
               Número de acciones
               <InfoTooltip
-                title="Acciones autorizadas"
-                body={"Cantidad total de acciones de la corporación.\nGeneralmente 10,000 o 1,000,000."}
+                title="Número de acciones"
+                body="Indique cuántas acciones emitirá la empresa. Solo números enteros."
               />
             </div>
+            <p className="help mb-2">Ingrese un número sin decimales (ejemplo: 1,000,000).</p>
             <input
-              className="input max-w-xs"
-              inputMode="numeric"
-              placeholder="10,000"
-              value={(watch("company.sharesCount") as unknown as string) ?? ""}
-              onChange={onSharesChange}
+              type="number"
+              step="1"
+              className="input"
+              {...register("company.numberOfShares")}
             />
-            <p className="help">Solo enteros. Usamos separador de miles automáticamente.</p>
           </div>
         )}
 
         {/* Dirección */}
         <div className="mt-6">
-          <div className="label-lg mb-2">¿Cuenta con una dirección en USA para su empresa?</div>
-          <p className="text-xs text-gray-500 -mt-1 mb-2">
-            No puede ser P.O. BOX. Si no cuenta con una, nosotros le podemos proveer una por
-            <strong> $600 USD/año</strong>.
+          <div className="label-lg mb-2">
+            ¿Cuenta con una dirección en USA para su empresa?
+          </div>
+          <p className="help mb-2">
+            No puede ser P.O. BOX. Si no cuenta con una nosotros le podemos proveer una por $600
+            USD al año.
           </p>
           <Controller
             name="company.hasUsaAddress"
@@ -317,10 +316,11 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
 
         {/* Teléfono */}
         <div className="mt-6">
-          <div className="label-lg mb-2">¿Cuenta con número de teléfono de USA de su empresa?</div>
-          <p className="text-xs text-gray-500 -mt-1 mb-2">
-            Si no cuenta con uno, nosotros se lo podemos proveer por
-            <strong> $180 USD/año</strong>.
+          <div className="label-lg mb-2">
+            ¿Cuenta con número de teléfono de USA de su empresa?
+          </div>
+          <p className="help mb-2">
+            Si no cuenta con uno, nosotros se lo podemos proveer por $180 USD al año.
           </p>
           <Controller
             name="company.hasUsPhone"
