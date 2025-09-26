@@ -3,12 +3,13 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { Controller } from "react-hook-form";
+import { Controller, type FieldPath } from "react-hook-form";
 
 import SegmentedToggle from "@/components/SegmentedToggle";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import InfoTooltip from "@/components/InfoTooltip";
 import type { StepProps } from "./types";
+import type { AllSteps } from "@/lib/schema";
 
 const formationStates = [
   "Florida",
@@ -32,7 +33,6 @@ function formatThousands(n: number | string) {
 }
 function sanitizeIntString(s: string) {
   const onlyDigits = s.replace(/[^\d]/g, "");
-  // avoid leading zeros noise
   return onlyDigits.replace(/^0+(?=\d)/, "") || "0";
 }
 
@@ -109,36 +109,28 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
     watchedShares ? formatThousands(watchedShares) : ""
   );
 
-  // keep local display in sync if form value changes externally
   useEffect(() => {
     setSharesDisplay(watchedShares ? formatThousands(watchedShares) : "");
   }, [watchedShares]);
 
+  const sharesPath = "company.numberOfShares" as FieldPath<AllSteps>;
+
   const onSharesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const clean = sanitizeIntString(e.target.value);
     setSharesDisplay(formatThousands(clean));
-    setValue("company.numberOfShares" as any, Number(clean), {
+    setValue(sharesPath, Number(clean), {
       shouldDirty: true,
       shouldValidate: true,
     });
   };
 
-  // Memoized tooltip text (static, but keeps JSX tidy)
-  const ttState = useMemo(
-    () =>
-      '¿No sabes cual es el mejor estado para tu nueva empresa?  Lee nuestro artículo:',
-    []
-  );
-  const ttEntity = useMemo(
-    () =>
-      '¿ No sabes si crear una LLC o C-Corp? Lee nuestro artículo:',
-    []
-  );
-  const ttShares = useMemo(
-    () =>
-      '¿ No sabes cuantas acciones emitir? Lee nuestro artículo:',
-    []
-  );
+  // Tooltips text
+  const ttState =
+    "¿No sabes cual es el mejor estado para tu nueva empresa?  Lee nuestro artículo:";
+  const ttEntity =
+    "¿ No sabes si crear una LLC o C-Corp? Lee nuestro artículo:";
+  const ttShares =
+    "¿ No sabes cuantas acciones emitir? Lee nuestro artículo:";
 
   return (
     <section className="space-y-6">
@@ -162,7 +154,6 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
 
       {/* CARD */}
       <div className="card">
-        {/* 1) Title WITHOUT tooltip per request */}
         <h2 className="text-xl font-semibold text-gray-900">Datos de la empresa</h2>
         <p className="mt-1 text-sm text-gray-600">Cuéntanos sobre la nueva empresa</p>
 
@@ -223,7 +214,6 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
                     onChange={(e) => field.onChange(e.target.value.toUpperCase())}
                     placeholder="NOMBRE DE LA EMPRESA"
                   />
-                  {/* 4) Visual suffix directly after the text */}
                   <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
                     {suffixWord}
                   </span>
@@ -240,14 +230,13 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
               Revisar disponibilidad
             </button>
           </div>
-          {/* hidden full name saved */}
           <input type="hidden" {...register("company.companyName")} />
           <p className="help">
             {(errors.company?.companyName?.message as unknown as string) || ""}
           </p>
         </div>
 
-        {/* Número de acciones (only for C-Corp) */}
+        {/* Número de acciones (solo C-Corp) */}
         {entityType === "C-Corp" && (
           <div className="mt-6">
             <div className="flex items-center gap-2">
@@ -256,7 +245,7 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
             </div>
 
             <div className="flex items-center gap-3">
-              {/* 2) 25% width; show with commas; persist plain integer */}
+              {/* 25% width; show commas; persist plain integer */}
               <input
                 inputMode="numeric"
                 pattern="[0-9,]*"
@@ -266,9 +255,7 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
                 onChange={onSharesChange}
               />
             </div>
-            <p className="help">
-              Solo números enteros. Se guarda sin comas (p.ej. 10000).
-            </p>
+            <p className="help">Solo números enteros. Se guarda sin comas (p.ej. 10000).</p>
           </div>
         )}
 
@@ -276,7 +263,6 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
         <div className="mt-6">
           <div className="label-lg mb-2">¿Cuenta con una dirección en USA para su empresa?</div>
           <p className="help mb-2">
-            {/* 4) Missing description text for address */}
             No puede ser P.O. BOX. Si no cuenta con una nosotros le podemos proveer una por
             $600 usd al año.
           </p>
@@ -363,7 +349,6 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
         <div className="mt-6">
           <div className="label-lg mb-2">¿Cuenta con número de teléfono de USA de su empresa?</div>
           <p className="help mb-2">
-            {/* 5) Missing description text for phone */}
             Si no cuenta con uno, nosotros se lo podemos proveer por $180 usd al año.
           </p>
           <Controller
@@ -384,25 +369,7 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
           />
         </div>
 
-        {hasUsPhone === "Yes" && (
-          <div className="mt-4">
-            <label className="label">Número de teléfono (USA)</label>
-            <input
-              ref={(el) => {
-                phoneRef.current = el;
-              }}
-              className="input"
-              inputMode="numeric"
-              autoComplete="tel"
-              value={watch("company.usPhoneNumber") || "+1 "}
-              onChange={handlePhoneChange}
-              onKeyDown={preventDeletePrefix}
-            />
-            <p className="help">Formato: +1 305 555 0123</p>
-          </div>
-        )}
-
-        {/* 3) Business purpose moved under phone section */}
+        {/* ¿A qué se dedica la empresa? (debajo de teléfono) */}
         <div className="mt-6">
           <div className="label-lg mb-2">¿A qué se dedica la empresa?</div>
           <textarea
