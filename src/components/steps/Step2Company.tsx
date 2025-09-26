@@ -1,12 +1,13 @@
 // src/components/steps/Step2Company.tsx
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { Controller } from "react-hook-form";
 
 import SegmentedToggle from "@/components/SegmentedToggle";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
+import InfoTooltip from "@/components/InfoTooltip";
 import type { StepProps } from "./types";
 
 const formationStates = [
@@ -23,6 +24,13 @@ const formationStates = [
 
 const entityTypes = ["LLC", "C-Corp"] as const;
 
+function formatWithCommas(n: number | string | undefined): string {
+  if (n === undefined || n === null || n === "") return "";
+  const s = typeof n === "number" ? String(n) : n.replace(/[, ]+/g, "");
+  if (s === "") return "";
+  return s.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
 export default function Step2Company({ form, setStep, onSave, onNext }: StepProps) {
   const {
     control,
@@ -34,11 +42,11 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
   } = form;
 
   // ====== Entity type / dynamic suffix ======
-  const entityType = watch("company.entityType");
-  const companyNameBase = (watch("company.companyNameBase") || "").toUpperCase();
-  const suffixWord = entityType === "C-Corp" ? "INC" : "LLC";
+  const entityType = watch("company.entityType") as "LLC" | "C-Corp" | undefined;
+  const companyNameBase = (watch("company.companyNameBase") || "").toString();
+  const suffixWord = useMemo(() => (entityType === "C-Corp" ? "Inc" : "LLC"), [entityType]);
 
-  // keep the computed full legal name in sync (BASE + space + SUFFIX)
+  // keep the computed name in sync with a SPACE before the suffix (e.g., "ACME LLC")
   useEffect(() => {
     const base = companyNameBase.replace(/\s+(LLC|INC)\.?$/i, "").trim();
     const full = base ? `${base} ${suffixWord}` : "";
@@ -68,7 +76,7 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
     const dropCountry = digits.startsWith("1") ? digits.slice(1) : digits;
     const formatted = formatUsPhone(dropCountry);
     setValue("company.usPhoneNumber", formatted, { shouldDirty: true, shouldValidate: true });
-    requestAnimationFrame((): void => {
+    requestAnimationFrame(() => {
       const node = phoneRef.current;
       if (!node) return;
       const pos = Math.max(node.selectionStart ?? formatted.length, PHONE_PREFIX.length);
@@ -85,6 +93,28 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
       (e.key === "Delete" && start < PHONE_PREFIX.length)
     ) {
       e.preventDefault();
+    }
+  };
+
+  // ====== Controlled display for numberOfShares (commas in UI, number in form) ======
+  const watchedShares = watch("company.numberOfShares") as number | undefined;
+  const [sharesDisplay, setSharesDisplay] = useState<string>(formatWithCommas(watchedShares));
+
+  useEffect(() => {
+    // keep UI in sync if value changes externally (load/reset)
+    setSharesDisplay(formatWithCommas(watchedShares));
+  }, [watchedShares]);
+
+  const onSharesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/[, ]+/g, "");
+    if (/^\d*$/.test(raw)) {
+      setSharesDisplay(formatWithCommas(raw));
+      // Save as number (or undefined if empty)
+      setValue(
+        "company.numberOfShares",
+        raw === "" ? (undefined as unknown as number) : Number(raw),
+        { shouldDirty: true, shouldValidate: true }
+      );
     }
   };
 
@@ -111,12 +141,18 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
       {/* CARD */}
       <div className="card">
         <h2 className="text-xl font-semibold text-gray-900">Datos de la empresa</h2>
-        <p className="mt-1 text-sm text-gray-600">Cuéntanos sobre la nueva empresa</p>
+        {/* (1) Removed the tooltip that used to sit on the section title per your request */}
 
         {/* Estado / Tipo */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end mt-6">
           <div>
-            <div className="label-lg mb-2">Estado donde desea formar su empresa</div>
+            <div className="label-lg mb-2 flex items-center gap-2">
+              Estado donde desea formar su empresa
+              <InfoTooltip
+                title="Estado"
+                body={`¿No sabes cual es el mejor estado para tu nueva empresa?\nLee nuestro artículo:`}
+              />
+            </div>
             <select className="input" {...register("company.formationState", { required: true })}>
               {formationStates.map((s) => (
                 <option key={s} value={s}>
@@ -130,7 +166,13 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
           </div>
 
           <div>
-            <div className="label-lg mb-2">Tipo de entidad</div>
+            <div className="label-lg mb-2 flex items-center gap-2">
+              Tipo de entidad
+              <InfoTooltip
+                title="LLC o C-Corp"
+                body={`¿ No sabes si crear una LLC o C-Corp?\nLee nuestro artículo:`}
+              />
+            </div>
             <Controller
               name="company.entityType"
               control={control}
@@ -147,30 +189,40 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
           </div>
         </div>
 
-        {/* Nombre — inline suffix (e.g., "DUNE LLC") */}
+        {/* Nombre + sufijo inmediato + botón revisar */}
         <div className="mt-6">
           <div className="label-lg mb-2">Nombre de la empresa</div>
-
-          {/* We mimic the input style with a wrapper so we can place the suffix directly after the text */}
-          <div className="input flex items-center gap-2">
-            <Controller
-              name="company.companyNameBase"
-              control={control}
-              render={({ field }) => (
-                <input
-                  className="flex-1 bg-transparent outline-none uppercase"
-                  value={(field.value || "").toUpperCase()}
-                  onChange={(e) => field.onChange(e.target.value.toUpperCase())}
-                />
+          <div className="grid grid-cols-[1fr_auto] items-center gap-3">
+            <div className="relative">
+              <Controller
+                name="company.companyNameBase"
+                control={control}
+                render={({ field }) => (
+                  <input
+                    className="input uppercase w-full pr-20"
+                    value={field.value?.toString().toUpperCase() ?? ""}
+                    onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                  />
+                )}
+              />
+              {/* Render suffix with a leading space */}
+              {companyNameBase.trim() !== "" && (
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
+                  {" "}{suffixWord}
+                </span>
               )}
-            />
-            {/* leading space before the suffix to show e.g. `DUNE LLC` */}
-            <span className="text-gray-500 select-none">{` ${suffixWord}`}</span>
+            </div>
+            <button
+              type="button"
+              className="btn btn-primary text-sm px-4 py-2"
+              onClick={() =>
+                alert("Puedes continuar en lo que revisamos si tu nombre está disponible.")
+              }
+            >
+              Revisar disponibilidad
+            </button>
           </div>
-
-          {/* Hidden full name kept in sync by effect above */}
           <input type="hidden" {...register("company.companyName")} />
-
           <p className="help">
             {(errors.company?.companyName?.message as unknown as string) || ""}
           </p>
@@ -178,31 +230,37 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
 
         {/* Dirección */}
         <div className="mt-6">
-          <div className="label-lg mb-2">¿Cuenta con una dirección en USA para su empresa?</div>
-          <Controller
-            name="company.hasUsaAddress"
-            control={control}
-            render={({ field }) => (
-              <SegmentedToggle
-                value={(field.value as string) ?? "No"}
-                onChange={(v) => {
-                  field.onChange(v);
-                  if (v === "Yes") {
-                    setValue("company.country", "Estados Unidos de América", { shouldDirty: true });
-                    setValue("company.state", getValues("company.formationState"), {
-                      shouldDirty: true,
-                    });
-                  }
-                }}
-                options={[
-                  { value: "Yes", label: "Sí" },
-                  { value: "No", label: "No" },
-                ]}
-                ariaLabel="Cuenta con dirección en USA"
-                name={field.name}
-              />
-            )}
-          />
+          <div className="label-lg mb-1">¿Cuenta con una dirección en USA para su empresa?</div>
+          <p className="text-sm text-gray-600">
+            No puede ser P.O. BOX. Si no cuenta con una nosotros le podemos proveer una por $600
+            usd al año.
+          </p>
+          <div className="mt-2">
+            <Controller
+              name="company.hasUsaAddress"
+              control={control}
+              render={({ field }) => (
+                <SegmentedToggle
+                  value={(field.value as string) ?? "No"}
+                  onChange={(v) => {
+                    field.onChange(v);
+                    if (v === "Yes") {
+                      setValue("company.country", "Estados Unidos de América", { shouldDirty: true });
+                      setValue("company.state", getValues("company.formationState"), {
+                        shouldDirty: true,
+                      });
+                    }
+                  }}
+                  options={[
+                    { value: "Yes", label: "Sí" },
+                    { value: "No", label: "No" },
+                  ]}
+                  ariaLabel="Cuenta con dirección en USA"
+                  name={field.name}
+                />
+              )}
+            />
+          </div>
         </div>
 
         {hasUsaAddress === "Yes" && (
@@ -260,30 +318,36 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
 
         {/* Teléfono */}
         <div className="mt-6">
-          <div className="label-lg mb-2">¿Cuenta con número de teléfono de USA de su empresa?</div>
-          <Controller
-            name="company.hasUsPhone"
-            control={control}
-            render={({ field }) => (
-              <SegmentedToggle
-                value={(field.value as string) ?? "No"}
-                onChange={field.onChange}
-                options={[
-                  { value: "Yes", label: "Sí" },
-                  { value: "No", label: "No" },
-                ]}
-                ariaLabel="Cuenta con número de teléfono USA"
-                name={field.name}
-              />
-            )}
-          />
+          <div className="label-lg mb-1">¿Cuenta con número de teléfono de USA de su empresa?</div>
+          <p className="text-sm text-gray-600">
+            Si no cuenta con uno, nosotros se lo podemos proveer por $180 usd al año.
+          </p>
+          <div className="mt-2">
+            <Controller
+              name="company.hasUsPhone"
+              control={control}
+              render={({ field }) => (
+                <SegmentedToggle
+                  value={(field.value as string) ?? "No"}
+                  onChange={field.onChange}
+                  options={[
+                    { value: "Yes", label: "Sí" },
+                    { value: "No", label: "No" },
+                  ]}
+                  ariaLabel="Cuenta con número de teléfono USA"
+                  name={field.name}
+                />
+              )}
+            />
+          </div>
         </div>
 
         {hasUsPhone === "Yes" && (
           <div className="mt-4">
             <label className="label">Número de teléfono (USA)</label>
             <input
-              ref={(el): void => {
+              ref={(el) => {
+                // Important: do not return anything from this callback (fixes TS build error)
                 phoneRef.current = el;
               }}
               className="input"
@@ -297,10 +361,48 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
           </div>
         )}
 
-        {/* Footer actions (no Back button on first step) */}
+        {/* A qué se dedica la empresa (moved here, under phone section) */}
+        <div className="mt-6">
+          <div className="label-lg mb-2">¿A qué se dedica la empresa?</div>
+          <textarea
+            className="input min-h-[120px]"
+            placeholder="Describe brevemente el objeto o giro de la empresa…"
+            {...register("company.businessPurpose")}
+          />
+        </div>
+
+        {/* Número de acciones (under businessPurpose) */}
+        {entityType === "C-Corp" && (
+          <div className="mt-6">
+            <div className="label-lg mb-2 flex items-center gap-2">
+              Número de acciones
+              <InfoTooltip
+                title="Número de acciones"
+                body={`¿ No sabes cuántas acciones emitir?\nLee nuestro artículo:`}
+              />
+            </div>
+            <div className="w-[20%] min-w-[140px]">
+              <input
+                type="text"
+                inputMode="numeric"
+                step="1"
+                className="input"
+                value={sharesDisplay}
+                onChange={onSharesChange}
+                placeholder="10,000"
+              />
+            </div>
+            <p className="help">
+              {(errors.company?.numberOfShares?.message as unknown as string) || ""}
+            </p>
+          </div>
+        )}
+
+        {/* Acciones */}
         <div className="mt-8 flex items-center justify-between">
-          <span /> {/* empty spacer so right group stays on the right */}
-          <div className="flex items-center gap-6">
+          {/* (6) No back button on this first step */}
+          <div />
+          <div className="flex items-center gap-4">
             <button
               type="button"
               className="text-sm underline text-blue-600 hover:text-blue-700"
