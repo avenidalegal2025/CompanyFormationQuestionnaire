@@ -129,23 +129,20 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
     const mirror = mirrorRef.current;
     if (!input || !mirror) return;
 
-    // mirror the input value (uppercase) plus one space before the suffix
+    // mirror the input value (uppercase) plus ONE space before the suffix
     mirror.textContent = `${companyNameBase.toUpperCase()} `;
 
-    // copy font styles so measurement matches
+    // copy font styles so measurement matches (IMPORTANT: no padding here)
     const cs = getComputedStyle(input);
     mirror.style.fontFamily = cs.fontFamily;
     mirror.style.fontSize = cs.fontSize;
     mirror.style.fontWeight = cs.fontWeight;
     mirror.style.letterSpacing = cs.letterSpacing;
-    mirror.style.padding = cs.padding; // padding matters for left inset
-    mirror.style.border = "0";
 
+    // compute left = input padding-left + pure text width (no padding double-count)
     const padLeft = parseFloat(cs.paddingLeft || "0");
-    const rect = mirror.getBoundingClientRect();
-    const width = rect.width;
+    const width = mirror.getBoundingClientRect().width;
 
-    // left position inside the input: padding-left + text width
     setSuffixLeft(padLeft + width);
   }, [companyNameBase]);
 
@@ -159,7 +156,6 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
           fill
           priority
           sizes="(min-width: 768px) 900px, 100vw"
-          className="object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/25 to-transparent" />
         <div className="relative px-6 py-10 sm:px-10 sm:py-14">
@@ -172,7 +168,6 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
       {/* CARD */}
       <div className="card">
         <h2 className="text-xl font-semibold text-gray-900">Datos de la empresa</h2>
-        {/* (1) Removed the tooltip that used to sit on the section title per your request */}
 
         {/* Estado / Tipo */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end mt-6">
@@ -244,9 +239,7 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
                 ref={mirrorRef}
                 aria-hidden
                 className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 whitespace-pre text-transparent"
-                style={{
-                  visibility: "hidden",
-                }}
+                style={{ visibility: "hidden" }}
               />
 
               {/* Suffix placed exactly after the typed text (one space) */}
@@ -408,7 +401,7 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
           </div>
         )}
 
-        {/* A qué se dedica la empresa (moved here, under phone section) */}
+        {/* A qué se dedica la empresa */}
         <div className="mt-6">
           <div className="label-lg mb-2">¿A qué se dedica la empresa?</div>
           <textarea
@@ -418,7 +411,7 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
           />
         </div>
 
-        {/* Número de acciones (under businessPurpose) */}
+        {/* Número de acciones */}
         {entityType === "C-Corp" && (
           <div className="mt-6">
             <div className="label-lg mb-2 flex items-center gap-2">
@@ -447,7 +440,6 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
 
         {/* Acciones */}
         <div className="mt-8 flex items-center justify-between">
-          {/* (6) No back button on this first step */}
           <div />
           <div className="flex items-center gap-4">
             <button
