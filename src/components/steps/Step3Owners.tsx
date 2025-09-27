@@ -8,16 +8,10 @@ import type { StepProps } from "./types";
 const MAX_OWNERS = 6;
 
 export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps) {
-  const {
-    register,
-    control,
-    watch,
-    setValue,
-    // formState: { errors }, // not used
-  } = form;
+  const { register, control, watch, setValue } = form;
 
-  // Loosen types ONLY for ad-hoc fields not present in the schema
-  const w = watch as unknown as (name: string) => any;
+  // Loosen types ONLY for ad-hoc (non-schema) paths without using `any`
+  const w = watch as unknown as (name: string) => unknown;
   const reg = (name: string) => register(name as never);
 
   // Entity type decides wording
@@ -27,7 +21,7 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
   const singleLabel = isCorp ? "Accionista" : "Socio";
 
   // How many blocks to render (stored at root as ownersCount)
-  const ownersCount: number = w("ownersCount") ?? 1;
+  const ownersCount = (w("ownersCount") as number | undefined) ?? 1;
 
   return (
     <section className="space-y-6">
