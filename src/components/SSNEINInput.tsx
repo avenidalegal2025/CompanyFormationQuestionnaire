@@ -29,30 +29,16 @@ function formatSSNStyle(d: string) {
  * Progressive masking:
  * - As the user types, mask only the digits they have entered from positions 1..5.
  * - Format with SSN hyphens as we go.
- * Examples (input digits = 1..n):
- * 1 -> "*"
- * 2 -> "**"
- * 3 -> "***"
- * 4 -> "***-*"
- * 5 -> "***-**"
- * 6 -> "***-**-6"
- * 9 -> "***-**-6789"
  */
 function progressiveMask(d: string) {
   const n = onlyDigits(d);
   const len = n.length;
   if (len === 0) return "";
 
-  if (len <= 3) {
-    return "*".repeat(len);
-  }
+  if (len <= 3) return "*".repeat(len);
+  if (len <= 5) return `***-${"*".repeat(len - 3)}`;
 
-  if (len <= 5) {
-    return `***-${"*".repeat(len - 3)}`;
-  }
-
-  // len >= 6
-  const visibleTail = n.slice(5); // digits 6..len
+  const visibleTail = n.slice(5); // digits 6..end
   return `***-**-${visibleTail}`;
 }
 
@@ -70,16 +56,15 @@ export default function SSNEINInput({
   }, [value, show]);
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onChange(onlyDigits(e.target.value));
+    // Always derive raw digits from input + current raw value
+    const digits = onlyDigits(e.target.value);
+    onChange(digits);
   };
 
   return (
     <div>
-      <label className="label">
-        {label} {required ? "" : null}
-      </label>
+      <label className="label">{label}{required ? "" : null}</label>
 
-      {/* 1/6 width of the row (with a reasonable minimum so it doesn't get too tiny) */}
       <div className="relative w-1/6 min-w-[220px]">
         <input
           className="input pr-10 w-full"
