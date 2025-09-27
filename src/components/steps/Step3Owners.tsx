@@ -151,7 +151,19 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
 
         {/* Footer actions */}
         <div className="mt-8 flex items-center justify-between">
-          <button type="button" className="btn" onClick={() => setStep(2)}>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              // Prefer functional update so it always navigates to the previous step
+              try {
+                (setStep as unknown as (u: (n: number) => number) => void)((n) => Math.max(1, n - 1));
+              } catch {
+                // Fallback for numeric-only setter
+                setStep(2);
+              }
+            }}
+          >
             Atrás
           </button>
 
