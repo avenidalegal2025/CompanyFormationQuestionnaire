@@ -8,7 +8,7 @@ type Props = {
   value?: string;
   onChange: (rawDigits: string) => void;
   /** Label above the input */
-  label?: string; // default: "SSN / EIN (opcional)"
+  label?: string; // default: "SSN / EIN"
   required?: boolean;
 };
 
@@ -16,8 +16,7 @@ function onlyDigits(s: string) {
   return (s || "").replace(/\D+/g, "").slice(0, 9);
 }
 
-// Format as SSN for display when fully shown (###-##-####).
-// We use SSN style for consistency even if it’s an EIN.
+// Full SSN-style formatting when visible: ###-##-####
 function formatSSNStyle(d: string) {
   const n = onlyDigits(d);
   if (!n) return "";
@@ -26,25 +25,48 @@ function formatSSNStyle(d: string) {
   return `${n.slice(0, 3)}-${n.slice(3, 5)}-${n.slice(5)}`;
 }
 
-// Mask first 5, show last 4: ***-**-1234
-function maskFirstFiveShowLast4(d: string) {
+/**
+ * Progressive masking:
+ * - As the user types, mask only the digits they have entered from positions 1..5.
+ * - Format with SSN hyphens as we go.
+ * Examples (input digits = 1..n):
+ * 1 -> "*"
+ * 2 -> "**"
+ * 3 -> "***"
+ * 4 -> "***-*"
+ * 5 -> "***-**"
+ * 6 -> "***-**-6"
+ * 9 -> "***-**-6789"
+ */
+function progressiveMask(d: string) {
   const n = onlyDigits(d);
-  const last4 = n.slice(-4);
-  if (!last4) return "";
-  return `***-**-${last4}`;
+  const len = n.length;
+  if (len === 0) return "";
+
+  if (len <= 3) {
+    return "*".repeat(len);
+  }
+
+  if (len <= 5) {
+    return `***-${"*".repeat(len - 3)}`;
+  }
+
+  // len >= 6
+  const visibleTail = n.slice(5); // digits 6..len
+  return `***-**-${visibleTail}`;
 }
 
 export default function SSNEINInput({
   value = "",
   onChange,
-  label = "SSN / EIN (opcional)",
+  label = "SSN / EIN",
   required,
 }: Props) {
   const [show, setShow] = useState(false);
 
   const display = useMemo(() => {
     if (!value) return "";
-    return show ? formatSSNStyle(value) : maskFirstFiveShowLast4(value);
+    return show ? formatSSNStyle(value) : progressiveMask(value);
   }, [value, show]);
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -57,14 +79,15 @@ export default function SSNEINInput({
         {label} {required ? "" : null}
       </label>
 
-      <div className="relative">
+      {/* 1/6 width of the row (with a reasonable minimum so it doesn't get too tiny) */}
+      <div className="relative w-1/6 min-w-[220px]">
         <input
-          className="input pr-10"
+          className="input pr-10 w-full"
           value={display}
           onChange={handleInput}
           inputMode="numeric"
           placeholder="###-##-####"
-          aria-label={`${label}${required ? "" : " (opcional)"}`}
+          aria-label={label}
         />
 
         {/* Eye toggle */}
@@ -85,8 +108,6 @@ export default function SSNEINInput({
           </svg>
         </button>
       </div>
-
-      <p className="help">Puede proporcionar SSN o EIN. Guardamos solo dígitos (sin guiones).</p>
     </div>
   );
 }
