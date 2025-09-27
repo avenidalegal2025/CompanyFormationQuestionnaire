@@ -3,6 +3,7 @@
 
 import { Controller } from "react-hook-form";
 import SegmentedToggle from "@/components/SegmentedToggle";
+import SSNEINInput from "@/components/SSNEINInput";
 import type { StepProps } from "./types";
 
 const MAX_OWNERS = 6;
@@ -116,26 +117,20 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
                   />
                 </div>
 
-                {/* Conditional: SSN/EIN (US) or Passport (non-US) */}
+                {/* Conditional: Single SSN/EIN (US) or Passport (non-US) */}
                 {resident === "Yes" ? (
-                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="label">SSN (opcional)</label>
-                      <input
-                        className="input"
-                        placeholder="###-##-####"
-                        {...reg(`${base}.ssn`)}
-                      />
-                      <p className="help">Puede proporcionar SSN o EIN.</p>
-                    </div>
-                    <div>
-                      <label className="label">EIN (opcional)</label>
-                      <input
-                        className="input"
-                        placeholder="##-#######"
-                        {...reg(`${base}.ein`)}
-                      />
-                    </div>
+                  <div className="mt-4">
+                    <Controller
+                      name={`${base}.tin` as never} // store raw digits only
+                      control={control}
+                      render={({ field }) => (
+                        <SSNEINInput
+                          value={(field.value as string) ?? ""}
+                          onChange={(digits) => field.onChange(digits)}
+                          label="SSN / EIN (opcional)"
+                        />
+                      )}
+                    />
                   </div>
                 ) : (
                   <div className="mt-4">
