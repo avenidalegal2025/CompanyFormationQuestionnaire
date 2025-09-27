@@ -4,7 +4,7 @@
 import { Controller, type FieldPath } from "react-hook-form";
 import HeroBanner from "@/components/HeroBanner";
 import SegmentedToggle from "@/components/SegmentedToggle";
-import AddressAutocomplete from "@/components/AddressAutocomplete"; // default import ✅
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 import type { AllSteps } from "@/lib/schema";
 import type { StepProps } from "./types";
 
@@ -16,13 +16,16 @@ export default function Step4Admin({ form, setStep, onSave, onNext }: StepProps)
 
   const entityType = watch("company.entityType");
 
-  // directors / officers (C-Corp)
+  // C-Corp: directors & officers
   const directorsAllOwners = watch("admin.directorsAllOwners");
   const directorsCount = watch("admin.directorsCount") || 1;
-  const officersAllOwners = watch("admin.officersAllOwners");
 
-  // managers (LLC)
+  const officersAllOwners = watch("admin.officersAllOwners");
+  const officersCount = watch("admin.officersCount") || 1;
+
+  // LLC: managers
   const managersAllOwners = watch("admin.managersAllOwners");
+  const managersCount = watch("admin.managersCount") || 1;
 
   return (
     <section className="space-y-6">
@@ -38,6 +41,7 @@ export default function Step4Admin({ form, setStep, onSave, onNext }: StepProps)
 
         {entityType === "LLC" ? (
           <>
+            {/* LLC — Gerentes */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end mt-6">
               <div>
                 <label className="label">¿Número de gerentes?</label>
@@ -74,26 +78,48 @@ export default function Step4Admin({ form, setStep, onSave, onNext }: StepProps)
             </div>
 
             {managersAllOwners === "No" && (
-              <div className="mt-6 grid grid-cols-1 gap-4">
-                <div>
-                  <label className="label">Nombre completo del Gerente 1</label>
-                  <input className="input w/full" {...register("admin.manager1Name")} />
-                </div>
-                <div>
-                  <label className="label">Dirección del Gerente 1</label>
-                  <Controller
-                    name="admin.manager1Address"
-                    control={control}
-                    render={({ field }) => (
-                      <AddressAutocomplete
-                        placeholder="Escriba y seleccione la dirección"
-                        defaultValue={(field.value as string) ?? ""}
-                        onSelect={(addr) => field.onChange(addr.fullAddress)}
+              <>
+                {Array.from({ length: managersCount || 0 }).map((_, idx) => (
+                  <div
+                    key={idx}
+                    className="mt-6 grid grid-cols-1 gap-4 rounded-2xl border border-gray-100 p-4"
+                  >
+                    {/* Nombre + Rol side-by-side */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="label">Nombre completo del Gerente {idx + 1}</label>
+                        <input
+                          className="input"
+                          {...register(fp(`admin.manager${idx + 1}Name`))}
+                        />
+                      </div>
+                      <div>
+                        <label className="label">Rol</label>
+                        <input
+                          className="input"
+                          placeholder=""
+                          {...register(fp(`admin.manager${idx + 1}Role`))}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="label">Dirección del Gerente {idx + 1}</label>
+                      <Controller
+                        name={fp(`admin.manager${idx + 1}Address`)}
+                        control={control}
+                        render={({ field }) => (
+                          <AddressAutocomplete
+                            placeholder="Escriba y seleccione la dirección"
+                            defaultValue={(field.value as string) ?? ""}
+                            onSelect={(addr) => field.onChange(addr.fullAddress)}
+                          />
+                        )}
                       />
-                    )}
-                  />
-                </div>
-              </div>
+                    </div>
+                  </div>
+                ))}
+              </>
             )}
           </>
         ) : (
@@ -140,12 +166,23 @@ export default function Step4Admin({ form, setStep, onSave, onNext }: StepProps)
                     key={idx}
                     className="mt-6 grid grid-cols-1 gap-4 rounded-2xl border border-gray-100 p-4"
                   >
-                    <div>
-                      <label className="label">Nombre completo del Director {idx + 1}</label>
-                      <input
-                        className="input"
-                        {...register(`admin.director${idx + 1}Name` as const)}
-                      />
+                    {/* Nombre + Rol side-by-side */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="label">Nombre completo del Director {idx + 1}</label>
+                        <input
+                          className="input"
+                          {...register(fp(`admin.director${idx + 1}Name`))}
+                        />
+                      </div>
+                      <div>
+                        <label className="label">Rol</label>
+                        <input
+                          className="input"
+                          placeholder=""
+                          {...register(fp(`admin.director${idx + 1}Role`))}
+                        />
+                      </div>
                     </div>
 
                     <div>
@@ -167,20 +204,8 @@ export default function Step4Admin({ form, setStep, onSave, onNext }: StepProps)
               </>
             )}
 
-            {/* C-Corp — Oficiales */}
-            <div className="mt-8">
-              <label className="label">¿Número de oficiales?</label>
-              <input
-                className="input w-24"
-                type="number"
-                min={1}
-                step={1}
-                {...register("admin.officersCount", { valueAsNumber: true })}
-              />
-              <p className="help">Debe elegir al menos un oficial con el rol de Presidente.</p>
-            </div>
-
-            <div className="mt-6 flex flex-col">
+            {/* C-Corp — Oficiales (replicated pattern) */}
+            <div className="mt-8 flex flex-col">
               <label className="label">
                 ¿Todos los accionistas y solo los accionistas serán los oficiales?
               </label>
@@ -203,39 +228,90 @@ export default function Step4Admin({ form, setStep, onSave, onNext }: StepProps)
             </div>
 
             {officersAllOwners === "No" && (
-              <div className="mt-6 grid grid-cols-1 gap-4">
-                <div className="w-full">
-                  <label className="label">Nombre completo del Oficial 1</label>
-                  <input className="input w-full" {...register("admin.officer1Name")} />
-                </div>
-                <div className="w-full">
-                  <label className="label">Dirección del Oficial 1</label>
-                  <Controller
-                    name="admin.officer1Address"
-                    control={control}
-                    render={({ field }) => (
-                      <AddressAutocomplete
-                        placeholder="Escriba y seleccione la dirección"
-                        defaultValue={(field.value as string) ?? ""}
-                        onSelect={(addr) => field.onChange(addr.fullAddress)}
-                      />
-                    )}
+              <>
+                <div className="mt-6">
+                  <label className="label">¿Número de oficiales?</label>
+                  <input
+                    className="input w-24"
+                    type="number"
+                    min={1}
+                    step={1}
+                    {...register("admin.officersCount", { valueAsNumber: true })}
                   />
+                  <p className="help">
+                    Debe elegir al menos un oficial con el rol de Presidente.
+                  </p>
                 </div>
-              </div>
+
+                {Array.from({ length: officersCount || 0 }).map((_, idx) => (
+                  <div
+                    key={idx}
+                    className="mt-6 grid grid-cols-1 gap-4 rounded-2xl border border-gray-100 p-4"
+                  >
+                    {/* Nombre + Rol side-by-side (with helper for role) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="label">Nombre completo del Oficial {idx + 1}</label>
+                        <input
+                          className="input"
+                          {...register(fp(`admin.officer${idx + 1}Name`))}
+                        />
+                      </div>
+                      <div>
+                        <label className="label">Rol</label>
+                        <input
+                          className="input"
+                          placeholder="Ej. Presidente, CEO"
+                          {...register(fp(`admin.officer${idx + 1}Role`))}
+                        />
+                        <p className="help">Ej. Presidente, CEO</p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="label">Dirección del Oficial {idx + 1}</label>
+                      <Controller
+                        name={fp(`admin.officer${idx + 1}Address`)}
+                        control={control}
+                        render={({ field }) => (
+                          <AddressAutocomplete
+                            placeholder="Escriba y seleccione la dirección"
+                            defaultValue={(field.value as string) ?? ""}
+                            onSelect={(addr) => field.onChange(addr.fullAddress)}
+                          />
+                        )}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </>
             )}
           </>
         )}
 
         {/* footer */}
         <div className="mt-8 flex items-center justify-between">
-          <button type="button" className="btn" onClick={() => setStep(3)}>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              // Go back one step reliably (supports functional updater if provided)
+              try {
+                (setStep as unknown as (u: (n: number) => number) => void)((n) =>
+                  Math.max(1, n - 1)
+                );
+              } catch {
+                setStep(3);
+              }
+            }}
+          >
             Atrás
           </button>
+
           <div className="flex items-center gap-4">
             <button
               type="button"
-              className="text-sm text-gray-700 hover:underline"
+              className="text-sm underline text-blue-600 hover:text-blue-700"
               onClick={() => void onSave?.()}
             >
               Guardar y continuar más tarde
