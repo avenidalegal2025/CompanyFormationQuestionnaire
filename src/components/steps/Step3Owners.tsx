@@ -41,7 +41,7 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
             type="number"
             min={1}
             max={MAX_OWNERS}
-            className="input w-32"
+            className="input w-full max-w-xs"
             {...reg("ownersCount")}
             onChange={(e) => {
               const n = Math.max(1, Math.min(MAX_OWNERS, Number(e.target.value) || 1));
@@ -134,7 +134,9 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
                   </div>
                 ) : (
                   <div className="mt-4">
-                    <label className="label">Subir imagen de pasaporte vigente (.png o .jpeg)</label>
+                    <label className="label">
+                      Subir imagen de pasaporte vigente (.png o .jpeg)
+                    </label>
                     <input
                       type="file"
                       accept=".png,.jpg,.jpeg"
@@ -155,11 +157,11 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
             type="button"
             className="btn"
             onClick={() => {
-              // Prefer functional update so it always navigates to the previous step
               try {
-                (setStep as unknown as (u: (n: number) => number) => void)((n) => Math.max(1, n - 1));
+                (setStep as unknown as (u: (n: number) => number) => void)((n) =>
+                  Math.max(1, n - 1)
+                );
               } catch {
-                // Fallback for numeric-only setter
                 setStep(2);
               }
             }}
