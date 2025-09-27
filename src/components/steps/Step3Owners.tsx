@@ -1,3 +1,4 @@
+// src/components/steps/Step3Owners.tsx
 "use client";
 
 import { Controller } from "react-hook-form";
@@ -12,8 +13,12 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
     control,
     watch,
     setValue,
-    formState: { errors },
+    // formState: { errors }, // not used
   } = form;
+
+  // Loosen types ONLY for ad-hoc fields not present in the schema
+  const w = watch as unknown as (name: string) => any;
+  const reg = (name: string) => register(name as never);
 
   // Entity type decides wording
   const entityType = watch("company.entityType") as "LLC" | "C-Corp" | undefined;
@@ -21,11 +26,8 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
   const groupLabel = isCorp ? "accionistas" : "socios";
   const singleLabel = isCorp ? "Accionista" : "Socio";
 
-  // How many blocks to render
-  const ownersCount = watch("ownersCount") ?? 1;
-
-  // helper so TS doesn't complain about string paths
-  const reg = (path: string) => register(path as never);
+  // How many blocks to render (stored at root as ownersCount)
+  const ownersCount: number = w("ownersCount") ?? 1;
 
   return (
     <section className="space-y-6">
@@ -48,7 +50,7 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
             {...reg("ownersCount")}
             onChange={(e) => {
               const n = Math.max(1, Math.min(MAX_OWNERS, Number(e.target.value) || 1));
-              setValue("ownersCount", n, { shouldDirty: true });
+              setValue("ownersCount" as never, n as never, { shouldDirty: true });
             }}
           />
           <p className="help">Define cuántos bloques se muestran debajo (1 a {MAX_OWNERS}).</p>
@@ -59,13 +61,15 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
           {Array.from({ length: ownersCount }).map((_, i) => {
             const base = `owners.${i}`;
             const residentKey = `${base}.isUsCitizen`;
-            const resident = watch(residentKey) as "Yes" | "No" | undefined;
+            const resident = w(residentKey) as "Yes" | "No" | undefined;
 
             return (
               <div key={i} className="rounded-2xl border p-4">
-                <h3 className="text-lg font-semibold text-gray-900">{singleLabel} {i + 1}</h3>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {singleLabel} {i + 1}
+                </h3>
 
-                {/* Name + %: name wider (≈ 2/3), % narrower (≈ 1/3) */}
+                {/* Name + %: name wider (~2/3), % narrower (~1/3) */}
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-4">
                   <div>
                     <label className="label">Nombre completo</label>
@@ -85,15 +89,21 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
                   </div>
                 </div>
 
-                {/* Dirección completa (kept simple) */}
+                {/* Dirección completa */}
                 <div className="mt-4">
                   <label className="label">Dirección completa</label>
-                  <input className="input" {...reg(`${base}.address`)} placeholder="Escriba y seleccione la dirección" />
+                  <input
+                    className="input"
+                    {...reg(`${base}.address`)}
+                    placeholder="Escriba y seleccione la dirección"
+                  />
                 </div>
 
                 {/* ¿Es ciudadano/residente de EE.UU.? */}
                 <div className="mt-4">
-                  <div className="label-lg mb-2">¿El {singleLabel.toLowerCase()} es ciudadano o residente de los Estados Unidos?</div>
+                  <div className="label-lg mb-2">
+                    ¿El {singleLabel.toLowerCase()} es ciudadano o residente de los Estados Unidos?
+                  </div>
                   <Controller
                     name={residentKey as never}
                     control={control}
