@@ -127,7 +127,7 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
                         <SSNEINInput
                           value={(field.value as string) ?? ""}
                           onChange={(digits) => field.onChange(digits)}
-                          label="SSN / EIN (opcional)"
+                          label="SSN / EIN"
                         />
                       )}
                     />
