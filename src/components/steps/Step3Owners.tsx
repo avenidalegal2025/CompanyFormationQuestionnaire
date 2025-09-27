@@ -1,155 +1,101 @@
-// src/components/steps/Step3Owners.tsx
 "use client";
 
-import { Controller, type FieldPath } from "react-hook-form";
-import AddressAutocomplete from "@/components/AddressAutocomplete"; // default import ✅
+import { Controller } from "react-hook-form";
 import SegmentedToggle from "@/components/SegmentedToggle";
-import type { AllSteps } from "@/lib/schema";
 import type { StepProps } from "./types";
 
-// Helper type + helper caster for dynamic field paths
-type Owner = NonNullable<AllSteps["owners"]>[number];
-const fp = (s: string) => s as unknown as FieldPath<AllSteps>;
+const MAX_OWNERS = 6;
 
 export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps) {
-  const { control, register, watch, setValue, getValues } = form;
+  const {
+    register,
+    control,
+    watch,
+    setValue,
+    formState: { errors },
+  } = form;
 
-  // Safely read owners array (watch is fine here)
-  const owners = (watch("owners") as Owner[] | undefined) ?? [];
+  // Entity type decides wording
+  const entityType = watch("company.entityType") as "LLC" | "C-Corp" | undefined;
+  const isCorp = entityType === "C-Corp";
+  const groupLabel = isCorp ? "accionistas" : "socios";
+  const singleLabel = isCorp ? "Accionista" : "Socio";
 
-  // Read ownersCount loosely and compute a safe final count
-  const ownersCountRaw = getValues("ownersCount" as unknown as keyof AllSteps) as
-    | number
-    | undefined;
+  // How many blocks to render
+  const ownersCount = watch("ownersCount") ?? 1;
 
-  const ownersCount =
-    (typeof ownersCountRaw === "number" &&
-    !Number.isNaN(ownersCountRaw) &&
-    ownersCountRaw > 0
-      ? ownersCountRaw
-      : owners.length) || 1;
+  // helper so TS doesn't complain about string paths
+  const reg = (path: string) => register(path as never);
 
   return (
     <section className="space-y-6">
       <div className="card">
-        <h2 className="text-xl font-semibold text-gray-900">Propietarios</h2>
+        <h2 className="text-xl font-semibold text-gray-900">
+          Datos de los {groupLabel}
+        </h2>
         <p className="mt-1 text-sm text-gray-600">
-          Indique los datos de cada propietario/accionista.
+          Indique el número de {groupLabel} y complete sus datos.
         </p>
 
-        {/* Owners count (optional helper to quickly add/remove owner slots) */}
-        <div className="mt-4">
-          <label className="label">¿Cuántos propietarios?</label>
+        {/* Número de accionistas/socios */}
+        <div className="mt-6">
+          <label className="label">Número de {groupLabel}</label>
           <input
-            className="input w-28"
             type="number"
             min={1}
-            step={1}
-            {...register("ownersCount" as unknown as keyof AllSteps, {
-              valueAsNumber: true,
-              onChange: (e) => {
-                const next = Number(e.target.value || 1);
-                const current = (getValues("owners") ?? []) as Owner[];
-
-                if (next > current.length) {
-                  const blanks: Owner[] = Array.from(
-                    { length: next - current.length },
-                    () => ({
-                      fullName: "",
-                      email: "",
-                      phone: "",
-                      ownership: undefined,
-                      address: "",
-                      isUsCitizen: "No",
-                    })
-                  );
-                  setValue("owners", [...current, ...blanks], { shouldDirty: true });
-                } else if (next < current.length) {
-                  setValue("owners", current.slice(0, next), { shouldDirty: true });
-                }
-              },
-            })}
-            defaultValue={ownersCount}
+            max={MAX_OWNERS}
+            className="input w-32"
+            {...reg("ownersCount")}
+            onChange={(e) => {
+              const n = Math.max(1, Math.min(MAX_OWNERS, Number(e.target.value) || 1));
+              setValue("ownersCount", n, { shouldDirty: true });
+            }}
           />
-          <p className="help">Puede ajustar este número según sea necesario.</p>
+          <p className="help">Define cuántos bloques se muestran debajo (1 a {MAX_OWNERS}).</p>
         </div>
 
-        {/* Owner blocks */}
-        <div className="mt-6 space-y-6">
-          {Array.from({ length: ownersCount }).map((_, idx) => {
-            const n = idx + 1;
-            return (
-              <div
-                key={idx}
-                className="rounded-2xl border border-gray-100 p-4 space-y-4 bg-white"
-              >
-                <h3 className="font-medium text-gray-900">Propietario {n}</h3>
+        {/* Owners blocks */}
+        <div className="mt-6 space-y-8">
+          {Array.from({ length: ownersCount }).map((_, i) => {
+            const base = `owners.${i}`;
+            const residentKey = `${base}.isUsCitizen`;
+            const resident = watch(residentKey) as "Yes" | "No" | undefined;
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            return (
+              <div key={i} className="rounded-2xl border p-4">
+                <h3 className="text-lg font-semibold text-gray-900">{singleLabel} {i + 1}</h3>
+
+                {/* Name + %: name wider (≈ 2/3), % narrower (≈ 1/3) */}
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-4">
                   <div>
                     <label className="label">Nombre completo</label>
-                    <input
-                      className="input"
-                      {...register(`owners.${idx}.fullName` as const)}
-                    />
+                    <input className="input" {...reg(`${base}.fullName`)} />
                   </div>
+
                   <div>
                     <label className="label">Porcentaje de propiedad (%)</label>
                     <input
-                      className="input"
                       type="number"
                       min={0}
                       max={100}
-                      step="any"
-                      {...register(`owners.${idx}.ownership` as const, {
-                        valueAsNumber: true,
-                      })}
-                    />
-                  </div>
-                  <div>
-                    <label className="label">Email</label>
-                    <input
+                      step={1}
                       className="input"
-                      type="email"
-                      {...register(`owners.${idx}.email` as const)}
-                    />
-                  </div>
-                  <div>
-                    <label className="label">Teléfono</label>
-                    <input
-                      className="input"
-                      type="tel"
-                      {...register(`owners.${idx}.phone` as const)}
+                      {...reg(`${base}.ownership`)}
                     />
                   </div>
                 </div>
 
-                <div>
-                  <label className="label">Dirección</label>
-                  <Controller
-                    name={fp(`owners.${idx}.address`)}
-                    control={control}
-                    render={({ field }) => (
-                      <AddressAutocomplete
-                        placeholder="Escriba y seleccione la dirección"
-                        defaultValue={(field.value as string) ?? ""}
-                        onSelect={(addr) => {
-                          const formatted =
-                            addr.fullAddress ||
-                            [addr.line1, addr.city, addr.state, addr.postalCode, addr.country]
-                              .filter(Boolean)
-                              .join(", ");
-                          field.onChange(formatted);
-                        }}
-                      />
-                    )}
-                  />
+                {/* Dirección completa (kept simple) */}
+                <div className="mt-4">
+                  <label className="label">Dirección completa</label>
+                  <input className="input" {...reg(`${base}.address`)} placeholder="Escriba y seleccione la dirección" />
                 </div>
 
-                <div className="max-w-sm">
-                  <label className="label">¿Es ciudadano o residente de USA?</label>
+                {/* ¿Es ciudadano/residente de EE.UU.? */}
+                <div className="mt-4">
+                  <div className="label-lg mb-2">¿El {singleLabel.toLowerCase()} es ciudadano o residente de los Estados Unidos?</div>
                   <Controller
-                    name={fp(`owners.${idx}.isUsCitizen`)}
+                    name={residentKey as never}
                     control={control}
                     render={({ field }) => (
                       <SegmentedToggle
@@ -159,12 +105,46 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
                           { value: "Yes", label: "Sí" },
                           { value: "No", label: "No" },
                         ]}
-                        ariaLabel="Ciudadanía/Residencia USA"
+                        ariaLabel="Residencia en EE.UU."
                         name={field.name}
                       />
                     )}
                   />
                 </div>
+
+                {/* Conditional: SSN/EIN (US) or Passport (non-US) */}
+                {resident === "Yes" ? (
+                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="label">SSN (opcional)</label>
+                      <input
+                        className="input"
+                        placeholder="###-##-####"
+                        {...reg(`${base}.ssn`)}
+                      />
+                      <p className="help">Puede proporcionar SSN o EIN.</p>
+                    </div>
+                    <div>
+                      <label className="label">EIN (opcional)</label>
+                      <input
+                        className="input"
+                        placeholder="##-#######"
+                        {...reg(`${base}.ein`)}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-4">
+                    <label className="label">Subir imagen de pasaporte vigente (.png o .jpeg)</label>
+                    <input
+                      type="file"
+                      accept=".png,.jpg,.jpeg"
+                      className="block w-full rounded-xl border border-dashed p-6 text-sm text-gray-600"
+                      {...reg(`${base}.passportImage`)}
+                    />
+                    <p className="help">Arrastrar y soltar o buscar archivo.</p>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -175,14 +155,16 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
           <button type="button" className="btn" onClick={() => setStep(2)}>
             Atrás
           </button>
+
           <div className="flex items-center gap-4">
             <button
               type="button"
-              className="text-sm text-gray-700 hover:underline"
+              className="text-sm underline text-blue-600 hover:text-blue-700"
               onClick={() => void onSave?.()}
             >
               Guardar y continuar más tarde
             </button>
+
             <button
               type="button"
               className="btn btn-primary"
