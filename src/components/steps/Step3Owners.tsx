@@ -29,7 +29,7 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
   console.log("Current ownersCount:", ownersCount);
 
   // Calculate total percentage owned
-  const totalPercentage = Array.from({ length: ownersCount }).reduce((total, _, i) => {
+  const totalPercentage = Array.from({ length: ownersCount }).reduce((total: number, _, i) => {
     const percentage = Number(watch(`owners.${i}.ownership`)) || 0;
     return total + percentage;
   }, 0);
