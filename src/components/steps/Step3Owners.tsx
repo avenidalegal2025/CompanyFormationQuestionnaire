@@ -5,6 +5,7 @@ import { Controller } from "react-hook-form";
 import SegmentedToggle from "@/components/SegmentedToggle";
 import SSNEINInput from "@/components/SSNEINInput";
 import HeroBanner from "@/components/HeroBanner";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 import type { StepProps } from "./types";
 
 const MAX_OWNERS = 6;
@@ -32,9 +33,7 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
       <HeroBanner title={heroTitle} />
 
       <div className="card">
-        <h2 className="text-xl font-semibold text-gray-900">
-          Datos de los {groupLabel}
-        </h2>
+        <h2 className="text-xl font-semibold text-gray-900">Datos de los {groupLabel}</h2>
         <p className="mt-1 text-sm text-gray-600">
           Indique el número de {groupLabel} y complete sus datos.
         </p>
@@ -42,16 +41,23 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
         {/* Número de accionistas/socios */}
         <div className="mt-6">
           <label className="label">Número de {groupLabel}</label>
-          <input
-            type="number"
-            min={1}
-            max={MAX_OWNERS}
-            className="input w-full max-w-xs"
-            {...reg("ownersCount")}
-            onChange={(e) => {
-              const n = Math.max(1, Math.min(MAX_OWNERS, Number(e.target.value) || 1));
-              setValue("ownersCount" as never, n as never, { shouldDirty: true });
-            }}
+          <Controller
+            name={"ownersCount" as never}
+            control={control}
+            render={({ field }) => (
+              <input
+                type="number"
+                min={1}
+                max={MAX_OWNERS}
+                className="input w-full max-w-xs"
+                value={(Number(field.value) || 1).toString()}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  const n = Math.max(1, Math.min(MAX_OWNERS, Number(raw) || 1));
+                  field.onChange(n);
+                }}
+              />
+            )}
           />
           <p className="help">Define cuántos bloques se muestran debajo (1 a {MAX_OWNERS}).</p>
         </div>
@@ -89,13 +95,19 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
                   </div>
                 </div>
 
-                {/* Dirección completa */}
+                {/* Dirección completa (Google Places) */}
                 <div className="mt-4">
                   <label className="label">Dirección completa</label>
-                  <input
-                    className="input"
-                    {...reg(`${base}.address`)}
-                    placeholder="Escriba y seleccione la dirección"
+                  <Controller
+                    name={`${base}.address` as never}
+                    control={control}
+                    render={({ field }) => (
+                      <AddressAutocomplete
+                        placeholder="Escriba y seleccione la dirección"
+                        defaultValue={(field.value as string) ?? ""}
+                        onSelect={(addr) => field.onChange(addr.fullAddress)}
+                      />
+                    )}
                   />
                 </div>
 
@@ -183,7 +195,7 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
               Guardar y continuar más tarde
             </button>
 
-          <button
+            <button
               type="button"
               className="btn btn-primary"
               onClick={() => (onNext ? void onNext() : setStep(4))}
