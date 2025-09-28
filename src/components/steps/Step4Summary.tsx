@@ -94,7 +94,14 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
           </h3>
           <div className="space-y-4">
             {Array.from({ length: ownersCount }).map((_, i) => {
-              const owner = ownersData[i] || {};
+              const owner = (ownersData[i] || {}) as {
+                fullName?: string;
+                ownership?: number | string;
+                address?: string;
+                isUsCitizen?: string;
+                tin?: string;
+                passportImage?: string;
+              };
               return (
                 <div key={i} className="bg-gray-50 rounded-lg p-4">
                   <h4 className="font-medium text-gray-800 mb-3">
