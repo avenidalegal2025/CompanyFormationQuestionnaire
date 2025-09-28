@@ -26,7 +26,6 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
   const companyData = watch("company");
   const ownersData = watch("owners") || [];
   const ownersCount = watch("ownersCount") || 1;
-  const adminData = watch("admin");
 
   // Edit functionality
   const handleEdit = (step: number) => {
@@ -185,18 +184,6 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
           </div>
         </div>
 
-        {/* Admin Information */}
-        {adminData && Object.keys(adminData).length > 0 && (
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-800">Información Administrativa</h3>
-              <PencilIcon onClick={() => handleEdit(3)} />
-            </div>
-            <div className="bg-gray-50 rounded-lg p-4">
-              <p className="text-gray-600">Los datos administrativos se configurarán en el siguiente paso.</p>
-            </div>
-          </div>
-        )}
 
         {/* Action Buttons */}
         <div className="flex items-center justify-between pt-6 border-t">
