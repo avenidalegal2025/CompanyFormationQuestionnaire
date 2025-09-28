@@ -41,8 +41,8 @@ export default function Page() {
     () => [
       { key: "step-company",  label: "Empresa",        status: step === 1 ? "active" : step > 1 ? "done" : "todo" },
       { key: "step-owners",   label: "Propietarios",   status: step === 2 ? "active" : step > 2 ? "done" : "todo" },
-      { key: "step-summary",  label: "Resumen",        status: step === 3 ? "active" : step > 3 ? "done" : "todo" },
-      { key: "step-admin",    label: "Administrativo", status: step === 4 ? "active" : "todo" },
+      { key: "step-admin",    label: "Administrativo", status: step === 3 ? "active" : step > 3 ? "done" : "todo" },
+      { key: "step-summary",  label: "Resumen",        status: step === 4 ? "active" : "todo" },
     ],
     [step]
   );
@@ -157,10 +157,10 @@ export default function Page() {
             <Step3Owners form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />
           )}
           {step === 3 && (
-            <Step4Summary form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />
+            <Step5Admin form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />
           )}
           {step === 4 && (
-            <Step5Admin form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />
+            <Step4Summary form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />
           )}
         </form>
       </main>

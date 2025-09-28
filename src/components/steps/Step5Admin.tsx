@@ -301,7 +301,7 @@ export default function Step5Admin({ form, setStep, onSave, onNext }: StepProps)
                   Math.max(1, n - 1)
                 );
               } catch {
-                setStep(3);
+                setStep(2);
               }
             }}
           >

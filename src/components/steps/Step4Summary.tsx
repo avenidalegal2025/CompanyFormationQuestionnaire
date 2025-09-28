@@ -1,9 +1,23 @@
 // src/components/steps/Step4Summary.tsx
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import HeroBanner from "@/components/HeroBanner";
 import type { StepProps } from "./types";
+
+// Pencil icon component
+const PencilIcon = ({ onClick }: { onClick: () => void }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className="ml-2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
+    title="Editar"
+  >
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+    </svg>
+  </button>
+);
 
 export default function Step4Summary({ form, setStep, onSave, onNext }: StepProps) {
   const { watch } = form;
@@ -13,6 +27,11 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
   const ownersData = watch("owners") || [];
   const ownersCount = watch("ownersCount") || 1;
   const adminData = watch("admin");
+
+  // Edit functionality
+  const handleEdit = (step: number) => {
+    setStep(step);
+  };
 
   // Calculate total ownership percentage
   const totalOwnership = useMemo(() => {
@@ -39,7 +58,10 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
 
         {/* Company Information */}
         <div className="mb-8">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Información de la Empresa</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-800">Información de la Empresa</h3>
+            <PencilIcon onClick={() => handleEdit(1)} />
+          </div>
           <div className="bg-gray-50 rounded-lg p-4 space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -89,9 +111,12 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
 
         {/* Owners Information */}
         <div className="mb-8">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">
-            Información de los {groupLabel} ({ownersCount})
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-800">
+              Información de los {groupLabel} ({ownersCount})
+            </h3>
+            <PencilIcon onClick={() => handleEdit(2)} />
+          </div>
           <div className="space-y-4">
             {Array.from({ length: ownersCount }).map((_, i) => {
               const owner = (ownersData[i] || {}) as {
@@ -163,7 +188,10 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
         {/* Admin Information */}
         {adminData && Object.keys(adminData).length > 0 && (
           <div className="mb-8">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Información Administrativa</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-800">Información Administrativa</h3>
+              <PencilIcon onClick={() => handleEdit(3)} />
+            </div>
             <div className="bg-gray-50 rounded-lg p-4">
               <p className="text-gray-600">Los datos administrativos se configurarán en el siguiente paso.</p>
             </div>
@@ -192,9 +220,9 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
             <button
               type="button"
               className="btn btn-primary"
-              onClick={() => (onNext ? void onNext() : setStep(5))}
+              onClick={() => (onNext ? void onNext() : alert("Formulario enviado exitosamente!"))}
             >
-              Continuar
+              Enviar
             </button>
           </div>
         </div>
