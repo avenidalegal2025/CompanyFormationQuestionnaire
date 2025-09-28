@@ -4,6 +4,7 @@
 import { Controller } from "react-hook-form";
 import SegmentedToggle from "@/components/SegmentedToggle";
 import SSNEINInput from "@/components/SSNEINInput";
+import HeroBanner from "@/components/HeroBanner";
 import type { StepProps } from "./types";
 
 const MAX_OWNERS = 6;
@@ -20,12 +21,16 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
   const isCorp = entityType === "C-Corp";
   const groupLabel = isCorp ? "accionistas" : "socios";
   const singleLabel = isCorp ? "Accionista" : "Socio";
+  const heroTitle = isCorp ? "Datos de los accionistas" : "Datos de los socios";
 
   // How many blocks to render (stored at root as ownersCount)
   const ownersCount = (w("ownersCount") as number | undefined) ?? 1;
 
   return (
     <section className="space-y-6">
+      {/* Shared hero */}
+      <HeroBanner title={heroTitle} />
+
       <div className="card">
         <h2 className="text-xl font-semibold text-gray-900">
           Datos de los {groupLabel}
@@ -178,7 +183,7 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
               Guardar y continuar más tarde
             </button>
 
-            <button
+          <button
               type="button"
               className="btn btn-primary"
               onClick={() => (onNext ? void onNext() : setStep(4))}
