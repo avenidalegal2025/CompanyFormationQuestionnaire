@@ -30,7 +30,7 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
 
   // Calculate total percentage owned
   const totalPercentage = Array.from({ length: ownersCount }).reduce((total: number, _, i) => {
-    const percentage = Number(watch(`owners.${i}.ownership`)) || 0;
+    const percentage = Number(w(`owners.${i}.ownership`)) || 0;
     return total + percentage;
   }, 0);
 
@@ -120,15 +120,15 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
                       {...reg(`${base}.ownership`)}
                       onChange={(e) => {
                         const value = Number(e.target.value);
-                        const currentTotal = totalPercentage - (Number(watch(`${base}.ownership`)) || 0);
+                        const currentTotal = totalPercentage - (Number(w(`${base}.ownership`)) || 0);
                         const newTotal = currentTotal + value;
                         
                         // Prevent going over 100%
                         if (newTotal > 100) {
                           e.target.value = String(100 - currentTotal);
-                          setValue(`${base}.ownership`, 100 - currentTotal);
+                          setValue(`${base}.ownership` as never, 100 - currentTotal);
                         } else {
-                          setValue(`${base}.ownership`, value);
+                          setValue(`${base}.ownership` as never, value);
                         }
                       }}
                     />
