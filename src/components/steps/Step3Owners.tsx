@@ -28,6 +28,14 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
   const ownersCount = watch("ownersCount") as number | undefined ?? 1;
   console.log("Current ownersCount:", ownersCount);
 
+  // Calculate total percentage owned
+  const totalPercentage = Array.from({ length: ownersCount }).reduce((total, _, i) => {
+    const percentage = Number(watch(`owners.${i}.ownership`)) || 0;
+    return total + percentage;
+  }, 0);
+
+  const remainingPercentage = 100 - totalPercentage;
+
   return (
     <section className="space-y-6">
       {/* Shared hero */}
@@ -110,7 +118,35 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
                       step={1}
                       className="input"
                       {...reg(`${base}.ownership`)}
+                      onChange={(e) => {
+                        const value = Number(e.target.value);
+                        const currentTotal = totalPercentage - (Number(watch(`${base}.ownership`)) || 0);
+                        const newTotal = currentTotal + value;
+                        
+                        // Prevent going over 100%
+                        if (newTotal > 100) {
+                          e.target.value = String(100 - currentTotal);
+                          setValue(`${base}.ownership`, 100 - currentTotal);
+                        } else {
+                          setValue(`${base}.ownership`, value);
+                        }
+                      }}
                     />
+                    <div className="mt-1 text-sm">
+                      {remainingPercentage > 0 ? (
+                        <span className="text-blue-600">
+                          Faltan {remainingPercentage}% para completar 100%
+                        </span>
+                      ) : remainingPercentage < 0 ? (
+                        <span className="text-red-600">
+                          Excede 100% por {Math.abs(remainingPercentage)}%
+                        </span>
+                      ) : (
+                        <span className="text-green-600">
+                          ✓ Total: 100%
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
