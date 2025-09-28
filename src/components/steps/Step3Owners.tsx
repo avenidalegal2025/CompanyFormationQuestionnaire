@@ -126,9 +126,9 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
                         // Prevent going over 100%
                         if (newTotal > 100) {
                           e.target.value = String(100 - currentTotal);
-                          setValue(`${base}.ownership` as never, 100 - currentTotal);
+                          (setValue as any)(`${base}.ownership`, 100 - currentTotal);
                         } else {
-                          setValue(`${base}.ownership` as never, value);
+                          (setValue as any)(`${base}.ownership`, value);
                         }
                       }}
                     />
