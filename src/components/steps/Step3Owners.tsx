@@ -48,11 +48,13 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
             className="input w-full max-w-xs"
             {...register("ownersCount", {
               valueAsNumber: true,
-              min: { value: 1, message: "Mínimo 1" },
-              max: { value: MAX_OWNERS, message: `Máximo ${MAX_OWNERS}` },
               onChange: (e) => {
                 const value = Number(e.target.value);
-                if (!isNaN(value) && value >= 1 && value <= MAX_OWNERS) {
+                if (isNaN(value) || value < 1) {
+                  setValue("ownersCount", 1);
+                } else if (value > MAX_OWNERS) {
+                  setValue("ownersCount", MAX_OWNERS);
+                } else {
                   setValue("ownersCount", value);
                 }
               }
