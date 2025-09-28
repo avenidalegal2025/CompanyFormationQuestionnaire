@@ -47,12 +47,13 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
             min={1}
             max={MAX_OWNERS}
             className="input w-full max-w-xs"
-            value={ownersCount}
+            value={ownersCount === 1 ? "" : ownersCount}
+            placeholder="1"
             onChange={(e) => {
               const value = e.target.value;
               console.log("Input value:", value);
               
-              // Allow empty string for clearing
+              // Allow empty string
               if (value === "") {
                 setValue("ownersCount", 1);
                 return;
@@ -60,10 +61,14 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
               
               const numValue = Number(value);
               if (!isNaN(numValue)) {
-                // Clamp the value between 1 and MAX_OWNERS
-                const clampedValue = Math.max(1, Math.min(MAX_OWNERS, numValue));
-                console.log("Setting to:", clampedValue);
-                setValue("ownersCount", clampedValue);
+                // Only allow values between 1 and MAX_OWNERS
+                if (numValue >= 1 && numValue <= MAX_OWNERS) {
+                  console.log("Setting to:", numValue);
+                  setValue("ownersCount", numValue);
+                } else {
+                  // Don't update for invalid values
+                  console.log("Invalid value, not updating");
+                }
               }
             }}
             onKeyDown={(e) => {
