@@ -25,7 +25,11 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
   const heroTitle = isCorp ? "Datos de los accionistas" : "Datos de los socios";
 
   // How many blocks to render (stored at root as ownersCount)
-  const ownersCount = (w("ownersCount") as number | undefined) ?? 1;
+  const ownersCount = watch("ownersCount") as number | undefined ?? 1;
+  
+  // Debug logging
+  console.log("ownersCount from watch:", ownersCount);
+  console.log("raw watch value:", watch("ownersCount"));
 
   return (
     <section className="space-y-6">
@@ -54,7 +58,9 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
                 onChange={(e) => {
                   const raw = e.target.value;
                   const n = Math.max(1, Math.min(MAX_OWNERS, Number(raw) || 1));
+                  console.log("Input change - raw:", raw, "processed:", n, "field.value before:", field.value);
                   field.onChange(n);
+                  console.log("field.value after:", field.value);
                 }}
               />
             )}
