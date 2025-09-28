@@ -104,7 +104,8 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
                     render={({ field }) => (
                       <AddressAutocomplete
                         placeholder="Escriba y seleccione la dirección"
-                        defaultValue={(field.value as string) ?? ""}
+                        value={field.value as string}
+                        onChangeText={field.onChange}
                         onSelect={(addr) => field.onChange(addr.fullAddress)}
                       />
                     )}
