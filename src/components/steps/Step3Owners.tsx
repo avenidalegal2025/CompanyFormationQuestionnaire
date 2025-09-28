@@ -26,6 +26,7 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
 
   // How many blocks to render (stored at root as ownersCount)
   const ownersCount = watch("ownersCount") as number | undefined ?? 1;
+  console.log("Current ownersCount:", ownersCount);
 
   return (
     <section className="space-y-6">
@@ -50,11 +51,16 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
               valueAsNumber: true,
               onChange: (e) => {
                 const value = Number(e.target.value);
+                console.log("Input value:", e.target.value, "Parsed:", value, "MAX_OWNERS:", MAX_OWNERS);
+                
                 if (isNaN(value) || value < 1) {
+                  console.log("Setting to 1");
                   setValue("ownersCount", 1);
                 } else if (value > MAX_OWNERS) {
+                  console.log("Setting to MAX_OWNERS:", MAX_OWNERS);
                   setValue("ownersCount", MAX_OWNERS);
                 } else {
+                  console.log("Setting to value:", value);
                   setValue("ownersCount", value);
                 }
               }
