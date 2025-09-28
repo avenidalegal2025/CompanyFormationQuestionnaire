@@ -2,34 +2,90 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Controller } from "react-hook-form";
 import HeroBanner from "@/components/HeroBanner";
 import type { StepProps } from "./types";
 
-// Pencil icon component
-const PencilIcon = ({ onClick }: { onClick: () => void }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className="ml-2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
-    title="Editar"
-  >
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-    </svg>
-  </button>
+// Edit button component
+const EditButton = ({ 
+  onClick, 
+  label, 
+  isEditing, 
+  onSave, 
+  onCancel 
+}: { 
+  onClick: () => void; 
+  label: string; 
+  isEditing: boolean;
+  onSave: () => void;
+  onCancel: () => void;
+}) => (
+  <div className="flex gap-2">
+    {isEditing ? (
+      <>
+        <button
+          type="button"
+          onClick={onSave}
+          className="btn btn-primary text-sm px-3 py-1"
+        >
+          Guardar
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="btn btn-secondary text-sm px-3 py-1"
+        >
+          Cancelar
+        </button>
+      </>
+    ) : (
+      <button
+        type="button"
+        onClick={onClick}
+        className="btn btn-secondary text-sm px-3 py-1"
+      >
+        Editar {label}
+      </button>
+    )}
+  </div>
 );
 
 export default function Step4Summary({ form, setStep, onSave, onNext }: StepProps) {
-  const { watch } = form;
+  const { watch, control, setValue } = form;
 
   // Get all form data
   const companyData = watch("company");
   const ownersData = watch("owners") || [];
   const ownersCount = watch("ownersCount") || 1;
 
+  // Edit state management
+  const [editingSection, setEditingSection] = useState<string | null>(null);
+
   // Edit functionality
-  const handleEdit = (step: number) => {
-    setStep(step);
+  const handleEdit = (section: string) => {
+    setEditingSection(section);
+  };
+
+  const handleSave = () => {
+    setEditingSection(null);
+  };
+
+  const handleCancel = () => {
+    setEditingSection(null);
+  };
+
+  // Obfuscate SSN/EIN with dashes
+  const obfuscateSSNEIN = (value: string | undefined) => {
+    if (!value) return "No especificado";
+    const digits = value.replace(/\D/g, "");
+    if (digits.length === 9) {
+      // SSN format: XXX-XX-XXXX
+      return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5, 9)}`;
+    } else if (digits.length === 9) {
+      // EIN format: XX-XXXXXXX
+      return `${digits.slice(0, 2)}-${digits.slice(2, 9)}`;
+    }
+    return value;
   };
 
   // Calculate total ownership percentage
@@ -59,25 +115,84 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-800">Información de la Empresa</h3>
-            <PencilIcon onClick={() => handleEdit(1)} />
+            <EditButton 
+              onClick={() => handleEdit("company")} 
+              label="Empresa" 
+              isEditing={editingSection === "company"}
+              onSave={handleSave}
+              onCancel={handleCancel}
+            />
           </div>
           <div className="bg-gray-50 rounded-lg p-4 space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <span className="font-medium text-gray-700">Estado de formación:</span>
-                <p className="text-gray-900">{companyData?.formationState || "No especificado"}</p>
+                {editingSection === "company" ? (
+                  <Controller
+                    name="company.formationState"
+                    control={control}
+                    render={({ field }) => (
+                      <select className="input mt-1" {...field}>
+                        <option value="Florida">Florida</option>
+                        <option value="Delaware">Delaware</option>
+                        <option value="Wyoming">Wyoming</option>
+                        <option value="Texas">Texas</option>
+                        <option value="Nevada">Nevada</option>
+                        <option value="New Mexico">New Mexico</option>
+                        <option value="Georgia">Georgia</option>
+                        <option value="California">California</option>
+                        <option value="Arizona">Arizona</option>
+                      </select>
+                    )}
+                  />
+                ) : (
+                  <p className="text-gray-900">{companyData?.formationState || "No especificado"}</p>
+                )}
               </div>
               <div>
                 <span className="font-medium text-gray-700">Tipo de entidad:</span>
-                <p className="text-gray-900">{companyData?.entityType || "No especificado"}</p>
+                {editingSection === "company" ? (
+                  <Controller
+                    name="company.entityType"
+                    control={control}
+                    render={({ field }) => (
+                      <select className="input mt-1" {...field}>
+                        <option value="LLC">LLC</option>
+                        <option value="C-Corp">C-Corp</option>
+                      </select>
+                    )}
+                  />
+                ) : (
+                  <p className="text-gray-900">{companyData?.entityType || "No especificado"}</p>
+                )}
               </div>
               <div>
                 <span className="font-medium text-gray-700">Nombre de la empresa:</span>
-                <p className="text-gray-900">{companyData?.companyName || "No especificado"}</p>
+                {editingSection === "company" ? (
+                  <Controller
+                    name="company.companyName"
+                    control={control}
+                    render={({ field }) => (
+                      <input className="input mt-1" {...field} />
+                    )}
+                  />
+                ) : (
+                  <p className="text-gray-900">{companyData?.companyName || "No especificado"}</p>
+                )}
               </div>
               <div>
                 <span className="font-medium text-gray-700">Propósito del negocio:</span>
-                <p className="text-gray-900">{companyData?.businessPurpose || "No especificado"}</p>
+                {editingSection === "company" ? (
+                  <Controller
+                    name="company.businessPurpose"
+                    control={control}
+                    render={({ field }) => (
+                      <textarea className="input mt-1 min-h-[80px]" {...field} />
+                    )}
+                  />
+                ) : (
+                  <p className="text-gray-900">{companyData?.businessPurpose || "No especificado"}</p>
+                )}
               </div>
             </div>
             
@@ -114,7 +229,13 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
             <h3 className="text-lg font-semibold text-gray-800">
               Información de los {groupLabel} ({ownersCount})
             </h3>
-            <PencilIcon onClick={() => handleEdit(2)} />
+            <EditButton 
+              onClick={() => handleEdit("owners")} 
+              label={groupLabel} 
+              isEditing={editingSection === "owners"}
+              onSave={handleSave}
+              onCancel={handleCancel}
+            />
           </div>
           <div className="space-y-4">
             {Array.from({ length: ownersCount }).map((_, i) => {
@@ -134,29 +255,103 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <span className="font-medium text-gray-700">Nombre completo:</span>
-                      <p className="text-gray-900">{owner?.fullName || "No especificado"}</p>
+                      {editingSection === "owners" ? (
+                        <Controller
+                          name={`owners.${i}.fullName` as any}
+                          control={control}
+                          render={({ field }) => (
+                            <input className="input mt-1" {...field} />
+                          )}
+                        />
+                      ) : (
+                        <p className="text-gray-900">{owner?.fullName || "No especificado"}</p>
+                      )}
                     </div>
                     <div>
                       <span className="font-medium text-gray-700">Porcentaje de propiedad:</span>
-                      <p className="text-gray-900">{owner?.ownership || 0}%</p>
+                      {editingSection === "owners" ? (
+                        <Controller
+                          name={`owners.${i}.ownership` as any}
+                          control={control}
+                          render={({ field }) => (
+                            <input 
+                              type="number" 
+                              min="0" 
+                              max="100" 
+                              className="input mt-1" 
+                              {...field} 
+                            />
+                          )}
+                        />
+                      ) : (
+                        <p className="text-gray-900">{owner?.ownership || 0}%</p>
+                      )}
                     </div>
                     <div>
                       <span className="font-medium text-gray-700">Dirección:</span>
-                      <p className="text-gray-900">{owner?.address || "No especificado"}</p>
+                      {editingSection === "owners" ? (
+                        <Controller
+                          name={`owners.${i}.address` as any}
+                          control={control}
+                          render={({ field }) => (
+                            <input className="input mt-1" {...field} />
+                          )}
+                        />
+                      ) : (
+                        <p className="text-gray-900">{owner?.address || "No especificado"}</p>
+                      )}
                     </div>
                     <div>
                       <span className="font-medium text-gray-700">Ciudadano/Residente de EE.UU.:</span>
-                      <p className="text-gray-900">{owner?.isUsCitizen === "Yes" ? "Sí" : "No"}</p>
+                      {editingSection === "owners" ? (
+                        <Controller
+                          name={`owners.${i}.isUsCitizen` as any}
+                          control={control}
+                          render={({ field }) => (
+                            <select className="input mt-1" {...field}>
+                              <option value="No">No</option>
+                              <option value="Yes">Sí</option>
+                            </select>
+                          )}
+                        />
+                      ) : (
+                        <p className="text-gray-900">{owner?.isUsCitizen === "Yes" ? "Sí" : "No"}</p>
+                      )}
                     </div>
                     {owner?.isUsCitizen === "Yes" ? (
                       <div>
                         <span className="font-medium text-gray-700">SSN/EIN:</span>
-                        <p className="text-gray-900">{owner?.tin || "No especificado"}</p>
+                        {editingSection === "owners" ? (
+                          <Controller
+                            name={`owners.${i}.tin` as any}
+                            control={control}
+                            render={({ field }) => (
+                              <input className="input mt-1" {...field} />
+                            )}
+                          />
+                        ) : (
+                          <p className="text-gray-900">{obfuscateSSNEIN(owner?.tin)}</p>
+                        )}
                       </div>
                     ) : (
                       <div>
                         <span className="font-medium text-gray-700">Pasaporte:</span>
-                        <p className="text-gray-900">{owner?.passportImage ? "Archivo subido" : "No especificado"}</p>
+                        {editingSection === "owners" ? (
+                          <Controller
+                            name={`owners.${i}.passportImage` as any}
+                            control={control}
+                            render={({ field }) => (
+                              <input 
+                                type="file" 
+                                accept="image/*" 
+                                className="input mt-1" 
+                                onChange={(e) => field.onChange(e.target.files?.[0]?.name || "")}
+                              />
+                            )}
+                          />
+                        ) : (
+                          <p className="text-gray-900">{owner?.passportImage ? "Archivo subido" : "No especificado"}</p>
+                        )}
                       </div>
                     )}
                   </div>
