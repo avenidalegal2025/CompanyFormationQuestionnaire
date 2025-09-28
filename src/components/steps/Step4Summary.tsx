@@ -10,13 +10,18 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
 
   // Get all form data
   const companyData = watch("company");
-  const ownersData = useMemo(() => watch("owners") || [], [watch("owners")]);
+  const ownersData = watch("owners") || [];
   const ownersCount = watch("ownersCount") || 1;
   const adminData = watch("admin");
 
   // Calculate total ownership percentage
   const totalOwnership = useMemo(() => {
-    return ownersData.reduce((total: number, owner: { ownership?: number | string }) => {
+    return ownersData.reduce((total: number, owner: { 
+      ownership?: number | string;
+      isUsCitizen?: string;
+      tin?: string;
+      passportImage?: string;
+    }) => {
       return total + (Number(owner?.ownership) || 0);
     }, 0);
   }, [ownersData]);
