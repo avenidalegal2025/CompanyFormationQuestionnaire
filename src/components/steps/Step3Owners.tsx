@@ -48,19 +48,21 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
             max={MAX_OWNERS}
             className="input w-full max-w-xs"
             {...register("ownersCount", {
-              valueAsNumber: true,
               onChange: (e) => {
                 const value = Number(e.target.value);
                 console.log("Input value:", e.target.value, "Parsed:", value, "MAX_OWNERS:", MAX_OWNERS);
+                
+                // Allow empty string for user to clear and retype
+                if (e.target.value === "") {
+                  console.log("Allowing empty string");
+                  setValue("ownersCount", 1);
+                  return;
+                }
                 
                 // Only update if the value is valid (1-6)
                 if (!isNaN(value) && value >= 1 && value <= MAX_OWNERS) {
                   console.log("Setting to value:", value);
                   setValue("ownersCount", value);
-                } else if (e.target.value === "") {
-                  // Allow empty string for user to clear and retype
-                  console.log("Allowing empty string");
-                  setValue("ownersCount", 1);
                 } else {
                   // Don't update for invalid values - let user correct it
                   console.log("Invalid value, not updating");
