@@ -26,10 +26,6 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
 
   // How many blocks to render (stored at root as ownersCount)
   const ownersCount = watch("ownersCount") as number | undefined ?? 1;
-  
-  // Debug logging
-  console.log("ownersCount from watch:", ownersCount);
-  console.log("raw watch value:", watch("ownersCount"));
 
   return (
     <section className="space-y-6">
@@ -52,11 +48,10 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
             className="input w-full max-w-xs"
             {...register("ownersCount", {
               valueAsNumber: true,
-              min: 1,
-              max: MAX_OWNERS,
+              min: { value: 1, message: "Mínimo 1" },
+              max: { value: MAX_OWNERS, message: `Máximo ${MAX_OWNERS}` },
               onChange: (e) => {
                 const value = Number(e.target.value);
-                console.log("Direct input change:", value);
                 if (!isNaN(value) && value >= 1 && value <= MAX_OWNERS) {
                   setValue("ownersCount", value);
                 }
@@ -64,6 +59,11 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
             })}
           />
           <p className="help">Define cuántos bloques se muestran debajo (1 a {MAX_OWNERS}).</p>
+          {form.formState.errors.ownersCount && (
+            <p className="text-red-600 text-sm mt-1">
+              {form.formState.errors.ownersCount.message}
+            </p>
+          )}
         </div>
 
         {/* Owners blocks */}
