@@ -47,35 +47,33 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
             min={1}
             max={MAX_OWNERS}
             className="input w-full max-w-xs"
-            {...register("ownersCount", {
-              onChange: (e) => {
-                const value = Number(e.target.value);
-                console.log("Input value:", e.target.value, "Parsed:", value, "MAX_OWNERS:", MAX_OWNERS);
-                
-                // Allow empty string for user to clear and retype
-                if (e.target.value === "") {
-                  console.log("Allowing empty string");
-                  setValue("ownersCount", 1);
-                  return;
-                }
-                
-                // Only update if the value is valid (1-6)
-                if (!isNaN(value) && value >= 1 && value <= MAX_OWNERS) {
-                  console.log("Setting to value:", value);
-                  setValue("ownersCount", value);
-                } else {
-                  // Don't update for invalid values - let user correct it
-                  console.log("Invalid value, not updating");
-                }
+            value={ownersCount}
+            onChange={(e) => {
+              const value = e.target.value;
+              console.log("Input value:", value);
+              
+              // Allow empty string for clearing
+              if (value === "") {
+                setValue("ownersCount", 1);
+                return;
               }
-            })}
+              
+              const numValue = Number(value);
+              if (!isNaN(numValue)) {
+                // Clamp the value between 1 and MAX_OWNERS
+                const clampedValue = Math.max(1, Math.min(MAX_OWNERS, numValue));
+                console.log("Setting to:", clampedValue);
+                setValue("ownersCount", clampedValue);
+              }
+            }}
+            onKeyDown={(e) => {
+              // Prevent typing invalid characters
+              if (e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '-') {
+                e.preventDefault();
+              }
+            }}
           />
           <p className="help">Define cuántos bloques se muestran debajo (1 a {MAX_OWNERS}).</p>
-          {form.formState.errors.ownersCount && (
-            <p className="text-red-600 text-sm mt-1">
-              {form.formState.errors.ownersCount.message}
-            </p>
-          )}
         </div>
 
         {/* Owners blocks */}
