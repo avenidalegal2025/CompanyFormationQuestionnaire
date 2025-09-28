@@ -1,4 +1,4 @@
-// src/components/steps/Step4Admin.tsx
+// src/components/steps/Step5Admin.tsx
 "use client";
 
 import { Controller, type FieldPath } from "react-hook-form";
@@ -11,7 +11,7 @@ import type { StepProps } from "./types";
 // helper for dynamic field paths
 const fp = (s: string) => s as unknown as FieldPath<AllSteps>;
 
-export default function Step4Admin({ form, setStep, onSave, onNext }: StepProps) {
+export default function Step5Admin({ form, setStep, onSave, onNext }: StepProps) {
   const { control, register, watch } = form;
 
   const entityType = watch("company.entityType");

@@ -254,7 +254,7 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
             <button
               type="button"
               className="btn btn-primary"
-              onClick={() => (onNext ? void onNext() : setStep(4))}
+              onClick={() => (onNext ? void onNext() : setStep(3))}
             >
               Continuar
             </button>

@@ -5,7 +5,8 @@ import { useForm } from "react-hook-form";
 
 import Step2Company from "@/components/steps/Step2Company";
 import Step3Owners from "@/components/steps/Step3Owners";
-import Step4Admin from "@/components/steps/Step4Admin";
+import Step4Summary from "@/components/steps/Step4Summary";
+import Step5Admin from "@/components/steps/Step5Admin";
 import ProgressSidebar, { type ProgressItem } from "@/components/ProgressSidebar";
 
 import type { AllSteps } from "@/lib/schema";
@@ -26,9 +27,9 @@ export default function Page() {
     },
   });
 
-  // We now have a 3-step flow (2, 3, 4 from the old naming)
+  // We now have a 4-step flow (2, 3, 4, 5)
   const [step, setStep] = useState<number>(1);
-  const totalSteps = 3;
+  const totalSteps = 4;
 
   // Draft lifecycle
   const [draftId, setDraftId] = useState<string | null>(null);
@@ -40,7 +41,8 @@ export default function Page() {
     () => [
       { key: "step-company",  label: "Empresa",        status: step === 1 ? "active" : step > 1 ? "done" : "todo" },
       { key: "step-owners",   label: "Propietarios",   status: step === 2 ? "active" : step > 2 ? "done" : "todo" },
-      { key: "step-admin",    label: "Administrativo", status: step === 3 ? "active" : "todo" },
+      { key: "step-summary",  label: "Resumen",        status: step === 3 ? "active" : step > 3 ? "done" : "todo" },
+      { key: "step-admin",    label: "Administrativo", status: step === 4 ? "active" : "todo" },
     ],
     [step]
   );
@@ -155,7 +157,10 @@ export default function Page() {
             <Step3Owners form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />
           )}
           {step === 3 && (
-            <Step4Admin form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />
+            <Step4Summary form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />
+          )}
+          {step === 4 && (
+            <Step5Admin form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />
           )}
         </form>
       </main>
