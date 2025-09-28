@@ -11,7 +11,7 @@ import type { StepProps } from "./types";
 const MAX_OWNERS = 6;
 
 export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps) {
-  const { register, control, watch } = form;
+  const { register, control, watch, setValue } = form;
 
   // Loosen types ONLY for ad-hoc (non-schema) paths without using `any`
   const w = watch as unknown as (name: string) => unknown;
@@ -45,25 +45,23 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
         {/* Número de accionistas/socios */}
         <div className="mt-6">
           <label className="label">Número de {groupLabel}</label>
-          <Controller
-            name={"ownersCount" as never}
-            control={control}
-            render={({ field }) => (
-              <input
-                type="number"
-                min={1}
-                max={MAX_OWNERS}
-                className="input w-full max-w-xs"
-                value={field.value ? String(field.value) : "1"}
-                onChange={(e) => {
-                  const raw = e.target.value;
-                  const n = Math.max(1, Math.min(MAX_OWNERS, Number(raw) || 1));
-                  console.log("Input change - raw:", raw, "processed:", n, "field.value before:", field.value);
-                  field.onChange(n);
-                  console.log("field.value after:", field.value);
-                }}
-              />
-            )}
+          <input
+            type="number"
+            min={1}
+            max={MAX_OWNERS}
+            className="input w-full max-w-xs"
+            {...register("ownersCount", {
+              valueAsNumber: true,
+              min: 1,
+              max: MAX_OWNERS,
+              onChange: (e) => {
+                const value = Number(e.target.value);
+                console.log("Direct input change:", value);
+                if (!isNaN(value) && value >= 1 && value <= MAX_OWNERS) {
+                  setValue("ownersCount", value);
+                }
+              }
+            })}
           />
           <p className="help">Define cuántos bloques se muestran debajo (1 a {MAX_OWNERS}).</p>
         </div>
