@@ -96,6 +96,7 @@ export const AllStepsSchema = z.object({
   profile: ProfileSchema.optional(),
   company: CompanySchema.optional(),
   owners: OwnersSchema.optional(),
+  ownersCount: z.number().int().min(1).max(6).optional(),
   admin: AdminSchema.optional(),
   banking: BankingSchema.optional(),
   attachments: AttachmentsSchema.optional(),

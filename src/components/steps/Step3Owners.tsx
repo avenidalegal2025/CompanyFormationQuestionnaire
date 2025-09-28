@@ -50,7 +50,7 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
                 min={1}
                 max={MAX_OWNERS}
                 className="input w-full max-w-xs"
-                value={(Number(field.value) || 1).toString()}
+                value={field.value ? field.value.toString() : "1"}
                 onChange={(e) => {
                   const raw = e.target.value;
                   const n = Math.max(1, Math.min(MAX_OWNERS, Number(raw) || 1));

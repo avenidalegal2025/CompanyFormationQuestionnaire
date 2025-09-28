@@ -19,6 +19,7 @@ export default function Page() {
       profile: {},     // kept in schema but unused in UI (email comes from Auth0)
       company: {},
       owners: [],
+      ownersCount: 1,
       admin: {},
       banking: {},
       attachments: {},
