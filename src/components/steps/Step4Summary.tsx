@@ -51,11 +51,11 @@ const EditButton = ({
 );
 
 export default function Step4Summary({ form, setStep, onSave, onNext }: StepProps) {
-  const { watch, control, setValue } = form;
+  const { watch, control } = form;
 
   // Get all form data
   const companyData = watch("company");
-  const ownersData = watch("owners") || [];
+  const ownersData = useMemo(() => watch("owners") || [], [watch]);
   const ownersCount = watch("ownersCount") || 1;
 
   // Edit state management
@@ -257,7 +257,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
                       <span className="font-medium text-gray-700">Nombre completo:</span>
                       {editingSection === "owners" ? (
                         <Controller
-                          name={`owners.${i}.fullName` as any}
+                          name={`owners.${i}.fullName` as never}
                           control={control}
                           render={({ field }) => (
                             <input className="input mt-1" {...field} />
@@ -271,7 +271,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
                       <span className="font-medium text-gray-700">Porcentaje de propiedad:</span>
                       {editingSection === "owners" ? (
                         <Controller
-                          name={`owners.${i}.ownership` as any}
+                          name={`owners.${i}.ownership` as never}
                           control={control}
                           render={({ field }) => (
                             <input 
@@ -291,7 +291,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
                       <span className="font-medium text-gray-700">Dirección:</span>
                       {editingSection === "owners" ? (
                         <Controller
-                          name={`owners.${i}.address` as any}
+                          name={`owners.${i}.address` as never}
                           control={control}
                           render={({ field }) => (
                             <input className="input mt-1" {...field} />
@@ -305,7 +305,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
                       <span className="font-medium text-gray-700">Ciudadano/Residente de EE.UU.:</span>
                       {editingSection === "owners" ? (
                         <Controller
-                          name={`owners.${i}.isUsCitizen` as any}
+                          name={`owners.${i}.isUsCitizen` as never}
                           control={control}
                           render={({ field }) => (
                             <select className="input mt-1" {...field}>
@@ -323,7 +323,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
                         <span className="font-medium text-gray-700">SSN/EIN:</span>
                         {editingSection === "owners" ? (
                           <Controller
-                            name={`owners.${i}.tin` as any}
+                            name={`owners.${i}.tin` as never}
                             control={control}
                             render={({ field }) => (
                               <input className="input mt-1" {...field} />
@@ -338,7 +338,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
                         <span className="font-medium text-gray-700">Pasaporte:</span>
                         {editingSection === "owners" ? (
                           <Controller
-                            name={`owners.${i}.passportImage` as any}
+                            name={`owners.${i}.passportImage` as never}
                             control={control}
                             render={({ field }) => (
                               <input 

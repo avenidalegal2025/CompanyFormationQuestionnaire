@@ -47,7 +47,6 @@ export default function SSNEINInput({
   value = "",
   onChange,
   label = "SSN / EIN",
-  required, // (kept for API parity, not shown)
 }: Props) {
   const [show, setShow] = useState(false);
 

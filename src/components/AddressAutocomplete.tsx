@@ -156,9 +156,7 @@ export default function AddressAutocomplete({
       })
       .catch((e) => {
         // Keep this log for quick diagnosis if env var or script fails
-        /* eslint-disable no-console */
         console.error("Google Maps loader error:", e);
-        /* eslint-enable no-console */
       });
 
     return () => {
