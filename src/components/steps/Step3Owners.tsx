@@ -11,7 +11,7 @@ import type { StepProps } from "./types";
 const MAX_OWNERS = 6;
 
 export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps) {
-  const { register, control, watch, setValue } = form;
+  const { register, control, watch } = form;
 
   // Loosen types ONLY for ad-hoc (non-schema) paths without using `any`
   const w = watch as unknown as (name: string) => unknown;
@@ -50,7 +50,7 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
                 min={1}
                 max={MAX_OWNERS}
                 className="input w-full max-w-xs"
-                value={field.value ? field.value.toString() : "1"}
+                value={field.value ? String(field.value) : "1"}
                 onChange={(e) => {
                   const raw = e.target.value;
                   const n = Math.max(1, Math.min(MAX_OWNERS, Number(raw) || 1));
