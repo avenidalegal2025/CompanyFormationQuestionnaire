@@ -70,6 +70,14 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
   };
 
   const handleSave = () => {
+    // If editing owners, require exactly 100%
+    if (editingSection === "owners") {
+      if (totalOwnership !== 100) {
+        alert("El total debe ser 100% para guardar los propietarios.");
+        return; // keep editing mode
+      }
+    }
+
     // Trigger form validation and update
     form.trigger();
     // Force re-render to update calculations
