@@ -91,6 +91,63 @@ export const AttachmentsSchema = z.object({
   proofOfAddressUrl: z.string().url().optional(),
 });
 
+/** ------------ Agreement (post-summary) ------------ */
+export const AgreementSchema = z
+  .object({
+    wants: z.enum(["Yes", "No"]).optional(),
+    // C-Corp specific fields (owners & roles)
+    corp_capitalPerOwner: z.string().optional(),
+    corp_specificResponsibilities: z.string().optional(),
+    corp_hoursCommitment: z.string().optional(),
+    // C-Corp capital & loans
+    corp_newShareholdersAdmission: z.string().optional(),
+    corp_moreCapitalProcess: z.string().optional(),
+    corp_withdrawFundsPolicy: z.string().optional(),
+    corp_shareholderLoans: z.string().optional(),
+    // C-Corp governance & decisions
+    corp_saleDecisionThreshold: z.string().optional(),
+    corp_bankSigners: z.string().optional(),
+    corp_majorDecisionThreshold: z.string().optional(),
+    corp_restrictions: z.string().optional(),
+    corp_nonCompete: z.string().optional(),
+    corp_voteTieBreaker: z.string().optional(),
+    // C-Corp shares & succession
+    corp_rofr: z.string().optional(),
+    corp_transferToRelatives: z.string().optional(),
+    corp_incapacityHeirsPolicy: z.string().optional(),
+    corp_divorceBuyoutPolicy: z.string().optional(),
+    corp_tagDragRights: z.string().optional(),
+    corp_additionalClauses: z.string().optional(),
+
+    // LLC specific fields (owners & roles)
+    llc_capitalContributions: z.string().optional(),
+    llc_managingMembers: z.string().optional(),
+    llc_specificRoles: z.string().optional(),
+    // LLC capital & loans
+    llc_newMembersAdmission: z.string().optional(),
+    llc_additionalContributions: z.string().optional(),
+    llc_withdrawContributions: z.string().optional(),
+    llc_memberLoans: z.string().optional(),
+    // LLC governance & decisions
+    llc_companySaleDecision: z.string().optional(),
+    llc_taxPartner: z.string().optional(),
+    llc_bankSigners: z.string().optional(),
+    llc_majorDecisions: z.string().optional(),
+    llc_minorDecisions: z.string().optional(),
+    llc_managerRestrictions: z.string().optional(),
+    llc_nonCompete: z.string().optional(),
+    llc_deadlockResolution: z.string().optional(),
+    llc_keyManInsurance: z.string().optional(),
+    llc_disputeResolution: z.string().optional(),
+    // LLC actions & succession
+    llc_rofr: z.string().optional(),
+    llc_incapacityHeirsPolicy: z.string().optional(),
+    llc_newPartnersAdmission: z.string().optional(),
+    llc_dissolutionDecision: z.string().optional(),
+    llc_specificTerms: z.string().optional(),
+  })
+  .and(z.record(z.string(), z.unknown()).optional());
+
 /** ------------ All steps ------------ */
 export const AllStepsSchema = z.object({
   profile: ProfileSchema.optional(),
@@ -100,6 +157,7 @@ export const AllStepsSchema = z.object({
   admin: AdminSchema.optional(),
   banking: BankingSchema.optional(),
   attachments: AttachmentsSchema.optional(),
+  agreement: AgreementSchema.optional(),
 });
 
 export type Profile = z.infer<typeof ProfileSchema>;
@@ -108,4 +166,5 @@ export type Owner = z.infer<typeof OwnerSchema>;
 export type Admin = z.infer<typeof AdminSchema>;
 export type Banking = z.infer<typeof BankingSchema>;
 export type Attachments = z.infer<typeof AttachmentsSchema>;
+export type Agreement = z.infer<typeof AgreementSchema>;
 export type AllSteps = z.infer<typeof AllStepsSchema>;

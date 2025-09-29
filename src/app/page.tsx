@@ -6,6 +6,10 @@ import { useForm } from "react-hook-form";
 import Step2Company from "@/components/steps/Step2Company";
 import Step3Owners from "@/components/steps/Step3Owners";
 import Step4Summary from "@/components/steps/Step4Summary";
+import Step6Agreement1 from "@/components/steps/Step6Agreement1";
+import Step7Agreement2 from "@/components/steps/Step7Agreement2";
+import Step8Agreement3 from "@/components/steps/Step8Agreement3";
+import Step9Agreement4 from "@/components/steps/Step9Agreement4";
 import Step5Admin from "@/components/steps/Step5Admin";
 import ProgressSidebar, { type ProgressItem } from "@/components/ProgressSidebar";
 
@@ -29,7 +33,8 @@ export default function Page() {
 
   // We now have a 4-step flow (2, 3, 4, 5)
   const [step, setStep] = useState<number>(1);
-  const totalSteps = 4;
+  const wantsAgreement = (form.watch("agreement") as any)?.wants === "Yes" || form.watch("admin.wantAgreement") === "Yes";
+  const totalSteps = wantsAgreement ? 8 : 4;
 
   // Draft lifecycle
   const [draftId, setDraftId] = useState<string | null>(null);
@@ -37,15 +42,23 @@ export default function Page() {
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const items: ProgressItem[] = useMemo(
-    () => [
+  const items: ProgressItem[] = useMemo(() => {
+    const base: ProgressItem[] = [
       { key: "step-company",  label: "Empresa",        status: step === 1 ? "active" : step > 1 ? "done" : "todo" },
       { key: "step-owners",   label: "Propietarios",   status: step === 2 ? "active" : step > 2 ? "done" : "todo" },
       { key: "step-admin",    label: "Administrativo", status: step === 3 ? "active" : step > 3 ? "done" : "todo" },
-      { key: "step-summary",  label: "Resumen",        status: step === 4 ? "active" : "todo" },
-    ],
-    [step]
-  );
+      { key: "step-summary",  label: "Resumen",        status: step === 4 ? "active" : step > 4 ? "done" : "todo" },
+    ];
+    if (wantsAgreement) {
+      base.push(
+        { key: "step-ag-1", label: "Acuerdo 1", status: step === 5 ? "active" : step > 5 ? "done" : "todo" },
+        { key: "step-ag-2", label: "Acuerdo 2", status: step === 6 ? "active" : step > 6 ? "done" : "todo" },
+        { key: "step-ag-3", label: "Acuerdo 3", status: step === 7 ? "active" : step > 7 ? "done" : "todo" },
+        { key: "step-ag-4", label: "Acuerdo 4", status: step === 8 ? "active" : "todo" },
+      );
+    }
+    return base;
+  }, [step, wantsAgreement]);
 
   // Load existing draft on mount (if any)
   useEffect(() => {
@@ -160,7 +173,24 @@ export default function Page() {
             <Step5Admin form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />
           )}
           {step === 4 && (
-            <Step4Summary form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />
+            <Step4Summary form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={async () => {
+              await onGuardarYContinuar();
+              // If agreement desired, go to agreement flow
+              const wants = ((form.getValues("agreement") as any)?.wants === "Yes") || form.getValues("admin.wantAgreement") === "Yes";
+              setStep((s) => (wants ? 5 : Math.min(totalSteps, s + 1)));
+            }} />
+          )}
+          {wantsAgreement && step === 5 && (
+            <Step6Agreement1 form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />
+          )}
+          {wantsAgreement && step === 6 && (
+            <Step7Agreement2 form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />
+          )}
+          {wantsAgreement && step === 7 && (
+            <Step8Agreement3 form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />
+          )}
+          {wantsAgreement && step === 8 && (
+            <Step9Agreement4 form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />
           )}
         </form>
       </main>
