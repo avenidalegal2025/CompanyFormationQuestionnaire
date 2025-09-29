@@ -92,14 +92,19 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
   };
 
   // Calculate total ownership percentage
-  const totalOwnership = ownersData.reduce((total: number, owner: { 
-    ownership?: number | string;
-    isUsCitizen?: string;
-    tin?: string;
-    passportImage?: string;
-  }) => {
-    return total + (Number(owner?.ownership) || 0);
-  }, 0);
+  const totalOwnership = useMemo(() => {
+    if (!ownersData || ownersData.length === 0) return 0;
+    
+    return ownersData.reduce((total: number, owner: { 
+      ownership?: number | string;
+      isUsCitizen?: string;
+      tin?: string;
+      passportImage?: string;
+    }) => {
+      const ownership = Number(owner?.ownership);
+      return total + (isNaN(ownership) ? 0 : ownership);
+    }, 0);
+  }, [ownersData]);
 
   const entityType = companyData?.entityType;
   const isCorp = entityType === "C-Corp";
@@ -291,12 +296,13 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
                             // Calculate current total excluding this field
                             const currentTotal = Array.from({ length: ownersCount }).reduce((total: number, _, idx) => {
                               if (idx === i) return total; // Skip current field
-                              const percentage = Number(watch(`owners.${idx}.ownership`)) || 0;
-                              return total + percentage;
+                              const percentage = Number(watch(`owners.${idx}.ownership`));
+                              return total + (isNaN(percentage) ? 0 : percentage);
                             }, 0);
                             
-                            const currentValue = Number(field.value) || 0;
-                            const newTotal = currentTotal + currentValue;
+                            const currentValue = Number(field.value);
+                            const validCurrentValue = isNaN(currentValue) ? 0 : currentValue;
+                            const newTotal = currentTotal + validCurrentValue;
                             const remaining = 100 - newTotal;
                             
                             return (
