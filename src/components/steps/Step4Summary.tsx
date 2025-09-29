@@ -498,6 +498,66 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
                     </div>
                   )}
                 </div>
+
+                {/* Directors list (when not all owners) */}
+                {adminData?.directorsAllOwners === "No" && (adminData?.directorsCount ?? 0) > 0 && (
+                  <div className="mt-6 space-y-4">
+                    <h4 className="text-md font-bold text-gray-900">Directores</h4>
+                    {Array.from({ length: adminData?.directorsCount || 0 }).map((_, idx) => {
+                      const name = watch(`admin.director${idx + 1}Name`);
+                      const role = watch(`admin.director${idx + 1}Role`);
+                      const address = watch(`admin.director${idx + 1}Address`);
+                      return (
+                        <div key={idx} className="rounded-lg border border-gray-100 p-4">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                              <span className="font-bold text-gray-700">Nombre:</span>
+                              <p className="text-gray-900">{name || "No especificado"}</p>
+                            </div>
+                            <div>
+                              <span className="font-bold text-gray-700">Rol:</span>
+                              <p className="text-gray-900">{role || "No especificado"}</p>
+                            </div>
+                            <div>
+                              <span className="font-bold text-gray-700">Dirección:</span>
+                              <p className="text-gray-900">{address || "No especificado"}</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Officers list (when not all owners) */}
+                {adminData?.officersAllOwners === "No" && (adminData?.officersCount ?? 0) > 0 && (
+                  <div className="mt-6 space-y-4">
+                    <h4 className="text-md font-bold text-gray-900">Oficiales</h4>
+                    {Array.from({ length: adminData?.officersCount || 0 }).map((_, idx) => {
+                      const name = watch(`admin.officer${idx + 1}Name`);
+                      const role = watch(`admin.officer${idx + 1}Role`);
+                      const address = watch(`admin.officer${idx + 1}Address`);
+                      return (
+                        <div key={idx} className="rounded-lg border border-gray-100 p-4">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                              <span className="font-bold text-gray-700">Nombre:</span>
+                              <p className="text-gray-900">{name || "No especificado"}</p>
+                            </div>
+                            <div>
+                              <span className="font-bold text-gray-700">Rol:</span>
+                              <p className="text-gray-900">{role || "No especificado"}</p>
+                            </div>
+                            <div>
+                              <span className="font-bold text-gray-700">Dirección:</span>
+                              <p className="text-gray-900">{address || "No especificado"}</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </>
             )}
           </div>
