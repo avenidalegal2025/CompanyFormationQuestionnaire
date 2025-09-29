@@ -14,38 +14,38 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
           {isCorp ? (
             <>
               <div>
-                <label className="label">¿Cómo se añadirán nuevos accionistas?</label>
+                <label className="label">¿Cómo se añadirán nuevos accionistas, por decisión unánime?, mayoría?</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.corp_newShareholdersAdmission")} />
               </div>
               <div>
-                <label className="label">Si se necesitara más capital, ¿cómo se haría?</label>
+                <label className="label">Si la corporación necesitara más capital, ¿cómo se haría esto? Típicamente cada accionista es requerido invertir una cantidad en proporción. Si se necesitara $100 mil más en capital, un dueño con el 50% de acciones necesitaría invertir unos 50 mil más.</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.corp_moreCapitalProcess")} />
               </div>
               <div>
-                <label className="label">¿Cómo retirar fondos?</label>
+                <label className="label">¿Cómo retirar fondos? (Recomiendo que esto suceda solamente a la venta de las acciones de una parte o a la disolución de la compañía)</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.corp_withdrawFundsPolicy")} />
               </div>
               <div>
-                <label className="label">¿Accionistas podrán prestar a la compañía?</label>
+                <label className="label">¿Algún accionista podrá prestarle a la compañía? En un futuro podría haber préstamos de accionistas a la compañía</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.corp_shareholderLoans")} />
               </div>
             </>
           ) : (
             <>
               <div>
-                <label className="label">Adición de nuevos miembros a la LLC</label>
+                <label className="label">Adición de nuevos miembros a la LLC: ¿Cómo se añadirán? ¿Decisión unánime?</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.llc_newMembersAdmission")} />
               </div>
               <div>
-                <label className="label">Aportaciones adicionales de capital</label>
+                <label className="label">Aportaciones de capital adicionales: ¿Cómo se manejarán si se necesita más dinero? (Ej. $100 mil extra → cada socio aporta según porcentaje)</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.llc_additionalContributions")} />
               </div>
               <div>
-                <label className="label">Retiro de aportaciones</label>
+                <label className="label">Retiro de aportaciones: ¿Solamente permitido al vender acciones o disolver la compañía?</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.llc_withdrawContributions")} />
               </div>
               <div>
-                <label className="label">Préstamos de miembros a la LLC</label>
+                <label className="label">¿Habrá préstamos de miembros a la LLC? Si sí, ¿quién y cuánto?</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.llc_memberLoans")} />
               </div>
             </>

@@ -23,22 +23,22 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepP
                 <textarea className="input min-h-[80px]" {...register("agreement.corp_specificResponsibilities")} />
               </div>
               <div>
-                <label className="label">¿Hay cierta cantidad de horas que el accionista esté comprometido a trabajar?</label>
+                <label className="label">¿Hay cierta cantidad de horas que el accionista esté comprometido a trabajar en este negocio?</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.corp_hoursCommitment")} />
               </div>
             </>
           ) : (
             <>
               <div>
-                <label className="label">Aportaciones de capital: ¿Cuánto dinero aporta cada dueño?</label>
+                <label className="label">Aportaciones de capital: ¿Cuánto dinero está contribuyendo cada dueño al negocio?</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.llc_capitalContributions")} />
               </div>
               <div>
-                <label className="label">¿Ambos serán miembros administradores (firmar/decidir)?</label>
+                <label className="label">¿Ambos dueños van a operar el negocio como miembros administradores (con derecho a firmar y tomar decisiones)?</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.llc_managingMembers")} />
               </div>
               <div>
-                <label className="label">¿Habrá roles específicos para cada parte?</label>
+                <label className="label">¿Habrá roles específicos para cada parte? (Ej. uno a cargo de marketing, otro de asuntos legales)</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.llc_specificRoles")} />
               </div>
             </>

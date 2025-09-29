@@ -14,70 +14,70 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
           {isCorp ? (
             <>
               <div>
-                <label className="label">Venta de la compañía / umbral de decisión</label>
+                <label className="label">Si hubiese una oferta de compra o si usted quisiese vender la compañía, ¿quisiera que esta decisión se tome unánimemente, por mayoría o con un 65.1% de los accionistas?</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.corp_saleDecisionThreshold")} />
               </div>
               <div>
-                <label className="label">Firmantes de la cuenta bancaria</label>
+                <label className="label">Para la cuenta de banco de la compañía, ¿quiere que haya un o dos firmantes?</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.corp_bankSigners")} />
               </div>
               <div>
-                <label className="label">Decisiones importantes: umbral</label>
+                <label className="label">Si hubiese que hacer una decisión importante (como decisiones que cuesten $….., despedir un empleado, pedir un préstamo, etc.), ¿quisiera que esta decisión fuese tomada por mayoría, unanimidad o un 65.1% de los miembros?</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.corp_majorDecisionThreshold")} />
               </div>
               <div>
-                <label className="label">Restricciones en accionistas/ejecutivos/directores</label>
+                <label className="label">¿Quiere que existan restricciones en los accionistas, ejecutivos, directores?</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.corp_restrictions")} />
               </div>
               <div>
-                <label className="label">Cláusula de no competencia</label>
+                <label className="label">¿Quieren una cláusula de no competencia? Esto es algo que debe considerar con mucho cuidado. Se puede redactar una cláusula muy estricta para impedir competencia por alguien involucrado en la compañía</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.corp_nonCompete")} />
               </div>
               <div>
-                <label className="label">Empates en votaciones / desempate</label>
+                <label className="label">¿Qué quiere que suceda en un empate en una votación para decidir algo importante? ¿Quiere que obligatoriamente alguien venda sus acciones y salga de la compañía, por ejemplo?</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.corp_voteTieBreaker")} />
               </div>
             </>
           ) : (
             <>
               <div>
-                <label className="label">Venta de la compañía: umbral de decisión</label>
+                <label className="label">Venta de la compañía: ¿Decisión unánime?</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.llc_companySaleDecision")} />
               </div>
               <div>
-                <label className="label">Socio responsable de impuestos (Tax Partner)</label>
+                <label className="label">¿Quién será el socio responsable de impuestos (Tax Partner)?</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.llc_taxPartner")} />
               </div>
               <div>
-                <label className="label">Firmantes de la cuenta bancaria</label>
+                <label className="label">Cuenta bancaria: ¿Uno o dos firmantes para retirar dinero?</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.llc_bankSigners")} />
               </div>
               <div>
-                <label className="label">Decisiones mayores</label>
+                <label className="label">Decisiones mayores (ej. > $10,000): ¿Unánimes o cualquiera de los dueños?</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.llc_majorDecisions")} />
               </div>
               <div>
-                <label className="label">Decisiones menores</label>
+                <label className="label">Decisiones menores (< $10,000): ¿Unánimes o cualquiera de los dueños?</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.llc_minorDecisions")} />
               </div>
               <div>
-                <label className="label">Restricciones a miembros administradores</label>
+                <label className="label">Restricciones a los miembros administradores (ej. no firmar sin el otro, no contratar sin aprobación)</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.llc_managerRestrictions")} />
               </div>
               <div>
-                <label className="label">Covenant de no competencia</label>
+                <label className="label">¿Covenant de no competencia entre los dueños?</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.llc_nonCompete")} />
               </div>
               <div>
-                <label className="label">Empate (deadlock): resolución</label>
+                <label className="label">¿Qué hacer en caso de empate (deadlock)? ¿Forzar venta, arbitraje, terceros?</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.llc_deadlockResolution")} />
               </div>
               <div>
-                <label className="label">Seguro &quot;Key Man&quot;</label>
+                <label className="label">¿Seguro de &quot;Key Man&quot; requerido?</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.llc_keyManInsurance")} />
               </div>
               <div>
-                <label className="label">Resolución de disputas</label>
+                <label className="label">Resolución de disputas: ¿mediación, arbitraje, luego demanda?</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.llc_disputeResolution")} />
               </div>
             </>
