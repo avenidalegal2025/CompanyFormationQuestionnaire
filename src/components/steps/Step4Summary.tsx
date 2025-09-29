@@ -827,8 +827,18 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
       {/* Agreement Recommendation Modal */}
       {showAgreementModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setShowAgreementModal(false)} />
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowAgreementModal(false)} />
           <div className="relative z-10 w-full max-w-lg rounded-2xl bg-white shadow-xl p-6">
+            {/* Close button */}
+            <button
+              type="button"
+              aria-label="Cerrar"
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
+              onClick={() => setShowAgreementModal(false)}
+            >
+              ×
+            </button>
+
             <div className="flex items-center gap-3 mb-4">
               <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold">A</div>
               <div className="text-lg font-semibold text-gray-900">Avenida Legal</div>
@@ -844,21 +854,23 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
             </p>
             <p className="text-gray-900 font-medium mb-6">Inversión asociada: $600 USD.</p>
 
-            <div className="flex items-center justify-between">
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => {
-                  try {
-                    setValue("admin.wantAgreement", "Yes" as never);
-                  } catch {}
-                  setShowAgreementModal(false);
-                  void onNext?.();
-                }}
-              >
-                Lo quiero
-              </button>
+            {/* Primary action on top */}
+            <button
+              type="button"
+              className="btn btn-primary w-full mb-4"
+              onClick={() => {
+                try {
+                  setValue("admin.wantAgreement", "Yes" as never);
+                } catch {}
+                setShowAgreementModal(false);
+                void onNext?.();
+              }}
+            >
+              Lo quiero
+            </button>
 
+            {/* Link at bottom */}
+            <div className="text-center">
               <button
                 type="button"
                 className="text-sm underline text-gray-600 hover:text-gray-800"
