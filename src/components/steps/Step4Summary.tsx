@@ -57,6 +57,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
   const companyData = watch("company");
   const ownersData = useMemo(() => watch("owners") || [], [watch]);
   const ownersCount = watch("ownersCount") || 1;
+  const adminData = watch("admin") || {};
 
   // Edit state management
   const [editingSection, setEditingSection] = useState<string | null>(null);
@@ -74,18 +75,19 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
     setEditingSection(null);
   };
 
-  // Obfuscate SSN/EIN with dashes
-  const obfuscateSSNEIN = (value: string | undefined) => {
+  // Obfuscate SSN/EIN
+  // When isSSN is true, mask as ***-**-1234 (show last 4 only)
+  // Otherwise, keep EIN formatting XX-XXXXXXX
+  const obfuscateSSNEIN = (value: string | undefined, isSSN: boolean) => {
     if (!value) return "No especificado";
     const digits = value.replace(/\D/g, "");
-    if (digits.length === 9) {
-      // SSN format: XXX-XX-XXXX
-      return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5, 9)}`;
-    } else if (digits.length === 9) {
-      // EIN format: XX-XXXXXXX
-      return `${digits.slice(0, 2)}-${digits.slice(2, 9)}`;
+    if (digits.length !== 9) return value;
+    if (isSSN) {
+      // Show only last 4
+      return `***-**-${digits.slice(5, 9)}`;
     }
-    return value;
+    // EIN formatting (unmasked formatting)
+    return `${digits.slice(0, 2)}-${digits.slice(2, 9)}`;
   };
 
   // Calculate total ownership percentage
@@ -126,7 +128,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
           <div className="bg-gray-50 rounded-lg p-4 space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <span className="font-medium text-gray-700">Estado de formación:</span>
+                <span className="font-bold text-gray-700">Estado de formación:</span>
                 {editingSection === "company" ? (
                   <Controller
                     name="company.formationState"
@@ -150,7 +152,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
                 )}
               </div>
               <div>
-                <span className="font-medium text-gray-700">Tipo de entidad:</span>
+                <span className="font-bold text-gray-700">Tipo de entidad:</span>
                 {editingSection === "company" ? (
                   <Controller
                     name="company.entityType"
@@ -167,7 +169,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
                 )}
               </div>
               <div>
-                <span className="font-medium text-gray-700">Nombre de la empresa:</span>
+                <span className="font-bold text-gray-700">Nombre de la empresa:</span>
                 {editingSection === "company" ? (
                   <Controller
                     name="company.companyName"
@@ -181,7 +183,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
                 )}
               </div>
               <div>
-                <span className="font-medium text-gray-700">Propósito del negocio:</span>
+                <span className="font-bold text-gray-700">Propósito del negocio:</span>
                 {editingSection === "company" ? (
                   <Controller
                     name="company.businessPurpose"
@@ -198,7 +200,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
             
             {companyData?.hasUsaAddress === "Yes" && (
               <div className="mt-4">
-                <span className="font-medium text-gray-700">Dirección:</span>
+                <span className="font-bold text-gray-700">Dirección:</span>
                 <p className="text-gray-900">
                   {[companyData?.addressLine1, companyData?.addressLine2, companyData?.city, companyData?.state, companyData?.postalCode, companyData?.country]
                     .filter(Boolean)
@@ -209,14 +211,14 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
 
             {companyData?.hasUsPhone === "Yes" && (
               <div>
-                <span className="font-medium text-gray-700">Teléfono:</span>
+                <span className="font-bold text-gray-700">Teléfono:</span>
                 <p className="text-gray-900">{companyData?.usPhoneNumber || "No especificado"}</p>
               </div>
             )}
 
             {isCorp && companyData?.numberOfShares && (
               <div>
-                <span className="font-medium text-gray-700">Número de acciones:</span>
+                <span className="font-bold text-gray-700">Número de acciones:</span>
                 <p className="text-gray-900">{companyData.numberOfShares.toLocaleString()}</p>
               </div>
             )}
@@ -249,12 +251,12 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
               };
               return (
                 <div key={i} className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-medium text-gray-800 mb-3">
+                  <h4 className="text-lg font-bold text-gray-900 mb-3">
                     {isCorp ? "Accionista" : "Socio"} {i + 1}
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <span className="font-medium text-gray-700">Nombre completo:</span>
+                      <span className="font-bold text-gray-700">Nombre completo:</span>
                       {editingSection === "owners" ? (
                         <Controller
                           name={`owners.${i}.fullName` as never}
@@ -268,7 +270,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
                       )}
                     </div>
                     <div>
-                      <span className="font-medium text-gray-700">Porcentaje de propiedad:</span>
+                      <span className="font-bold text-gray-700">Porcentaje de propiedad:</span>
                       {editingSection === "owners" ? (
                         <Controller
                           name={`owners.${i}.ownership` as never}
@@ -288,7 +290,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
                       )}
                     </div>
                     <div>
-                      <span className="font-medium text-gray-700">Dirección:</span>
+                      <span className="font-bold text-gray-700">Dirección:</span>
                       {editingSection === "owners" ? (
                         <Controller
                           name={`owners.${i}.address` as never}
@@ -302,7 +304,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
                       )}
                     </div>
                     <div>
-                      <span className="font-medium text-gray-700">Ciudadano/Residente de EE.UU.:</span>
+                      <span className="font-bold text-gray-700">Ciudadano/Residente de EE.UU.:</span>
                       {editingSection === "owners" ? (
                         <Controller
                           name={`owners.${i}.isUsCitizen` as never}
@@ -320,7 +322,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
                     </div>
                     {owner?.isUsCitizen === "Yes" ? (
                       <div>
-                        <span className="font-medium text-gray-700">SSN/EIN:</span>
+                        <span className="font-bold text-gray-700">SSN/EIN:</span>
                         {editingSection === "owners" ? (
                           <Controller
                             name={`owners.${i}.tin` as never}
@@ -330,12 +332,12 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
                             )}
                           />
                         ) : (
-                          <p className="text-gray-900">{obfuscateSSNEIN(owner?.tin)}</p>
+                          <p className="text-gray-900">{obfuscateSSNEIN(owner?.tin, true)}</p>
                         )}
                       </div>
                     ) : (
                       <div>
-                        <span className="font-medium text-gray-700">Pasaporte:</span>
+                        <span className="font-bold text-gray-700">Pasaporte:</span>
                         {editingSection === "owners" ? (
                           <Controller
                             name={`owners.${i}.passportImage` as never}
@@ -363,7 +365,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
           {/* Ownership Summary */}
           <div className="mt-4 p-4 bg-blue-50 rounded-lg">
             <div className="flex items-center justify-between">
-              <span className="font-medium text-gray-700">Total de propiedad:</span>
+              <span className="font-bold text-gray-700">Total de propiedad:</span>
               <span className={`text-lg font-semibold ${totalOwnership === 100 ? "text-green-600" : totalOwnership > 100 ? "text-red-600" : "text-blue-600"}`}>
                 {totalOwnership}%
               </span>
@@ -379,6 +381,127 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
           </div>
         </div>
 
+        {/* Administrative Information */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-800">Información Administrativa</h3>
+            <EditButton 
+              onClick={() => handleEdit("admin")} 
+              label="Administrativo" 
+              isEditing={editingSection === "admin"}
+              onSave={handleSave}
+              onCancel={handleCancel}
+            />
+          </div>
+          <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+            {entityType === "LLC" ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <span className="font-bold text-gray-700">¿Todos los socios son gerentes?</span>
+                  {editingSection === "admin" ? (
+                    <Controller
+                      name={"admin.managersAllOwners"}
+                      control={control}
+                      render={({ field }) => (
+                        <select className="input mt-1" {...field}>
+                          <option value="Yes">Sí</option>
+                          <option value="No">No</option>
+                        </select>
+                      )}
+                    />
+                  ) : (
+                    <p className="text-gray-900">{adminData?.managersAllOwners === "Yes" ? "Sí" : "No"}</p>
+                  )}
+                </div>
+                <div>
+                  <span className="font-bold text-gray-700">Número de gerentes:</span>
+                  {editingSection === "admin" ? (
+                    <Controller
+                      name={"admin.managersCount"}
+                      control={control}
+                      render={({ field }) => (
+                        <input type="number" min={1} className="input mt-1 w-24" {...field} />
+                      )}
+                    />
+                  ) : (
+                    <p className="text-gray-900">{adminData?.managersCount ?? 1}</p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <span className="font-bold text-gray-700">¿Todos los accionistas son directores?</span>
+                    {editingSection === "admin" ? (
+                      <Controller
+                        name={"admin.directorsAllOwners"}
+                        control={control}
+                        render={({ field }) => (
+                          <select className="input mt-1" {...field}>
+                            <option value="Yes">Sí</option>
+                            <option value="No">No</option>
+                          </select>
+                        )}
+                      />
+                    ) : (
+                      <p className="text-gray-900">{adminData?.directorsAllOwners === "Yes" ? "Sí" : "No"}</p>
+                    )}
+                  </div>
+                  {adminData?.directorsAllOwners === "No" && (
+                    <div>
+                      <span className="font-bold text-gray-700">Número de directores:</span>
+                      {editingSection === "admin" ? (
+                        <Controller
+                          name={"admin.directorsCount"}
+                          control={control}
+                          render={({ field }) => (
+                            <input type="number" min={1} className="input mt-1 w-24" {...field} />
+                          )}
+                        />
+                      ) : (
+                        <p className="text-gray-900">{adminData?.directorsCount ?? 1}</p>
+                      )}
+                    </div>
+                  )}
+                  <div>
+                    <span className="font-bold text-gray-700">¿Todos los accionistas son oficiales?</span>
+                    {editingSection === "admin" ? (
+                      <Controller
+                        name={"admin.officersAllOwners"}
+                        control={control}
+                        render={({ field }) => (
+                          <select className="input mt-1" {...field}>
+                            <option value="Yes">Sí</option>
+                            <option value="No">No</option>
+                          </select>
+                        )}
+                      />
+                    ) : (
+                      <p className="text-gray-900">{adminData?.officersAllOwners === "Yes" ? "Sí" : "No"}</p>
+                    )}
+                  </div>
+                  {adminData?.officersAllOwners === "No" && (
+                    <div>
+                      <span className="font-bold text-gray-700">Número de oficiales:</span>
+                      {editingSection === "admin" ? (
+                        <Controller
+                          name={"admin.officersCount"}
+                          control={control}
+                          render={({ field }) => (
+                            <input type="number" min={1} className="input mt-1 w-24" {...field} />
+                          )}
+                        />
+                      ) : (
+                        <p className="text-gray-900">{adminData?.officersCount ?? 1}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
 
         {/* Action Buttons */}
         <div className="flex items-center justify-between pt-6 border-t">
