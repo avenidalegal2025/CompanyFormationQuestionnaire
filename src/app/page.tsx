@@ -33,7 +33,7 @@ export default function Page() {
 
   // We now have a 4-step flow (2, 3, 4, 5)
   const [step, setStep] = useState<number>(1);
-  const wantsAgreement = ((form.watch("agreement") as Agreement | undefined)?.wants === "Yes") || form.watch("admin.wantAgreement") === "Yes";
+  const [wantsAgreement, setWantsAgreement] = useState<boolean>(false);
   const totalSteps = wantsAgreement ? 8 : 4;
 
   // Draft lifecycle
@@ -179,12 +179,7 @@ export default function Page() {
             <Step5Admin form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />
           )}
           {step === 4 && (
-            <Step4Summary form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={async () => {
-              await onGuardarYContinuar();
-              // If agreement desired, go to agreement flow
-              const wants = (((form.getValues("agreement") as Agreement | undefined)?.wants === "Yes") || form.getValues("admin.wantAgreement") === "Yes");
-              setStep((s) => (wants ? 5 : Math.min(totalSteps, s + 1)));
-            }} />
+            <Step4Summary form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} setWantsAgreement={setWantsAgreement} />
           )}
           {wantsAgreement && step === 5 && (
             <Step6Agreement1 form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />

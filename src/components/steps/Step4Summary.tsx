@@ -51,7 +51,7 @@ const EditButton = ({
   </div>
 );
 
-export default function Step4Summary({ form, setStep, onSave, onNext }: StepProps) {
+export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAgreement }: StepProps & { setWantsAgreement: (w: boolean) => void }) {
   const { watch, control, setValue } = form;
 
   // Get all form data
@@ -869,8 +869,9 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
                 try {
                   setValue("admin.wantAgreement", "Yes" as never);
                 } catch {}
+                setWantsAgreement(true);
                 setShowAgreementModal(false);
-                void onNext?.();
+                setStep(5);
               }}
             >
               Lo quiero
@@ -882,6 +883,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
                 type="button"
                 className="text-sm underline text-gray-600 hover:text-gray-800"
                 onClick={() => {
+                  setWantsAgreement(false);
                   setShowAgreementModal(false);
                   void onNext?.();
                 }}
