@@ -62,6 +62,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
 
   // Edit state management
   const [editingSection, setEditingSection] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Edit functionality
   const handleEdit = (section: string) => {
@@ -69,6 +70,10 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
   };
 
   const handleSave = () => {
+    // Trigger form validation and update
+    form.trigger();
+    // Force re-render to update calculations
+    setRefreshKey(prev => prev + 1);
     setEditingSection(null);
   };
 
@@ -104,7 +109,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
       const ownership = Number(owner?.ownership);
       return total + (isNaN(ownership) ? 0 : ownership);
     }, 0);
-  }, [ownersData, ownersCount]);
+  }, [ownersData, ownersCount, refreshKey]);
 
   const entityType = companyData?.entityType;
   const isCorp = entityType === "C-Corp";
