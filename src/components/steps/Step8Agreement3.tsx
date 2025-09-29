@@ -73,7 +73,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                 <textarea className="input min-h-[80px]" {...register("agreement.llc_deadlockResolution")} />
               </div>
               <div>
-                <label className="label">Seguro "Key Man"</label>
+                <label className="label">Seguro &quot;Key Man&quot;</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.llc_keyManInsurance")} />
               </div>
               <div>

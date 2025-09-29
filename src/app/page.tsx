@@ -13,7 +13,7 @@ import Step9Agreement4 from "@/components/steps/Step9Agreement4";
 import Step5Admin from "@/components/steps/Step5Admin";
 import ProgressSidebar, { type ProgressItem } from "@/components/ProgressSidebar";
 
-import type { AllSteps } from "@/lib/schema";
+import type { AllSteps, Agreement } from "@/lib/schema";
 import { saveDraft, loadDraft, type DraftItem } from "@/lib/drafts";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -33,7 +33,7 @@ export default function Page() {
 
   // We now have a 4-step flow (2, 3, 4, 5)
   const [step, setStep] = useState<number>(1);
-  const wantsAgreement = (form.watch("agreement") as any)?.wants === "Yes" || form.watch("admin.wantAgreement") === "Yes";
+  const wantsAgreement = ((form.watch("agreement") as Agreement | undefined)?.wants === "Yes") || form.watch("admin.wantAgreement") === "Yes";
   const totalSteps = wantsAgreement ? 8 : 4;
 
   // Draft lifecycle
@@ -176,7 +176,7 @@ export default function Page() {
             <Step4Summary form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={async () => {
               await onGuardarYContinuar();
               // If agreement desired, go to agreement flow
-              const wants = ((form.getValues("agreement") as any)?.wants === "Yes") || form.getValues("admin.wantAgreement") === "Yes";
+              const wants = (((form.getValues("agreement") as Agreement | undefined)?.wants === "Yes") || form.getValues("admin.wantAgreement") === "Yes");
               setStep((s) => (wants ? 5 : Math.min(totalSteps, s + 1)));
             }} />
           )}

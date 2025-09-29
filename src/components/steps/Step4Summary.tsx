@@ -123,7 +123,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
       const ownership = Number(owner?.ownership);
       return total + (isNaN(ownership) ? 0 : ownership);
     }, 0);
-  }, [ownersData, ownersCount, refreshKey]);
+  }, [ownersData, ownersCount]);
 
   const entityType = companyData?.entityType;
   const isCorp = entityType === "C-Corp";
