@@ -507,20 +507,23 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
                       const name = watch(`admin.director${idx + 1}Name`);
                       const role = watch(`admin.director${idx + 1}Role`);
                       const address = watch(`admin.director${idx + 1}Address`);
+                      const nameStr = (name as string | undefined) || "No especificado";
+                      const roleStr = (role as string | undefined) || "No especificado";
+                      const addressStr = (address as string | undefined) || "No especificado";
                       return (
                         <div key={idx} className="rounded-lg border border-gray-100 p-4">
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                               <span className="font-bold text-gray-700">Nombre:</span>
-                              <p className="text-gray-900">{name || "No especificado"}</p>
+                              <p className="text-gray-900">{nameStr}</p>
                             </div>
                             <div>
                               <span className="font-bold text-gray-700">Rol:</span>
-                              <p className="text-gray-900">{role || "No especificado"}</p>
+                              <p className="text-gray-900">{roleStr}</p>
                             </div>
                             <div>
                               <span className="font-bold text-gray-700">Dirección:</span>
-                              <p className="text-gray-900">{address || "No especificado"}</p>
+                              <p className="text-gray-900">{addressStr}</p>
                             </div>
                           </div>
                         </div>
@@ -537,20 +540,23 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
                       const name = watch(`admin.officer${idx + 1}Name`);
                       const role = watch(`admin.officer${idx + 1}Role`);
                       const address = watch(`admin.officer${idx + 1}Address`);
+                      const nameStr = (name as string | undefined) || "No especificado";
+                      const roleStr = (role as string | undefined) || "No especificado";
+                      const addressStr = (address as string | undefined) || "No especificado";
                       return (
                         <div key={idx} className="rounded-lg border border-gray-100 p-4">
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                               <span className="font-bold text-gray-700">Nombre:</span>
-                              <p className="text-gray-900">{name || "No especificado"}</p>
+                              <p className="text-gray-900">{nameStr}</p>
                             </div>
                             <div>
                               <span className="font-bold text-gray-700">Rol:</span>
-                              <p className="text-gray-900">{role || "No especificado"}</p>
+                              <p className="text-gray-900">{roleStr}</p>
                             </div>
                             <div>
                               <span className="font-bold text-gray-700">Dirección:</span>
-                              <p className="text-gray-900">{address || "No especificado"}</p>
+                              <p className="text-gray-900">{addressStr}</p>
                             </div>
                           </div>
                         </div>
