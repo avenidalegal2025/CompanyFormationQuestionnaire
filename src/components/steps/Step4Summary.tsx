@@ -4,6 +4,7 @@
 import { useMemo, useState } from "react";
 import { Controller } from "react-hook-form";
 import HeroBanner from "@/components/HeroBanner";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 import type { StepProps } from "./types";
 
 // Edit button component
@@ -51,7 +52,7 @@ const EditButton = ({
 );
 
 export default function Step4Summary({ form, setStep, onSave, onNext }: StepProps) {
-  const { watch, control } = form;
+  const { watch, control, setValue } = form;
 
   // Get all form data
   const companyData = watch("company");
@@ -198,16 +199,29 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
               </div>
             </div>
             
-            {companyData?.hasUsaAddress === "Yes" && (
-              <div className="mt-4">
-                <span className="font-bold text-gray-700">Dirección:</span>
+            <div className="mt-4">
+              <span className="font-bold text-gray-700">Dirección:</span>
+              {editingSection === "company" ? (
+                <AddressAutocomplete
+                  country="us"
+                  placeholder="1600 Pennsylvania Ave NW, Washington"
+                  onSelect={(addr) => {
+                    setValue("company.addressLine1", addr.line1, { shouldDirty: true, shouldValidate: true });
+                    setValue("company.addressLine2", "", { shouldDirty: true });
+                    setValue("company.city", addr.city, { shouldDirty: true, shouldValidate: true });
+                    setValue("company.state", addr.state, { shouldDirty: true, shouldValidate: true });
+                    setValue("company.postalCode", addr.postalCode, { shouldDirty: true, shouldValidate: true });
+                    setValue("company.country", "Estados Unidos de América", { shouldDirty: true, shouldValidate: true });
+                  }}
+                />
+              ) : (
                 <p className="text-gray-900">
                   {[companyData?.addressLine1, companyData?.addressLine2, companyData?.city, companyData?.state, companyData?.postalCode, companyData?.country]
                     .filter(Boolean)
-                    .join(", ")}
+                    .join(", ") || "No especificado"}
                 </p>
-              </div>
-            )}
+              )}
+            </div>
 
             {companyData?.hasUsPhone === "Yes" && (
               <div>
@@ -296,7 +310,12 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
                           name={`owners.${i}.address` as never}
                           control={control}
                           render={({ field }) => (
-                            <input className="input mt-1" {...field} />
+                            <AddressAutocomplete
+                              placeholder="Escriba y seleccione la dirección"
+                              value={(field.value as string) ?? ""}
+                              onChangeText={field.onChange}
+                              onSelect={(addr) => field.onChange(addr.fullAddress)}
+                            />
                           )}
                         />
                       ) : (
@@ -515,15 +534,50 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                               <span className="font-bold text-gray-700">Nombre:</span>
-                              <p className="text-gray-900">{nameStr}</p>
+                              {editingSection === "admin" ? (
+                                <Controller
+                                  name={`admin.director${idx + 1}Name` as never}
+                                  control={control}
+                                  render={({ field }) => (
+                                    <input className="input mt-1" {...field} />
+                                  )}
+                                />
+                              ) : (
+                                <p className="text-gray-900">{nameStr}</p>
+                              )}
                             </div>
                             <div>
                               <span className="font-bold text-gray-700">Rol:</span>
-                              <p className="text-gray-900">{roleStr}</p>
+                              {editingSection === "admin" ? (
+                                <Controller
+                                  name={`admin.director${idx + 1}Role` as never}
+                                  control={control}
+                                  render={({ field }) => (
+                                    <input className="input mt-1" {...field} />
+                                  )}
+                                />
+                              ) : (
+                                <p className="text-gray-900">{roleStr}</p>
+                              )}
                             </div>
                             <div>
                               <span className="font-bold text-gray-700">Dirección:</span>
-                              <p className="text-gray-900">{addressStr}</p>
+                              {editingSection === "admin" ? (
+                                <Controller
+                                  name={`admin.director${idx + 1}Address` as never}
+                                  control={control}
+                                  render={({ field }) => (
+                                    <AddressAutocomplete
+                                      placeholder="Escriba y seleccione la dirección"
+                                      value={(field.value as string) ?? ""}
+                                      onChangeText={field.onChange}
+                                      onSelect={(addr) => field.onChange(addr.fullAddress)}
+                                    />
+                                  )}
+                                />
+                              ) : (
+                                <p className="text-gray-900">{addressStr}</p>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -548,15 +602,50 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                               <span className="font-bold text-gray-700">Nombre:</span>
-                              <p className="text-gray-900">{nameStr}</p>
+                              {editingSection === "admin" ? (
+                                <Controller
+                                  name={`admin.officer${idx + 1}Name` as never}
+                                  control={control}
+                                  render={({ field }) => (
+                                    <input className="input mt-1" {...field} />
+                                  )}
+                                />
+                              ) : (
+                                <p className="text-gray-900">{nameStr}</p>
+                              )}
                             </div>
                             <div>
                               <span className="font-bold text-gray-700">Rol:</span>
-                              <p className="text-gray-900">{roleStr}</p>
+                              {editingSection === "admin" ? (
+                                <Controller
+                                  name={`admin.officer${idx + 1}Role` as never}
+                                  control={control}
+                                  render={({ field }) => (
+                                    <input className="input mt-1" {...field} />
+                                  )}
+                                />
+                              ) : (
+                                <p className="text-gray-900">{roleStr}</p>
+                              )}
                             </div>
                             <div>
                               <span className="font-bold text-gray-700">Dirección:</span>
-                              <p className="text-gray-900">{addressStr}</p>
+                              {editingSection === "admin" ? (
+                                <Controller
+                                  name={`admin.officer${idx + 1}Address` as never}
+                                  control={control}
+                                  render={({ field }) => (
+                                    <AddressAutocomplete
+                                      placeholder="Escriba y seleccione la dirección"
+                                      value={(field.value as string) ?? ""}
+                                      onChangeText={field.onChange}
+                                      onSelect={(addr) => field.onChange(addr.fullAddress)}
+                                    />
+                                  )}
+                                />
+                              ) : (
+                                <p className="text-gray-900">{addressStr}</p>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -583,15 +672,50 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                           <span className="font-bold text-gray-700">Nombre:</span>
-                          <p className="text-gray-900">{nameStr}</p>
+                          {editingSection === "admin" ? (
+                            <Controller
+                              name={`admin.manager${idx + 1}Name` as never}
+                              control={control}
+                              render={({ field }) => (
+                                <input className="input mt-1" {...field} />
+                              )}
+                            />
+                          ) : (
+                            <p className="text-gray-900">{nameStr}</p>
+                          )}
                         </div>
                         <div>
                           <span className="font-bold text-gray-700">Rol:</span>
-                          <p className="text-gray-900">{roleStr}</p>
+                          {editingSection === "admin" ? (
+                            <Controller
+                              name={`admin.manager${idx + 1}Role` as never}
+                              control={control}
+                              render={({ field }) => (
+                                <input className="input mt-1" {...field} />
+                              )}
+                            />
+                          ) : (
+                            <p className="text-gray-900">{roleStr}</p>
+                          )}
                         </div>
                         <div>
                           <span className="font-bold text-gray-700">Dirección:</span>
-                          <p className="text-gray-900">{addressStr}</p>
+                          {editingSection === "admin" ? (
+                            <Controller
+                              name={`admin.manager${idx + 1}Address` as never}
+                              control={control}
+                              render={({ field }) => (
+                                <AddressAutocomplete
+                                  placeholder="Escriba y seleccione la dirección"
+                                  value={(field.value as string) ?? ""}
+                                  onChangeText={field.onChange}
+                                  onSelect={(addr) => field.onChange(addr.fullAddress)}
+                                />
+                              )}
+                            />
+                          ) : (
+                            <p className="text-gray-900">{addressStr}</p>
+                          )}
                         </div>
                       </div>
                     </div>
