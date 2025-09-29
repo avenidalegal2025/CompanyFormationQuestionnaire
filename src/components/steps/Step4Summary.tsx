@@ -63,6 +63,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
   // Edit state management
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [showAgreementModal, setShowAgreementModal] = useState(false);
 
   // Edit functionality
   const handleEdit = (section: string) => {
@@ -127,6 +128,8 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
   const entityType = companyData?.entityType;
   const isCorp = entityType === "C-Corp";
   const groupLabel = isCorp ? "accionistas" : "socios";
+
+  const agreementName = entityType === "LLC" ? "Operating Agreement" : "Shareholder Agreement";
 
   return (
     <section className="space-y-6">
@@ -813,13 +816,63 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
             <button
               type="button"
               className="btn btn-primary"
-              onClick={() => (onNext ? void onNext() : alert("Formulario enviado exitosamente!"))}
+              onClick={() => setShowAgreementModal(true)}
             >
               Enviar
             </button>
           </div>
         </div>
       </div>
+
+      {/* Agreement Recommendation Modal */}
+      {showAgreementModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowAgreementModal(false)} />
+          <div className="relative z-10 w-full max-w-lg rounded-2xl bg-white shadow-xl p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold">A</div>
+              <div className="text-lg font-semibold text-gray-900">Avenida Legal</div>
+            </div>
+
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              Antes de continuar, te recomendamos altamente que también tengas un {agreementName}.
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">¿Por qué es tan importante?</p>
+            <p className="text-gray-800 mb-4">
+              Podría salvar tu empresa si las cosas no quedan bien claras desde el principio, 
+              ahorrar cientos de miles de dólares en litigios entre socios.
+            </p>
+            <p className="text-gray-900 font-medium mb-6">Inversión asociada: $600 USD.</p>
+
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  try {
+                    setValue("admin.wantAgreement", "Yes" as never);
+                  } catch {}
+                  setShowAgreementModal(false);
+                  void onNext?.();
+                }}
+              >
+                Lo quiero
+              </button>
+
+              <button
+                type="button"
+                className="text-sm underline text-gray-600 hover:text-gray-800"
+                onClick={() => {
+                  setShowAgreementModal(false);
+                  void onNext?.();
+                }}
+              >
+                Quiero continuar con el alto riesgo que esto conlleva
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
