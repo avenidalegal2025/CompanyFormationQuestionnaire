@@ -72,7 +72,12 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
   const handleSave = () => {
     // If editing owners, require exactly 100%
     if (editingSection === "owners") {
-      if (totalOwnership !== 100) {
+      const owners = (form.getValues("owners") as Array<{ ownership?: number | string }>) || [];
+      const count = (form.getValues("ownersCount") as number | undefined) ?? owners.length;
+      const freshTotal = owners
+        .slice(0, Math.max(0, count || 0))
+        .reduce((sum, o) => sum + (isNaN(Number(o?.ownership)) ? 0 : Number(o?.ownership)), 0);
+      if (freshTotal !== 100) {
         alert("El total debe ser 100% para guardar los propietarios.");
         return; // keep editing mode
       }
