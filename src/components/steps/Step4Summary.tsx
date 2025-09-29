@@ -94,8 +94,8 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
   // Calculate total ownership percentage
   const totalOwnership = useMemo(() => {
     if (!ownersData || ownersData.length === 0) return 0;
-    
-    return ownersData.reduce((total: number, owner: { 
+    const activeOwners = ownersData.slice(0, ownersCount);
+    return activeOwners.reduce((total: number, owner: { 
       ownership?: number | string;
       isUsCitizen?: string;
       tin?: string;
@@ -104,7 +104,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
       const ownership = Number(owner?.ownership);
       return total + (isNaN(ownership) ? 0 : ownership);
     }, 0);
-  }, [ownersData]);
+  }, [ownersData, ownersCount]);
 
   const entityType = companyData?.entityType;
   const isCorp = entityType === "C-Corp";
