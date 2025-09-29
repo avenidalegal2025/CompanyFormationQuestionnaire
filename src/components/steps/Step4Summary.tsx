@@ -827,13 +827,13 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
       {/* Agreement Recommendation Modal */}
       {showAgreementModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setShowAgreementModal(false)} />
+          <div className="absolute inset-0 bg-black/80" onClick={() => setShowAgreementModal(false)} />
           <div className="relative z-10 w-full max-w-lg rounded-2xl bg-white shadow-xl p-6">
             {/* Close button */}
             <button
               type="button"
               aria-label="Cerrar"
-              className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-2xl leading-none"
               onClick={() => setShowAgreementModal(false)}
             >
               ×
@@ -849,8 +849,15 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
             </h3>
             <p className="text-sm text-gray-600 mb-4">¿Por qué es tan importante?</p>
             <p className="text-gray-800 mb-4">
-              Podría salvar tu empresa si las cosas no quedan bien claras desde el principio, 
-              ahorrar cientos de miles de dólares en litigios entre socios.
+              Podría salvar tu empresa si las cosas no quedan bien claras desde el principio, ahorrar cientos de miles de dólares en litigios entre socios.{' '}
+              <a
+                href="https://avenidalegal.com/blog/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline text-blue-700 hover:text-blue-800"
+              >
+                Leer nuestro artículo que te explica al detalle
+              </a>
             </p>
             <p className="text-gray-900 font-medium mb-6">Inversión asociada: $600 USD.</p>
 
