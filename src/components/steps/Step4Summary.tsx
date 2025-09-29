@@ -566,6 +566,39 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
                 )}
               </>
             )}
+
+            {/* Managers list (LLC, when not all owners) */}
+            {entityType === "LLC" && adminData?.managersAllOwners === "No" && (adminData?.managersCount ?? 0) > 0 && (
+              <div className="mt-6 space-y-4">
+                <h4 className="text-md font-bold text-gray-900">Gerentes</h4>
+                {Array.from({ length: adminData?.managersCount || 0 }).map((_, idx) => {
+                  const name = watch(`admin.manager${idx + 1}Name`);
+                  const role = watch(`admin.manager${idx + 1}Role`);
+                  const address = watch(`admin.manager${idx + 1}Address`);
+                  const nameStr = (name as string | undefined) || "No especificado";
+                  const roleStr = (role as string | undefined) || "No especificado";
+                  const addressStr = (address as string | undefined) || "No especificado";
+                  return (
+                    <div key={idx} className="rounded-lg border border-gray-100 p-4">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <span className="font-bold text-gray-700">Nombre:</span>
+                          <p className="text-gray-900">{nameStr}</p>
+                        </div>
+                        <div>
+                          <span className="font-bold text-gray-700">Rol:</span>
+                          <p className="text-gray-900">{roleStr}</p>
+                        </div>
+                        <div>
+                          <span className="font-bold text-gray-700">Dirección:</span>
+                          <p className="text-gray-900">{addressStr}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
