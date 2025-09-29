@@ -43,6 +43,7 @@ export default function Page() {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const items: ProgressItem[] = useMemo(() => {
+    const entityType = form.watch("company.entityType");
     const base: ProgressItem[] = [
       { key: "step-company",  label: "Empresa",        status: step === 1 ? "active" : step > 1 ? "done" : "todo" },
       { key: "step-owners",   label: "Propietarios",   status: step === 2 ? "active" : step > 2 ? "done" : "todo" },
@@ -50,15 +51,20 @@ export default function Page() {
       { key: "step-summary",  label: "Resumen",        status: step === 4 ? "active" : step > 4 ? "done" : "todo" },
     ];
     if (wantsAgreement) {
+      const isCorp = entityType === "C-Corp";
+      const t1 = "Dueños & Roles";
+      const t2 = "Capital & Préstamos";
+      const t3 = "Gobierno & Decisiones";
+      const t4 = isCorp ? "Acciones & Sucesión" : "Acciones & Sucesión";
       base.push(
-        { key: "step-ag-1", label: "Acuerdo 1", status: step === 5 ? "active" : step > 5 ? "done" : "todo" },
-        { key: "step-ag-2", label: "Acuerdo 2", status: step === 6 ? "active" : step > 6 ? "done" : "todo" },
-        { key: "step-ag-3", label: "Acuerdo 3", status: step === 7 ? "active" : step > 7 ? "done" : "todo" },
-        { key: "step-ag-4", label: "Acuerdo 4", status: step === 8 ? "active" : "todo" },
+        { key: "step-ag-1", label: t1, status: step === 5 ? "active" : step > 5 ? "done" : "todo" },
+        { key: "step-ag-2", label: t2, status: step === 6 ? "active" : step > 6 ? "done" : "todo" },
+        { key: "step-ag-3", label: t3, status: step === 7 ? "active" : step > 7 ? "done" : "todo" },
+        { key: "step-ag-4", label: t4, status: step === 8 ? "active" : "todo" },
       );
     }
     return base;
-  }, [step, wantsAgreement]);
+  }, [step, wantsAgreement, form]);
 
   // Load existing draft on mount (if any)
   useEffect(() => {
