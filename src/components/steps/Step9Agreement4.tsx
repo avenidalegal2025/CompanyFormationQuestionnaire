@@ -30,7 +30,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext }: StepP
                 <textarea className="input min-h-[80px]" {...register("agreement.corp_divorceBuyoutPolicy")} />
               </div>
               <div>
-                <label className="label">¿Quiere derechos de "tag along" o un "drag along"?</label>
+                <label className="label">¿Quiere derechos de &quot;tag along&quot; o un &quot;drag along&quot;?</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.corp_tagDragRights")} />
               </div>
               <div>

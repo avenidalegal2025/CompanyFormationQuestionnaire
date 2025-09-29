@@ -53,11 +53,11 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                 <textarea className="input min-h-[80px]" {...register("agreement.llc_bankSigners")} />
               </div>
               <div>
-                <label className="label">Decisiones mayores (ej. > $10,000): ¿Unánimes o cualquiera de los dueños?</label>
+                <label className="label">Decisiones mayores (ej. &gt; $10,000): ¿Unánimes o cualquiera de los dueños?</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.llc_majorDecisions")} />
               </div>
               <div>
-                <label className="label">Decisiones menores (< $10,000): ¿Unánimes o cualquiera de los dueños?</label>
+                <label className="label">Decisiones menores (&lt; $10,000): ¿Unánimes o cualquiera de los dueños?</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.llc_minorDecisions")} />
               </div>
               <div>
