@@ -289,30 +289,43 @@ export default function Step4Summary({ form, setStep, onSave, onNext }: StepProp
                         <Controller
                           name={`owners.${i}.ownership` as never}
                           control={control}
-                          render={({ field }) => (
-                            <>
-                              <input 
-                                type="number" 
-                                min="0" 
-                                max="100" 
-                                className="input mt-1" 
-                                {...field} 
-                              />
-                              <div className="mt-1 text-sm">
-                                {100 - totalOwnership > 0 ? (
-                                  <span className="text-blue-600">
-                                    Faltan {100 - totalOwnership}% para completar 100%
-                                  </span>
-                                ) : 100 - totalOwnership < 0 ? (
-                                  <span className="text-red-600">
-                                    Excede 100% por {Math.abs(100 - totalOwnership)}%
-                                  </span>
-                                ) : (
-                                  <span className="text-green-600">✓ Total: 100%</span>
-                                )}
-                              </div>
-                            </>
-                          )}
+                          render={({ field }) => {
+                            // Calculate current total excluding this field
+                            const currentTotal = Array.from({ length: ownersCount }).reduce((total: number, _, idx) => {
+                              if (idx === i) return total; // Skip current field
+                              const percentage = Number(watch(`owners.${idx}.ownership`)) || 0;
+                              return total + percentage;
+                            }, 0);
+                            
+                            const currentValue = Number(field.value) || 0;
+                            const newTotal = currentTotal + currentValue;
+                            const remaining = 100 - newTotal;
+                            
+                            return (
+                              <>
+                                <input 
+                                  type="number" 
+                                  min="0" 
+                                  max="100" 
+                                  className="input mt-1" 
+                                  {...field} 
+                                />
+                                <div className="mt-1 text-sm">
+                                  {remaining > 0 ? (
+                                    <span className="text-blue-600">
+                                      Faltan {remaining}% para completar 100%
+                                    </span>
+                                  ) : remaining < 0 ? (
+                                    <span className="text-red-600">
+                                      Excede 100% por {Math.abs(remaining)}%
+                                    </span>
+                                  ) : (
+                                    <span className="text-green-600">✓ Total: 100%</span>
+                                  )}
+                                </div>
+                              </>
+                            );
+                          }}
                         />
                       ) : (
                         <>
