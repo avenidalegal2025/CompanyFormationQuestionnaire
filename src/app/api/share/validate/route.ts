@@ -15,6 +15,11 @@ export async function GET(request: NextRequest) {
     // Verify and decode the JWT token
     const decoded = jwt.verify(token, JWT_SECRET) as
       | {
+          draftId: string;
+          permissions: string;
+          exp: number;
+        }
+      | {
           d?: { c?: { n?: string; t?: string }; o?: Array<{ n?: string; p?: number | string }> };
           permissions: string;
           exp: number;
@@ -27,7 +32,16 @@ export async function GET(request: NextRequest) {
     
     // Expand compact payload to a friendlier structure for the page
     let expanded: unknown;
-    if ('d' in decoded && decoded.d) {
+    if ('draftId' in decoded) {
+      // Load from DB by draftId
+      const url = `${request.nextUrl.origin}/api/db/load?draftId=${encodeURIComponent(decoded.draftId)}`;
+      const res = await fetch(url, { method: 'GET' });
+      if (!res.ok) {
+        return NextResponse.json({ error: 'Failed to load draft' }, { status: 500 });
+      }
+      const json = (await res.json()) as { ok: true; item?: { data?: unknown } | null };
+      expanded = json.item?.data ?? {};
+    } else if ('d' in decoded && decoded.d) {
       expanded = {
         company: decoded.d?.c ? { companyName: decoded.d.c.n, entityType: decoded.d.c.t } : undefined,
         owners: decoded.d?.o?.map((x) => ({ fullName: x.n, ownership: x.p })) || [],

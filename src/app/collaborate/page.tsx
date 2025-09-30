@@ -20,7 +20,7 @@ function CollaborateContent() {
   useEffect(() => {
     // Check if we have data directly from short URL redirect
     // Support both compact token (?t=) and legacy token (?token=)
-    const token = searchParams.get('t') || searchParams.get('token');
+    const token = searchParams.get('token') || searchParams.get('t');
     
     if (!token) {
       setError('No se proporcionó un enlace de colaboración');
@@ -29,7 +29,7 @@ function CollaborateContent() {
     }
 
     // Validate the token via GET with query param
-    fetch(`/api/share/validate?${searchParams.get('t') ? 't' : 'token'}=${encodeURIComponent(token)}`)
+    fetch(`/api/share/validate?${searchParams.get('token') ? 'token' : 't'}=${encodeURIComponent(token)}`)
       .then(res => res.json())
       .then(result => {
         if (result.success) {

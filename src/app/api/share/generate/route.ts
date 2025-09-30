@@ -1,49 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
+import { NextRequest } from 'next/server';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 export async function POST(request: NextRequest) {
   try {
-    const { formData, permissions = 'view' } = await request.json();
+    const { formData, permissions = 'edit' } = await request.json();
     
     if (!formData) {
       return NextResponse.json({ error: 'Form data is required' }, { status: 400 });
     }
 
-    // Create an ultra-compact payload to reduce token size
-    // Use short keys to minimize JWT length
-    const compactData = {
-      c: formData.company ? {
-        n: formData.company.companyName,
-        t: formData.company.entityType,
-      } : undefined,
-      o: Array.isArray(formData.owners)
-        ? (formData.owners as unknown[]).map((o) => {
-            const owner = (o ?? {}) as Record<string, unknown>;
-            return {
-              n: owner.fullName as string | undefined, // name
-              p: owner.ownership as number | string | undefined, // percentage
-            };
-          })
-        : undefined,
-    } as const;
+    // Persist draft to DB and return a link with draftId and permissions
+    const saveRes = await fetch(`${request.nextUrl.origin}/api/db/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: formData }),
+    });
+    if (!saveRes.ok) {
+      const j = await saveRes.json().catch(() => ({}));
+      return NextResponse.json({ error: j.error || 'Failed to save draft' }, { status: 500 });
+    }
+    const { id: draftId } = (await saveRes.json()) as { ok: true; id: string };
 
-    // Create JWT token with compact data
     const token = jwt.sign(
-      {
-        d: compactData,
-        permissions,
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60), // 7 days expiration
-      },
+      { draftId, permissions, exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60) },
       JWT_SECRET
     );
 
-    // Generate magic link with shorter token
     const originFromRequest = request.nextUrl.origin;
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || originFromRequest;
-    const magicLink = `${baseUrl}/collaborate?t=${token}`;
+    const magicLink = `${baseUrl}/collaborate?token=${token}`;
 
     return NextResponse.json({ 
       success: true, 
