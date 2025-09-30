@@ -170,8 +170,12 @@ export default function Page() {
     return base;
   }, [step, wantsAgreement, form]);
 
-  // Load existing draft on mount (if any)
+  // Load existing draft on mount (if any). If collaboration data/draftId exist, skip this to avoid overwriting.
   useEffect(() => {
+    const collabDraftId = typeof window !== "undefined" ? window.localStorage.getItem("collabDraftId") : null;
+    const collabData = typeof window !== "undefined" ? window.localStorage.getItem("collabData") : null;
+    if (collabDraftId || collabData) return;
+
     const stored = typeof window !== "undefined" ? window.localStorage.getItem("draftId") : null;
     if (!stored) return;
 
