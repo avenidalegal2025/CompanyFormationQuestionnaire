@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     // Store in DynamoDB
     const expiresAt = Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60); // 7 days
     
-    await docClient.send(new PutCommand({
+    const item = {
       TableName: TABLE_NAME,
       Item: {
         shortCode,
@@ -38,7 +38,24 @@ export async function POST(request: NextRequest) {
         expiresAt,
         ttl: expiresAt, // DynamoDB TTL
       },
-    }));
+      ConditionExpression: 'attribute_not_exists(shortCode)'
+    } as const;
+
+    try {
+      await docClient.send(new PutCommand(item));
+    } catch (e) {
+      // Collision fallback: try one more code
+      const shortCode2 = crypto.randomBytes(4).toString('base64url').substring(0, 6);
+      await docClient.send(new PutCommand({
+        ...item,
+        Item: { ...item.Item, shortCode: shortCode2 },
+      }));
+      // Update link with new code
+      const originFromRequest = request.nextUrl.origin;
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || originFromRequest;
+      const shortLink = `${baseUrl}/s/${shortCode2}`;
+      return NextResponse.json({ success: true, magicLink: shortLink, expiresIn: '7 days' });
+    }
 
     // Generate short link
     const originFromRequest = request.nextUrl.origin;

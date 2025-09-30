@@ -20,8 +20,12 @@ export default function ShortUrlRedirect({ params }: PageProps) {
         const result = await response.json();
 
         if (result.success && result.formData) {
-          // Redirect to collaborate page with the data
-          router.push(`/collaborate?data=${encodeURIComponent(JSON.stringify(result))}`);
+          // Store form data locally and open main questionnaire to collaborate
+          try {
+            window.localStorage.setItem('collabData', JSON.stringify(result.formData));
+            window.localStorage.setItem('collabPermissions', String(result.permissions || 'view'));
+          } catch {}
+          router.push('/?collab=1');
         } else {
           setError(result.error || 'Enlace inválido o expirado');
         }

@@ -36,6 +36,22 @@ export default function Page() {
   const [wantsAgreement, setWantsAgreement] = useState<boolean>(false);
   const totalSteps = wantsAgreement ? 8 : 4;
 
+  // If arriving from a short link, prefill the form from localStorage
+  useEffect(() => {
+    try {
+      const collab = typeof window !== 'undefined' ? window.localStorage.getItem('collabData') : null;
+      if (collab) {
+        const parsed = JSON.parse(collab) as Partial<AllSteps>;
+        form.reset({
+          ...form.getValues(),
+          ...parsed,
+        });
+        // Optional: clear after applying to avoid re-applying on refresh
+        window.localStorage.removeItem('collabData');
+      }
+    } catch {}
+  }, [form]);
+
   // Share functionality
   const handleSendInvites = async (emails: string[]) => {
     try {
