@@ -17,10 +17,27 @@ function CollaborateContent() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Check if we have data directly from short URL redirect
+    const dataParam = searchParams.get('data');
+    if (dataParam) {
+      try {
+        const result = JSON.parse(decodeURIComponent(dataParam));
+        setData(result);
+        setLoading(false);
+        return;
+      } catch (err) {
+        console.error('Error parsing data:', err);
+        setError('Error al procesar los datos');
+        setLoading(false);
+        return;
+      }
+    }
+
+    // Fallback to token validation (legacy JWT method)
     const token = searchParams.get('t');
     
     if (!token) {
-      setError('No se proporcionó un token de colaboración');
+      setError('No se proporcionó un enlace de colaboración');
       setLoading(false);
       return;
     }

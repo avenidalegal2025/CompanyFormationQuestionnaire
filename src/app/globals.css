@@ -1,12 +1,3 @@
-/* Ensure Google Places dropdown stays below app modals */
-.pac-container {
-  z-index: 999 !important;
-}
-
-/* Prevent background scroll when modal is open */
-.modal-open {
-  overflow: hidden;
-}
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -49,4 +40,23 @@ body {
 
 .label-lg { 
   @apply text-base font-semibold text-gray-900 mb-2; 
+}
+
+/* Ensure Google Places dropdown stays below app modals */
+.pac-container {
+  z-index: 1000 !important;
+}
+
+/* Prevent background scroll when modal is open */
+body.modal-open {
+  overflow: hidden !important;
+  position: fixed;
+  width: 100%;
+}
+
+/* Force all modals to be on top */
+[role="dialog"],
+[data-modal="true"] {
+  z-index: 99999 !important;
+  position: fixed !important;
 }

@@ -39,16 +39,16 @@ export default function Page() {
   // Share functionality
   const handleSendInvites = async (emails: string[]) => {
     try {
-      // First generate a magic link
+      // First generate a short link
       const formData = form.getValues();
-      const linkResponse = await fetch('/api/share/generate', {
+      const linkResponse = await fetch('/api/short/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ formData, permissions: 'view' }),
       });
       
       if (!linkResponse.ok) {
-        throw new Error('Failed to generate magic link');
+        throw new Error('Failed to generate short link');
       }
       
       const { magicLink } = await linkResponse.json();
@@ -88,21 +88,21 @@ export default function Page() {
   const handleGenerateLink = async (): Promise<string> => {
     try {
       const formData = form.getValues();
-      const response = await fetch('/api/share/generate', {
+      const response = await fetch('/api/short/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ formData, permissions: 'view' }),
       });
       
       if (!response.ok) {
-        throw new Error('Failed to generate magic link');
+        throw new Error('Failed to generate short link');
       }
       
       const { magicLink } = await response.json();
       return magicLink;
       
     } catch (error) {
-      console.error('Error generating magic link:', error);
+      console.error('Error generating short link:', error);
       throw error;
     }
   };
