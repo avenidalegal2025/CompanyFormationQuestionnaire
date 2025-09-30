@@ -40,6 +40,7 @@ export default function Page() {
   useEffect(() => {
     try {
       const collab = typeof window !== 'undefined' ? window.localStorage.getItem('collabData') : null;
+      const collabDraftId = typeof window !== 'undefined' ? window.localStorage.getItem('collabDraftId') : null;
       if (collab) {
         const parsed = JSON.parse(collab) as Partial<AllSteps>;
         form.reset({
@@ -48,6 +49,16 @@ export default function Page() {
         });
         // Respect edit permissions if needed in future (perms === 'edit')
         // Do not immediately remove, keep for refreshes in the same session
+      } else if (collabDraftId) {
+        // If only draftId is present, load from DB now
+        loadDraft(collabDraftId)
+          .then((res) => {
+            if (res.item?.data) {
+              form.reset(res.item.data);
+              setDraftId(res.item.draftId ?? res.item.id ?? collabDraftId);
+            }
+          })
+          .catch(() => {});
       }
     } catch {}
   }, [form]);

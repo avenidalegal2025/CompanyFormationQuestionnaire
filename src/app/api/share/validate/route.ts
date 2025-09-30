@@ -41,6 +41,13 @@ export async function GET(request: NextRequest) {
       }
       const json = (await res.json()) as { ok: true; item?: { data?: unknown } | null };
       expanded = json.item?.data ?? {};
+      return NextResponse.json({
+        success: true,
+        formData: expanded as unknown,
+        permissions: decoded.permissions,
+        draftId: decoded.draftId,
+        expiresAt: new Date(decoded.exp * 1000).toISOString(),
+      });
     } else if ('d' in decoded && decoded.d) {
       expanded = {
         company: decoded.d?.c ? { companyName: decoded.d.c.n, entityType: decoded.d.c.t } : undefined,

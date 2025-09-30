@@ -34,8 +34,11 @@ function CollaborateContent() {
       .then(result => {
         if (result.success) {
           try {
-            // Save for main page to load collaboration data
+            // Save for main page to load collaboration data or draft
             window.localStorage.setItem('collabData', JSON.stringify(result.formData));
+            if (result.draftId) {
+              window.localStorage.setItem('collabDraftId', String(result.draftId));
+            }
             window.localStorage.setItem('collabPermissions', String(result.permissions || 'view'));
           } catch {}
           setData(result);
