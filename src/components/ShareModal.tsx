@@ -26,6 +26,7 @@ export default function ShareModal({ isOpen, onClose, onSendInvites, onGenerateL
   // Pre-generate magic link when modal opens
   useEffect(() => {
     if (!isOpen) return;
+    document.body.classList.add('modal-open');
     (async () => {
       try {
         setIsLoading(true);
@@ -37,6 +38,9 @@ export default function ShareModal({ isOpen, onClose, onSendInvites, onGenerateL
         setIsLoading(false);
       }
     })();
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
   }, [isOpen, onGenerateLink]);
 
   // Email chips state

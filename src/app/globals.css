@@ -1,3 +1,12 @@
+/* Ensure Google Places dropdown stays below app modals */
+.pac-container {
+  z-index: 999 !important;
+}
+
+/* Prevent background scroll when modal is open */
+.modal-open {
+  overflow: hidden;
+}
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

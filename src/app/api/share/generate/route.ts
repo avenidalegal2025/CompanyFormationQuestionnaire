@@ -11,41 +11,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Form data is required' }, { status: 400 });
     }
 
-    // Create a compressed version of the form data to reduce token size
-    const compressedData = {
-      company: formData.company ? {
-        companyName: formData.company.companyName,
-        entityType: formData.company.entityType,
-        addressLine1: formData.company.addressLine1,
-        city: formData.company.city,
-        state: formData.company.state,
-        zipCode: formData.company.zipCode,
-        country: formData.company.country
+    // Create an ultra-compact payload to reduce token size
+    // Use short keys to minimize JWT length
+    const compactData = {
+      c: formData.company ? {
+        n: formData.company.companyName,
+        t: formData.company.entityType,
       } : undefined,
-      owners: Array.isArray(formData.owners)
+      o: Array.isArray(formData.owners)
         ? (formData.owners as unknown[]).map((o) => {
             const owner = (o ?? {}) as Record<string, unknown>;
             return {
-              fullName: owner.fullName as string | undefined,
-              ownership: owner.ownership as number | string | undefined,
-              address: owner.address as string | undefined,
-              isUsCitizen: owner.isUsCitizen as string | undefined,
-              tin: owner.tin as string | undefined,
+              n: owner.fullName as string | undefined, // name
+              p: owner.ownership as number | string | undefined, // percentage
             };
           })
         : undefined,
-      admin: formData.admin ? {
-        wantAgreement: formData.admin.wantAgreement,
-        directors: formData.admin.directors,
-        officers: formData.admin.officers,
-        managers: formData.admin.managers
-      } : undefined
-    };
+    } as const;
 
-    // Create JWT token with compressed data
+    // Create JWT token with compact data
     const token = jwt.sign(
       {
-        data: compressedData,
+        d: compactData,
         permissions,
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60), // 7 days expiration

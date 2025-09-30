@@ -14,16 +14,25 @@ export async function GET(request: NextRequest) {
 
     // Verify and decode the JWT token
     const decoded = jwt.verify(token, JWT_SECRET) as {
-      data: unknown;
+      d?: { c?: { n?: string; t?: string }; o?: Array<{ n?: string; p?: number | string }> };
       permissions: string;
       exp: number;
     };
     
-    return NextResponse.json({ 
-      success: true, 
-      formData: decoded.data,
+    // Expand compact payload to a friendlier structure for the page
+    const expanded = {
+      company: decoded.d?.c ? {
+        companyName: decoded.d.c.n,
+        entityType: decoded.d.c.t,
+      } : undefined,
+      owners: decoded.d?.o?.map((x) => ({ fullName: x.n, ownership: x.p })) || [],
+    };
+
+    return NextResponse.json({
+      success: true,
+      formData: expanded as unknown,
       permissions: decoded.permissions,
-      expiresAt: new Date(decoded.exp * 1000).toISOString()
+      expiresAt: new Date(decoded.exp * 1000).toISOString(),
     });
 
   } catch (error) {
