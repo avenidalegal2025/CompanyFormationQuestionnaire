@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import clsx from "clsx";
 
 interface ShareModalProps {
@@ -23,15 +24,38 @@ export default function ShareModal({ isOpen, onClose, onSendInvites, onGenerateL
   const [copied, setCopied] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // Pre-generate magic link when modal opens
+  // Pre-generate magic link when modal opens, with timeout and fallback
   useEffect(() => {
     if (!isOpen) return;
     document.body.classList.add('modal-open');
     (async () => {
       try {
         setIsLoading(true);
-        const link = await onGenerateLink();
-        setMagicLink(link);
+        // Timeout wrapper (10s)
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 10000);
+        let link = "";
+        try {
+          // Primary: short URL creator
+          link = await onGenerateLink();
+        } catch (e) {
+          // Fallback: legacy generator endpoint
+          try {
+            const res = await fetch('/api/share/generate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ formData: {}, permissions: 'view' }),
+              signal: controller.signal,
+            });
+            if (res.ok) {
+              const json = await res.json();
+              link = json.magicLink || '';
+            }
+          } catch {}
+        } finally {
+          clearTimeout(timer);
+        }
+        if (link) setMagicLink(link);
       } catch {
         // ignore
       } finally {
@@ -125,7 +149,7 @@ export default function ShareModal({ isOpen, onClose, onSendInvites, onGenerateL
 
   if (!isOpen) return null;
 
-  return (
+  const modalContent = (
     <div 
       role="dialog" 
       aria-modal="true"
@@ -285,4 +309,10 @@ export default function ShareModal({ isOpen, onClose, onSendInvites, onGenerateL
       </div>
     </div>
   );
+
+  // Use portal to ensure top-most rendering regardless of parent stacking context
+  if (typeof window !== "undefined" && typeof document !== "undefined") {
+    return createPortal(modalContent, document.body);
+  }
+  return modalContent;
 }
