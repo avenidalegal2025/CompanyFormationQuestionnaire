@@ -38,18 +38,65 @@ export default function Page() {
 
   // Share functionality
   const handleSendInvites = async (emails: string[]) => {
-    // TODO: Implement email sending logic
-    console.log("Sending invites to:", emails);
-    // This would typically call an API endpoint to send emails
-    alert(`Invitaciones enviadas a: ${emails.join(", ")}`);
+    try {
+      // First generate a magic link
+      const formData = form.getValues();
+      const linkResponse = await fetch('/api/share/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ formData, permissions: 'view' }),
+      });
+      
+      if (!linkResponse.ok) {
+        throw new Error('Failed to generate magic link');
+      }
+      
+      const { magicLink } = await linkResponse.json();
+      
+      // Then send emails with the magic link
+      const emailResponse = await fetch('/api/share/send-invites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          emails, 
+          magicLink,
+          inviterName: 'Un socio' // You can get this from user profile
+        }),
+      });
+      
+      if (!emailResponse.ok) {
+        throw new Error('Failed to send emails');
+      }
+      
+      const result = await emailResponse.json();
+      alert(result.message);
+      
+    } catch (error) {
+      console.error('Error sending invites:', error);
+      alert('Error al enviar invitaciones. Por favor, inténtalo de nuevo.');
+    }
   };
 
   const handleGenerateLink = async (): Promise<string> => {
-    // TODO: Implement magic link generation
-    // This would typically call an API endpoint to generate a unique shareable link
-    const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-    const magicLink = `${baseUrl}?share=${Date.now()}`;
-    return magicLink;
+    try {
+      const formData = form.getValues();
+      const response = await fetch('/api/share/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ formData, permissions: 'view' }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to generate magic link');
+      }
+      
+      const { magicLink } = await response.json();
+      return magicLink;
+      
+    } catch (error) {
+      console.error('Error generating magic link:', error);
+      throw error;
+    }
   };
 
   // Draft lifecycle
