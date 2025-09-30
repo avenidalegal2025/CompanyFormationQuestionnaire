@@ -18,23 +18,8 @@ function CollaborateContent() {
 
   useEffect(() => {
     // Check if we have data directly from short URL redirect
-    const dataParam = searchParams.get('data');
-    if (dataParam) {
-      try {
-        const result = JSON.parse(decodeURIComponent(dataParam));
-        setData(result);
-        setLoading(false);
-        return;
-      } catch (err) {
-        console.error('Error parsing data:', err);
-        setError('Error al procesar los datos');
-        setLoading(false);
-        return;
-      }
-    }
-
-    // Fallback to token validation (legacy JWT method)
-    const token = searchParams.get('t');
+    // Support both compact token (?t=) and legacy token (?token=)
+    const token = searchParams.get('t') || searchParams.get('token');
     
     if (!token) {
       setError('No se proporcionó un enlace de colaboración');
@@ -43,10 +28,15 @@ function CollaborateContent() {
     }
 
     // Validate the token via GET with query param
-    fetch(`/api/share/validate?t=${encodeURIComponent(token)}`)
+    fetch(`/api/share/validate?${searchParams.get('t') ? 't' : 'token'}=${encodeURIComponent(token)}`)
       .then(res => res.json())
       .then(result => {
         if (result.success) {
+          try {
+            // Save for main page to load collaboration data
+            window.localStorage.setItem('collabData', JSON.stringify(result.formData));
+            window.localStorage.setItem('collabPermissions', String(result.permissions || 'view'));
+          } catch {}
           setData(result);
         } else {
           setError(result.error || 'Token inválido o expirado');

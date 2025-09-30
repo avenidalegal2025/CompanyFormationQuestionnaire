@@ -40,13 +40,14 @@ export default function Page() {
   useEffect(() => {
     try {
       const collab = typeof window !== 'undefined' ? window.localStorage.getItem('collabData') : null;
+      const perms = typeof window !== 'undefined' ? window.localStorage.getItem('collabPermissions') : null;
       if (collab) {
         const parsed = JSON.parse(collab) as Partial<AllSteps>;
         form.reset({
           ...form.getValues(),
           ...parsed,
         });
-        // Optional: clear after applying to avoid re-applying on refresh
+        // Respect edit permissions if needed in future (perms === 'edit')
         window.localStorage.removeItem('collabData');
       }
     } catch {}
