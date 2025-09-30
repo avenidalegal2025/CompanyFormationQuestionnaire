@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 
 interface ShareModalProps {
@@ -22,19 +22,58 @@ export default function ShareModal({ isOpen, onClose, onSendInvites, onGenerateL
   const [magicLink, setMagicLink] = useState<string>("");
   const [linkGenerated, setLinkGenerated] = useState(false);
   const [copied, setCopied] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
-  const handleEmailChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setEmails(e.target.value);
+  // Pre-generate magic link when modal opens
+  useEffect(() => {
+    if (!isOpen) return;
+    (async () => {
+      try {
+        setIsLoading(true);
+        const link = await onGenerateLink();
+        setMagicLink(link);
+        setLinkGenerated(true);
+      } catch {
+        // ignore
+      } finally {
+        setIsLoading(false);
+      }
+    })();
+  }, [isOpen, onGenerateLink]);
+
+  // Email chips state
+  const [emailChips, setEmailChips] = useState<string[]>([]);
+
+  const addEmailsFromInput = (input: string) => {
+    const parts = input
+      .split(/[\s,;]+/)
+      .map((e) => e.trim())
+      .filter((e) => e && e.includes("@"));
+    if (parts.length === 0) return;
+    setEmailChips((prev) => {
+      const set = new Set(prev);
+      for (const p of parts) set.add(p);
+      return Array.from(set);
+    });
+    setEmails("");
+  };
+
+  const handleEmailInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === "," || e.key === ";") {
+      e.preventDefault();
+      addEmailsFromInput(emails);
+    } else if (e.key === "Backspace" && emails === "" && emailChips.length > 0) {
+      // remove last chip
+      setEmailChips((prev) => prev.slice(0, -1));
+    }
+  };
+
+  const removeChip = (email: string) => {
+    setEmailChips((prev) => prev.filter((e) => e !== email));
   };
 
   const handleSendInvites = async () => {
-    if (!emails.trim()) return;
-    
-    const emailList = emails
-      .split(/[,\n]/)
-      .map(email => email.trim())
-      .filter(email => email && email.includes("@"));
-    
+    const emailList = emailChips;
     if (emailList.length === 0) return;
 
     setIsLoading(true);
@@ -49,6 +88,7 @@ export default function ShareModal({ isOpen, onClose, onSendInvites, onGenerateL
         alert(result.message + "\n\n" + result.instructions);
       } else {
         setEmails("");
+        setEmailChips([]);
       }
     } catch (error) {
       console.error("Error sending invites:", error);
@@ -57,18 +97,7 @@ export default function ShareModal({ isOpen, onClose, onSendInvites, onGenerateL
     }
   };
 
-  const handleGenerateLink = async () => {
-    setIsLoading(true);
-    try {
-      const link = await onGenerateLink();
-      setMagicLink(link);
-      setLinkGenerated(true);
-    } catch (error) {
-      console.error("Error generating link:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Removed manual generate button – link is generated on open
 
   const handleCopyLink = async () => {
     try {
@@ -96,9 +125,9 @@ export default function ShareModal({ isOpen, onClose, onSendInvites, onGenerateL
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center">
       <div className="absolute inset-0 bg-black/80" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-lg rounded-2xl bg-white shadow-xl p-6">
+      <div ref={containerRef} className="relative z-10 w-full max-w-lg rounded-2xl bg-white shadow-xl p-6">
         {/* Close button */}
         <button
           className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl"
@@ -117,24 +146,40 @@ export default function ShareModal({ isOpen, onClose, onSendInvites, onGenerateL
           <h3 className="text-xl font-semibold text-gray-900">Compartir con socios</h3>
         </div>
 
-        {/* Email Invites Section */}
+        {/* Email Invites Section with chips */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Invitar por email
           </label>
-          <textarea
-            className="w-full p-3 border border-gray-300 rounded-lg resize-none"
-            rows={3}
-            placeholder="Ingresa los emails separados por comas o líneas nuevas..."
-            value={emails}
-            onChange={handleEmailChange}
-          />
+          <div className="w-full p-2 border border-gray-300 rounded-lg flex flex-wrap gap-2">
+            {emailChips.map((email) => (
+              <span key={email} className="inline-flex items-center gap-2 px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-sm">
+                {email}
+                <button
+                  type="button"
+                  onClick={() => removeChip(email)}
+                  className="hover:text-blue-900"
+                  aria-label={`Eliminar ${email}`}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+            <input
+              type="text"
+              className="flex-1 min-w-[160px] p-1 outline-none"
+              placeholder="Escribe un email y presiona Enter..."
+              value={emails}
+              onChange={(e) => setEmails(e.target.value)}
+              onKeyDown={handleEmailInputKeyDown}
+            />
+          </div>
           <button
             onClick={handleSendInvites}
             disabled={!emails.trim() || isLoading}
             className={clsx(
               "mt-3 w-full py-2 px-4 rounded-lg font-medium transition-colors",
-              emails.trim() && !isLoading
+              (emailChips.length > 0 || emails.trim()) && !isLoading
                 ? "bg-blue-600 text-white hover:bg-blue-700"
                 : "bg-gray-300 text-gray-500 cursor-not-allowed"
             )}
@@ -150,27 +195,13 @@ export default function ShareModal({ isOpen, onClose, onSendInvites, onGenerateL
           </div>
         </div>
 
-        {/* Magic Link Section */}
+        {/* Magic Link Section (pre-generated) */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Enlace de colaboración
           </label>
           
-          {!linkGenerated ? (
-            <button
-              onClick={handleGenerateLink}
-              disabled={isLoading}
-              className={clsx(
-                "w-full py-2 px-4 rounded-lg font-medium transition-colors",
-                !isLoading
-                  ? "bg-green-600 text-white hover:bg-green-700"
-                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
-              )}
-            >
-              {isLoading ? "Generando..." : "Generar enlace"}
-            </button>
-          ) : (
-            <div className="space-y-3">
+          <div className="space-y-3">
               <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
                 <input
                   type="text"
@@ -216,8 +247,7 @@ export default function ShareModal({ isOpen, onClose, onSendInvites, onGenerateL
                   Email
                 </button>
               </div>
-            </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

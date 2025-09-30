@@ -23,7 +23,8 @@ export async function POST(request: NextRequest) {
     );
 
     // Generate magic link
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const originFromRequest = request.nextUrl.origin;
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || originFromRequest;
     const magicLink = `${baseUrl}/collaborate?token=${token}`;
 
     return NextResponse.json({ 
