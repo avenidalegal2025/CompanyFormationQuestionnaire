@@ -60,7 +60,7 @@ export default function Page() {
         body: JSON.stringify({ 
           emails, 
           magicLink,
-          inviterName: 'Un socio' // You can get this from user profile
+          inviterName: 'Avenida Legal'
         }),
       });
       

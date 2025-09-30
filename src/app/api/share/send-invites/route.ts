@@ -11,7 +11,7 @@ const sesClient = new SESClient({
 
 export async function POST(request: NextRequest) {
   try {
-    const { emails, magicLink, inviterName = 'Un socio' } = await request.json();
+    const { emails, magicLink, inviterName = 'Avenida Legal' } = await request.json();
     
     if (!emails || !Array.isArray(emails) || emails.length === 0) {
       return NextResponse.json({ error: 'Valid email list is required' }, { status: 400 });
