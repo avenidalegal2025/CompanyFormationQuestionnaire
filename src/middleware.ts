@@ -43,8 +43,11 @@ export async function middleware(req: NextRequest) {
   });
 
   if (!token) {
-    const url = new URL("/signin", req.url);
-    url.searchParams.set("callbackUrl", req.nextUrl.pathname + req.nextUrl.search);
+    // Redirect unauthenticated users straight to Auth0 via NextAuth provider route,
+    // preserving the original callback (e.g., /collaborate?token=...)
+    const callback = req.nextUrl.pathname + req.nextUrl.search;
+    const url = new URL(`/api/auth/signin/auth0`, req.url);
+    url.searchParams.set("callbackUrl", callback);
     return NextResponse.redirect(url);
   }
 

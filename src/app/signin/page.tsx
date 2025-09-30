@@ -17,7 +17,11 @@ export default function SignInPage() {
           <div className="mt-8 space-y-3">
             <button
               type="button"
-              onClick={() => signIn("auth0", { callbackUrl: "/" })}
+              onClick={() => {
+                const params = new URLSearchParams(window.location.search);
+                const callbackUrl = params.get("callbackUrl") || "/";
+                void signIn("auth0", { callbackUrl });
+              }}
               className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 text-white px-4 py-2.5 hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500"
             >
               Continuar con Auth0
