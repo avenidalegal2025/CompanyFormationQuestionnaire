@@ -21,43 +21,28 @@ export default function ShareModal({ isOpen, onClose, onSendInvites, onGenerateL
   const [emails, setEmails] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [magicLink, setMagicLink] = useState<string>("");
+  const [genError, setGenError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // Pre-generate magic link when modal opens, with timeout and fallback
+  // Pre-generate magic link when modal opens (no legacy fallback)
   useEffect(() => {
     if (!isOpen) return;
     document.body.classList.add('modal-open');
     (async () => {
       try {
         setIsLoading(true);
-        // Timeout wrapper (10s)
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 10000);
-        let link = "";
-        try {
-          // Primary: short URL creator
-          link = await onGenerateLink();
-        } catch (e) {
-          // Fallback: legacy generator endpoint
-          try {
-            const res = await fetch('/api/share/generate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ formData: {}, permissions: 'view' }),
-              signal: controller.signal,
-            });
-            if (res.ok) {
-              const json = await res.json();
-              link = json.magicLink || '';
-            }
-          } catch {}
-        } finally {
-          clearTimeout(timer);
-        }
-        if (link) setMagicLink(link);
+        setGenError(null);
+        let didResolve = false;
+        const timeoutId = window.setTimeout(() => {
+          if (!didResolve) setGenError("El servidor está tardando en generar el enlace. Intenta de nuevo.");
+        }, 10000);
+        const link = await onGenerateLink();
+        didResolve = true;
+        window.clearTimeout(timeoutId);
+        setMagicLink(link);
       } catch {
-        // ignore
+        setGenError("No se pudo generar el enlace. Intenta nuevamente.");
       } finally {
         setIsLoading(false);
       }
@@ -66,6 +51,19 @@ export default function ShareModal({ isOpen, onClose, onSendInvites, onGenerateL
       document.body.classList.remove('modal-open');
     };
   }, [isOpen, onGenerateLink]);
+
+  const retryGenerate = async () => {
+    try {
+      setIsLoading(true);
+      setGenError(null);
+      const link = await onGenerateLink();
+      setMagicLink(link);
+    } catch {
+      setGenError("No se pudo generar el enlace. Revisa tu conexión e intenta nuevamente.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Email chips state
   const [emailChips, setEmailChips] = useState<string[]>([]);
@@ -243,7 +241,7 @@ export default function ShareModal({ isOpen, onClose, onSendInvites, onGenerateL
               <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
                 <input
                   type="text"
-                  value={isLoading ? "Generando enlace..." : magicLink}
+                  value={isLoading ? "Generando enlace..." : (magicLink || "")}
                   readOnly
                   className="flex-1 bg-transparent text-sm text-gray-700 placeholder:text-gray-400"
                   placeholder="Generando enlace..."
@@ -266,7 +264,14 @@ export default function ShareModal({ isOpen, onClose, onSendInvites, onGenerateL
                 </button>
               </div>
               
-              {copied && (
+              {genError && (
+                <div className="text-sm text-red-600 text-center flex items-center justify-center gap-3">
+                  <span>{genError}</span>
+                  <button onClick={retryGenerate} className="underline text-red-700 disabled:text-gray-400" disabled={isLoading}>Reintentar</button>
+                </div>
+              )}
+
+              {copied && !genError && (
                 <p className="text-sm text-green-600 text-center">¡Enlace copiado!</p>
               )}
 
