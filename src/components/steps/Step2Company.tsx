@@ -43,6 +43,7 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
 
   // ====== Entity type / dynamic suffix ======
   const entityType = watch("company.entityType") as "LLC" | "C-Corp" | undefined;
+  const formationState = watch("company.formationState") as string | undefined;
   const companyNameBase = (watch("company.companyNameBase") || "").toString();
   const suffixWord = useMemo(() => (entityType === "C-Corp" ? "Inc" : "LLC"), [entityType]);
 
@@ -252,15 +253,11 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
                 </span>
               )}
             </div>
-            <button
-              type="button"
-              className="btn btn-primary text-sm px-4 py-2"
-              onClick={() =>
-                alert("Puedes continuar en lo que revisamos si tu nombre está disponible.")
-              }
-            >
-              Revisar disponibilidad
-            </button>
+            <CompanyNameCheckButton
+              getName={() => getValues("company.companyName") as string}
+              formationState={formationState}
+              entityType={entityType}
+            />
           </div>
           <input type="hidden" {...register("company.companyName")} />
           <p className="help">
