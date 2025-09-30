@@ -53,7 +53,7 @@ function CollaborateContent() {
       .finally(() => {
         setLoading(false);
       });
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   if (loading) {
     return (
