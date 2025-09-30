@@ -190,8 +190,9 @@ export default function Page() {
           const item = res.item as DraftItem;
           const idFromItem = item.draftId ?? item.id ?? stored;
           setDraftId(idFromItem);
-          if (typeof (res.item as any).updatedAt === 'number') {
-            setLastRemoteUpdatedAt((res.item as any).updatedAt as number);
+          const updatedAt = (res.item as DraftItem).updatedAt;
+          if (typeof updatedAt === 'number') {
+            setLastRemoteUpdatedAt(updatedAt);
           }
         }
       } catch (err) {
@@ -233,7 +234,7 @@ export default function Page() {
     const intervalId = window.setInterval(async () => {
       try {
         const res = await loadDraft(draftId);
-        const remoteUpdatedAt = (res.item as any)?.updatedAt as number | undefined;
+        const remoteUpdatedAt = res.item?.updatedAt as number | undefined;
         if (res.item?.data && typeof remoteUpdatedAt === 'number') {
           // Only refresh if remote is newer than what we've seen and newer than our last local save
           const localLast = lastSavedAt ?? 0;
@@ -250,7 +251,6 @@ export default function Page() {
       }
     }, 5000);
     return () => window.clearInterval(intervalId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftId, lastSavedAt, lastRemoteUpdatedAt, form]);
 
   // Button handlers
