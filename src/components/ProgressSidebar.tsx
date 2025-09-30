@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import clsx from "clsx";
+import ShareModal from "./ShareModal";
 
 export type ProgressItem = {
   key: string;
@@ -13,12 +15,17 @@ export default function ProgressSidebar({
   total,
   items,
   onGo,
+  onSendInvites,
+  onGenerateLink,
 }: {
   current: number;
   total: number;
   items: ProgressItem[];
   onGo?: (n: number) => void;
+  onSendInvites?: (emails: string[]) => Promise<void>;
+  onGenerateLink?: () => Promise<string>;
 }) {
+  const [showShareModal, setShowShareModal] = useState(false);
   return (
     <aside className="w-[260px] shrink-0 sticky top-24 select-none">
       {/* Counter */}
@@ -98,6 +105,25 @@ export default function ProgressSidebar({
       <p className="mt-8 text-[14px] leading-6 text-gray-500">
         Puedes guardar y continuar más tarde.
       </p>
+
+      {/* Share Button */}
+      <button
+        onClick={() => setShowShareModal(true)}
+        className="mt-6 w-full flex items-center justify-center gap-2 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16 4H18C19.1046 4 20 4.89543 20 6V18C20 19.1046 19.1046 20 18 20H6C4.89543 20 4 19.1046 4 18V6C4 4.89543 4.89543 4 6 4H8M16 4C16 2.89543 15.1046 2 14 2H10C8.89543 2 8 2.89543 8 4M16 4C16 5.10457 15.1046 6 14 6H10C8.89543 6 8 5.10457 8 4M8 4H6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        Compartir
+      </button>
+
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        onSendInvites={onSendInvites || (async () => {})}
+        onGenerateLink={onGenerateLink || (async () => window.location.href)}
+      />
     </aside>
   );
 }

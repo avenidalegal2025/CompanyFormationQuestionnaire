@@ -56,13 +56,12 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
 
   // Get all form data
   const companyData = watch("company");
-  const ownersData = watch("owners") || [];
+  const ownersData = useMemo(() => watch("owners") || [], [watch]);
   const ownersCount = watch("ownersCount") || 1;
   const adminData = watch("admin") || {};
 
   // Edit state management
   const [editingSection, setEditingSection] = useState<string | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
   const [showAgreementModal, setShowAgreementModal] = useState(false);
 
   // Edit functionality
@@ -86,8 +85,6 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
 
     // Trigger form validation and update
     form.trigger();
-    // Force re-render to update calculations
-    setRefreshKey(prev => prev + 1);
     setEditingSection(null);
   };
 

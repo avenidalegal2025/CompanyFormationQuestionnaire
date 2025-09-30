@@ -13,7 +13,7 @@ import Step9Agreement4 from "@/components/steps/Step9Agreement4";
 import Step5Admin from "@/components/steps/Step5Admin";
 import ProgressSidebar, { type ProgressItem } from "@/components/ProgressSidebar";
 
-import type { AllSteps, Agreement } from "@/lib/schema";
+import type { AllSteps } from "@/lib/schema";
 import { saveDraft, loadDraft, type DraftItem } from "@/lib/drafts";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -35,6 +35,22 @@ export default function Page() {
   const [step, setStep] = useState<number>(1);
   const [wantsAgreement, setWantsAgreement] = useState<boolean>(false);
   const totalSteps = wantsAgreement ? 8 : 4;
+
+  // Share functionality
+  const handleSendInvites = async (emails: string[]) => {
+    // TODO: Implement email sending logic
+    console.log("Sending invites to:", emails);
+    // This would typically call an API endpoint to send emails
+    alert(`Invitaciones enviadas a: ${emails.join(", ")}`);
+  };
+
+  const handleGenerateLink = async (): Promise<string> => {
+    // TODO: Implement magic link generation
+    // This would typically call an API endpoint to generate a unique shareable link
+    const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+    const magicLink = `${baseUrl}?share=${Date.now()}`;
+    return magicLink;
+  };
 
   // Draft lifecycle
   const [draftId, setDraftId] = useState<string | null>(null);
@@ -137,7 +153,14 @@ export default function Page() {
     <div className="flex min-h-screen">
       {/* Sidebar */}
       <aside className="bg-white border-r border-gray-100 p-6 hidden md:block">
-        <ProgressSidebar current={step} total={totalSteps} items={items} onGo={setStep} />
+        <ProgressSidebar 
+          current={step} 
+          total={totalSteps} 
+          items={items} 
+          onGo={setStep}
+          onSendInvites={handleSendInvites}
+          onGenerateLink={handleGenerateLink}
+        />
       </aside>
 
       {/* Main */}
