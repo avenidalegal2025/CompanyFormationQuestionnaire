@@ -263,8 +263,10 @@ export default function Page() {
             setLastRemoteUpdatedAt(remoteUpdatedAt);
             // Show collaborator snackbar if viewer-only or if data changed externally
             setCollabNotice("Otro usuario está editando este cuestionario en este momento.");
+            // Keep the notice visible as long as remote edits continue. Hide only after inactivity.
+            const INACTIVITY_MS = 30000; // 30s without remote updates hides the notice
             if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
-            noticeTimerRef.current = window.setTimeout(() => setCollabNotice(null), 4000);
+            noticeTimerRef.current = window.setTimeout(() => setCollabNotice(null), INACTIVITY_MS);
           } else if (lastRemoteUpdatedAt === 0) {
             // Initialize baseline without forcing a reset
             setLastRemoteUpdatedAt(remoteUpdatedAt);
