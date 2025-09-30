@@ -8,14 +8,14 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-producti
 
 export async function POST(request: NextRequest) {
   try {
-    const { formData, permissions = 'edit' } = await request.json();
+    const { formData, draftId: incomingDraftId, permissions = 'edit' } = await request.json();
     
     if (!formData) {
       return NextResponse.json({ error: 'Form data is required' }, { status: 400 });
     }
 
     // Persist draft to DynamoDB directly and return a link with draftId and permissions
-    const draftId = crypto.randomUUID();
+    const draftId = (typeof incomingDraftId === 'string' && incomingDraftId.trim()) ? incomingDraftId.trim() : crypto.randomUUID();
     const owner = 'ANON';
     const now = Date.now();
     await ddb.send(

@@ -81,7 +81,7 @@ export default function Page() {
       const linkResponse = await fetch('/api/share/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ formData, permissions: 'view' }),
+        body: JSON.stringify({ formData, draftId, permissions: 'view' }),
       });
       
       if (!linkResponse.ok) {
@@ -128,7 +128,7 @@ export default function Page() {
       const response = await fetch('/api/share/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ formData, permissions: 'view' }),
+        body: JSON.stringify({ formData, draftId, permissions: 'view' }),
       });
       
       if (!response.ok) {
