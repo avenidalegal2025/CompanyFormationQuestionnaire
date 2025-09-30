@@ -49,6 +49,10 @@ export default function Page() {
         });
         // Respect edit permissions if needed in future (perms === 'edit')
         // Do not immediately remove, keep for refreshes in the same session
+        if (collabDraftId) {
+          setDraftId(collabDraftId);
+          if (typeof window !== 'undefined') window.localStorage.setItem('draftId', collabDraftId);
+        }
       } else if (collabDraftId) {
         // If only draftId is present, load from DB now
         (async () => {
