@@ -48,7 +48,7 @@ export default function Page() {
           ...parsed,
         });
         // Respect edit permissions if needed in future (perms === 'edit')
-        window.localStorage.removeItem('collabData');
+        // Do not immediately remove, keep for refreshes in the same session
       }
     } catch {}
   }, [form]);

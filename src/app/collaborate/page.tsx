@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 interface CollaborationData {
@@ -12,6 +12,7 @@ interface CollaborationData {
 
 function CollaborateContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [data, setData] = useState<CollaborationData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +39,9 @@ function CollaborateContent() {
             window.localStorage.setItem('collabPermissions', String(result.permissions || 'view'));
           } catch {}
           setData(result);
+          // Redirect straight into the main questionnaire to continue editing
+          router.push('/?collab=1');
+          return;
         } else {
           setError(result.error || 'Token inválido o expirado');
         }
