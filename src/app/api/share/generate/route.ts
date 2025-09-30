@@ -22,13 +22,18 @@ export async function POST(request: NextRequest) {
         zipCode: formData.company.zipCode,
         country: formData.company.country
       } : undefined,
-      owners: formData.owners ? formData.owners.map((owner: any) => ({
-        fullName: owner.fullName,
-        ownership: owner.ownership,
-        address: owner.address,
-        isUsCitizen: owner.isUsCitizen,
-        tin: owner.tin
-      })) : undefined,
+      owners: Array.isArray(formData.owners)
+        ? (formData.owners as unknown[]).map((o) => {
+            const owner = (o ?? {}) as Record<string, unknown>;
+            return {
+              fullName: owner.fullName as string | undefined,
+              ownership: owner.ownership as number | string | undefined,
+              address: owner.address as string | undefined,
+              isUsCitizen: owner.isUsCitizen as string | undefined,
+              tin: owner.tin as string | undefined,
+            };
+          })
+        : undefined,
       admin: formData.admin ? {
         wantAgreement: formData.admin.wantAgreement,
         directors: formData.admin.directors,

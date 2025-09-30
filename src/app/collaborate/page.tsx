@@ -17,7 +17,7 @@ function CollaborateContent() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = searchParams.get('token');
+    const token = searchParams.get('t');
     
     if (!token) {
       setError('No se proporcionó un token de colaboración');
@@ -25,29 +25,23 @@ function CollaborateContent() {
       return;
     }
 
-    // Validate the token
-    fetch('/api/share/validate', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ token }),
-    })
-    .then(res => res.json())
-    .then(result => {
-      if (result.success) {
-        setData(result);
-      } else {
-        setError(result.error || 'Token inválido o expirado');
-      }
-    })
-    .catch(err => {
-      console.error('Error validating token:', err);
-      setError('Error al validar el token');
-    })
-    .finally(() => {
-      setLoading(false);
-    });
+    // Validate the token via GET with query param
+    fetch(`/api/share/validate?t=${encodeURIComponent(token)}`)
+      .then(res => res.json())
+      .then(result => {
+        if (result.success) {
+          setData(result);
+        } else {
+          setError(result.error || 'Token inválido o expirado');
+        }
+      })
+      .catch(err => {
+        console.error('Error validating token:', err);
+        setError('Error al validar el token');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [searchParams]);
 
   if (loading) {

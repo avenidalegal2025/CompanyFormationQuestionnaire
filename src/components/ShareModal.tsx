@@ -20,7 +20,6 @@ export default function ShareModal({ isOpen, onClose, onSendInvites, onGenerateL
   const [emails, setEmails] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [magicLink, setMagicLink] = useState<string>("");
-  const [linkGenerated, setLinkGenerated] = useState(false);
   const [copied, setCopied] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -32,7 +31,6 @@ export default function ShareModal({ isOpen, onClose, onSendInvites, onGenerateL
         setIsLoading(true);
         const link = await onGenerateLink();
         setMagicLink(link);
-        setLinkGenerated(true);
       } catch {
         // ignore
       } finally {
@@ -84,7 +82,6 @@ export default function ShareModal({ isOpen, onClose, onSendInvites, onGenerateL
       if (result && result.sandboxMode && result.magicLink) {
         // Show the magic link for manual sharing
         setMagicLink(result.magicLink);
-        setLinkGenerated(true);
         alert(result.message + "\n\n" + result.instructions);
       } else {
         setEmails("");
