@@ -69,7 +69,13 @@ export default function Page() {
       }
       
       const result = await emailResponse.json();
-      alert(result.message);
+      
+      if (result.sandboxMode) {
+        // Return the result for the modal to handle
+        return result;
+      } else {
+        alert(result.message);
+      }
       
     } catch (error) {
       console.error('Error sending invites:', error);

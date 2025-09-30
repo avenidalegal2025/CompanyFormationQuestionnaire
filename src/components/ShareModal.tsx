@@ -33,8 +33,17 @@ export default function ShareModal({ isOpen, onClose, onSendInvites, onGenerateL
 
     setIsLoading(true);
     try {
-      await onSendInvites(emailList);
-      setEmails("");
+      const result = await onSendInvites(emailList);
+      
+      // Check if we're in sandbox mode
+      if (result && result.sandboxMode) {
+        // Show the magic link for manual sharing
+        setMagicLink(result.magicLink);
+        setLinkGenerated(true);
+        alert(result.message + "\n\n" + result.instructions);
+      } else {
+        setEmails("");
+      }
     } catch (error) {
       console.error("Error sending invites:", error);
     } finally {

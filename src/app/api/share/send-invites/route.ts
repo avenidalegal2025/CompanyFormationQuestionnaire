@@ -21,6 +21,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Magic link is required' }, { status: 400 });
     }
 
+    // Check if we're in sandbox mode (Gmail address)
+    const isSandboxMode = process.env.FROM_EMAIL?.includes('@gmail.com');
+    
+    if (isSandboxMode) {
+      // In sandbox mode, we can only send to verified addresses
+      // For now, we'll just return the magic link for manual sharing
+      return NextResponse.json({
+        success: true,
+        message: 'En modo sandbox: Usa el enlace generado para compartir manualmente',
+        magicLink,
+        sandboxMode: true,
+        instructions: 'Copia y comparte este enlace manualmente hasta que configures un dominio personalizado'
+      });
+    }
+
     const results = [];
 
     for (const email of emails) {
