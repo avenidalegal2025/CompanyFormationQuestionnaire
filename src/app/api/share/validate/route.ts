@@ -26,12 +26,18 @@ export async function GET(request: NextRequest) {
         };
     
     // Expand compact payload to a friendlier structure for the page
-    const expanded = 'd' in decoded && decoded.d
-      ? {
-          company: decoded.d?.c ? { companyName: decoded.d.c.n, entityType: decoded.d.c.t } : undefined,
-          owners: decoded.d?.o?.map((x) => ({ fullName: x.n, ownership: x.p })) || [],
-        }
-      : (('formData' in decoded ? (decoded as any).formData : {}) as unknown);
+    let expanded: unknown;
+    if ('d' in decoded && decoded.d) {
+      expanded = {
+        company: decoded.d?.c ? { companyName: decoded.d.c.n, entityType: decoded.d.c.t } : undefined,
+        owners: decoded.d?.o?.map((x) => ({ fullName: x.n, ownership: x.p })) || [],
+      };
+    } else if ('formData' in decoded) {
+      const legacyDecoded = decoded as { formData: unknown };
+      expanded = legacyDecoded.formData ?? {};
+    } else {
+      expanded = {};
+    }
 
     return NextResponse.json({
       success: true,

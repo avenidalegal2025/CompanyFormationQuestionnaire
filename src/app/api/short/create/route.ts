@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
 
     try {
       await docClient.send(new PutCommand(item));
-    } catch (e) {
+    } catch {
       // Collision fallback: try one more code
       const shortCode2 = crypto.randomBytes(4).toString('base64url').substring(0, 6);
       await docClient.send(new PutCommand({
