@@ -4,14 +4,21 @@ import Image from "next/image";
 import Link from "next/link";
 
 export default function SignInPage() {
-  // Auto-redirect straight to Auth0 if callbackUrl present
+  // Safe auto-redirect: only when no error and we haven't already attempted
   if (typeof window !== 'undefined') {
     const params = new URLSearchParams(window.location.search);
     const callbackUrl = params.get("callbackUrl") || "/";
-    // Use next-auth provider endpoint so it constructs correct Auth0 URL
-    const providerUrl = `/api/auth/signin/auth0?callbackUrl=${encodeURIComponent(callbackUrl)}`;
-    // Replace to avoid back button loop
-    window.location.replace(providerUrl);
+    const hasError = !!params.get("error");
+    const attemptKey = `auth_attempt_${callbackUrl}`;
+
+    if (!hasError) {
+      const attempted = sessionStorage.getItem(attemptKey);
+      if (!attempted) {
+        sessionStorage.setItem(attemptKey, "1");
+        const providerUrl = `/api/auth/signin/auth0?callbackUrl=${encodeURIComponent(callbackUrl)}`;
+        window.location.replace(providerUrl);
+      }
+    }
   }
 
   return (
@@ -36,6 +43,14 @@ export default function SignInPage() {
             >
               Continuar con Auth0
             </button>
+            {/* Show error if present to avoid silent loops */}
+            {typeof window !== 'undefined' && (() => {
+              const params = new URLSearchParams(window.location.search);
+              const err = params.get('error');
+              return err ? (
+                <p className="text-sm text-red-600 text-center">Error de autenticación: {err}. Intenta nuevamente.</p>
+              ) : null;
+            })()}
           </div>
 
           <p className="text-xs text-gray-500 mt-6 text-center">
