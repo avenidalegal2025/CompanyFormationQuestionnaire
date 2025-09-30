@@ -125,7 +125,7 @@ export default function ShareModal({ isOpen, onClose, onSendInvites, onGenerateL
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
       <div className="absolute inset-0 bg-black/80" onClick={onClose} />
       <div ref={containerRef} className="relative z-10 w-full max-w-lg rounded-2xl bg-white shadow-xl p-6">
         {/* Close button */}
