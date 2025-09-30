@@ -2,6 +2,7 @@
 
 import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 interface PageProps {
   params: Promise<{ code: string }>;
@@ -44,12 +45,12 @@ export default function ShortUrlRedirect({ params }: PageProps) {
           </div>
           <h1 className="text-xl font-semibold text-gray-900 mb-2">Enlace inválido</h1>
           <p className="text-gray-600 mb-4">{error}</p>
-          <a 
+          <Link 
             href="/" 
             className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Ir al inicio
-          </a>
+          </Link>
         </div>
       </div>
     );
