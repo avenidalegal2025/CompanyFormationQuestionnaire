@@ -9,6 +9,7 @@ import SegmentedToggle from "@/components/SegmentedToggle";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import InfoTooltip from "@/components/InfoTooltip";
 import type { StepProps } from "./types";
+import CompanyNameCheckButton from "./CompanyNameCheckButton";
 
 const formationStates = [
   "Florida",

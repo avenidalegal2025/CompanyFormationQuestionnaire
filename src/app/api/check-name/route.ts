@@ -43,21 +43,25 @@ export async function POST(req: NextRequest) {
     const raw = response.Payload ? Buffer.from(response.Payload).toString("utf-8") : "{}";
 
     // Lambda might return a JSON string or an object with body
-    let parsed: any = {};
+    let parsed: unknown = {};
     try {
-      parsed = JSON.parse(raw);
-      if (parsed && typeof parsed.body === "string") {
-        parsed = { ...parsed, ...JSON.parse(parsed.body) };
+      const first = JSON.parse(raw) as unknown;
+      if (first && typeof first === "object" && "body" in (first as Record<string, unknown>) && typeof (first as { body?: unknown }).body === "string") {
+        const merged = { ...(first as Record<string, unknown>), ...(JSON.parse((first as { body: string }).body) as Record<string, unknown>) };
+        parsed = merged;
+      } else {
+        parsed = first;
       }
     } catch {
       parsed = { error: "Invalid response from Lambda" };
     }
 
-    if (parsed.error) {
-      return NextResponse.json({ success: false, error: parsed.error }, { status: 500 });
+    if (typeof parsed === "object" && parsed !== null && "error" in parsed) {
+      const p = parsed as { error?: string };
+      return NextResponse.json({ success: false, error: p.error || "Unknown error" }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, ...parsed });
+    return NextResponse.json({ success: true, ...(parsed as Record<string, unknown>) });
   } catch (err) {
     console.error("check-name API error", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
