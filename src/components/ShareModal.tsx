@@ -6,7 +6,13 @@ import clsx from "clsx";
 interface ShareModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSendInvites: (emails: string[]) => Promise<void>;
+  onSendInvites: (emails: string[]) => Promise<{
+    success: boolean;
+    message: string;
+    sandboxMode?: boolean;
+    magicLink?: string;
+    instructions?: string;
+  }>;
   onGenerateLink: () => Promise<string>;
 }
 
@@ -36,7 +42,7 @@ export default function ShareModal({ isOpen, onClose, onSendInvites, onGenerateL
       const result = await onSendInvites(emailList);
       
       // Check if we're in sandbox mode
-      if (result && result.sandboxMode) {
+      if (result && result.sandboxMode && result.magicLink) {
         // Show the magic link for manual sharing
         setMagicLink(result.magicLink);
         setLinkGenerated(true);

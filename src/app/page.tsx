@@ -75,11 +75,13 @@ export default function Page() {
         return result;
       } else {
         alert(result.message);
+        return result;
       }
       
     } catch (error) {
       console.error('Error sending invites:', error);
       alert('Error al enviar invitaciones. Por favor, inténtalo de nuevo.');
+      throw error;
     }
   };
 

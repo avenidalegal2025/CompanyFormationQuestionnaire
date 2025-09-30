@@ -22,7 +22,13 @@ export default function ProgressSidebar({
   total: number;
   items: ProgressItem[];
   onGo?: (n: number) => void;
-  onSendInvites?: (emails: string[]) => Promise<void>;
+  onSendInvites?: (emails: string[]) => Promise<{
+    success: boolean;
+    message: string;
+    sandboxMode?: boolean;
+    magicLink?: string;
+    instructions?: string;
+  }>;
   onGenerateLink?: () => Promise<string>;
 }) {
   const [showShareModal, setShowShareModal] = useState(false);
@@ -121,7 +127,7 @@ export default function ProgressSidebar({
       <ShareModal
         isOpen={showShareModal}
         onClose={() => setShowShareModal(false)}
-        onSendInvites={onSendInvites || (async () => {})}
+        onSendInvites={onSendInvites || (async () => ({ success: false, message: 'Not implemented' }))}
         onGenerateLink={onGenerateLink || (async () => window.location.href)}
       />
     </aside>
