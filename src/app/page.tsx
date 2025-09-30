@@ -145,6 +145,7 @@ export default function Page() {
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [lastRemoteUpdatedAt, setLastRemoteUpdatedAt] = useState<number>(0);
 
   const items: ProgressItem[] = useMemo(() => {
     const entityType = form.watch("company.entityType");
@@ -189,6 +190,9 @@ export default function Page() {
           const item = res.item as DraftItem;
           const idFromItem = item.draftId ?? item.id ?? stored;
           setDraftId(idFromItem);
+          if (typeof (res.item as any).updatedAt === 'number') {
+            setLastRemoteUpdatedAt((res.item as any).updatedAt as number);
+          }
         }
       } catch (err) {
         setLoadError(err instanceof Error ? err.message : String(err));
@@ -222,6 +226,32 @@ export default function Page() {
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftId, form, saveState]);
+
+  // Collaborative polling: refresh form if another user saved newer data
+  useEffect(() => {
+    if (!draftId) return;
+    const intervalId = window.setInterval(async () => {
+      try {
+        const res = await loadDraft(draftId);
+        const remoteUpdatedAt = (res.item as any)?.updatedAt as number | undefined;
+        if (res.item?.data && typeof remoteUpdatedAt === 'number') {
+          // Only refresh if remote is newer than what we've seen and newer than our last local save
+          const localLast = lastSavedAt ?? 0;
+          if (remoteUpdatedAt > lastRemoteUpdatedAt && remoteUpdatedAt > localLast) {
+            form.reset(res.item.data);
+            setLastRemoteUpdatedAt(remoteUpdatedAt);
+          } else if (lastRemoteUpdatedAt === 0) {
+            // Initialize baseline without forcing a reset
+            setLastRemoteUpdatedAt(remoteUpdatedAt);
+          }
+        }
+      } catch {
+        // ignore polling errors
+      }
+    }, 5000);
+    return () => window.clearInterval(intervalId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftId, lastSavedAt, lastRemoteUpdatedAt, form]);
 
   // Button handlers
   const onGuardarYContinuar = async () => {
