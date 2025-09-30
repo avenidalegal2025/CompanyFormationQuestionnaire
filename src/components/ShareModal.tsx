@@ -50,7 +50,9 @@ export default function ShareModal({ isOpen, onClose, onSendInvites, onGenerateL
     return () => {
       document.body.classList.remove('modal-open');
     };
-  }, [isOpen, onGenerateLink]);
+  // Only run when opening; do not regenerate while open
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   const retryGenerate = async () => {
     try {

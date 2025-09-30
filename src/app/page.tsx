@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import Step2Company from "@/components/steps/Step2Company";
@@ -150,6 +150,8 @@ export default function Page() {
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [lastRemoteUpdatedAt, setLastRemoteUpdatedAt] = useState<number>(0);
+  const [collabNotice, setCollabNotice] = useState<string | null>(null);
+  const noticeTimerRef = useRef<number | null>(null);
 
   const items: ProgressItem[] = useMemo(() => {
     const entityType = form.watch("company.entityType");
@@ -259,6 +261,10 @@ export default function Page() {
           if (remoteUpdatedAt > lastRemoteUpdatedAt && remoteUpdatedAt > localLast) {
             form.reset(res.item.data);
             setLastRemoteUpdatedAt(remoteUpdatedAt);
+            // Show collaborator snackbar if viewer-only or if data changed externally
+            setCollabNotice("Otro usuario está editando este cuestionario en este momento.");
+            if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
+            noticeTimerRef.current = window.setTimeout(() => setCollabNotice(null), 4000);
           } else if (lastRemoteUpdatedAt === 0) {
             // Initialize baseline without forcing a reset
             setLastRemoteUpdatedAt(remoteUpdatedAt);
@@ -305,6 +311,11 @@ export default function Page() {
 
       {/* Main */}
       <main className="flex-1 p-6">
+        {collabNotice && (
+          <div className="fixed top-4 right-4 z-[9999] bg-amber-500 text-white px-4 py-2 rounded shadow-lg">
+            {collabNotice}
+          </div>
+        )}
         {/* status bar */}
         <div className="mb-4 text-xs text-gray-500">
           {loadError ? (
