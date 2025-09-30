@@ -51,14 +51,20 @@ export default function Page() {
         // Do not immediately remove, keep for refreshes in the same session
       } else if (collabDraftId) {
         // If only draftId is present, load from DB now
-        loadDraft(collabDraftId)
-          .then((res) => {
+        (async () => {
+          try {
+            const res = await loadDraft(collabDraftId);
             if (res.item?.data) {
               form.reset(res.item.data);
-              setDraftId(res.item.draftId ?? res.item.id ?? collabDraftId);
+              const item = res.item as DraftItem;
+              const idFromItem = item.draftId ?? item.id ?? collabDraftId;
+              setDraftId(idFromItem);
+              if (typeof window !== 'undefined') window.localStorage.setItem('draftId', idFromItem);
             }
-          })
-          .catch(() => {});
+          } catch {
+            // ignore
+          }
+        })();
       }
     } catch {}
   }, [form]);

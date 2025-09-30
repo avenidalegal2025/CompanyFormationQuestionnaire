@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
+import { GetCommand } from '@aws-sdk/lib-dynamodb';
+import { ddb, TABLE_NAME } from '@/lib/dynamo';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
@@ -33,14 +35,15 @@ export async function GET(request: NextRequest) {
     // Expand compact payload to a friendlier structure for the page
     let expanded: unknown;
     if ('draftId' in decoded) {
-      // Load from DB by draftId
-      const url = `${request.nextUrl.origin}/api/db/load?draftId=${encodeURIComponent(decoded.draftId)}`;
-      const res = await fetch(url, { method: 'GET' });
-      if (!res.ok) {
-        return NextResponse.json({ error: 'Failed to load draft' }, { status: 500 });
-      }
-      const json = (await res.json()) as { ok: true; item?: { data?: unknown } | null };
-      expanded = json.item?.data ?? {};
+      // Load from DynamoDB directly by draftId
+      const owner = 'ANON';
+      const result = await ddb.send(
+        new GetCommand({
+          TableName: TABLE_NAME,
+          Key: { pk: owner, sk: `DRAFT#${decoded.draftId}` },
+        })
+      );
+      expanded = (result.Item as { data?: unknown } | undefined)?.data ?? {};
       return NextResponse.json({
         success: true,
         formData: expanded as unknown,
