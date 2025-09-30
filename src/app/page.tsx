@@ -222,17 +222,31 @@ export default function Page() {
     return result.id;
   };
 
-  // Autosave every 30s
+  // Debounced save on form changes for quicker sync
+  useEffect(() => {
+    const sub = form.watch(() => {
+      const timer = window.setTimeout(() => {
+        if (saveState !== "saving") {
+          void doSave();
+        }
+      }, 1000);
+      return () => window.clearTimeout(timer);
+    });
+    return () => sub.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, draftId]);
+
+  // Autosave every 8s (faster propagation)
   useEffect(() => {
     const id: number = window.setInterval(() => {
       if (saveState === "saving") return;
       doSave().catch(() => setSaveState("error"));
-    }, 30_000);
+    }, 8_000);
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftId, form, saveState]);
 
-  // Collaborative polling: refresh form if another user saved newer data
+  // Collaborative polling: refresh form if another user saved newer data (every 4s)
   useEffect(() => {
     if (!draftId) return;
     const intervalId = window.setInterval(async () => {
@@ -253,7 +267,7 @@ export default function Page() {
       } catch {
         // ignore polling errors
       }
-    }, 5000);
+    }, 4000);
     return () => window.clearInterval(intervalId);
   }, [draftId, lastSavedAt, lastRemoteUpdatedAt, form]);
 

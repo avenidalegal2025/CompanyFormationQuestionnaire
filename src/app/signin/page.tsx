@@ -4,6 +4,16 @@ import Image from "next/image";
 import Link from "next/link";
 
 export default function SignInPage() {
+  // Auto-redirect straight to Auth0 if callbackUrl present
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search);
+    const callbackUrl = params.get("callbackUrl") || "/";
+    // Use next-auth provider endpoint so it constructs correct Auth0 URL
+    const providerUrl = `/api/auth/signin/auth0?callbackUrl=${encodeURIComponent(callbackUrl)}`;
+    // Replace to avoid back button loop
+    window.location.replace(providerUrl);
+  }
+
   return (
     <main className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
       <div className="w-full max-w-md">
