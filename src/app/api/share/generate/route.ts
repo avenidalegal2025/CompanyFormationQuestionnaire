@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import { PutCommand } from '@aws-sdk/lib-dynamodb';
+import { ddb, TABLE_NAME } from '@/lib/dynamo';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
@@ -11,17 +14,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Form data is required' }, { status: 400 });
     }
 
-    // Persist draft to DB and return a link with draftId and permissions
-    const saveRes = await fetch(`${request.nextUrl.origin}/api/db/save`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data: formData }),
-    });
-    if (!saveRes.ok) {
-      const j = await saveRes.json().catch(() => ({}));
-      return NextResponse.json({ error: j.error || 'Failed to save draft' }, { status: 500 });
-    }
-    const { id: draftId } = (await saveRes.json()) as { ok: true; id: string };
+    // Persist draft to DynamoDB directly and return a link with draftId and permissions
+    const draftId = crypto.randomUUID();
+    const owner = 'ANON';
+    const now = Date.now();
+    await ddb.send(
+      new PutCommand({
+        TableName: TABLE_NAME,
+        Item: {
+          pk: owner,
+          sk: `DRAFT#${draftId}`,
+          id: draftId,
+          owner,
+          status: 'IN_PROGRESS',
+          data: formData,
+          updatedAt: now,
+        },
+      })
+    );
 
     const token = jwt.sign(
       { draftId, permissions, exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60) },
