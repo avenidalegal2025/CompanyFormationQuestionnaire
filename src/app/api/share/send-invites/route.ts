@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     for (const email of emails) {
       try {
         const command = new SendEmailCommand({
-          Source: process.env.FROM_EMAIL || 'noreply@avenidalegal.com',
+          Source: 'avenidalegal.2024@gmail.com',
           Destination: {
             ToAddresses: [email],
           },
