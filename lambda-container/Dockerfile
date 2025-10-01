@@ -5,7 +5,8 @@ RUN yum update -y && \
     yum install -y tar gzip bzip2 curl ca-certificates \
       gtk3 at-spi2-atk atk cairo pango gdk-pixbuf2 \
       libX11 libXcomposite libXcursor libXdamage libXext libXi libXfixes libXrandr libXrender libXtst \
-      mesa-libgbm libdrm xorg-x11-server-Xvfb dbus-libs cups-libs && \
+      mesa-libgbm libdrm xorg-x11-server-Xvfb dbus-libs cups-libs \
+      xorg-x11-xauth xorg-x11-utils && \
     yum clean all && rm -rf /var/cache/yum
 
 # Install Firefox ESR (tarball) to /opt/firefox and symlink into PATH

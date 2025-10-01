@@ -10,6 +10,7 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException
 import time
 import logging
 import os
+import subprocess
 
 # Configure logging
 logger = logging.getLogger()
@@ -51,33 +52,60 @@ def lambda_handler(event, context):
                 })
             }
         
-        # Set up Firefox options for headless browsing
-        firefox_options = Options()
-        firefox_options.add_argument('--headless')
-        firefox_options.add_argument('--no-sandbox')
-        firefox_options.add_argument('--disable-dev-shm-usage')
-        firefox_options.add_argument('--disable-gpu')
-        firefox_options.add_argument('--window-size=1920,1080')
-        firefox_options.add_argument('--disable-extensions')
-        firefox_options.add_argument('--disable-plugins')
-        firefox_options.add_argument('--disable-images')
-        firefox_options.add_argument('--disable-javascript')
+            # Set up Firefox options for headless browsing
+            firefox_options = Options()
+            firefox_options.add_argument('--headless')
+            firefox_options.add_argument('--no-sandbox')
+            firefox_options.add_argument('--disable-dev-shm-usage')
+            firefox_options.add_argument('--disable-gpu')
+            firefox_options.add_argument('--window-size=1920,1080')
+            firefox_options.add_argument('--disable-extensions')
+            firefox_options.add_argument('--disable-plugins')
+            firefox_options.add_argument('--disable-images')
+            firefox_options.add_argument('--disable-javascript')
+            firefox_options.add_argument('--disable-web-security')
+            firefox_options.add_argument('--disable-features=VizDisplayCompositor')
+            firefox_options.add_argument('--remote-debugging-port=9222')
+            
+            # Set environment variables for headless operation
+            os.environ['MOZ_HEADLESS'] = '1'
+            os.environ['DISPLAY'] = ':99'
+            
+            # Start virtual display
+            try:
+                logger.info("Starting virtual display...")
+                subprocess.run(['Xvfb', ':99', '-screen', '0', '1920x1080x24'], 
+                             check=False, capture_output=True, timeout=10)
+                logger.info("Virtual display started")
+            except Exception as e:
+                logger.warning(f"Could not start virtual display: {e}")
         
-        # Initialize the driver
-        driver = None
-        try:
-            # Specify the binary locations within the Lambda container
-            firefox_binary_path = '/opt/firefox/firefox' # Direct path to Firefox
-            geckodriver_binary_path = '/usr/local/bin/geckodriver'
+            # Initialize the driver
+            driver = None
+            try:
+                # Specify the binary locations within the Lambda container
+                firefox_binary_path = '/opt/firefox/firefox' # Direct path to Firefox
+                geckodriver_binary_path = '/usr/local/bin/geckodriver'
 
-            # Ensure binaries exist (for debugging in Lambda logs)
-            logger.info(f"Checking firefox binary at: {firefox_binary_path} - Exists: {os.path.exists(firefox_binary_path)}")
-            logger.info(f"Checking geckodriver binary at: {geckodriver_binary_path} - Exists: {os.path.exists(geckodriver_binary_path)}")
+                # Ensure binaries exist (for debugging in Lambda logs)
+                logger.info(f"Checking firefox binary at: {firefox_binary_path} - Exists: {os.path.exists(firefox_binary_path)}")
+                logger.info(f"Checking geckodriver binary at: {geckodriver_binary_path} - Exists: {os.path.exists(geckodriver_binary_path)}")
 
-            firefox_options.binary_location = firefox_binary_path
-            service = Service(executable_path=geckodriver_binary_path)
-            driver = webdriver.Firefox(service=service, options=firefox_options)
-            logger.info("Successfully initialized Firefox driver")
+                # Check if binaries are executable
+                if os.path.exists(firefox_binary_path):
+                    logger.info(f"Firefox binary permissions: {oct(os.stat(firefox_binary_path).st_mode)[-3:]}")
+                if os.path.exists(geckodriver_binary_path):
+                    logger.info(f"Geckodriver binary permissions: {oct(os.stat(geckodriver_binary_path).st_mode)[-3:]}")
+
+                firefox_options.binary_location = firefox_binary_path
+                service = Service(executable_path=geckodriver_binary_path)
+                
+                # Add logging to service
+                service.log_output = True
+                
+                logger.info("Attempting to initialize Firefox driver...")
+                driver = webdriver.Firefox(service=service, options=firefox_options)
+                logger.info("Successfully initialized Firefox driver")
             
             # Navigate to Sunbiz search page
             driver.get('https://search.sunbiz.org/Inquiry/CorporationSearch/ByName')
