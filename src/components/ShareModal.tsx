@@ -214,10 +214,10 @@ export default function ShareModal({ isOpen, onClose, onSendInvites, onGenerateL
           </div>
           <button
             onClick={handleSendInvites}
-            disabled={!emails.trim() || isLoading}
+            disabled={emailChips.length === 0 || isLoading}
             className={clsx(
               "mt-3 w-full py-2 px-4 rounded-lg font-medium transition-colors",
-              (emailChips.length > 0 || emails.trim()) && !isLoading
+              emailChips.length > 0 && !isLoading
                 ? "bg-blue-600 text-white hover:bg-blue-700"
                 : "bg-gray-300 text-gray-500 cursor-not-allowed"
             )}
