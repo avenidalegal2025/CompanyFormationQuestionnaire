@@ -1,0 +1,52 @@
+FROM --platform=linux/amd64 public.ecr.aws/lambda/python:3.9
+
+# Switch to Ubuntu base (since the working environment is Ubuntu 22.04)
+# We'll need to use a different approach since Lambda base images are Amazon Linux
+# Let's install the exact packages that work on Ubuntu
+
+# Install system dependencies that work (based on EC2 extraction)
+RUN yum update -y && \
+    yum install -y \
+    # Basic tools
+    curl wget tar gzip \
+    # X11 and display libraries
+    libX11 libXext libXrender libXrandr libXinerama libXcursor libXcomposite libXdamage libXfixes libXi libXtst \
+    # GTK and GUI libraries
+    gtk3 atk cairo pango gdk-pixbuf2 \
+    # Audio libraries
+    alsa-lib \
+    # D-Bus libraries (the missing piece!)
+    dbus-glib dbus-libs \
+    # Font libraries
+    fontconfig \
+    # Other dependencies
+    mesa-libgbm libdrm \
+    # Virtual display
+    xorg-x11-server-Xvfb \
+    # Network libraries
+    nss \
+    # Development tools for building
+    gcc gcc-c++ make \
+    && yum clean all && rm -rf /var/cache/yum
+
+# Install Firefox ESR (same version as working EC2)
+ENV FIREFOX_VERSION=140.0.2
+RUN curl -L -o /tmp/firefox.tar.bz2 "https://download-installer.cdn.mozilla.net/pub/firefox/releases/${FIREFOX_VERSION}/linux-x86_64/en-US/firefox-${FIREFOX_VERSION}.tar.bz2" && \
+    mkdir -p /opt && \
+    tar -xjf /tmp/firefox.tar.bz2 -C /opt && \
+    ln -sf /opt/firefox/firefox /usr/local/bin/firefox && \
+    rm -f /tmp/firefox.tar.bz2
+
+# Install geckodriver (compatible version)
+RUN curl -L https://github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux64.tar.gz | tar -xz -C /usr/local/bin && \
+    chmod +x /usr/local/bin/geckodriver
+
+# Copy requirements and install Python packages
+COPY requirements.txt /var/task
+RUN pip install -r requirements.txt
+
+# Copy the Lambda function code
+COPY check_company_availability.py /var/task
+
+# Set the CMD to your handler
+CMD ["check_company_availability.lambda_handler"]
