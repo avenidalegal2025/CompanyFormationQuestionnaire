@@ -4,6 +4,14 @@ import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
 const REGION = process.env.AWS_REGION || "us-west-1";
 const FUNCTION_NAME = process.env.SUNBIZ_LAMBDA_NAME || "sunbiz-lambda";
 
+console.log("Environment check:");
+console.log("AWS_REGION:", process.env.AWS_REGION);
+console.log("SUNBIZ_LAMBDA_NAME:", process.env.SUNBIZ_LAMBDA_NAME);
+console.log("AWS_ACCESS_KEY_ID exists:", !!process.env.AWS_ACCESS_KEY_ID);
+console.log("AWS_SECRET_ACCESS_KEY exists:", !!process.env.AWS_SECRET_ACCESS_KEY);
+console.log("Final FUNCTION_NAME:", FUNCTION_NAME);
+console.log("Final REGION:", REGION);
+
 const lambdaClient = new LambdaClient({
   region: REGION,
   credentials: process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY ? {
