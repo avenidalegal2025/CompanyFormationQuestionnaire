@@ -1,0 +1,9 @@
+Message: Element <input id="CCCardNumber" class="form-control" name="CCCardNumber" type="text"> is not reachable by keyboard; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#elementnotinteractableexception
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+ElementNotInteractableError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:368:5
+webdriverSendKeysToElement@chrome://remote/content/marionette/interaction.sys.mjs:667:13
+interaction.sendKeysToElement@chrome://remote/content/marionette/interaction.sys.mjs:639:11
+sendKeysToElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:609:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:269:31

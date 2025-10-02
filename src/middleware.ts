@@ -9,6 +9,7 @@ import { getToken } from "next-auth/jwt";
 const PUBLIC_PATHS = [
   "/signin",
   "/api/auth",   // next-auth routes & callbacks
+  "/api/check-name", // company name availability check
   "/diag",
   "/api/diag",
   "/favicon.ico",

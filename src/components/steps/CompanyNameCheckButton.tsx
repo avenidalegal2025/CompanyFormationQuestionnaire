@@ -34,10 +34,13 @@ export default function CompanyNameCheckButton({
 
       if (data.skipped) {
         setResult({ status: "warn", message: data.message || "Solo compatible con Florida por ahora." });
-      } else if (data.available === true) {
-        setResult({ status: "ok", message: `Disponible: \"${name}\"` });
-      } else if (data.available === false) {
-        setResult({ status: "error", message: `No disponible: \"${name}\"` });
+      } else if (data.message) {
+        // Use the simplified message directly from Lambda
+        const isAvailable = data.available === true;
+        setResult({ 
+          status: isAvailable ? "ok" : "error", 
+          message: data.message 
+        });
       } else {
         setResult({ status: "warn", message: "No se pudo determinar. Intenta de nuevo más tarde." });
       }

@@ -1,1 +1,1 @@
-{"statusCode": 500, "body": "{\"error\": \"Error checking availability: Could not initialize Firefox driver with any available paths\", \"available\": false}"}
+{"statusCode": 200, "body": "Company name AVAILABLE"}

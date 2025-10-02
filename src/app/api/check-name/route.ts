@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
 
 const REGION = process.env.AWS_REGION || "us-west-1";
-const FUNCTION_NAME = process.env.SUNBIZ_LAMBDA_NAME || "check-company-availability";
+const FUNCTION_NAME = process.env.SUNBIZ_LAMBDA_NAME || "sunbiz-lambda";
 
 const lambdaClient = new LambdaClient({
   region: REGION,
@@ -42,14 +42,17 @@ export async function POST(req: NextRequest) {
     const response = await lambdaClient.send(command);
     const raw = response.Payload ? Buffer.from(response.Payload).toString("utf-8") : "{}";
 
-    // Lambda might return a JSON string or an object with body
-    let parsed: unknown = {};
+    // Parse Lambda response
+    let parsed: any = {};
     try {
-      const first = JSON.parse(raw) as unknown;
-      if (first && typeof first === "object" && "body" in (first as Record<string, unknown>) && typeof (first as { body?: unknown }).body === "string") {
-        const merged = { ...(first as Record<string, unknown>), ...(JSON.parse((first as { body: string }).body) as Record<string, unknown>) };
-        parsed = merged;
+      const first = JSON.parse(raw);
+      if (first && typeof first === "object" && "body" in first && typeof first.body === "string") {
+        // New simplified response format - body contains the user message
+        const message = first.body;
+        const available = message.includes("AVAILABLE") && !message.includes("NOT AVAILABLE");
+        parsed = { available, message };
       } else {
+        // Fallback to old format
         parsed = first;
       }
     } catch {
@@ -61,7 +64,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: p.error || "Unknown error" }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, ...(parsed as Record<string, unknown>) });
+    return NextResponse.json({ success: true, ...parsed });
   } catch (err) {
     console.error("check-name API error", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

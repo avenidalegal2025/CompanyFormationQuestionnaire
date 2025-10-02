@@ -1,0 +1,18 @@
+📂 Using file: record_DUNE LLC.json.txt created at 2025-06-27T19:25:09.076Z
+✅ Downloaded JSON to form_data.json
+✅ Uploaded ssm_payment_dump.json to s3://llc-filing-audit-trail-rodolfo/DUNE_LLC/payments/2025-07-06_06-37-21_ssm_payment_dump.json
+✅ Uploaded start.png to s3://llc-filing-audit-trail-rodolfo/DUNE_LLC/screenshots/2025-07-06_06-37-26_start.png
+✅ Uploaded llc_info.png to s3://llc-filing-audit-trail-rodolfo/DUNE_LLC/screenshots/2025-07-06_06-37-34_llc_info.png
+✅ Uploaded payment_start.png to s3://llc-filing-audit-trail-rodolfo/DUNE_LLC/screenshots/2025-07-06_06-38-12_payment_start.png
+❌ Error: Message: Element <input id="CCCardNumber" class="form-control" name="CCCardNumber" type="text"> is not reachable by keyboard; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#elementnotinteractableexception
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+ElementNotInteractableError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:368:5
+webdriverSendKeysToElement@chrome://remote/content/marionette/interaction.sys.mjs:667:13
+interaction.sendKeysToElement@chrome://remote/content/marionette/interaction.sys.mjs:639:11
+sendKeysToElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:609:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:269:31
+
+✅ Uploaded llc_error.log to s3://llc-filing-audit-trail-rodolfo/DUNE_LLC/errors/2025-07-06_06-38-19_llc_error.log
+✅ Uploaded run.log to s3://llc-filing-audit-trail-rodolfo/DUNE_LLC/logs/2025-07-06_06-38-20_run.log
