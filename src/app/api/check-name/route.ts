@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
 
-const REGION = process.env.AWS_REGION || "us-west-1";
-const FUNCTION_NAME = process.env.SUNBIZ_LAMBDA_NAME || "sunbiz-lambda";
+const REGION = "us-west-1";
+const FUNCTION_NAME = "sunbiz-lambda";
 
 console.log("Environment check:");
 console.log("AWS_REGION:", process.env.AWS_REGION);
