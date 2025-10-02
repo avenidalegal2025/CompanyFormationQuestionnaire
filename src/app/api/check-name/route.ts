@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     const raw = response.Payload ? Buffer.from(response.Payload).toString("utf-8") : "{}";
 
     // Parse Lambda response
-    let parsed: any = {};
+    let parsed: Record<string, unknown> = {};
     try {
       const first = JSON.parse(raw);
       if (first && typeof first === "object" && "body" in first && typeof first.body === "string") {
