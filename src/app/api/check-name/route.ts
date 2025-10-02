@@ -33,6 +33,10 @@ export async function POST(req: NextRequest) {
       entityType,
     };
 
+    console.log("Lambda function name:", FUNCTION_NAME);
+    console.log("AWS region:", REGION);
+    console.log("Payload:", payload);
+
     const command = new InvokeCommand({
       FunctionName: FUNCTION_NAME,
       InvocationType: "RequestResponse",
