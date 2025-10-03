@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
 
 const REGION = "us-west-1";
-const FUNCTION_NAME = "sunbiz-lambda";
+const SUNBIZ_FUNCTION_NAME = "sunbiz-lambda";
+const WYOMING_FUNCTION_NAME = "wyoming-lambda";
 
 console.log("Environment check:");
 console.log("AWS_REGION:", process.env.AWS_REGION);
@@ -25,11 +26,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "companyName is required" }, { status: 400 });
     }
 
-    if (formationState !== "Florida") {
+    // Determine which Lambda function to use based on formation state
+    let functionName: string;
+    if (formationState === "Florida") {
+      functionName = SUNBIZ_FUNCTION_NAME;
+    } else if (formationState === "Wyoming") {
+      functionName = WYOMING_FUNCTION_NAME;
+    } else {
       return NextResponse.json({
         success: true,
         skipped: true,
-        message: "Availability check is only supported for Florida at this time.",
+        message: "Availability check is only supported for Florida and Wyoming at this time.",
       });
     }
 
@@ -38,12 +45,12 @@ export async function POST(req: NextRequest) {
       entityType,
     };
 
-    console.log("Lambda function name:", FUNCTION_NAME);
+    console.log("Lambda function name:", functionName);
     console.log("AWS region:", REGION);
     console.log("Payload:", payload);
 
     const command = new InvokeCommand({
-      FunctionName: FUNCTION_NAME,
+      FunctionName: functionName,
       InvocationType: "RequestResponse",
       Payload: Buffer.from(JSON.stringify(payload)),
     });
