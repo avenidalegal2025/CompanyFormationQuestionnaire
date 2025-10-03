@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
 
 const REGION = "us-west-1";
-const SUNBIZ_FUNCTION_NAME = "SearchfNewLLCSunbiz";
+const SUNBIZ_FUNCTION_NAME = "sunbiz-lambda";
 const WYOMING_FUNCTION_NAME = "wyoming-lambda";
 
 console.log("Environment check:");
