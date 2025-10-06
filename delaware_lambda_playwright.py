@@ -10,6 +10,7 @@ import base64
 import sys
 import os
 from typing import Optional, List, Dict, Any
+import random
 
 # For Lambda, we need to use the bundled Playwright
 try:
@@ -32,7 +33,11 @@ CAPTCHA_SOLVE_URL = "http://2captcha.com/in.php"
 CAPTCHA_RESULT_URL = "http://2captcha.com/res.php"
 
 SEARCH_URL = "https://icis.corp.delaware.gov/Ecorp/EntitySearch/NameSearch.aspx"
-MOBILE_DEVICE = "iPhone 13"
+MOBILE_DEVICES = [
+    "iPhone 13",
+    "Pixel 7",
+    "iPad Mini",
+]
 
 # Name normalization functions (from name_check.py)
 import re
@@ -142,8 +147,9 @@ def check_delaware_availability(company_name: str, entity_type: str = "LLC") -> 
     
     def run_once() -> Dict[str, Any]:
         with sync_playwright() as p:
-            # Use mobile device for better stealth
-            iphone = p.devices.get(MOBILE_DEVICE)
+            # Randomize mobile device for better stealth
+            device_name = random.choice(MOBILE_DEVICES)
+            device = p.devices.get(device_name)
             launch_args = [
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
@@ -160,11 +166,18 @@ def check_delaware_availability(company_name: str, entity_type: str = "LLC") -> 
                 },
                 args=launch_args,
             )
-            context = browser.new_context(**iphone, ignore_https_errors=True)
+            context = browser.new_context(
+                **device,
+                ignore_https_errors=True,
+                user_agent=device.get("user_agent"),
+                locale="en-US",
+            )
             page = context.new_page()
             
             # Go to search page
             page.goto(SEARCH_URL, wait_until="domcontentloaded", timeout=90000)
+            # Small human-like delay
+            page.wait_for_timeout(random.randint(1200, 2500))
             
             # Check for blocking
             content_lower = page.content().lower()
@@ -205,6 +218,7 @@ def check_delaware_availability(company_name: str, entity_type: str = "LLC") -> 
             try:
                 page.wait_for_selector("input[name='ctl00$ContentPlaceHolder1$frmEntityName']", timeout=30000)
                 page.fill("input[name='ctl00$ContentPlaceHolder1$frmEntityName']", search_term)
+                page.wait_for_timeout(random.randint(500, 1200))
             except Exception:
                 return {
                     'success': False,
@@ -224,6 +238,7 @@ def check_delaware_availability(company_name: str, entity_type: str = "LLC") -> 
             # Submit form
             try:
                 page.click("input[name='ctl00$ContentPlaceHolder1$btnSubmit']", timeout=30000)
+                page.wait_for_timeout(random.randint(800, 1500))
             except Exception:
                 try:
                     page.press("input[name='ctl00$ContentPlaceHolder1$frmEntityName']", "Enter")
