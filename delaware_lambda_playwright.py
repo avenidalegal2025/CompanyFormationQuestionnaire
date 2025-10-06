@@ -198,36 +198,79 @@ def check_delaware_availability(company_name: str, entity_type: str = "LLC") -> 
                     'existing_entities': []
                 }
             
+            # Wait for either input or CAPTCHA area to appear
+            try:
+                page.wait_for_selector(
+                    "input[name='ctl00$ContentPlaceHolder1$frmEntityName'], #ctl00_ContentPlaceHolder1_captchaDiv",
+                    timeout=45000,
+                )
+            except Exception:
+                return {
+                    'success': False,
+                    'available': False,
+                    'message': 'Search form or CAPTCHA not visible',
+                    'method': 'delaware_playwright',
+                    'existing_entities': []
+                }
+
             # Handle CAPTCHA if present
-            captcha_img = None
-            for sel in [
-                "#ctl00_ContentPlaceHolder1_imgCaptcha",
-                "#ctl00_ContentPlaceHolder1_CaptchaImage",
-                "#ctl00_ContentPlaceHolder1_captchaImage",
-            ]:
-                try:
-                    el = page.query_selector(sel)
-                    if el:
-                        captcha_img = el
-                        break
-                except Exception:
-                    pass
-            
             captcha_text = None
-            if captcha_img:
+            try:
+                captcha_div = page.query_selector('#ctl00_ContentPlaceHolder1_captchaDiv')
+            except Exception:
+                captcha_div = None
+
+            if captcha_div:
                 try:
-                    image_bytes = captcha_img.screenshot()
-                    captcha_text = solve_captcha_image_bytes(image_bytes)
+                    captcha_div.scroll_into_view_if_needed()
                 except Exception:
                     pass
+
+                # Try multiple possible captcha image selectors
+                captcha_img = None
+                for sel in [
+                    "#ctl00_ContentPlaceHolder1_imgCaptcha",
+                    "#ctl00_ContentPlaceHolder1_CaptchaImage",
+                    "#ctl00_ContentPlaceHolder1_captchaImage",
+                    "img[id*='Captcha']",
+                ]:
+                    try:
+                        el = page.query_selector(sel)
+                        if el:
+                            captcha_img = el
+                            break
+                    except Exception:
+                        continue
+
+                if captcha_img:
+                    try:
+                        image_bytes = captcha_img.screenshot()
+                        captcha_text = solve_captcha_image_bytes(image_bytes)
+                        if captcha_text:
+                            try:
+                                page.fill("input[name='ctl00$ContentPlaceHolder1$txtCaptcha']", captcha_text)
+                                page.wait_for_timeout(random.randint(800, 1400))
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
             
             # Fill search input
             search_term = extract_base_name(company_name)
             try:
-                page.wait_for_selector("input[name='ctl00$ContentPlaceHolder1$frmEntityName']", timeout=30000)
+                # Ensure input is visible; scroll if needed
+                page.wait_for_selector("input[name='ctl00$ContentPlaceHolder1$frmEntityName']", timeout=30000, state='visible')
+                input_el = page.query_selector("input[name='ctl00$ContentPlaceHolder1$frmEntityName']")
+                if input_el:
+                    try:
+                        input_el.scroll_into_view_if_needed()
+                        page.mouse.move(20 + random.randint(0, 60), 200 + random.randint(0, 60))
+                        page.wait_for_timeout(random.randint(400, 900))
+                    except Exception:
+                        pass
                 page.fill("input[name='ctl00$ContentPlaceHolder1$frmEntityName']", search_term)
                 # Longer dwell before submit to appear human
-                page.wait_for_timeout(random.randint(4000, 7000))
+                page.wait_for_timeout(random.randint(5000, 9000))
             except Exception:
                 return {
                     'success': False,
