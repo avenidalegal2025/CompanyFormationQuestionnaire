@@ -1,8 +1,24 @@
 FROM --platform=linux/amd64 public.ecr.aws/lambda/python:3.9
 
-# Install system dependencies
+# Install system dependencies for Playwright
 RUN yum update -y && \
     yum install -y \
+    atk \
+    cups-libs \
+    gtk3 \
+    libXcomposite \
+    libXcursor \
+    libXdamage \
+    libXext \
+    libXi \
+    libXrandr \
+    libXScrnSaver \
+    libXtst \
+    pango \
+    at-spi2-atk \
+    libXss \
+    alsa-lib \
+    xorg-x11-server-Xvfb \
     wget \
     unzip \
     && yum clean all
@@ -11,8 +27,9 @@ RUN yum update -y && \
 COPY requirements_playwright.txt /var/task/requirements.txt
 RUN pip install -r /var/task/requirements.txt
 
-# Install Playwright with system dependencies
-RUN playwright install chromium --with-deps
+# Install Playwright browsers
+ENV PLAYWRIGHT_BROWSERS_PATH=/tmp/ms-playwright
+RUN playwright install chromium
 
 # Copy Lambda function and dependencies
 COPY delaware_lambda_playwright.py /var/task/simple_lambda.py
