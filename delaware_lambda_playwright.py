@@ -272,6 +272,13 @@ def check_delaware_availability(company_name: str, entity_type: str = "LLC") -> 
                 # Longer dwell before submit to appear human
                 page.wait_for_timeout(random.randint(5000, 9000))
             except Exception:
+                # Debug: dump a snippet of current HTML to logs for troubleshooting
+                try:
+                    html_snippet = page.content()
+                    if html_snippet:
+                        print("[DEBUG] PAGE HTML SNIPPET (first 50000 chars):\n" + html_snippet[:50000])
+                except Exception:
+                    pass
                 return {
                     'success': False,
                     'available': False,
