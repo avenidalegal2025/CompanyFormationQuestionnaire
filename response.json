@@ -1,1 +1,1 @@
-{"statusCode": 200, "body": "{\"success\": true, \"available\": false, \"message\": \"Nombre no disponible, intenta otro.\", \"method\": \"requests\", \"existing_entities\": [{\"name\": \"TEST, LLC\", \"status\": \"ACTIVE\"}]}"}
+{"errorMessage": "Unable to import module 'simple_lambda': No module named 'playwright'", "errorType": "Runtime.ImportModuleError", "requestId": "", "stackTrace": []}
