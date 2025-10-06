@@ -146,10 +146,10 @@ def solve_captcha_image_bytes(image_bytes: bytes) -> Optional[str]:
 def check_delaware_availability(company_name: str, entity_type: str = "LLC") -> Dict[str, Any]:
     """Check if a company name is available in Delaware using Playwright"""
     
-    def run_once() -> Dict[str, Any]:
+    def run_once(pre_wait_ms: int = 0, preferred_device: Optional[str] = None) -> Dict[str, Any]:
         with sync_playwright() as p:
             # Randomize mobile device for better stealth
-            device_name = random.choice(MOBILE_DEVICES)
+            device_name = preferred_device if preferred_device in MOBILE_DEVICES else random.choice(MOBILE_DEVICES)
             device = p.devices.get(device_name)
             launch_args = [
                 "--no-sandbox",
@@ -185,7 +185,8 @@ def check_delaware_availability(company_name: str, entity_type: str = "LLC") -> 
             # Go to search page
             page.goto(SEARCH_URL, wait_until="domcontentloaded", timeout=90000)
             # Human-like delay after load
-            page.wait_for_timeout(random.randint(6000, 9000))
+            dwell = pre_wait_ms if pre_wait_ms > 0 else random.randint(10000, 15000)
+            page.wait_for_timeout(dwell)
             
             # Check for blocking
             content_lower = page.content().lower()
@@ -354,13 +355,19 @@ def check_delaware_availability(company_name: str, entity_type: str = "LLC") -> 
                     pass
     # Single retry if browser/page closed unexpectedly
     try:
+        # First attempt with long dwell
         return run_once()
     except Exception as e:
         msg = str(e)
         if "has been closed" in msg or "BrowserContext" in msg or "Target page" in msg:
-            time.sleep(2)
+            # Wait and retry once with different device and longer dwell
+            time.sleep(random.randint(20, 30))
             try:
-                return run_once()
+                # pick a different device
+                alt_devices = [d for d in MOBILE_DEVICES]
+                random.shuffle(alt_devices)
+                preferred = alt_devices[0]
+                return run_once(pre_wait_ms=random.randint(12000, 18000), preferred_device=preferred)
             except Exception as e2:
                 return {
                     'success': False,
