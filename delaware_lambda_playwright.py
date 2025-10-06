@@ -24,6 +24,7 @@ import requests
 
 # Configuration
 SCRAPEOPS_API_KEY = os.environ.get("SCRAPEOPS_API_KEY", "b3a2e586-8c39-4115-8ffb-590ad8750116")
+# Force ScrapeOps mobile/residential aggregator proxy
 PROXY_SERVER = os.environ.get("SCRAPEOPS_PROXY", "http://residential-proxy.scrapeops.io:8181")
 PROXY_USERNAME = os.environ.get("SCRAPEOPS_USER", "scrapeops")
 PROXY_PASSWORD = os.environ.get("SCRAPEOPS_PASSWORD", SCRAPEOPS_API_KEY)
@@ -176,8 +177,8 @@ def check_delaware_availability(company_name: str, entity_type: str = "LLC") -> 
             
             # Go to search page
             page.goto(SEARCH_URL, wait_until="domcontentloaded", timeout=90000)
-            # Small human-like delay
-            page.wait_for_timeout(random.randint(1200, 2500))
+            # Small human-like delay after load
+            page.wait_for_timeout(random.randint(1500, 3200))
             
             # Check for blocking
             content_lower = page.content().lower()
@@ -218,7 +219,8 @@ def check_delaware_availability(company_name: str, entity_type: str = "LLC") -> 
             try:
                 page.wait_for_selector("input[name='ctl00$ContentPlaceHolder1$frmEntityName']", timeout=30000)
                 page.fill("input[name='ctl00$ContentPlaceHolder1$frmEntityName']", search_term)
-                page.wait_for_timeout(random.randint(500, 1200))
+                # Longer dwell before submit to appear human
+                page.wait_for_timeout(random.randint(4000, 7000))
             except Exception:
                 return {
                     'success': False,
@@ -238,7 +240,7 @@ def check_delaware_availability(company_name: str, entity_type: str = "LLC") -> 
             # Submit form
             try:
                 page.click("input[name='ctl00$ContentPlaceHolder1$btnSubmit']", timeout=30000)
-                page.wait_for_timeout(random.randint(800, 1500))
+                page.wait_for_timeout(random.randint(1500, 3000))
             except Exception:
                 try:
                     page.press("input[name='ctl00$ContentPlaceHolder1$frmEntityName']", "Enter")
