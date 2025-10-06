@@ -8,6 +8,7 @@ import json
 import time
 import base64
 import sys
+import os
 from typing import Optional, List, Dict, Any
 
 # For Lambda, we need to use the bundled Playwright
@@ -21,12 +22,12 @@ except ImportError:
 import requests
 
 # Configuration
-SCRAPEOPS_API_KEY = "b3a2e586-8c39-4115-8ffb-590ad8750116"
-PROXY_SERVER = "http://residential-proxy.scrapeops.io:8181"
-PROXY_USERNAME = "scrapeops"
-PROXY_PASSWORD = SCRAPEOPS_API_KEY
+SCRAPEOPS_API_KEY = os.environ.get("SCRAPEOPS_API_KEY", "b3a2e586-8c39-4115-8ffb-590ad8750116")
+PROXY_SERVER = os.environ.get("SCRAPEOPS_PROXY", "http://residential-proxy.scrapeops.io:8181")
+PROXY_USERNAME = os.environ.get("SCRAPEOPS_USER", "scrapeops")
+PROXY_PASSWORD = os.environ.get("SCRAPEOPS_PASSWORD", SCRAPEOPS_API_KEY)
 
-CAPTCHA_API_KEY = "f70e8ca44204cc56c23f32925064ee93"
+CAPTCHA_API_KEY = os.environ.get("TWO_CAPTCHA_API_KEY", "f70e8ca44204cc56c23f32925064ee93")
 CAPTCHA_SOLVE_URL = "http://2captcha.com/in.php"
 CAPTCHA_RESULT_URL = "http://2captcha.com/res.php"
 
@@ -139,23 +140,31 @@ def solve_captcha_image_bytes(image_bytes: bytes) -> Optional[str]:
 def check_delaware_availability(company_name: str, entity_type: str = "LLC") -> Dict[str, Any]:
     """Check if a company name is available in Delaware using Playwright"""
     
-    try:
+    def run_once() -> Dict[str, Any]:
         with sync_playwright() as p:
             # Use mobile device for better stealth
             iphone = p.devices.get(MOBILE_DEVICE)
+            launch_args = [
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-gpu",
+                "--disable-dev-shm-usage",
+                "--single-process",
+            ]
             browser = p.chromium.launch(
                 headless=True,
                 proxy={
                     "server": PROXY_SERVER,
                     "username": PROXY_USERNAME,
                     "password": PROXY_PASSWORD,
-                }
+                },
+                args=launch_args,
             )
             context = browser.new_context(**iphone, ignore_https_errors=True)
             page = context.new_page()
             
             # Go to search page
-            page.goto(SEARCH_URL, wait_until="domcontentloaded", timeout=60000)
+            page.goto(SEARCH_URL, wait_until="domcontentloaded", timeout=90000)
             
             # Check for blocking
             content_lower = page.content().lower()
@@ -194,6 +203,7 @@ def check_delaware_availability(company_name: str, entity_type: str = "LLC") -> 
             # Fill search input
             search_term = extract_base_name(company_name)
             try:
+                page.wait_for_selector("input[name='ctl00$ContentPlaceHolder1$frmEntityName']", timeout=30000)
                 page.fill("input[name='ctl00$ContentPlaceHolder1$frmEntityName']", search_term)
             except Exception:
                 return {
@@ -226,7 +236,7 @@ def check_delaware_availability(company_name: str, entity_type: str = "LLC") -> 
                         'existing_entities': []
                     }
             
-            page.wait_for_load_state("domcontentloaded", timeout=60000)
+            page.wait_for_load_state("domcontentloaded", timeout=90000)
             
             # Check for blocking after submit
             html = page.content()
@@ -310,10 +320,31 @@ def check_delaware_availability(company_name: str, entity_type: str = "LLC") -> 
                 }
             
             finally:
-                context.close()
-                browser.close()
-                
+                try:
+                    context.close()
+                except Exception:
+                    pass
+                try:
+                    browser.close()
+                except Exception:
+                    pass
+    # Single retry if browser/page closed unexpectedly
+    try:
+        return run_once()
     except Exception as e:
+        msg = str(e)
+        if "has been closed" in msg or "BrowserContext" in msg or "Target page" in msg:
+            time.sleep(2)
+            try:
+                return run_once()
+            except Exception as e2:
+                return {
+                    'success': False,
+                    'available': False,
+                    'message': f'Error checking Delaware availability (retry): {str(e2)}',
+                    'method': 'delaware_playwright',
+                    'existing_entities': []
+                }
         return {
             'success': False,
             'available': False,
