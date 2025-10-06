@@ -1,7 +1,7 @@
 version: 0.2
 env:
   variables:
-    AWS_ACCOUNT_ID: "132501409562"
+    AWS_ACCOUNT_ID: ""
     AWS_DEFAULT_REGION: "us-west-1"
     IMAGE_REPO_NAME: "delaware-playwright-lambda"
     IMAGE_TAG: "latest"
@@ -9,6 +9,8 @@ env:
 phases:
   pre_build:
     commands:
+      - echo Detecting AWS Account ID via STS...
+      - export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
       - echo Logging in to Amazon ECR...
       - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
       - echo Build started on `date`
