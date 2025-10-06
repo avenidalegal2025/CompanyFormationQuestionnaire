@@ -1,4 +1,11 @@
 version: 0.2
+env:
+  variables:
+    AWS_ACCOUNT_ID: "132501409562"
+    AWS_DEFAULT_REGION: "us-west-1"
+    IMAGE_REPO_NAME: "delaware-playwright-lambda"
+    IMAGE_TAG: "latest"
+    LAMBDA_FUNCTION_NAME: "delaware-playwright-lambda"
 phases:
   pre_build:
     commands:
