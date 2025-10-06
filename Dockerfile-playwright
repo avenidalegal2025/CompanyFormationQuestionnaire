@@ -27,9 +27,9 @@ RUN yum update -y && \
 COPY requirements_playwright.txt /var/task/requirements.txt
 RUN pip install -r /var/task/requirements.txt
 
-# Install Playwright browsers
+# Install Playwright browsers with explicit path
 ENV PLAYWRIGHT_BROWSERS_PATH=/tmp/ms-playwright
-RUN playwright install chromium
+RUN python -m playwright install chromium
 
 # Copy Lambda function and dependencies
 COPY delaware_lambda_playwright.py /var/task/simple_lambda.py
