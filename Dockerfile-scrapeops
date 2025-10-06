@@ -1,0 +1,11 @@
+FROM --platform=linux/amd64 public.ecr.aws/lambda/python:3.9
+
+# Copy requirements and install dependencies
+COPY requirements_scrapeops.txt /var/task/requirements.txt
+RUN pip install -r /var/task/requirements.txt
+
+# Copy the Lambda function
+COPY simple_lambda.py /var/task/simple_lambda.py
+
+# Set the CMD to your handler
+CMD ["simple_lambda.lambda_handler"]

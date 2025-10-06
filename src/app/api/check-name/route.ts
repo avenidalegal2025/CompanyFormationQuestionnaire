@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
 
 const REGION = "us-west-1";
-const SUNBIZ_FUNCTION_NAME = "simple-sunbiz-check";
+const SUNBIZ_FUNCTION_NAME = "sunbiz-lambda-latest";
 const WYOMING_FUNCTION_NAME = "wyoming-lambda";
+const DELAWARE_FUNCTION_NAME = "delaware-playwright-lambda";
 
 console.log("Environment check:");
 console.log("AWS_REGION:", process.env.AWS_REGION);
@@ -31,11 +32,13 @@ export async function POST(req: NextRequest) {
       functionName = SUNBIZ_FUNCTION_NAME;
     } else if (formationState === "Wyoming") {
       functionName = WYOMING_FUNCTION_NAME;
+    } else if (formationState === "Delaware") {
+      functionName = DELAWARE_FUNCTION_NAME;
     } else {
       return NextResponse.json({
         success: true,
         skipped: true,
-        message: "Availability check is only supported for Florida and Wyoming at this time.",
+        message: "Availability check is only supported for Florida, Wyoming, and Delaware at this time.",
       });
     }
 
@@ -62,10 +65,9 @@ export async function POST(req: NextRequest) {
     try {
       const first = JSON.parse(raw);
       if (first && typeof first === "object" && "body" in first && typeof first.body === "string") {
-        // New simplified response format - body contains the user message
-        const message = first.body;
-        const available = message.includes("AVAILABLE") && !message.includes("NOT AVAILABLE");
-        parsed = { available, message };
+        // Lambda returns structured JSON in body
+        const bodyData = JSON.parse(first.body);
+        parsed = bodyData;
       } else {
         // Fallback to old format
         parsed = first;
