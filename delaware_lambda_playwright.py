@@ -21,6 +21,8 @@ except ImportError:
     from playwright.sync_api import sync_playwright
 
 import requests
+import boto3
+from datetime import datetime
 
 # Configuration
 SCRAPEOPS_API_KEY = os.environ.get("SCRAPEOPS_API_KEY", "b3a2e586-8c39-4115-8ffb-590ad8750116")
@@ -146,6 +148,22 @@ def solve_captcha_image_bytes(image_bytes: bytes) -> Optional[str]:
 def check_delaware_availability(company_name: str, entity_type: str = "LLC") -> Dict[str, Any]:
     """Check if a company name is available in Delaware using Playwright"""
     
+    def s3_upload_bytes(key: str, data: bytes) -> Optional[str]:
+        bucket = os.environ.get("S3_BUCKET")
+        prefix = os.environ.get("S3_PREFIX", "")
+        if not bucket:
+            return None
+        if prefix:
+            key_path = f"{prefix.rstrip('/')}/{key}"
+        else:
+            key_path = key
+        try:
+            s3 = boto3.client('s3')
+            s3.put_object(Bucket=bucket, Key=key_path, Body=data, ACL='private', ContentType='image/png')
+            return f"s3://{bucket}/{key_path}"
+        except Exception:
+            return None
+
     def run_once(pre_wait_ms: int = 0, preferred_device: Optional[str] = None) -> Dict[str, Any]:
         with sync_playwright() as p:
             # Randomize mobile device for better stealth
@@ -183,6 +201,13 @@ def check_delaware_availability(company_name: str, entity_type: str = "LLC") -> 
             
             # Go to search page
             page.goto(SEARCH_URL, wait_until="domcontentloaded", timeout=90000)
+            # Screenshot after load
+            try:
+                ts = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
+                img = page.screenshot(full_page=True)
+                s3_upload_bytes(f"delaware_{ts}_load.png", img)
+            except Exception:
+                pass
             # Human-like delay after load
             dwell = pre_wait_ms if pre_wait_ms > 0 else random.randint(10000, 15000)
             page.wait_for_timeout(dwell)
@@ -297,6 +322,13 @@ def check_delaware_availability(company_name: str, entity_type: str = "LLC") -> 
             # Submit form
             try:
                 page.click("input[name='ctl00$ContentPlaceHolder1$btnSubmit']", timeout=30000)
+                # Screenshot pre-submit area
+                try:
+                    ts = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
+                    img = page.screenshot(full_page=True)
+                    s3_upload_bytes(f"delaware_{ts}_before_submit.png", img)
+                except Exception:
+                    pass
                 page.wait_for_timeout(random.randint(1500, 3000))
             except Exception:
                 try:
