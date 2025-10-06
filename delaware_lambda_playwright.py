@@ -170,7 +170,6 @@ def check_delaware_availability(company_name: str, entity_type: str = "LLC") -> 
             context = browser.new_context(
                 **device,
                 ignore_https_errors=True,
-                user_agent=device.get("user_agent"),
                 locale="en-US",
                 extra_http_headers={
                     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
