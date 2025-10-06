@@ -172,13 +172,20 @@ def check_delaware_availability(company_name: str, entity_type: str = "LLC") -> 
                 ignore_https_errors=True,
                 user_agent=device.get("user_agent"),
                 locale="en-US",
+                extra_http_headers={
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+                    "Accept-Language": "en-US,en;q=0.9",
+                    "Cache-Control": "no-cache",
+                    "Pragma": "no-cache",
+                    "Upgrade-Insecure-Requests": "1",
+                },
             )
             page = context.new_page()
             
             # Go to search page
             page.goto(SEARCH_URL, wait_until="domcontentloaded", timeout=90000)
-            # Small human-like delay after load
-            page.wait_for_timeout(random.randint(1500, 3200))
+            # Human-like delay after load
+            page.wait_for_timeout(random.randint(6000, 9000))
             
             # Check for blocking
             content_lower = page.content().lower()
