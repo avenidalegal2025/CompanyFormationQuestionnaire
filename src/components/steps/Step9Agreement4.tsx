@@ -42,8 +42,53 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext }: StepP
                 />
               </div>
               <div>
-                <label className="label">¿Podrán los accionistas libremente transferir sus acciones a sus parientes, o deberá ser esta transferencia sujeta a una decisión unánime, mayoría o el 65.1% de los accionistas?</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.corp_transferToRelatives")} />
+                <label className="label flex items-center gap-2">
+                  ¿Podrán los accionistas libremente transferir sus acciones a sus parientes, o deberá ser esta transferencia sujeta a una decisión unánime o mayoría de los accionistas?
+                  <InfoTooltip
+                    title="Transferencia de Acciones a Parientes"
+                    body="Esta cláusula establece si los accionistas pueden transferir sus acciones a familiares sin restricciones, o si requiere aprobación de otros accionistas. Puede ser libre, requerir decisión unánime, o requerir mayoría."
+                  />
+                </label>
+                <Controller
+                  name="agreement.corp_transferToRelatives"
+                  control={control}
+                  render={({ field }) => (
+                    <select className="input mt-1" {...field}>
+                      <option value="">Seleccionar opción</option>
+                      <option value="Sí, podrán transferir libremente sus acciones.">
+                        Sí, podrán transferir libremente sus acciones.
+                      </option>
+                      <option value="Sí, podrán transferir sus acciones si la decisión de los accionistas es unánime.">
+                        Sí, podrán transferir sus acciones si la decisión de los accionistas es unánime.
+                      </option>
+                      <option value="Sí, podrán transferir sus acciones si la decisión de la mayoría los accionistas.">
+                        Sí, podrán transferir sus acciones si la decisión de la mayoría los accionistas.
+                      </option>
+                    </select>
+                  )}
+                />
+                {watch("agreement.corp_transferToRelatives") === "Sí, podrán transferir sus acciones si la decisión de la mayoría los accionistas." && (
+                  <div className="mt-3">
+                    <label className="label">Porcentaje requerido para mayoría</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="50.01"
+                        max="99.99"
+                        step="0.01"
+                        className="input w-24"
+                        placeholder="50.1"
+                        {...register("agreement.corp_transferToRelativesMajority", { 
+                          valueAsNumber: true,
+                          min: 50.01,
+                          max: 99.99
+                        })}
+                      />
+                      <span className="text-sm text-gray-500">%</span>
+                    </div>
+                    <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
+              </div>
+                )}
               </div>
               <div>
                 <label className="label flex items-center gap-2">

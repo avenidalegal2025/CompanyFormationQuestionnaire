@@ -128,6 +128,7 @@ export const AgreementSchema = z
     // C-Corp shares & succession
     corp_rofr: z.enum(["Yes", "No"]).optional(),
     corp_transferToRelatives: z.string().optional(),
+    corp_transferToRelativesMajority: z.number().min(50.01).max(99.99).optional(),
     corp_incapacityHeirsPolicy: z.enum(["Yes", "No"]).optional(),
     corp_divorceBuyoutPolicy: z.enum(["Yes", "No"]).optional(),
     corp_tagDragRights: z.enum(["Yes", "No"]).optional(),
