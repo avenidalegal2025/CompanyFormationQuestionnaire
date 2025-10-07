@@ -440,25 +440,20 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                             render={({ field }) => (
                               <input
                                 className="input mt-1"
+                                inputMode="numeric"
+                                placeholder="123-45-6789"
                                 value={field.value ?? ""}
                                 onChange={(e) => {
                                   const digits = e.target.value.replace(/[^0-9]/g, "").slice(0, 9);
-                                  // If 9 digits and first two are not 00, format as EIN (XX-XXXXXXX)
-                                  if (digits.length === 9 && Number(digits.slice(0, 2)) > 0 && Number(digits.slice(2, 3)) >= 0) {
-                                    // Heuristic: if the user typed a dash after 2 digits or current value already looks like EIN, keep EIN
-                                    if (e.target.value.length <= 10 && /\d{2}-?\d{0,7}/.test(e.target.value)) {
-                                      field.onChange(`${digits.slice(0,2)}-${digits.slice(2)}`);
-                                      return;
-                                    }
-                                  }
-                                  // Default to SSN style XXX-XX-XXXX
-                                  if (digits.length <= 5) {
-                                    field.onChange(digits.replace(/(\d{3})(\d{0,2})?/, (m, a, b) => (b ? `${a}-${b}` : a)));
+                                  // Always format as SSN XXX-XX-XXXX while typing
+                                  if (digits.length <= 3) {
+                                    field.onChange(digits);
+                                  } else if (digits.length <= 5) {
+                                    field.onChange(`${digits.slice(0,3)}-${digits.slice(3)}`);
                                   } else {
-                                    field.onChange(`${digits.slice(0,3)}-${digits.slice(3,5)}-${digits.slice(5,9)}`);
+                                    field.onChange(`${digits.slice(0,3)}-${digits.slice(3,5)}-${digits.slice(5)}`);
                                   }
                                 }}
-                                placeholder="SSN: 123-45-6789 o EIN: 12-3456789"
                               />
                             )}
                           />
