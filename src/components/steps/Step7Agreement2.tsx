@@ -160,16 +160,119 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
           ) : (
             <>
               <div>
-                <label className="label">Adición de nuevos miembros a la LLC: ¿Cómo se añadirán? ¿Decisión unánime?</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.llc_newMembersAdmission")} />
+                <label className="label flex items-center gap-2">
+                  Adición de nuevos miembros a la LLC: ¿Cómo se añadirán?
+                  <InfoTooltip
+                    title="Admisión de Nuevos Miembros"
+                    body="Esta cláusula establece el proceso para añadir nuevos miembros a la LLC. Puede requerir decisión unánime (todos los miembros deben estar de acuerdo) o mayoría (un porcentaje específico de miembros)."
+                  />
+                </label>
+                <Controller
+                  name="agreement.llc_newMembersAdmission"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "Decisión Unánime"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Decisión Unánime", label: "Decisión Unánime" },
+                        { value: "Mayoría", label: "Mayoría" },
+                      ]}
+                      ariaLabel="New members admission"
+                      name={field.name}
+                    />
+                  )}
+                />
+                {watch("agreement.llc_newMembersAdmission") === "Mayoría" && (
+                  <div className="mt-3">
+                    <label className="label">Porcentaje requerido para mayoría</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="50.01"
+                        max="99.99"
+                        step="0.01"
+                        className="input w-24"
+                        placeholder="50.1"
+                        {...register("agreement.llc_newMembersMajority", { 
+                          valueAsNumber: true,
+                          min: 50.01,
+                          max: 99.99
+                        })}
+                      />
+                      <span className="text-sm text-gray-500">%</span>
+                    </div>
+                    <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
+                  </div>
+                )}
               </div>
               <div>
-                <label className="label">Aportaciones de capital adicionales: ¿Cómo se manejarán si se necesita más dinero? (Ej. $100 mil extra → cada socio aporta según porcentaje)</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.llc_additionalContributions")} />
-              </div>
-              <div>
-                <label className="label">Retiro de aportaciones: ¿Solamente permitido al vender acciones o disolver la compañía?</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.llc_withdrawContributions")} />
+                <label className="label flex items-center gap-2">
+                  Aportaciones de capital adicionales: ¿Se haría en el mismo porcentaje a su participación, Pro-Rata? Ejemplo: Si se necesitara $100 mil más en capital, un socio con el 50% de participación necesitaría invertir unos 50 mil más.
+                  <InfoTooltip
+                    title="Aportaciones de Capital Pro-Rata"
+                    body="Pro-Rata significa que cada socio debe aportar capital adicional en la misma proporción que su participación en la LLC. Si no es Pro-Rata, se puede establecer un proceso diferente para decidir las aportaciones."
+                  />
+                </label>
+                <Controller
+                  name="agreement.llc_additionalContributions"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "Sí, Pro-Rata"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Sí, Pro-Rata", label: "Sí, Pro-Rata" },
+                        { value: "No", label: "No" },
+                      ]}
+                      ariaLabel="Additional contributions process"
+                      name={field.name}
+                    />
+                  )}
+                />
+                {watch("agreement.llc_additionalContributions") === "No" && (
+                  <div className="mt-3">
+                    <label className="label">¿Cómo se decidiría la proporción de las aportaciones?</label>
+                    <Controller
+                      name="agreement.llc_additionalContributionsDecision"
+                      control={control}
+                      render={({ field }) => (
+                        <SegmentedToggle
+                          value={field.value || "Decisión Unánime"}
+                          onChange={field.onChange}
+                          options={[
+                            { value: "Decisión Unánime", label: "Decisión Unánime" },
+                            { value: "Mayoría", label: "Mayoría" },
+                          ]}
+                          ariaLabel="Additional contributions decision"
+                          name={field.name}
+                        />
+                      )}
+                    />
+                    {watch("agreement.llc_additionalContributionsDecision") === "Mayoría" && (
+                      <div className="mt-3">
+                        <label className="label">Porcentaje requerido para mayoría</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="50.01"
+                            max="99.99"
+                            step="0.01"
+                            className="input w-24"
+                            placeholder="50.1"
+                            {...register("agreement.llc_additionalContributionsMajority", { 
+                              valueAsNumber: true,
+                              min: 50.01,
+                              max: 99.99
+                            })}
+                          />
+                          <span className="text-sm text-gray-500">%</span>
+                        </div>
+                        <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <div>
                 <label className="label flex items-center gap-2">

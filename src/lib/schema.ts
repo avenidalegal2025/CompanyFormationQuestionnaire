@@ -159,8 +159,11 @@ export const AgreementSchema = z
     llc_specificRoles_4: z.string().optional(),
     llc_specificRoles_5: z.string().optional(),
     // LLC capital & loans
-    llc_newMembersAdmission: z.string().optional(),
-    llc_additionalContributions: z.string().optional(),
+    llc_newMembersAdmission: z.enum(["Decisión Unánime", "Mayoría"]).optional(),
+    llc_newMembersMajority: z.number().min(50.01).max(99.99).optional(),
+    llc_additionalContributions: z.enum(["Sí, Pro-Rata", "No"]).optional(),
+    llc_additionalContributionsDecision: z.enum(["Decisión Unánime", "Mayoría"]).optional(),
+    llc_additionalContributionsMajority: z.number().min(50.01).max(99.99).optional(),
     llc_withdrawContributions: z.string().optional(),
     llc_memberLoans: z.enum(["Yes", "No"]).optional(),
     // LLC governance & decisions
