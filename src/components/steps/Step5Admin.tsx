@@ -13,7 +13,7 @@ import type { StepProps } from "./types";
 const fp = (s: string) => s as unknown as FieldPath<AllSteps>;
 
 export default function Step5Admin({ form, setStep, onSave, onNext }: StepProps) {
-  const { control, register, watch } = form;
+  const { control, register, watch, setValue } = form;
 
   const entityType = watch("company.entityType");
 
@@ -27,6 +27,13 @@ export default function Step5Admin({ form, setStep, onSave, onNext }: StepProps)
   // LLC: managers
   const managersAllOwners = watch("admin.managersAllOwners");
   const managersCount = watch("admin.managersCount") || 1;
+
+  // Track selected officer roles to prevent duplicates
+  const selectedRoles = Array.from({ length: officersCount || 0 }).map((_, idx) => 
+    watch(`admin.officer${idx + 1}Role`) as string
+  ).filter(role => role && role !== "");
+
+  const availableRoles = ["President", "Vice-President", "Treasurer", "Secretary"];
 
   return (
     <section className="space-y-6">
@@ -251,19 +258,43 @@ export default function Step5Admin({ form, setStep, onSave, onNext }: StepProps)
                         <Controller
                           name={fp(`admin.officer${idx + 1}Role`)}
                           control={control}
-                          render={({ field }) => (
-                            <select
-                              className="input"
-                              value={field.value as string || ""}
-                              onChange={field.onChange}
-                            >
-                              <option value="">Seleccionar rol</option>
-                              <option value="President">President</option>
-                              <option value="Vice-President">Vice-President</option>
-                              <option value="Treasurer">Treasurer</option>
-                              <option value="Secretary">Secretary</option>
-                            </select>
-                          )}
+                          render={({ field }) => {
+                            const currentRole = field.value as string;
+                            const otherSelectedRoles = selectedRoles.filter((_, roleIdx) => roleIdx !== idx);
+                            const availableOptions = availableRoles.filter(role => 
+                              !otherSelectedRoles.includes(role)
+                            );
+                            
+                            return (
+                              <select
+                                className="input"
+                                value={currentRole || ""}
+                                onChange={(e) => {
+                                  field.onChange(e);
+                                  // If the new role was previously selected by another officer, clear it
+                                  const newRole = e.target.value;
+                                  if (newRole && newRole !== "") {
+                                    Array.from({ length: officersCount || 0 }).forEach((_, otherIdx) => {
+                                      if (otherIdx !== idx) {
+                                        const otherRole = watch(`admin.officer${otherIdx + 1}Role`) as string;
+                                        if (otherRole === newRole) {
+                                          setValue(`admin.officer${otherIdx + 1}Role`, "");
+                                        }
+                                      }
+                                    });
+                                  }
+                                }}
+                              >
+                                <option value="">Seleccionar rol</option>
+                                {availableOptions.map(role => (
+                                  <option key={role} value={role}>
+                                    {role}
+                                    {currentRole === role ? " (Seleccionado)" : ""}
+                                  </option>
+                                ))}
+                              </select>
+                            );
+                          }}
                         />
                       </div>
                     </div>
