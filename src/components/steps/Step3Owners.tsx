@@ -25,7 +25,7 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
   const heroTitle = isCorp ? "Datos de los accionistas" : "Datos de los socios";
 
   // How many blocks to render (stored at root as ownersCount)
-  const ownersCount = watch("ownersCount") as number | undefined ?? 1;
+  const ownersCount = (watch("ownersCount") as number | undefined) ?? 1;
   console.log("Current ownersCount:", ownersCount);
 
   // Calculate total percentage owned
@@ -54,16 +54,16 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
             type="number"
             min={1}
             max={MAX_OWNERS}
-            className="input w-full max-w-xs"
-            value={ownersCount === 1 ? "" : ownersCount}
-            placeholder="1"
+            className="input w-full max-w-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            value={ownersCount === 1 ? "" : ownersCount || ""}
+            placeholder="Ingrese número (1-6)"
             onChange={(e) => {
               const value = e.target.value;
               console.log("Input value:", value);
               
-              // Allow empty string
+              // Allow empty string - don't set to 1 automatically
               if (value === "") {
-                setValue("ownersCount", 1);
+                setValue("ownersCount", 1); // Keep 1 as default for rendering
                 return;
               }
               
@@ -81,7 +81,7 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
             }}
             onKeyDown={(e) => {
               // Prevent typing invalid characters
-              if (e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '-') {
+              if (e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '-' || e.key === '.') {
                 e.preventDefault();
               }
             }}

@@ -24,7 +24,7 @@ export default function Page() {
       profile: {},     // kept in schema but unused in UI (email comes from Auth0)
       company: {},
       owners: [],
-      ownersCount: 1,
+      ownersCount: undefined, // Start empty, will default to 1 for rendering
       admin: {},
       banking: {},
       attachments: {},
