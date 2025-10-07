@@ -164,8 +164,51 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
           ) : (
             <>
               <div>
-                <label className="label">Venta de la compañía: ¿Decisión unánime?</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.llc_companySaleDecision")} />
+                <label className="label flex items-center gap-2">
+                  Venta de la compañía: ¿Decisión unánime o por mayoría?
+                  <InfoTooltip
+                    title="Decisión de Venta de la Compañía (LLC)"
+                    body="Esta cláusula establece el proceso para decidir si vender la compañía. Puede requerir decisión unánime (todos los miembros deben estar de acuerdo) o mayoría (un porcentaje específico de miembros)."
+                  />
+                </label>
+                <Controller
+                  name="agreement.llc_companySaleDecision"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "Decisión Unánime"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Decisión Unánime", label: "Decisión Unánime" },
+                        { value: "Mayoría", label: "Mayoría" },
+                      ]}
+                      ariaLabel="LLC sale decision"
+                      name={field.name}
+                    />
+                  )}
+                />
+                {watch("agreement.llc_companySaleDecision") === "Mayoría" && (
+                  <div className="mt-3">
+                    <label className="label">Porcentaje requerido para mayoría</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="50.01"
+                        max="99.99"
+                        step="0.01"
+                        className="input w-24"
+                        placeholder="50.1"
+                        {...register("agreement.llc_companySaleDecisionMajority", {
+                          valueAsNumber: true,
+                          min: 50.01,
+                          max: 99.99,
+                        })}
+                      />
+                      <span className="text-sm text-gray-500">%</span>
+              </div>
+                    <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
+              </div>
+                )}
               </div>
               <div>
                 <label className="label flex items-center gap-2">
@@ -244,12 +287,42 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                 />
               </div>
               <div>
-                <label className="label">Decisiones mayores (ej. &gt; $10,000): ¿Unánimes o cualquiera de los dueños?</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.llc_majorDecisions")} />
+                <label className="label">Decisiones mayores (ej. &gt; $10,000):</label>
+                <Controller
+                  name="agreement.llc_majorDecisions"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "Unánime"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Unánime", label: "Unánime" },
+                        { value: "Cualquiera de los dueños", label: "Cualquiera de los dueños" },
+                      ]}
+                      ariaLabel="LLC major decisions"
+                      name={field.name}
+                    />
+                  )}
+                />
               </div>
               <div>
-                <label className="label">Decisiones menores (&lt; $10,000): ¿Unánimes o cualquiera de los dueños?</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.llc_minorDecisions")} />
+                <label className="label">Decisiones menores (&lt; $10,000):</label>
+                <Controller
+                  name="agreement.llc_minorDecisions"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "Unánime"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Unánime", label: "Unánime" },
+                        { value: "Cualquiera de los dueños", label: "Cualquiera de los dueños" },
+                      ]}
+                      ariaLabel="LLC minor decisions"
+                      name={field.name}
+                    />
+                  )}
+                />
               </div>
             </>
           )}

@@ -167,12 +167,13 @@ export const AgreementSchema = z
     llc_withdrawContributions: z.string().optional(),
     llc_memberLoans: z.enum(["Yes", "No"]).optional(),
     // LLC governance & decisions
-    llc_companySaleDecision: z.string().optional(),
+    llc_companySaleDecision: z.enum(["Decisión Unánime", "Mayoría"]).optional(),
+    llc_companySaleDecisionMajority: z.number().min(50.01).max(99.99).optional(),
     llc_taxPartner: z.string().optional(),
     llc_nonCompete: z.enum(["Yes", "No"]).optional(),
     llc_bankSigners: z.enum(["Un firmante", "Dos firmantes"]).optional(),
-    llc_majorDecisions: z.string().optional(),
-    llc_minorDecisions: z.string().optional(),
+    llc_majorDecisions: z.enum(["Unánime", "Cualquiera de los dueños"]).optional(),
+    llc_minorDecisions: z.enum(["Unánime", "Cualquiera de los dueños"]).optional(),
     llc_managerRestrictions: z.string().optional(),
     llc_deadlockResolution: z.string().optional(),
     llc_keyManInsurance: z.string().optional(),
@@ -180,8 +181,10 @@ export const AgreementSchema = z
     // LLC actions & succession
     llc_rofr: z.enum(["Yes", "No"]).optional(),
     llc_incapacityHeirsPolicy: z.enum(["Yes", "No"]).optional(),
-    llc_newPartnersAdmission: z.string().optional(),
-    llc_dissolutionDecision: z.string().optional(),
+    llc_newPartnersAdmission: z.enum(["Decisión Unánime", "Mayoría"]).optional(),
+    llc_newPartnersMajority: z.number().min(50.01).max(99.99).optional(),
+    llc_dissolutionDecision: z.enum(["Decisión Unánime", "Mayoría"]).optional(),
+    llc_dissolutionDecisionMajority: z.number().min(50.01).max(99.99).optional(),
     llc_specificTerms: z.string().optional(),
   })
   .and(z.record(z.string(), z.unknown()).optional());

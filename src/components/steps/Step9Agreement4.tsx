@@ -219,12 +219,98 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext }: StepP
                 />
               </div>
               <div>
-                <label className="label">Admisión de nuevos socios/partners: ¿Decisión unánime?</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.llc_newPartnersAdmission")} />
+                <label className="label flex items-center gap-2">
+                  Admisión de nuevos socios/partners: ¿Decisión unánime o por mayoría?
+                  <InfoTooltip
+                    title="Admisión de Nuevos Socios"
+                    body="Esta cláusula establece el proceso para añadir nuevos socios a la LLC. Puede requerir decisión unánime o mayoría con un porcentaje específico."
+                  />
+                </label>
+                <Controller
+                  name="agreement.llc_newPartnersAdmission"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "Decisión Unánime"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Decisión Unánime", label: "Decisión Unánime" },
+                        { value: "Mayoría", label: "Mayoría" },
+                      ]}
+                      ariaLabel="LLC new partners admission"
+                      name={field.name}
+                    />
+                  )}
+                />
+                {watch("agreement.llc_newPartnersAdmission") === "Mayoría" && (
+                  <div className="mt-3">
+                    <label className="label">Porcentaje requerido para mayoría</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="50.01"
+                        max="99.99"
+                        step="0.01"
+                        className="input w-24"
+                        placeholder="50.1"
+                        {...register("agreement.llc_newPartnersMajority", {
+                          valueAsNumber: true,
+                          min: 50.01,
+                          max: 99.99,
+                        })}
+                      />
+                      <span className="text-sm text-gray-500">%</span>
+                    </div>
+                    <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
+                  </div>
+                )}
               </div>
               <div>
-                <label className="label">Disolución de la LLC: ¿Decisión unánime?</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.llc_dissolutionDecision")} />
+                <label className="label flex items-center gap-2">
+                  Disolución de la LLC: ¿Decisión unánime o por mayoría?
+                  <InfoTooltip
+                    title="Disolución de la LLC"
+                    body="Esta cláusula establece el proceso para cerrar la LLC. Puede requerir decisión unánime o mayoría con un porcentaje específico."
+                  />
+                </label>
+                <Controller
+                  name="agreement.llc_dissolutionDecision"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "Decisión Unánime"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Decisión Unánime", label: "Decisión Unánime" },
+                        { value: "Mayoría", label: "Mayoría" },
+                      ]}
+                      ariaLabel="LLC dissolution decision"
+                      name={field.name}
+                    />
+                  )}
+                />
+                {watch("agreement.llc_dissolutionDecision") === "Mayoría" && (
+                  <div className="mt-3">
+                    <label className="label">Porcentaje requerido para mayoría</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="50.01"
+                        max="99.99"
+                        step="0.01"
+                        className="input w-24"
+                        placeholder="50.1"
+                        {...register("agreement.llc_dissolutionDecisionMajority", {
+                          valueAsNumber: true,
+                          min: 50.01,
+                          max: 99.99,
+                        })}
+                      />
+                      <span className="text-sm text-gray-500">%</span>
+                    </div>
+                    <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
+              </div>
+                )}
               </div>
             </>
           )}
