@@ -1,0 +1,12 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowPutFromOtherAccountLambdaRole",
+      "Effect": "Allow",
+      "Principal": {"AWS": "arn:aws:iam::132501409562:role/lambda-delaware-playwright-role"},
+      "Action": ["s3:PutObject", "s3:PutObjectAcl"],
+      "Resource": "arn:aws:s3:::delaware-playwright-screenshots-043206426879-us-west-1/*"
+    }
+  ]
+}

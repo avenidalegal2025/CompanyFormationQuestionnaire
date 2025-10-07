@@ -1,11 +1,17 @@
 "use client";
 
+import { Controller } from "react-hook-form";
+import CurrencyInput from "@/components/CurrencyInput";
 import type { StepProps } from "./types";
 
 export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepProps) {
-  const { register, watch } = form;
+  const { register, watch, control } = form;
   const entityType = watch("company.entityType");
   const isCorp = entityType === "C-Corp";
+  
+  // Get owners data
+  const ownersData = watch("owners") || [];
+  const ownersCount = watch("ownersCount") || 1;
 
   return (
     <section className="space-y-6">
@@ -16,7 +22,32 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepP
             <>
               <div>
                 <label className="label">¿Cuánto capital ha invertido cada dueño?</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.corp_capitalPerOwner")} />
+                <div className="mt-2 space-y-3">
+                  {Array.from({ length: ownersCount }).map((_, idx) => {
+                    const ownerName = ownersData[idx]?.fullName || `Accionista ${idx + 1}`;
+                    return (
+                      <div key={idx} className="flex items-center gap-4">
+                        <div className="min-w-[200px] text-sm font-medium text-gray-700">
+                          {ownerName}:
+                        </div>
+                        <div className="flex-1">
+                          <Controller
+                            name={`agreement.corp_capitalPerOwner_${idx}` as never}
+                            control={control}
+                            render={({ field }) => (
+                              <CurrencyInput
+                                value={field.value || ""}
+                                onChange={field.onChange}
+                                placeholder="0.00"
+                                className="w-full"
+                              />
+                            )}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
               <div>
                 <label className="label">¿Habrán responsabilidades específicas para cada dueño?</label>
@@ -31,7 +62,32 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepP
             <>
               <div>
                 <label className="label">Aportaciones de capital: ¿Cuánto dinero está contribuyendo cada dueño al negocio?</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.llc_capitalContributions")} />
+                <div className="mt-2 space-y-3">
+                  {Array.from({ length: ownersCount }).map((_, idx) => {
+                    const ownerName = ownersData[idx]?.fullName || `Socio ${idx + 1}`;
+                    return (
+                      <div key={idx} className="flex items-center gap-4">
+                        <div className="min-w-[200px] text-sm font-medium text-gray-700">
+                          {ownerName}:
+                        </div>
+                        <div className="flex-1">
+                          <Controller
+                            name={`agreement.llc_capitalContributions_${idx}` as never}
+                            control={control}
+                            render={({ field }) => (
+                              <CurrencyInput
+                                value={field.value || ""}
+                                onChange={field.onChange}
+                                placeholder="0.00"
+                                className="w-full"
+                              />
+                            )}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
               <div>
                 <label className="label">¿Ambos dueños van a operar el negocio como miembros administradores (con derecho a firmar y tomar decisiones)?</label>

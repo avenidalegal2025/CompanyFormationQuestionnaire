@@ -98,6 +98,12 @@ export const AgreementSchema = z
     wants: z.enum(["Yes", "No"]).optional(),
     // C-Corp specific fields (owners & roles)
     corp_capitalPerOwner: z.string().optional(),
+    corp_capitalPerOwner_0: z.string().optional(),
+    corp_capitalPerOwner_1: z.string().optional(),
+    corp_capitalPerOwner_2: z.string().optional(),
+    corp_capitalPerOwner_3: z.string().optional(),
+    corp_capitalPerOwner_4: z.string().optional(),
+    corp_capitalPerOwner_5: z.string().optional(),
     corp_specificResponsibilities: z.string().optional(),
     corp_hoursCommitment: z.string().optional(),
     // C-Corp capital & loans
@@ -122,6 +128,12 @@ export const AgreementSchema = z
 
     // LLC specific fields (owners & roles)
     llc_capitalContributions: z.string().optional(),
+    llc_capitalContributions_0: z.string().optional(),
+    llc_capitalContributions_1: z.string().optional(),
+    llc_capitalContributions_2: z.string().optional(),
+    llc_capitalContributions_3: z.string().optional(),
+    llc_capitalContributions_4: z.string().optional(),
+    llc_capitalContributions_5: z.string().optional(),
     llc_managingMembers: z.string().optional(),
     llc_specificRoles: z.string().optional(),
     // LLC capital & loans
