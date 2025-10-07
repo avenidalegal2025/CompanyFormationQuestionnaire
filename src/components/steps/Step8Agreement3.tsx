@@ -44,19 +44,21 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                   <div className="mt-3">
                     <label className="label">Porcentaje requerido para mayoría</label>
                     <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min="50.01"
-                        max="99.99"
-                        step="0.01"
-                        className="input w-1/6 min-w-[96px]"
-                        placeholder="50.1"
-                        {...register("agreement.corp_saleDecisionMajority", { 
-                          valueAsNumber: true,
-                          min: 50.01,
-                          max: 99.99
-                        })}
-                      />
+                      <div className="w-1/6 min-w-[120px]">
+                        <input
+                          type="number"
+                          min="50.01"
+                          max="99.99"
+                          step="0.01"
+                          className="input w-full"
+                          placeholder="50.1"
+                          {...register("agreement.corp_saleDecisionMajority", { 
+                            valueAsNumber: true,
+                            min: 50.01,
+                            max: 99.99
+                          })}
+                        />
+                      </div>
                       <span className="text-sm text-gray-500">%</span>
                     </div>
                     <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
@@ -116,19 +118,21 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                   <div className="mt-3">
                     <label className="label">Porcentaje requerido para mayoría</label>
                     <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min="50.01"
-                        max="99.99"
-                        step="0.01"
-                        className="input w-1/6 min-w-[96px]"
-                        placeholder="50.1"
-                        {...register("agreement.corp_majorDecisionMajority", { 
-                          valueAsNumber: true,
-                          min: 50.01,
-                          max: 99.99
-                        })}
-                      />
+                      <div className="w-1/6 min-w-[120px]">
+                        <input
+                          type="number"
+                          min="50.01"
+                          max="99.99"
+                          step="0.01"
+                          className="input w-full"
+                          placeholder="50.1"
+                          {...register("agreement.corp_majorDecisionMajority", { 
+                            valueAsNumber: true,
+                            min: 50.01,
+                            max: 99.99
+                          })}
+                        />
+                      </div>
                       <span className="text-sm text-gray-500">%</span>
               </div>
                     <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
@@ -191,19 +195,21 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                   <div className="mt-3">
                     <label className="label">Porcentaje requerido para mayoría</label>
                     <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min="50.01"
-                        max="99.99"
-                        step="0.01"
-                        className="input w-1/6 min-w-[96px]"
-                        placeholder="50.1"
-                        {...register("agreement.llc_companySaleDecisionMajority", {
-                          valueAsNumber: true,
-                          min: 50.01,
-                          max: 99.99,
-                        })}
-                      />
+                      <div className="w-1/6 min-w-[120px]">
+                        <input
+                          type="number"
+                          min="50.01"
+                          max="99.99"
+                          step="0.01"
+                          className="input w-full"
+                          placeholder="50.1"
+                          {...register("agreement.llc_companySaleDecisionMajority", {
+                            valueAsNumber: true,
+                            min: 50.01,
+                            max: 99.99,
+                          })}
+                        />
+                      </div>
                       <span className="text-sm text-gray-500">%</span>
               </div>
                     <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
