@@ -99,7 +99,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                   />
                 </div>
                 {watch("agreement.corp_moreCapitalProcess") === "No" && (
-                  <div className="mt-3">
+                  <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[420px]">
                     <label className="label flex items-center gap-2">¿Cómo se decidiría la proporción de las aportaciones?
                       <InfoTooltip
                         title="Decisión sobre Aportaciones"
@@ -151,7 +151,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                         <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
                       </div>
                     )}
-              </div>
+                  </div>
                 )}
               </div>
               <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
@@ -262,28 +262,38 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                   />
                 </div>
                 {watch("agreement.llc_additionalContributions") === "No" && (
-                  <div className="mt-3">
-                    <label className="label">¿Cómo se decidiría la proporción de las aportaciones?</label>
-                    <div className="flex items-center gap-4 flex-wrap">
-                      <Controller
-                        name="agreement.llc_additionalContributionsDecision"
-                        control={control}
-                        render={({ field }) => (
-                          <SegmentedToggle
-                            value={field.value || "Decisión Unánime"}
-                            onChange={field.onChange}
-                            options={[
-                              { value: "Decisión Unánime", label: "Unánime" },
-                              { value: "Mayoría", label: "Mayoría" },
-                            ]}
-                            ariaLabel="Additional contributions decision"
-                            name={field.name}
-                          />
-                        )}
+                  <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[420px]">
+                    <label className="label flex items-center gap-2">¿Cómo se decidiría la proporción de las aportaciones?
+                      <InfoTooltip
+                        title="Decisión sobre Aportaciones"
+                        body="Si no es Pro-Rata, especifique si las aportaciones adicionales se deciden por unanimidad o por mayoría y, de ser mayoría, el porcentaje requerido."
                       />
-                      {watch("agreement.llc_additionalContributionsDecision") === "Mayoría" && (
+                    </label>
+                    <Controller
+                      name="agreement.llc_additionalContributionsDecision"
+                      control={control}
+                      render={({ field }) => (
+                        <SegmentedToggle
+                          value={field.value || "Decisión Unánime"}
+                          onChange={field.onChange}
+                          options={[
+                            { value: "Decisión Unánime", label: "Unánime" },
+                            { value: "Mayoría", label: "Mayoría" },
+                          ]}
+                          ariaLabel="Additional contributions decision"
+                          name={field.name}
+                        />
+                      )}
+                    />
+                    {watch("agreement.llc_additionalContributionsDecision") === "Mayoría" && (
+                      <div className="mt-3">
+                        <label className="label flex items-center gap-2">Porcentaje requerido para mayoría
+                          <InfoTooltip
+                            title="Porcentaje de Mayoría"
+                            body="Porcentaje mínimo de aprobación para decisiones tomadas por mayoría (p. ej., 66.67%)."
+                          />
+                        </label>
                         <div className="flex items-center gap-2">
-                          <span className="label m-0">Porcentaje requerido para mayoría</span>
                           <div className="w-1/6 min-w-[120px]">
                             <input
                               type="number"
@@ -301,12 +311,10 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                           </div>
                           <span className="text-sm text-gray-500">%</span>
                         </div>
-                      )}
-                    </div>
-                    {watch("agreement.llc_additionalContributionsDecision") === "Mayoría" && (
-                      <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
+                        <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
+                      </div>
                     )}
-              </div>
+                  </div>
                 )}
               </div>
               <div className="mt-8 pt-8 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
