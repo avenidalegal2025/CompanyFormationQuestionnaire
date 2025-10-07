@@ -17,8 +17,51 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
           {isCorp ? (
             <>
               <div>
-                <label className="label">Si hubiese una oferta de compra o si usted quisiese vender la compañía, ¿quisiera que esta decisión se tome unánimemente, por mayoría o con un 65.1% de los accionistas?</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.corp_saleDecisionThreshold")} />
+                <label className="label flex items-center gap-2">
+                  Si hubiese una oferta de compra o si usted quisiese vender la compañía, ¿quisiera que esta decisión se tome unánimemente o por mayoría?
+                  <InfoTooltip
+                    title="Decisión de Venta de la Compañía"
+                    body="Esta cláusula establece el proceso para decidir si vender la compañía. Puede requerir decisión unánime (todos los accionistas deben estar de acuerdo) o mayoría (un porcentaje específico de accionistas)."
+                  />
+                </label>
+                <Controller
+                  name="agreement.corp_saleDecisionThreshold"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "Decisión Unánime"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Decisión Unánime", label: "Decisión Unánime" },
+                        { value: "Mayoría", label: "Mayoría" },
+                      ]}
+                      ariaLabel="Sale decision threshold"
+                      name={field.name}
+                    />
+                  )}
+                />
+                {watch("agreement.corp_saleDecisionThreshold") === "Mayoría" && (
+                  <div className="mt-3">
+                    <label className="label">Porcentaje requerido para mayoría</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="50.01"
+                        max="99.99"
+                        step="0.01"
+                        className="input w-24"
+                        placeholder="65.1"
+                        {...register("agreement.corp_saleDecisionMajority", { 
+                          valueAsNumber: true,
+                          min: 50.01,
+                          max: 99.99
+                        })}
+                      />
+                      <span className="text-sm text-gray-500">%</span>
+                    </div>
+                    <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="label flex items-center gap-2">
@@ -46,8 +89,51 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                 />
               </div>
               <div>
-                <label className="label">Si hubiese que hacer una decisión importante (como decisiones que cuesten $….., despedir un empleado, pedir un préstamo, etc.), ¿quisiera que esta decisión fuese tomada por mayoría, unanimidad o un 65.1% de los miembros?</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.corp_majorDecisionThreshold")} />
+                <label className="label flex items-center gap-2">
+                  Si hubiese que hacer una decisión importante (como decisiones que cuesten $….., despedir un empleado, pedir un préstamo, etc.) ¿quisiera que esta decisión se tome unánimemente o por mayoría?
+                  <InfoTooltip
+                    title="Decisiones Importantes"
+                    body="Esta cláusula establece el proceso para tomar decisiones importantes de la corporación. Puede requerir decisión unánime (todos los accionistas deben estar de acuerdo) o mayoría (un porcentaje específico de accionistas)."
+                  />
+                </label>
+                <Controller
+                  name="agreement.corp_majorDecisionThreshold"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "Decisión Unánime"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Decisión Unánime", label: "Decisión Unánime" },
+                        { value: "Mayoría", label: "Mayoría" },
+                      ]}
+                      ariaLabel="Major decision threshold"
+                      name={field.name}
+                    />
+                  )}
+                />
+                {watch("agreement.corp_majorDecisionThreshold") === "Mayoría" && (
+                  <div className="mt-3">
+                    <label className="label">Porcentaje requerido para mayoría</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="50.01"
+                        max="99.99"
+                        step="0.01"
+                        className="input w-24"
+                        placeholder="65.1"
+                        {...register("agreement.corp_majorDecisionMajority", { 
+                          valueAsNumber: true,
+                          min: 50.01,
+                          max: 99.99
+                        })}
+                      />
+                      <span className="text-sm text-gray-500">%</span>
+              </div>
+                    <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
+              </div>
+                )}
               </div>
               <div>
                 <label className="label flex items-center gap-2">

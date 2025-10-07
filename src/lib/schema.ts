@@ -118,9 +118,11 @@ export const AgreementSchema = z
     corp_moreCapitalProcess: z.string().optional(),
     corp_withdrawFundsPolicy: z.string().optional(),
     // C-Corp governance & decisions
-    corp_saleDecisionThreshold: z.string().optional(),
+    corp_saleDecisionThreshold: z.enum(["Decisión Unánime", "Mayoría"]).optional(),
+    corp_saleDecisionMajority: z.number().min(50.01).max(99.99).optional(),
     corp_bankSigners: z.enum(["Un firmante", "Dos firmantes"]).optional(),
-    corp_majorDecisionThreshold: z.string().optional(),
+    corp_majorDecisionThreshold: z.enum(["Decisión Unánime", "Mayoría"]).optional(),
+    corp_majorDecisionMajority: z.number().min(50.01).max(99.99).optional(),
     corp_shareholderLoans: z.enum(["Yes", "No"]).optional(),
     corp_nonCompete: z.enum(["Yes", "No"]).optional(),
     // C-Corp shares & succession
