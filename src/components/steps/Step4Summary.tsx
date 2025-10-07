@@ -454,6 +454,27 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                                     field.onChange(`${digits.slice(0,3)}-${digits.slice(3,5)}-${digits.slice(5)}`);
                                   }
                                 }}
+                                onBlur={(e) => {
+                                  const digits = (e.target.value || "").replace(/[^0-9]/g, "");
+                                  if (digits.length === 9) {
+                                    const normalized = `${digits.slice(0,3)}-${digits.slice(3,5)}-${digits.slice(5,9)}`;
+                                    field.onChange(normalized);
+                                  }
+                                }}
+                                onPaste={(e) => {
+                                  const pasted = (e.clipboardData || (window as any).clipboardData).getData("text");
+                                  const digits = pasted.replace(/[^0-9]/g, "").slice(0, 9);
+                                  if (digits) {
+                                    e.preventDefault();
+                                    const normalized =
+                                      digits.length <= 3
+                                        ? digits
+                                        : digits.length <= 5
+                                        ? `${digits.slice(0,3)}-${digits.slice(3)}`
+                                        : `${digits.slice(0,3)}-${digits.slice(3,5)}-${digits.slice(5,9)}`;
+                                    field.onChange(normalized);
+                                  }
+                                }}
                               />
                             )}
                           />
