@@ -2,7 +2,7 @@
 "use client";
 
 import { Controller, type FieldPath } from "react-hook-form";
-import HeroBanner from "@/components/HeroBanner";
+import HeroVideo from "@/components/HeroVideo";
 import SegmentedToggle from "@/components/SegmentedToggle";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import InfoTooltip from "@/components/InfoTooltip";
@@ -37,7 +37,7 @@ export default function Step5Admin({ form, setStep, onSave, onNext }: StepProps)
 
   return (
     <section className="space-y-6">
-      <HeroBanner title="Datos Administrativos" />
+      <HeroVideo title="Datos Administrativos" />
 
       <div className="card">
         <h2 className="text-xl font-semibold text-gray-900">Datos Administrativos</h2>
