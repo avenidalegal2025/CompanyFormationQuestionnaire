@@ -57,7 +57,9 @@ const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
         cleaned = parts[0] + "." + parts[1].substring(0, 2);
       }
       
-      onChange?.(cleaned);
+      // Format with commas as you type
+      const formatted = formatCurrency(cleaned);
+      onChange?.(formatted);
     };
 
     const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
