@@ -10,6 +10,8 @@ type Props = {
   /** Label above the input */
   label?: string; // default: "SSN / EIN"
   required?: boolean;
+  /** Whether to render the label above the field */
+  showLabel?: boolean; // default: true
 };
 
 function onlyDigits(s: unknown) {
@@ -48,6 +50,7 @@ export default function SSNEINInput({
   value = "",
   onChange,
   label = "SSN / EIN",
+  showLabel = true,
 }: Props) {
   const [show, setShow] = useState(false);
 
@@ -92,7 +95,7 @@ export default function SSNEINInput({
 
   return (
     <div>
-      <label className="label">{label}</label>
+      {showLabel && <label className="label">{label}</label>}
 
       {/* 1/6 width with a sensible minimum */}
       <div className="relative w-1/6 min-w-[220px]">

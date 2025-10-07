@@ -457,6 +457,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                                 value={(field.value as string) ?? ""}
                                 onChange={(digits) => field.onChange(digits)}
                                 label="SSN / EIN"
+                                showLabel={false}
                               />
                             )}
                           />
