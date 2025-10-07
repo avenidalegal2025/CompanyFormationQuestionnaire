@@ -171,26 +171,26 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                     body="Esta cláusula establece el proceso para añadir nuevos miembros a la LLC. Puede requerir decisión unánime (todos los miembros deben estar de acuerdo) o mayoría (un porcentaje específico de miembros)."
                   />
                 </label>
-                <Controller
-                  name="agreement.llc_newMembersAdmission"
-                  control={control}
-                  render={({ field }) => (
-                    <SegmentedToggle
-                      value={field.value || "Decisión Unánime"}
-                      onChange={field.onChange}
-                      options={[
-                        { value: "Decisión Unánime", label: "Decisión Unánime" },
-                        { value: "Mayoría", label: "Mayoría" },
-                      ]}
-                      ariaLabel="New members admission"
-                      name={field.name}
-                    />
-                  )}
-                />
-                {watch("agreement.llc_newMembersAdmission") === "Mayoría" && (
-                  <div className="mt-3">
-                    <label className="label">Porcentaje requerido para mayoría</label>
+                <div className="flex items-center gap-4 flex-wrap">
+                  <Controller
+                    name="agreement.llc_newMembersAdmission"
+                    control={control}
+                    render={({ field }) => (
+                      <SegmentedToggle
+                        value={field.value || "Decisión Unánime"}
+                        onChange={field.onChange}
+                        options={[
+                          { value: "Decisión Unánime", label: "Decisión Unánime" },
+                          { value: "Mayoría", label: "Mayoría" },
+                        ]}
+                        ariaLabel="New members admission"
+                        name={field.name}
+                      />
+                    )}
+                  />
+                  {watch("agreement.llc_newMembersAdmission") === "Mayoría" && (
                     <div className="flex items-center gap-2">
+                      <span className="label m-0">Porcentaje requerido para mayoría</span>
                       <div className="w-1/6 min-w-[120px]">
                         <input
                           type="number"
@@ -208,8 +208,10 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                       </div>
                       <span className="text-sm text-gray-500">%</span>
                     </div>
-                    <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
-                  </div>
+                  )}
+                </div>
+                {watch("agreement.llc_newMembersAdmission") === "Mayoría" && (
+                  <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
                 )}
               </div>
               <div>
@@ -239,26 +241,26 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                 {watch("agreement.llc_additionalContributions") === "No" && (
                   <div className="mt-3">
                     <label className="label">¿Cómo se decidiría la proporción de las aportaciones?</label>
-                    <Controller
-                      name="agreement.llc_additionalContributionsDecision"
-                      control={control}
-                      render={({ field }) => (
-                        <SegmentedToggle
-                          value={field.value || "Decisión Unánime"}
-                          onChange={field.onChange}
-                          options={[
-                            { value: "Decisión Unánime", label: "Decisión Unánime" },
-                            { value: "Mayoría", label: "Mayoría" },
-                          ]}
-                          ariaLabel="Additional contributions decision"
-                          name={field.name}
-                        />
-                      )}
-                    />
-                    {watch("agreement.llc_additionalContributionsDecision") === "Mayoría" && (
-                      <div className="mt-3">
-                        <label className="label">Porcentaje requerido para mayoría</label>
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <Controller
+                        name="agreement.llc_additionalContributionsDecision"
+                        control={control}
+                        render={({ field }) => (
+                          <SegmentedToggle
+                            value={field.value || "Decisión Unánime"}
+                            onChange={field.onChange}
+                            options={[
+                              { value: "Decisión Unánime", label: "Decisión Unánime" },
+                              { value: "Mayoría", label: "Mayoría" },
+                            ]}
+                            ariaLabel="Additional contributions decision"
+                            name={field.name}
+                          />
+                        )}
+                      />
+                      {watch("agreement.llc_additionalContributionsDecision") === "Mayoría" && (
                         <div className="flex items-center gap-2">
+                          <span className="label m-0">Porcentaje requerido para mayoría</span>
                           <div className="w-1/6 min-w-[120px]">
                             <input
                               type="number"
@@ -276,8 +278,10 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                           </div>
                           <span className="text-sm text-gray-500">%</span>
                         </div>
-                        <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
-                      </div>
+                      )}
+                    </div>
+                    {watch("agreement.llc_additionalContributionsDecision") === "Mayoría" && (
+                      <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
                     )}
               </div>
                 )}
