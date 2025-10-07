@@ -56,8 +56,8 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepP
                   })}
                 </div>
               </div>
-              <div>
-                <label className="label flex items-center gap-2">¿Habrán responsabilidades específicas para cada dueño?
+              <div className="pt-5 mt-5 border-t border-gray-100">
+                <label className="label flex items-center gap-3">¿Habrán responsabilidades específicas para cada dueño?
                   <InfoTooltip
                     title="Responsabilidades Específicas"
                     body="Funciones o cargos de cada dueño (por ejemplo, CEO, CTO, finanzas). Ayuda a aclarar expectativas y autoridad."
@@ -95,7 +95,7 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepP
           ) : (
             <>
               <div>
-                <label className="label flex items-center gap-2">Aportaciones de capital: ¿Cuánto dinero está contribuyendo cada dueño al negocio?
+                <label className="label flex items-center gap-3">Aportaciones de capital: ¿Cuánto dinero está contribuyendo cada dueño al negocio?
                   <InfoTooltip
                     title="Aportaciones de Capital"
                     body="Monto que cada socio aporta al inicio. Se utiliza para definir la inversión de cada socio y, en algunos casos, su porcentaje de participación."
@@ -128,8 +128,8 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepP
                   })}
                 </div>
               </div>
-              <div>
-                <label className="label flex items-center gap-2">
+              <div className="pt-5 mt-5 border-t border-gray-100">
+                <label className="label flex items-center gap-3">
                   ¿Ambos dueños van a operar el negocio como miembros administradores (con derecho a firmar y tomar decisiones)?
                   <InfoTooltip
                     title="Miembros Administradores"
@@ -173,8 +173,8 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepP
                   </div>
                 )}
               </div>
-              <div>
-                <label className="label flex items-center gap-2">¿Habrá roles específicos para cada parte? (Ej. uno a cargo de marketing, otro de asuntos legales)
+              <div className="pt-5 mt-5 border-t border-gray-100">
+                <label className="label flex items-center gap-3">¿Habrá roles específicos para cada parte? (Ej. uno a cargo de marketing, otro de asuntos legales)
                   <InfoTooltip
                     title="Roles Específicos"
                     body="Funciones o áreas de responsabilidad asignadas a cada socio para organizar la operación del negocio."

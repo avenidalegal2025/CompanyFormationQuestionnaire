@@ -17,7 +17,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext }: StepP
           {isCorp ? (
             <>
               <div>
-                <label className="label flex items-center gap-2">
+                <label className="label flex items-center gap-3">
                   ¿Quiere que los accionistas tengan el derecho de ser los primeros en rechazar una oferta de venta de la compañía?
                   <InfoTooltip
                     title="Right of First Refusal"
@@ -41,8 +41,8 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext }: StepP
                   )}
                 />
               </div>
-              <div>
-                <label className="label flex items-center gap-2">
+              <div className="pt-5 mt-5 border-t border-gray-100">
+                <label className="label flex items-center gap-3">
                   ¿Podrán los accionistas libremente transferir sus acciones a sus parientes, o deberá ser esta transferencia sujeta a una decisión unánime o mayoría de los accionistas?
                   <InfoTooltip
                     title="Transferencia de Acciones a Parientes"
@@ -100,8 +100,8 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext }: StepP
               </div>
                 )}
               </div>
-              <div>
-                <label className="label flex items-center gap-2">
+              <div className="pt-5 mt-5 border-t border-gray-100">
+                <label className="label flex items-center gap-3">
                   En el caso de incapacidad o de la muerte de algún accionista, ¿querrá que los herederos estén obligados a vender las acciones a la compañía, o que lo hagan solo si así lo decide la compañía?
                   <InfoTooltip
                     title="Política de Herederos"
@@ -125,8 +125,8 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext }: StepP
                   )}
                 />
               </div>
-              <div>
-                <label className="label flex items-center gap-2">
+              <div className="pt-5 mt-5 border-t border-gray-100">
+                <label className="label flex items-center gap-3">
                   Si en el caso de un divorcio donde las partes no puedan ponerse de acuerdo sobre las acciones de la compañía, ¿quisiera que la compañía tuviera el derecho de comprar a la ex pareja todas las acciones que tengan al precio del mercado?
                   <InfoTooltip
                     title="Política de Divorcio"
@@ -150,8 +150,8 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext }: StepP
                   )}
                 />
               </div>
-              <div>
-                <label className="label flex items-center gap-2">
+              <div className="pt-5 mt-5 border-t border-gray-100">
+                <label className="label flex items-center gap-3">
                   ¿Quiere derechos de "tag along" o un "drag along"?
                   <InfoTooltip
                     title="Tag Along / Drag Along"
@@ -179,7 +179,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext }: StepP
           ) : (
             <>
               <div>
-                <label className="label flex items-center gap-2">
+                <label className="label flex items-center gap-3">
                   Derecho de preferencia en venta de participaciones (Right of First Refusal)
                   <InfoTooltip
                     title="Right of First Refusal"
@@ -203,8 +203,8 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext }: StepP
                   )}
                 />
               </div>
-              <div>
-                <label className="label flex items-center gap-2">
+              <div className="pt-5 mt-5 border-t border-gray-100">
+                <label className="label flex items-center gap-3">
                   En caso de muerte o incapacidad de un miembro: ¿Herederos obligados a vender las participaciones a la LLC?
                   <InfoTooltip
                     title="Política de Herederos"
@@ -228,8 +228,8 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext }: StepP
                   )}
                 />
               </div>
-              <div>
-                <label className="label flex items-center gap-2">
+              <div className="pt-5 mt-5 border-t border-gray-100">
+                <label className="label flex items-center gap-3">
                   Admisión de nuevos socios/partners: ¿Decisión unánime o por mayoría?
                   <InfoTooltip
                     title="Admisión de Nuevos Socios"
@@ -277,8 +277,8 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext }: StepP
                   </div>
                 )}
               </div>
-              <div>
-                <label className="label flex items-center gap-2">
+              <div className="pt-5 mt-5 border-t border-gray-100">
+                <label className="label flex items-center gap-3">
                   Disolución de la LLC: ¿Decisión unánime o por mayoría?
                   <InfoTooltip
                     title="Disolución de la LLC"

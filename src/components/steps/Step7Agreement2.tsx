@@ -17,7 +17,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
           {isCorp ? (
             <>
               <div>
-                <label className="label flex items-center gap-2">
+                <label className="label flex items-center gap-3">
                   ¿Cómo se añadirán nuevos accionistas, por decisión unánime?, mayoría?
                   <InfoTooltip
                     title="Admisión de Nuevos Accionistas"
@@ -70,8 +70,8 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                   </div>
                 )}
               </div>
-              <div>
-                <label className="label flex items-center gap-2">
+              <div className="pt-5 mt-5 border-t border-gray-100">
+                <label className="label flex items-center gap-3">
                   Si la corporación necesitara más capital, ¿Se haría en el mismo porcentaje a su participación accionaria, Pro-Rata? Ejemplo: Si se necesitara $100 mil más en capital, un dueño con el 50% de acciones necesitaría invertir unos 50 mil más.
                   <InfoTooltip
                     title="Aportaciones de Capital Pro-Rata"
@@ -120,7 +120,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                     />
                     {watch("agreement.corp_moreCapitalDecision") === "Mayoría" && (
                       <div className="mt-3">
-                        <label className="label flex items-center gap-2">Porcentaje requerido para mayoría
+                        <label className="label flex items-center gap-3">Porcentaje requerido para mayoría
                           <InfoTooltip
                             title="Porcentaje de Mayoría"
                             body="Porcentaje mínimo de aprobación para decisiones tomadas por mayoría (p. ej., 66.67%)."
@@ -150,8 +150,8 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
               </div>
                 )}
               </div>
-              <div>
-                <label className="label flex items-center gap-2">
+              <div className="pt-5 mt-5 border-t border-gray-100">
+                <label className="label flex items-center gap-3">
                   ¿Algún accionista podrá prestarle a la compañía? En un futuro podría haber préstamos de accionistas a la compañía
                   <InfoTooltip
                     title="Préstamos de Accionistas"
@@ -179,7 +179,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
           ) : (
             <>
               <div>
-                <label className="label flex items-center gap-2">
+                <label className="label flex items-center gap-3">
                   Adición de nuevos miembros a la LLC: ¿Cómo se añadirán?
                   <InfoTooltip
                     title="Admisión de Nuevos Miembros"
@@ -229,8 +229,8 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                   <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
                 )}
               </div>
-              <div>
-                <label className="label flex items-center gap-2">
+              <div className="pt-5 mt-5 border-t border-gray-100">
+                <label className="label flex items-center gap-3">
                   Aportaciones de capital adicionales: ¿Se haría en el mismo porcentaje a su participación, Pro-Rata? Ejemplo: Si se necesitara $100 mil más en capital, un socio con el 50% de participación necesitaría invertir unos 50 mil más.
                   <InfoTooltip
                     title="Aportaciones de Capital Pro-Rata"
@@ -301,8 +301,8 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
               </div>
                 )}
               </div>
-              <div>
-                <label className="label flex items-center gap-2">
+              <div className="pt-5 mt-5 border-t border-gray-100">
+                <label className="label flex items-center gap-3">
                   ¿Habrá préstamos de miembros a la LLC?
                   <InfoTooltip
                     title="Préstamos de Miembros"

@@ -17,7 +17,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
           {isCorp ? (
             <>
               <div>
-                <label className="label flex items-center gap-2">
+                <label className="label flex items-center gap-3">
                   Si hubiese una oferta de compra o si usted quisiese vender la compañía, ¿quisiera que esta decisión se tome unánimemente o por mayoría?
                   <InfoTooltip
                     title="Decisión de Venta de la Compañía"
@@ -70,8 +70,8 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                   </div>
                 )}
               </div>
-              <div>
-                <label className="label flex items-center gap-2">
+              <div className="pt-5 mt-5 border-t border-gray-100">
+                <label className="label flex items-center gap-3">
                   Para la cuenta de banco de la compañía, ¿quiere que haya un o dos firmantes?
                   <InfoTooltip
                     title="Firmantes Bancarios"
@@ -95,8 +95,8 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                   )}
                 />
               </div>
-              <div>
-                <label className="label flex items-center gap-2">
+              <div className="pt-5 mt-5 border-t border-gray-100">
+                <label className="label flex items-center gap-3">
                   Si hubiese que hacer una decisión importante (como decisiones que cuesten $….., despedir un empleado, pedir un préstamo, etc.) ¿quisiera que esta decisión se tome unánimemente o por mayoría?
                   <InfoTooltip
                     title="Decisiones Importantes"
@@ -149,8 +149,8 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
               </div>
                 )}
               </div>
-              <div>
-                <label className="label flex items-center gap-2">
+              <div className="pt-5 mt-5 border-t border-gray-100">
+                <label className="label flex items-center gap-3">
                   ¿Quieren una cláusula de no competencia? Esto es algo que debe considerar con mucho cuidado. Se puede redactar una cláusula muy estricta para impedir competencia por alguien involucrado en la compañía
                   <InfoTooltip
                     title="Cláusula de No Competencia"
@@ -178,7 +178,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
           ) : (
             <>
               <div>
-                <label className="label flex items-center gap-2">
+                <label className="label flex items-center gap-3">
                   Venta de la compañía: ¿Decisión unánime o por mayoría?
                   <InfoTooltip
                     title="Decisión de Venta de la Compañía (LLC)"
@@ -226,8 +226,8 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
               </div>
                 )}
               </div>
-              <div>
-                <label className="label flex items-center gap-2">
+              <div className="pt-5 mt-5 border-t border-gray-100">
+                <label className="label flex items-center gap-3">
                   ¿Quién será el socio responsable de impuestos (Tax Partner)?
                   <InfoTooltip
                     title="Tax Partner"
@@ -252,8 +252,8 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                   )}
                 />
               </div>
-              <div>
-                <label className="label flex items-center gap-2">
+              <div className="pt-5 mt-5 border-t border-gray-100">
+                <label className="label flex items-center gap-3">
                   Non Compete: ¿Covenant de no competencia entre los dueños?
                   <InfoTooltip
                     title="Covenant de No Competencia"
@@ -277,8 +277,8 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                   )}
                 />
               </div>
-              <div>
-                <label className="label flex items-center gap-2">
+              <div className="pt-5 mt-5 border-t border-gray-100">
+                <label className="label flex items-center gap-3">
                   Cuenta bancaria: ¿Uno o dos firmantes para retirar dinero?
                   <InfoTooltip
                     title="Firmantes Bancarios"
