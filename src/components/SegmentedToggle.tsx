@@ -47,13 +47,13 @@ export default function SegmentedToggle({
       role="radiogroup"
       aria-label={ariaLabel}
       aria-labelledby={name}
-      className="grid grid-cols-2 w-full max-w-sm rounded-2xl border border-gray-300 overflow-hidden"
+      className="grid grid-cols-2 w-full rounded-2xl border border-gray-300 overflow-hidden"
       onKeyDown={onKeyDown}
     >
       {opts.map((opt, idx) => {
         const active = value === opt.value;
         const base =
-          "px-4 py-2 text-sm font-medium text-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500";
+          "px-4 py-2 text-sm font-medium text-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 whitespace-nowrap";
         const colors = active
           ? "bg-brand-600 text-white"
           : "bg-white text-gray-700 hover:bg-gray-50";
