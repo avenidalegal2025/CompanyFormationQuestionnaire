@@ -274,6 +274,30 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
               onCancel={handleCancel}
             />
           </div>
+          {editingSection === "owners" && (
+            <div className="mb-4">
+              <label className="label">Número de {groupLabel}</label>
+              <Controller
+                name={"ownersCount" as never}
+                control={control}
+                render={({ field }) => (
+                  <input
+                    type="number"
+                    min={1}
+                    max={6}
+                    className="input mt-1 w-40"
+                    placeholder="(1-6)"
+                    value={field.value ?? ""}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      if (!isNaN(v) && v >= 1 && v <= 6) field.onChange(v);
+                      if (e.target.value === "") field.onChange(undefined);
+                    }}
+                  />
+                )}
+              />
+            </div>
+          )}
           <div className="space-y-4">
             {Array.from({ length: ownersCount }).map((_, i) => {
               const owner = (ownersData[i] || {}) as {
@@ -412,7 +436,16 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                             name={`owners.${i}.tin` as never}
                             control={control}
                             render={({ field }) => (
-                              <input className="input mt-1" {...field} />
+                              <input
+                                className="input mt-1"
+                                value={field.value ?? ""}
+                                onChange={(e) => {
+                                  const digits = e.target.value.replace(/[^0-9]/g, "").slice(0, 9);
+                                  if (digits.length <= 5) field.onChange(digits.replace(/(\d{3})(\d{0,2})?/, (m, a, b) => (b ? `${a}-${b}` : a)));
+                                  else field.onChange(`${digits.slice(0,3)}-${digits.slice(3,5)}-${digits.slice(5,9)}`);
+                                }}
+                                placeholder="***-**-1234"
+                              />
                             )}
                           />
                         ) : (
