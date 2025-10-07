@@ -51,7 +51,33 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepP
               </div>
               <div>
                 <label className="label">¿Habrán responsabilidades específicas para cada dueño?</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.corp_specificResponsibilities")} />
+                <div className="mt-2 space-y-3">
+                  {Array.from({ length: ownersCount }).map((_, idx) => {
+                    const ownerName = ownersData[idx]?.fullName || `Accionista ${idx + 1}`;
+                    return (
+                      <div key={idx} className="grid grid-cols-2 gap-4 items-center">
+                        <div className="text-sm font-medium text-gray-700">
+                          {ownerName}:
+                        </div>
+                        <div>
+                          <Controller
+                            name={`agreement.corp_specificResponsibilities_${idx}` as never}
+                            control={control}
+                            render={({ field }) => (
+                              <input
+                                type="text"
+                                className="input w-full"
+                                placeholder="CEO, CTO, CFO, etc."
+                                value={field.value || ""}
+                                onChange={field.onChange}
+                              />
+                            )}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
               <div>
                 <label className="label">¿Hay cierta cantidad de horas que el accionista esté comprometido a trabajar en este negocio?</label>
@@ -95,7 +121,33 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepP
               </div>
               <div>
                 <label className="label">¿Habrá roles específicos para cada parte? (Ej. uno a cargo de marketing, otro de asuntos legales)</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.llc_specificRoles")} />
+                <div className="mt-2 space-y-3">
+                  {Array.from({ length: ownersCount }).map((_, idx) => {
+                    const ownerName = ownersData[idx]?.fullName || `Socio ${idx + 1}`;
+                    return (
+                      <div key={idx} className="grid grid-cols-2 gap-4 items-center">
+                        <div className="text-sm font-medium text-gray-700">
+                          {ownerName}:
+                        </div>
+                        <div>
+                          <Controller
+                            name={`agreement.llc_specificRoles_${idx}` as never}
+                            control={control}
+                            render={({ field }) => (
+                              <input
+                                type="text"
+                                className="input w-full"
+                                placeholder="CEO, CTO, CFO, etc."
+                                value={field.value || ""}
+                                onChange={field.onChange}
+                              />
+                            )}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </>
           )}
