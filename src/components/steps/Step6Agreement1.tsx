@@ -19,11 +19,11 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepP
     <section className="space-y-6">
       <div className="card">
         <h2 className="text-xl font-semibold text-gray-900">Dueños & Roles</h2>
-        <div className="mt-4 space-y-4">
+        <div className="mt-4 space-y-4 md:pl-6">
           {isCorp ? (
             <>
-              <div className="mt-8 pt-8 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start first:mt-0 first:pt-0 first:border-0">
-                <label className="label inline-flex items-start gap-3 max-w-prose">¿Cuánto capital ha invertido cada dueño?
+              <div className="mt-8 pt-8 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start first:mt-0 first:pt-0 first:border-0">
+                <label className="label inline-flex items-start gap-5 max-w-prose">¿Cuánto capital ha invertido cada dueño?
                   <InfoTooltip
                     title="Capital Invertido"
                     body="Monto de dinero que cada dueño ha aportado inicialmente a la compañía. Sirve para documentar la inversión de cada parte."
@@ -56,8 +56,8 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepP
                   })}
                 </div>
               </div>
-              <div className="mt-8 pt-8 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
-                <label className="label inline-flex items-start gap-3 max-w-prose">¿Habrán responsabilidades específicas para cada dueño?
+              <div className="mt-8 pt-8 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
+                <label className="label inline-flex items-start gap-5 max-w-prose">¿Habrán responsabilidades específicas para cada dueño?
                   <InfoTooltip
                     title="Responsabilidades Específicas"
                     body="Funciones o cargos de cada dueño (por ejemplo, CEO, CTO, finanzas). Ayuda a aclarar expectativas y autoridad."
@@ -94,8 +94,8 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepP
             </>
           ) : (
             <>
-              <div className="mt-8 pt-8 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start first:mt-0 first:pt-0 first:border-0">
-                <label className="label inline-flex items-start gap-3 max-w-prose">Aportaciones de capital: ¿Cuánto dinero está contribuyendo cada dueño al negocio?
+              <div className="mt-8 pt-8 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start first:mt-0 first:pt-0 first:border-0">
+                <label className="label inline-flex items-start gap-5 max-w-prose">Aportaciones de capital: ¿Cuánto dinero está contribuyendo cada dueño al negocio?
                   <InfoTooltip
                     title="Aportaciones de Capital"
                     body="Monto que cada socio aporta al inicio. Se utiliza para definir la inversión de cada socio y, en algunos casos, su porcentaje de participación."
@@ -128,8 +128,8 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepP
                   })}
                 </div>
               </div>
-              <div className="mt-8 pt-8 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
-                <label className="label inline-flex items-start gap-3 max-w-prose">
+              <div className="mt-8 pt-8 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
+                <label className="label inline-flex items-start gap-5 max-w-prose">
                   ¿Ambos dueños van a operar el negocio como miembros administradores (con derecho a firmar y tomar decisiones)?
                   <InfoTooltip
                     title="Miembros Administradores"
