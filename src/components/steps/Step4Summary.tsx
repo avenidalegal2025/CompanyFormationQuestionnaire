@@ -685,9 +685,49 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                                 <Controller
                                   name={`admin.officer${idx + 1}Role` as never}
                                   control={control}
-                                  render={({ field }) => (
-                                    <input className="input mt-1" {...field} />
-                                  )}
+                                  render={({ field }) => {
+                                    // Get all officer roles to track exclusivity
+                                    const allOfficerRoles = Array.from({ length: adminData?.officersCount || 0 }).map((_, otherIdx) => 
+                                      watch(`admin.officer${otherIdx + 1}Role`) as string
+                                    ).filter(role => role && role !== "");
+                                    
+                                    const currentRole = field.value as string;
+                                    const otherSelectedRoles = allOfficerRoles.filter((_, roleIdx) => roleIdx !== idx);
+                                    const availableRoles = ["President", "Vice-President", "Treasurer", "Secretary"];
+                                    const availableOptions = availableRoles.filter(role => 
+                                      !otherSelectedRoles.includes(role)
+                                    );
+                                    
+                                    return (
+                                      <select
+                                        className="input mt-1"
+                                        value={currentRole || ""}
+                                        onChange={(e) => {
+                                          field.onChange(e);
+                                          // If the new role was previously selected by another officer, clear it
+                                          const newRole = e.target.value;
+                                          if (newRole && newRole !== "") {
+                                            Array.from({ length: adminData?.officersCount || 0 }).forEach((_, otherIdx) => {
+                                              if (otherIdx !== idx) {
+                                                const otherRole = watch(`admin.officer${otherIdx + 1}Role`) as string;
+                                                if (otherRole === newRole) {
+                                                  setValue(`admin.officer${otherIdx + 1}Role`, "");
+                                                }
+                                              }
+                                            });
+                                          }
+                                        }}
+                                      >
+                                        <option value="">Seleccionar rol</option>
+                                        {availableOptions.map(role => (
+                                          <option key={role} value={role}>
+                                            {role}
+                                            {currentRole === role ? " (Seleccionado)" : ""}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    );
+                                  }}
                                 />
                               ) : (
                                 <p className="text-gray-900">{roleStr}</p>
