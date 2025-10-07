@@ -43,7 +43,7 @@ const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const inputValue = e.target.value;
-      // Clean input and limit to 2 decimal places during typing
+      // Only clean input during typing, don't format yet
       let cleaned = inputValue.replace(/[^\d.]/g, "");
       
       // Handle multiple decimal points - keep only the first one
@@ -57,9 +57,8 @@ const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
         cleaned = parts[0] + "." + parts[1].substring(0, 2);
       }
       
-      // Format with commas as you type
-      const formatted = formatCurrency(cleaned);
-      onChange?.(formatted);
+      // Pass the cleaned value without formatting
+      onChange?.(cleaned);
     };
 
     const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
@@ -81,7 +80,7 @@ const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
           onChange={handleChange}
           onBlur={handleBlur}
           placeholder={placeholder}
-          className={`pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${className}`}
+          className={`input pl-8 pr-12 ${className}`}
           {...props}
         />
         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
