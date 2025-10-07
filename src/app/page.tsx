@@ -256,20 +256,23 @@ export default function Page() {
         const res = await loadDraft(draftId);
         const remoteUpdatedAt = res.item?.updatedAt as number | undefined;
         if (res.item?.data && typeof remoteUpdatedAt === 'number') {
+          // Initialize baseline on first poll without showing notice
+          if (lastRemoteUpdatedAt === 0) {
+            setLastRemoteUpdatedAt(remoteUpdatedAt);
+            return;
+          }
+          
           // Only refresh if remote is newer than what we've seen and newer than our last local save
           const localLast = lastSavedAt ?? 0;
           if (remoteUpdatedAt > lastRemoteUpdatedAt && remoteUpdatedAt > localLast) {
             form.reset(res.item.data);
             setLastRemoteUpdatedAt(remoteUpdatedAt);
-            // Show collaborator snackbar if viewer-only or if data changed externally
+            // Show collaborator snackbar only if there's actual external editing
             setCollabNotice("Otro usuario está editando este cuestionario en este momento.");
             // Keep the notice visible as long as remote edits continue. Hide only after inactivity.
             const INACTIVITY_MS = 30000; // 30s without remote updates hides the notice
             if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
             noticeTimerRef.current = window.setTimeout(() => setCollabNotice(null), INACTIVITY_MS);
-          } else if (lastRemoteUpdatedAt === 0) {
-            // Initialize baseline without forcing a reset
-            setLastRemoteUpdatedAt(remoteUpdatedAt);
           }
         }
       } catch {
