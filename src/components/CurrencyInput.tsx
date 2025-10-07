@@ -17,6 +17,9 @@ const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
       // Remove all non-numeric characters except decimal point
       let numericValue = inputValue.replace(/[^\d.]/g, "");
       
+      // Handle empty input
+      if (numericValue === "" || numericValue === ".") return "";
+      
       // Handle multiple decimal points - keep only the first one
       const parts = numericValue.split(".");
       if (parts.length > 2) {
@@ -33,12 +36,10 @@ const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
       if (isNaN(num)) return "";
       
       // Format with commas for thousands and always show 2 decimal places
-      const formatted = num.toLocaleString("en-US", {
+      return num.toLocaleString("en-US", {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       });
-      
-      return formatted;
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
