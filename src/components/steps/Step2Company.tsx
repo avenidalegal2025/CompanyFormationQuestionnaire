@@ -229,7 +229,7 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
         </div>
 
         {/* Nombre + sufijo + botón revisar */}
-        <div className="mt-6">
+        <div className="mt-12 pt-10 border-t border-gray-100">
           <div className="label-lg mb-2">Nombre de la empresa</div>
           <div className="grid grid-cols-[1fr_auto_auto] items-center gap-3">
             <div>
@@ -281,7 +281,7 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
         </div>
 
         {/* Dirección */}
-        <div className="mt-6">
+        <div className="mt-12 pt-10 border-t border-gray-100">
           <div className="label-lg mb-1">¿Cuenta con una dirección en USA para su empresa?</div>
           <p className="text-sm text-gray-600">
             No puede ser P.O. BOX. Si no cuenta con una nosotros le podemos proveer una por $600
@@ -369,7 +369,7 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
         )}
 
         {/* Teléfono */}
-        <div className="mt-6">
+        <div className="mt-12 pt-10 border-t border-gray-100">
           <div className="label-lg mb-1">¿Cuenta con número de teléfono de USA de su empresa?</div>
           <p className="text-sm text-gray-600">
             Si no cuenta con uno, nosotros se lo podemos proveer por $180 usd al año.
@@ -414,7 +414,7 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
         )}
 
         {/* A qué se dedica la empresa */}
-        <div className="mt-6">
+        <div className="mt-12 pt-10 border-t border-gray-100">
           <div className="label-lg mb-2">¿A qué se dedica la empresa?</div>
           <textarea
             className="input min-h-[120px]"
@@ -425,7 +425,7 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
 
         {/* Número de acciones */}
         {entityType === "C-Corp" && (
-          <div className="mt-6">
+          <div className="mt-12 pt-10 border-t border-gray-100">
             <div className="label-lg mb-2 flex items-center gap-2">
               Número de acciones
               <InfoTooltip
