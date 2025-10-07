@@ -13,7 +13,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext }: StepP
     <section className="space-y-6">
       <div className="card">
         <h2 className="text-xl font-semibold text-gray-900">Acciones & Sucesión</h2>
-        <div className="mt-4 space-y-4 md:pl-6">
+        <div className="mt-6 space-y-10 md:pl-12">
           {isCorp ? (
             <>
               <div className="mt-6 pt-6 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start first:mt-0 first:pt-0 first:border-0">
