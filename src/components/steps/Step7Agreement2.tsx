@@ -58,7 +58,6 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                           max="99.99"
                           step="0.01"
                           className="input w-full"
-                          placeholder="50.1"
                           {...register("agreement.corp_newShareholdersMajority", { 
                             valueAsNumber: true,
                             min: 50.01,
@@ -149,7 +148,6 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                               max="99.99"
                               step="0.01"
                               className="input w-full"
-                              placeholder="50.1"
                               {...register("agreement.corp_moreCapitalMajority", { 
                                 valueAsNumber: true,
                                 min: 50.01,
@@ -247,7 +245,6 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                             max="99.99"
                             step="0.01"
                             className="input w-full"
-                            placeholder="50.1"
                             {...register("agreement.llc_newMembersMajority", { 
                               valueAsNumber: true,
                               min: 50.01,
@@ -339,7 +336,6 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                               max="99.99"
                               step="0.01"
                               className="input w-full"
-                              placeholder="50.1"
                               {...register("agreement.llc_additionalContributionsMajority", { 
                                 valueAsNumber: true,
                                 min: 50.01,

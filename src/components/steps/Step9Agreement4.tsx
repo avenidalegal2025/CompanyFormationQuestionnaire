@@ -90,7 +90,6 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext }: StepP
                           max="99.99"
                           step="0.01"
                           className="input w-full"
-                          placeholder="50.1"
                           {...register("agreement.corp_transferToRelativesMajority", { 
                             valueAsNumber: true,
                             min: 50.01,
@@ -290,7 +289,6 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext }: StepP
                           max="99.99"
                           step="0.01"
                           className="input w-full"
-                          placeholder="50.1"
                           {...register("agreement.llc_newPartnersMajority", {
                             valueAsNumber: true,
                             min: 50.01,
@@ -352,7 +350,6 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext }: StepP
                           max="99.99"
                           step="0.01"
                           className="input w-full"
-                          placeholder="50.1"
                           {...register("agreement.llc_dissolutionDecisionMajority", {
                             valueAsNumber: true,
                             min: 50.01,

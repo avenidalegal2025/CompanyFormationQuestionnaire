@@ -58,7 +58,6 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                           max="99.99"
                           step="0.01"
                           className="input w-full"
-                          placeholder="50.1"
                           {...register("agreement.corp_saleDecisionMajority", { 
                             valueAsNumber: true,
                             min: 50.01,
@@ -152,7 +151,6 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                           max="99.99"
                           step="0.01"
                           className="input w-full"
-                          placeholder="50.1"
                           {...register("agreement.corp_majorDecisionMajority", { 
                             valueAsNumber: true,
                             min: 50.01,
@@ -244,7 +242,6 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                           max="99.99"
                           step="0.01"
                           className="input w-full"
-                          placeholder="50.1"
                           {...register("agreement.llc_companySaleDecisionMajority", {
                             valueAsNumber: true,
                             min: 50.01,
