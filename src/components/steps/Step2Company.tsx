@@ -42,18 +42,52 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
     formState: { errors },
   } = form;
 
-  // ====== Entity type / dynamic suffix ======
+  // ====== Entity type / suffix ======
   const entityType = watch("company.entityType") as "LLC" | "C-Corp" | undefined;
   const formationState = watch("company.formationState") as string | undefined;
   const companyNameBase = (watch("company.companyNameBase") || "").toString();
-  const suffixWord = useMemo(() => (entityType === "C-Corp" ? "Inc" : "LLC"), [entityType]);
+  const entitySuffix = watch("company.entitySuffix") as string | undefined;
 
-  // keep the computed name in sync with a SPACE before the suffix (e.g., "ACME LLC")
+  // Entity suffix options based on entity type
+  const entitySuffixOptions = useMemo(() => {
+    if (entityType === "LLC") {
+      return [
+        "LLC",
+        "L.L.C.",
+        "Limited Liability Company",
+        "Ltd Liability Co",
+        "Limited Company",
+        "LC",
+        "Limited",
+        "Ltd"
+      ];
+    } else if (entityType === "C-Corp") {
+      return [
+        "Corp",
+        "Corporation",
+        "Inc",
+        "Incorporated"
+      ];
+    }
+    return [];
+  }, [entityType]);
+
+  // Set default suffix when entity type changes
   useEffect(() => {
-    const base = companyNameBase.replace(/\s+(LLC|INC)\.?$/i, "").trim();
-    const full = base ? `${base} ${suffixWord}` : "";
+    if (entityType === "LLC" && !entitySuffix) {
+      setValue("company.entitySuffix", "LLC", { shouldValidate: true });
+    } else if (entityType === "C-Corp" && !entitySuffix) {
+      setValue("company.entitySuffix", "Inc", { shouldValidate: true });
+    }
+  }, [entityType, entitySuffix, setValue]);
+
+  // Build full company name from base + suffix
+  useEffect(() => {
+    const base = companyNameBase.trim();
+    const suffix = entitySuffix || "";
+    const full = base && suffix ? `${base} ${suffix}` : base;
     setValue("company.companyName", full, { shouldValidate: true });
-  }, [companyNameBase, entityType, setValue, suffixWord]);
+  }, [companyNameBase, entitySuffix, setValue]);
 
   // ====== Toggles ======
   const hasUsaAddress = watch("company.hasUsaAddress");
@@ -120,33 +154,8 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
     }
   };
 
-  // ====== For suffix positioning right after typed text ======
+  // ====== Refs for form elements ======
   const nameInputRef = useRef<HTMLInputElement | null>(null);
-  const mirrorRef = useRef<HTMLSpanElement | null>(null);
-  const [suffixLeft, setSuffixLeft] = useState<number>(0);
-
-  // Measure the visible width of the typed text + a space, then place the suffix there.
-  useEffect(() => {
-    const input = nameInputRef.current;
-    const mirror = mirrorRef.current;
-    if (!input || !mirror) return;
-
-    // mirror the input value (uppercase) plus ONE space before the suffix
-    mirror.textContent = `${companyNameBase.toUpperCase()} `;
-
-    // copy font styles so measurement matches (IMPORTANT: no padding here)
-    const cs = getComputedStyle(input);
-    mirror.style.fontFamily = cs.fontFamily;
-    mirror.style.fontSize = cs.fontSize;
-    mirror.style.fontWeight = cs.fontWeight;
-    mirror.style.letterSpacing = cs.letterSpacing;
-
-    // compute left = input padding-left + pure text width (no padding double-count)
-    const padLeft = parseFloat(cs.paddingLeft || "0");
-    const width = mirror.getBoundingClientRect().width;
-
-    setSuffixLeft(padLeft + width);
-  }, [companyNameBase]);
 
   return (
     <section className="space-y-6">
@@ -217,12 +226,11 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
           </div>
         </div>
 
-        {/* Nombre + sufijo inmediato + botón revisar */}
+        {/* Nombre + sufijo + botón revisar */}
         <div className="mt-6">
           <div className="label-lg mb-2">Nombre de la empresa</div>
-          <div className="grid grid-cols-[1fr_auto] items-center gap-3">
-            <div className="relative">
-              {/* The input itself */}
+          <div className="grid grid-cols-[1fr_auto_auto] items-center gap-3">
+            <div>
               <Controller
                 name="company.companyNameBase"
                 control={control}
@@ -230,29 +238,33 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
                   <input
                     ref={nameInputRef}
                     className="input uppercase w-full"
+                    placeholder="Nombre de la empresa"
                     value={field.value?.toString().toUpperCase() ?? ""}
                     onChange={(e) => field.onChange(e.target.value.toUpperCase())}
                   />
                 )}
               />
-
-              {/* Invisible mirror to measure text width */}
-              <span
-                ref={mirrorRef}
-                aria-hidden
-                className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 whitespace-pre text-transparent"
-                style={{ visibility: "hidden" }}
+            </div>
+            <div className="min-w-[140px]">
+              <Controller
+                name="company.entitySuffix"
+                control={control}
+                render={({ field }) => (
+                  <select
+                    className="input w-full"
+                    value={field.value || ""}
+                    onChange={field.onChange}
+                    disabled={!entityType}
+                  >
+                    <option value="">Seleccionar</option>
+                    {entitySuffixOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                )}
               />
-
-              {/* Suffix placed exactly after the typed text (one space) */}
-              {companyNameBase.trim() !== "" && (
-                <span
-                  className="pointer-events-none absolute top-1/2 -translate-y-1/2 text-sm text-gray-500"
-                  style={{ left: suffixLeft }}
-                >
-                  {suffixWord}
-                </span>
-              )}
             </div>
             <CompanyNameCheckButton
               getName={() => getValues("company.companyName") as string}

@@ -27,6 +27,7 @@ export const CompanySchema = z.object({
   formationState: z.string().optional(),
 
   entityType: EntityTypeEnum.optional(),
+  entitySuffix: z.string().optional(),
 
   companyNameBase: z.string().optional(),
   companyName: z.string().optional(),
