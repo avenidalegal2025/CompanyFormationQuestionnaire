@@ -42,7 +42,12 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                 />
                 {watch("agreement.corp_newShareholdersAdmission") === "Mayoría" && (
                   <div className="mt-3">
-                    <label className="label">Porcentaje requerido para mayoría</label>
+                    <label className="label flex items-center gap-2">Porcentaje requerido para mayoría
+                      <InfoTooltip
+                        title="Porcentaje de Mayoría"
+                        body="Define el porcentaje mínimo de votos necesario para aprobar una decisión por mayoría. Por ejemplo, 60% o 75%."
+                      />
+                    </label>
                     <div className="flex items-center gap-2">
                       <div className="w-1/6 min-w-[120px]">
                         <input
@@ -91,7 +96,12 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                 />
                 {watch("agreement.corp_moreCapitalProcess") === "No" && (
                   <div className="mt-3">
-                    <label className="label">¿Cómo se decidiría la proporción de las aportaciones?</label>
+                    <label className="label flex items-center gap-2">¿Cómo se decidiría la proporción de las aportaciones?
+                      <InfoTooltip
+                        title="Decisión sobre Aportaciones"
+                        body="Si no es Pro-Rata, especifique si las aportaciones adicionales se deciden por unanimidad o por mayoría y, de ser mayoría, el porcentaje requerido."
+                      />
+                    </label>
                     <Controller
                       name="agreement.corp_moreCapitalDecision"
                       control={control}
@@ -110,7 +120,12 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                     />
                     {watch("agreement.corp_moreCapitalDecision") === "Mayoría" && (
                       <div className="mt-3">
-                        <label className="label">Porcentaje requerido para mayoría</label>
+                        <label className="label flex items-center gap-2">Porcentaje requerido para mayoría
+                          <InfoTooltip
+                            title="Porcentaje de Mayoría"
+                            body="Porcentaje mínimo de aprobación para decisiones tomadas por mayoría (p. ej., 66.67%)."
+                          />
+                        </label>
                         <div className="flex items-center gap-2">
                           <div className="w-1/6 min-w-[120px]">
                             <input

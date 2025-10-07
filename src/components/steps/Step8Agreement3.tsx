@@ -42,7 +42,12 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                 />
                 {watch("agreement.corp_saleDecisionThreshold") === "Mayoría" && (
                   <div className="mt-3">
-                    <label className="label">Porcentaje requerido para mayoría</label>
+                    <label className="label flex items-center gap-2">Porcentaje requerido para mayoría
+                      <InfoTooltip
+                        title="Porcentaje de Mayoría"
+                        body="Porcentaje mínimo necesario para aprobar la venta de la compañía por mayoría (por ejemplo, 66.67%)."
+                      />
+                    </label>
                     <div className="flex items-center gap-2">
                       <div className="w-1/6 min-w-[120px]">
                         <input
@@ -116,7 +121,12 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                 />
                 {watch("agreement.corp_majorDecisionThreshold") === "Mayoría" && (
                   <div className="mt-3">
-                    <label className="label">Porcentaje requerido para mayoría</label>
+                    <label className="label flex items-center gap-2">Porcentaje requerido para mayoría
+                      <InfoTooltip
+                        title="Porcentaje de Mayoría"
+                        body="Porcentaje mínimo necesario para aprobar decisiones importantes por mayoría (por ejemplo, 60% o 75%)."
+                      />
+                    </label>
                     <div className="flex items-center gap-2">
                       <div className="w-1/6 min-w-[120px]">
                         <input
@@ -293,7 +303,12 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                 />
               </div>
               <div>
-                <label className="label">Decisiones mayores (ej. &gt; $10,000):</label>
+                <label className="label flex items-center gap-2">Decisiones mayores (ej. &gt; $10,000):
+                  <InfoTooltip
+                    title="Decisiones Mayores"
+                    body="Decisiones de alto impacto financiero u operativo (por ejemplo, gastos superiores a un umbral, contratación/despido clave, endeudamiento). Especifique quién debe aprobarlas."
+                  />
+                </label>
                 <Controller
                   name="agreement.llc_majorDecisions"
                   control={control}
@@ -314,7 +329,12 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                 />
               </div>
               <div>
-                <label className="label">Decisiones menores (&lt; $10,000):</label>
+                <label className="label flex items-center gap-2">Decisiones menores (&lt; $10,000):
+                  <InfoTooltip
+                    title="Decisiones Menores"
+                    body="Asuntos operativos cotidianos con menor impacto económico. Especifique si requieren unanimidad o si cualquiera de los dueños puede decidir."
+                  />
+                </label>
                 <Controller
                   name="agreement.llc_minorDecisions"
                   control={control}

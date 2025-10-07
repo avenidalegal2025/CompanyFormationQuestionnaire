@@ -72,7 +72,12 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext }: StepP
                 />
                 {watch("agreement.corp_transferToRelatives") === "Sí, podrán transferir sus acciones si la decisión de la mayoría los accionistas." && (
                   <div className="mt-3">
-                    <label className="label">Porcentaje requerido para mayoría</label>
+                    <label className="label flex items-center gap-2">Porcentaje requerido para mayoría
+                      <InfoTooltip
+                        title="Porcentaje de Mayoría"
+                        body="Porcentaje mínimo necesario para aprobar la transferencia por mayoría (por ejemplo, 66.67%)."
+                      />
+                    </label>
                     <div className="flex items-center gap-2">
                       <div className="w-1/6 min-w-[120px]">
                         <input

@@ -23,7 +23,12 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepP
           {isCorp ? (
             <>
               <div>
-                <label className="label">¿Cuánto capital ha invertido cada dueño?</label>
+                <label className="label flex items-center gap-2">¿Cuánto capital ha invertido cada dueño?
+                  <InfoTooltip
+                    title="Capital Invertido"
+                    body="Monto de dinero que cada dueño ha aportado inicialmente a la compañía. Sirve para documentar la inversión de cada parte."
+                  />
+                </label>
                 <div className="mt-2 space-y-3">
                   {Array.from({ length: ownersCount }).map((_, idx) => {
                     const ownerName = ownersData[idx]?.fullName || `Accionista ${idx + 1}`;
@@ -52,7 +57,12 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepP
                 </div>
               </div>
               <div>
-                <label className="label">¿Habrán responsabilidades específicas para cada dueño?</label>
+                <label className="label flex items-center gap-2">¿Habrán responsabilidades específicas para cada dueño?
+                  <InfoTooltip
+                    title="Responsabilidades Específicas"
+                    body="Funciones o cargos de cada dueño (por ejemplo, CEO, CTO, finanzas). Ayuda a aclarar expectativas y autoridad."
+                  />
+                </label>
                 <div className="mt-2 space-y-3">
                   {Array.from({ length: ownersCount }).map((_, idx) => {
                     const ownerName = ownersData[idx]?.fullName || `Accionista ${idx + 1}`;
@@ -85,7 +95,12 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepP
           ) : (
             <>
               <div>
-                <label className="label">Aportaciones de capital: ¿Cuánto dinero está contribuyendo cada dueño al negocio?</label>
+                <label className="label flex items-center gap-2">Aportaciones de capital: ¿Cuánto dinero está contribuyendo cada dueño al negocio?
+                  <InfoTooltip
+                    title="Aportaciones de Capital"
+                    body="Monto que cada socio aporta al inicio. Se utiliza para definir la inversión de cada socio y, en algunos casos, su porcentaje de participación."
+                  />
+                </label>
                 <div className="mt-2 space-y-3">
                   {Array.from({ length: ownersCount }).map((_, idx) => {
                     const ownerName = ownersData[idx]?.fullName || `Socio ${idx + 1}`;
@@ -159,7 +174,12 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepP
                 )}
               </div>
               <div>
-                <label className="label">¿Habrá roles específicos para cada parte? (Ej. uno a cargo de marketing, otro de asuntos legales)</label>
+                <label className="label flex items-center gap-2">¿Habrá roles específicos para cada parte? (Ej. uno a cargo de marketing, otro de asuntos legales)
+                  <InfoTooltip
+                    title="Roles Específicos"
+                    body="Funciones o áreas de responsabilidad asignadas a cada socio para organizar la operación del negocio."
+                  />
+                </label>
                 <div className="mt-2 space-y-3">
                   {Array.from({ length: ownersCount }).map((_, idx) => {
                     const ownerName = ownersData[idx]?.fullName || `Socio ${idx + 1}`;
