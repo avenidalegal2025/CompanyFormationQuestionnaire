@@ -43,7 +43,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                   />
                 </div>
                 {watch("agreement.corp_newShareholdersAdmission") === "Mayoría" && (
-                  <div className="mt-3">
+                  <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[420px]">
                     <label className="label flex items-center gap-2">Porcentaje requerido para mayoría
                       <InfoTooltip
                         title="Porcentaje de Mayoría"
@@ -210,30 +210,35 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                     )}
                   />
                   {watch("agreement.llc_newMembersAdmission") === "Mayoría" && (
-                    <div className="flex items-center gap-2">
-                      <span className="label m-0">Porcentaje requerido para mayoría</span>
-                      <div className="w-1/6 min-w-[120px]">
-                        <input
-                          type="number"
-                          min="50.01"
-                          max="99.99"
-                          step="0.01"
-                          className="input w-full"
-                          placeholder="50.1"
-                          {...register("agreement.llc_newMembersMajority", { 
-                            valueAsNumber: true,
-                            min: 50.01,
-                            max: 99.99
-                          })}
+                    <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[420px]">
+                      <label className="label flex items-center gap-2">Porcentaje requerido para mayoría
+                        <InfoTooltip
+                          title="Porcentaje de Mayoría"
+                          body="Define el porcentaje mínimo de votos necesario para aprobar una decisión por mayoría. Por ejemplo, 60% o 75%."
                         />
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <div className="w-1/6 min-w-[120px]">
+                          <input
+                            type="number"
+                            min="50.01"
+                            max="99.99"
+                            step="0.01"
+                            className="input w-full"
+                            placeholder="50.1"
+                            {...register("agreement.llc_newMembersMajority", { 
+                              valueAsNumber: true,
+                              min: 50.01,
+                              max: 99.99
+                            })}
+                          />
+                        </div>
+                        <span className="text-sm text-gray-500">%</span>
                       </div>
-                      <span className="text-sm text-gray-500">%</span>
+                      <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
                     </div>
                   )}
                 </div>
-                {watch("agreement.llc_newMembersAdmission") === "Mayoría" && (
-                  <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
-                )}
               </div>
               <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
                 <label className="label inline-flex items-start gap-3 max-w-prose">
