@@ -13,10 +13,10 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
     <section className="space-y-6">
       <div className="card">
         <h2 className="text-xl font-semibold text-gray-900">Gobierno & Decisiones</h2>
-        <div className="mt-4 space-y-4 md:pl-6">
+        <div className="mt-6 space-y-10 md:pl-12">
           {isCorp ? (
             <>
-              <div className="mt-6 pt-6 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start first:mt-0 first:pt-0 first:border-0">
+              <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start first:mt-0 first:pt-0 first:border-0">
                 <label className="label inline-flex items-start gap-5 max-w-prose">
                   Si hubiese una oferta de compra o si usted quisiese vender la compañía, ¿quisiera que esta decisión se tome unánimemente o por mayoría?
                   <InfoTooltip
@@ -72,7 +72,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                   </div>
                 )}
               </div>
-              <div className="mt-6 pt-6 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
+              <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
                 <label className="label inline-flex items-start gap-5 max-w-prose">
                   Para la cuenta de banco de la compañía, ¿quiere que haya un o dos firmantes?
                   <InfoTooltip
@@ -99,7 +99,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                   />
                 </div>
               </div>
-              <div className="mt-6 pt-6 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
+              <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
                 <label className="label inline-flex items-start gap-5 max-w-prose">
                   Si hubiese que hacer una decisión importante (como decisiones que cuesten $….., despedir un empleado, pedir un préstamo, etc.) ¿quisiera que esta decisión se tome unánimemente o por mayoría?
                   <InfoTooltip
@@ -155,7 +155,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
               </div>
                 )}
               </div>
-              <div className="mt-6 pt-6 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
+              <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
                 <label className="label inline-flex items-start gap-5 max-w-prose">
                   ¿Quieren una cláusula de no competencia? Esto es algo que debe considerar con mucho cuidado. Se puede redactar una cláusula muy estricta para impedir competencia por alguien involucrado en la compañía
                   <InfoTooltip
@@ -185,7 +185,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
             </>
           ) : (
             <>
-              <div className="mt-6 pt-6 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start first:mt-0 first:pt-0 first:border-0">
+              <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start first:mt-0 first:pt-0 first:border-0">
                 <label className="label inline-flex items-start gap-5 max-w-prose">
                   Venta de la compañía: ¿Decisión unánime o por mayoría?
                   <InfoTooltip
@@ -236,7 +236,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
               </div>
                 )}
               </div>
-              <div className="mt-6 pt-6 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
+              <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
                 <label className="label inline-flex items-start gap-5 max-w-prose">
                   ¿Quién será el socio responsable de impuestos (Tax Partner)?
                   <InfoTooltip
@@ -264,7 +264,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                   />
                 </div>
               </div>
-              <div className="mt-6 pt-6 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
+              <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
                 <label className="label inline-flex items-start gap-5 max-w-prose">
                   Non Compete: ¿Covenant de no competencia entre los dueños?
                   <InfoTooltip
@@ -291,7 +291,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                   />
                 </div>
               </div>
-              <div className="mt-6 pt-6 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-6 md:items-start">
+              <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-6 md:items-start">
                 <label className="label inline-flex items-start gap-3 max-w-prose">
                   Cuenta bancaria: ¿Uno o dos firmantes para retirar dinero?
                   <InfoTooltip
