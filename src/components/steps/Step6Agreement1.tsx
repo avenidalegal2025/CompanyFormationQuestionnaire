@@ -26,11 +26,11 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepP
                   {Array.from({ length: ownersCount }).map((_, idx) => {
                     const ownerName = ownersData[idx]?.fullName || `Accionista ${idx + 1}`;
                     return (
-                      <div key={idx} className="flex items-center gap-4">
-                        <div className="min-w-[200px] text-sm font-medium text-gray-700">
+                      <div key={idx} className="grid grid-cols-2 gap-4 items-center">
+                        <div className="text-sm font-medium text-gray-700">
                           {ownerName}:
                         </div>
-                        <div className="flex-1">
+                        <div>
                           <Controller
                             name={`agreement.corp_capitalPerOwner_${idx}` as never}
                             control={control}
@@ -66,11 +66,11 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepP
                   {Array.from({ length: ownersCount }).map((_, idx) => {
                     const ownerName = ownersData[idx]?.fullName || `Socio ${idx + 1}`;
                     return (
-                      <div key={idx} className="flex items-center gap-4">
-                        <div className="min-w-[200px] text-sm font-medium text-gray-700">
+                      <div key={idx} className="grid grid-cols-2 gap-4 items-center">
+                        <div className="text-sm font-medium text-gray-700">
                           {ownerName}:
                         </div>
-                        <div className="flex-1">
+                        <div>
                           <Controller
                             name={`agreement.llc_capitalContributions_${idx}` as never}
                             control={control}
