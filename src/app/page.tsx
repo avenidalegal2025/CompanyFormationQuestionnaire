@@ -252,16 +252,20 @@ export default function Page() {
   useEffect(() => {
     if (!draftId) return;
     
-    // Add a small delay before starting polling to avoid immediate false positives
-    const startPolling = () => {
-      const intervalId = window.setInterval(async () => {
+    let intervalId: number | null = null;
+    let hasInitialized = false;
+    
+    // Start polling after a 3-second delay to avoid false positives
+    const timeoutId = window.setTimeout(() => {
+      intervalId = window.setInterval(async () => {
         try {
           const res = await loadDraft(draftId);
           const remoteUpdatedAt = res.item?.updatedAt as number | undefined;
           if (res.item?.data && typeof remoteUpdatedAt === 'number') {
             // Initialize baseline on first poll without showing notice
-            if (lastRemoteUpdatedAt === 0) {
+            if (!hasInitialized) {
               setLastRemoteUpdatedAt(remoteUpdatedAt);
+              hasInitialized = true;
               return;
             }
             
@@ -269,9 +273,9 @@ export default function Page() {
             const localLast = lastSavedAt ?? 0;
             const timeDiff = remoteUpdatedAt - lastRemoteUpdatedAt;
             
-            // Only show notice if there's a significant time difference (more than 1 second)
-            // This prevents false positives from rapid successive saves
-            if (timeDiff > 1000 && remoteUpdatedAt > localLast) {
+            // Only show notice if there's a significant time difference (more than 2 seconds)
+            // and it's not from our own recent save
+            if (timeDiff > 2000 && remoteUpdatedAt > localLast) {
               form.reset(res.item.data);
               setLastRemoteUpdatedAt(remoteUpdatedAt);
               // Show collaborator snackbar only if there's actual external editing
@@ -285,18 +289,14 @@ export default function Page() {
         } catch {
           // ignore polling errors
         }
-      }, 4000);
-      return intervalId;
-    };
-    
-    // Start polling after a 2-second delay
-    const timeoutId = window.setTimeout(() => {
-      const intervalId = startPolling();
-      return () => window.clearInterval(intervalId);
-    }, 2000);
+      }, 5000); // Increased interval to 5 seconds to reduce false positives
+    }, 3000);
     
     return () => {
       window.clearTimeout(timeoutId);
+      if (intervalId) {
+        window.clearInterval(intervalId);
+      }
     };
   }, [draftId, lastSavedAt, lastRemoteUpdatedAt, form]);
 

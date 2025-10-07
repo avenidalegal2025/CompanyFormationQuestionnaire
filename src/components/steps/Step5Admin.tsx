@@ -64,7 +64,7 @@ export default function Step5Admin({ form, setStep, onSave, onNext }: StepProps)
                   control={control}
                   render={({ field }) => (
                     <SegmentedToggle
-                      value={(field.value as string) ?? "No"}
+                      value={(field.value as string) ?? "Yes"}
                       onChange={field.onChange}
                       options={[
                         { value: "Yes", label: "Sí" },
@@ -85,23 +85,13 @@ export default function Step5Admin({ form, setStep, onSave, onNext }: StepProps)
                     key={idx}
                     className="mt-6 grid grid-cols-1 gap-4 rounded-2xl border border-gray-100 p-4"
                   >
-                    {/* Nombre + Rol side-by-side */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="label">Nombre completo del Gerente {idx + 1}</label>
-                        <input
-                          className="input"
-                          {...register(fp(`admin.manager${idx + 1}Name`))}
-                        />
-                      </div>
-                      <div>
-                        <label className="label">Rol</label>
-                        <input
-                          className="input"
-                          placeholder=""
-                          {...register(fp(`admin.manager${idx + 1}Role`))}
-                        />
-                      </div>
+                    {/* Nombre del Gerente */}
+                    <div>
+                      <label className="label">Nombre completo del Gerente {idx + 1}</label>
+                      <input
+                        className="input"
+                        {...register(fp(`admin.manager${idx + 1}Name`))}
+                      />
                     </div>
 
                     <div>
@@ -171,23 +161,13 @@ export default function Step5Admin({ form, setStep, onSave, onNext }: StepProps)
                     key={idx}
                     className="mt-6 grid grid-cols-1 gap-4 rounded-2xl border border-gray-100 p-4"
                   >
-                    {/* Nombre + Rol side-by-side */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="label">Nombre completo del Director {idx + 1}</label>
-                        <input
-                          className="input"
-                          {...register(fp(`admin.director${idx + 1}Name`))}
-                        />
-                      </div>
-                      <div>
-                        <label className="label">Rol</label>
-                        <input
-                          className="input"
-                          placeholder=""
-                          {...register(fp(`admin.director${idx + 1}Role`))}
-                        />
-                      </div>
+                    {/* Nombre del Director */}
+                    <div>
+                      <label className="label">Nombre completo del Director {idx + 1}</label>
+                      <input
+                        className="input"
+                        {...register(fp(`admin.director${idx + 1}Name`))}
+                      />
                     </div>
 
                     <div>
@@ -257,7 +237,7 @@ export default function Step5Admin({ form, setStep, onSave, onNext }: StepProps)
                     key={idx}
                     className="mt-6 grid grid-cols-1 gap-4 rounded-2xl border border-gray-100 p-4"
                   >
-                    {/* Nombre + Rol side-by-side (with helper for role) */}
+                    {/* Nombre + Rol side-by-side */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="label">Nombre completo del Oficial {idx + 1}</label>
@@ -268,12 +248,23 @@ export default function Step5Admin({ form, setStep, onSave, onNext }: StepProps)
                       </div>
                       <div>
                         <label className="label">Rol</label>
-                        <input
-                          className="input"
-                          placeholder="Ej. Presidente, CEO"
-                          {...register(fp(`admin.officer${idx + 1}Role`))}
+                        <Controller
+                          name={fp(`admin.officer${idx + 1}Role`)}
+                          control={control}
+                          render={({ field }) => (
+                            <select
+                              className="input"
+                              value={field.value || ""}
+                              onChange={field.onChange}
+                            >
+                              <option value="">Seleccionar rol</option>
+                              <option value="President">President</option>
+                              <option value="Vice-President">Vice-President</option>
+                              <option value="Treasurer">Treasurer</option>
+                              <option value="Secretary">Secretary</option>
+                            </select>
+                          )}
                         />
-                        <p className="help">Ej. Presidente, CEO</p>
                       </div>
                     </div>
 
