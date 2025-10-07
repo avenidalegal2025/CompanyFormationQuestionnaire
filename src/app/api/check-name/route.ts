@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
 
-const REGION = "us-west-1";
-const SUNBIZ_FUNCTION_NAME = "sunbiz-lambda-latest";
-const WYOMING_FUNCTION_NAME = "wyoming-lambda";
-const DELAWARE_FUNCTION_NAME = "delaware-playwright-lambda";
+const REGION = process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || "us-west-1";
+const SUNBIZ_FUNCTION_NAME = process.env.SUNBIZ_LAMBDA_NAME || "sunbiz-lambda-latest";
+const WYOMING_FUNCTION_NAME = process.env.WYOMING_LAMBDA_NAME || "wyoming-lambda";
+const DELAWARE_FUNCTION_NAME = process.env.DELAWARE_LAMBDA_NAME || "delaware-playwright-lambda";
 
 console.log("Environment check:");
 console.log("AWS_REGION:", process.env.AWS_REGION);
@@ -15,7 +15,6 @@ console.log("Final REGION:", REGION);
 
 const lambdaClient = new LambdaClient({
   region: REGION,
-  // Let AWS SDK use default credential chain
 });
 
 export async function POST(req: NextRequest) {
@@ -57,6 +56,14 @@ export async function POST(req: NextRequest) {
       Payload: Buffer.from(JSON.stringify(payload)),
     });
 
+    // Fail fast with a clearer error if AWS credentials are not configured
+    if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+      return NextResponse.json(
+        { success: false, error: "AWS credentials no configurados en el entorno del servidor." },
+        { status: 500 }
+      );
+    }
+
     const response = await lambdaClient.send(command);
     const raw = response.Payload ? Buffer.from(response.Payload).toString("utf-8") : "{}";
 
@@ -82,9 +89,10 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ success: true, ...parsed });
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("check-name API error", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    const message = err instanceof Error ? err.message : "Internal server error";
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
 
