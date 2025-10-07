@@ -49,7 +49,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                         min="50.01"
                         max="99.99"
                         step="0.01"
-                        className="input w-24"
+                        className="input w-1/6 min-w-[96px]"
                         placeholder="50.1"
                         {...register("agreement.corp_newShareholdersMajority", { 
                           valueAsNumber: true,
@@ -115,7 +115,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                             min="50.01"
                             max="99.99"
                             step="0.01"
-                            className="input w-24"
+                            className="input w-1/6 min-w-[96px]"
                             placeholder="50.1"
                             {...register("agreement.corp_moreCapitalMajority", { 
                               valueAsNumber: true,
@@ -192,7 +192,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                         min="50.01"
                         max="99.99"
                         step="0.01"
-                        className="input w-24"
+                        className="input w-1/6 min-w-[96px]"
                         placeholder="50.1"
                         {...register("agreement.llc_newMembersMajority", { 
                           valueAsNumber: true,
@@ -258,7 +258,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                             min="50.01"
                             max="99.99"
                             step="0.01"
-                            className="input w-24"
+                            className="input w-1/6 min-w-[96px]"
                             placeholder="50.1"
                             {...register("agreement.llc_additionalContributionsMajority", { 
                               valueAsNumber: true,
@@ -271,7 +271,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                         <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
                       </div>
                     )}
-                  </div>
+              </div>
                 )}
               </div>
               <div>
