@@ -13,10 +13,10 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
     <section className="space-y-6">
       <div className="card">
         <h2 className="text-xl font-semibold text-gray-900">Capital & Préstamos</h2>
-        <div className="mt-4 space-y-4 md:pl-6">
+        <div className="mt-6 space-y-10 md:pl-12">
           {isCorp ? (
             <>
-              <div className="mt-8 pt-8 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start first:mt-0 first:pt-0 first:border-0">
+              <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start first:mt-0 first:pt-0 first:border-0">
                 <label className="label inline-flex items-start gap-3 max-w-prose">
                   ¿Cómo se añadirán nuevos accionistas, por decisión unánime?, mayoría?
                   <InfoTooltip
@@ -72,7 +72,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                   </div>
                 )}
               </div>
-              <div className="mt-8 pt-8 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
+              <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
                 <label className="label inline-flex items-start gap-3 max-w-prose">
                   Si la corporación necesitara más capital, ¿Se haría en el mismo porcentaje a su participación accionaria, Pro-Rata? Ejemplo: Si se necesitara $100 mil más en capital, un dueño con el 50% de acciones necesitaría invertir unos 50 mil más.
                   <InfoTooltip
@@ -154,7 +154,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
               </div>
                 )}
               </div>
-              <div className="mt-8 pt-8 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
+              <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
                 <label className="label inline-flex items-start gap-3 max-w-prose">
                   ¿Algún accionista podrá prestarle a la compañía? En un futuro podría haber préstamos de accionistas a la compañía
                   <InfoTooltip
@@ -184,7 +184,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
             </>
           ) : (
             <>
-              <div className="mt-8 pt-8 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
+              <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
                 <label className="label inline-flex items-start gap-3 max-w-prose">
                   Adición de nuevos miembros a la LLC: ¿Cómo se añadirán?
                   <InfoTooltip
@@ -235,7 +235,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                   <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
                 )}
               </div>
-              <div className="mt-8 pt-8 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
+              <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
                 <label className="label inline-flex items-start gap-3 max-w-prose">
                   Aportaciones de capital adicionales: ¿Se haría en el mismo porcentaje a su participación, Pro-Rata? Ejemplo: Si se necesitara $100 mil más en capital, un socio con el 50% de participación necesitaría invertir unos 50 mil más.
                   <InfoTooltip
