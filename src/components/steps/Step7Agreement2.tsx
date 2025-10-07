@@ -17,8 +17,51 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
           {isCorp ? (
             <>
               <div>
-                <label className="label">¿Cómo se añadirán nuevos accionistas, por decisión unánime?, mayoría?</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.corp_newShareholdersAdmission")} />
+                <label className="label flex items-center gap-2">
+                  ¿Cómo se añadirán nuevos accionistas, por decisión unánime?, mayoría?
+                  <InfoTooltip
+                    title="Admisión de Nuevos Accionistas"
+                    body="Esta cláusula establece el proceso para añadir nuevos accionistas a la corporación. Puede requerir decisión unánime (todos los accionistas deben estar de acuerdo) o mayoría (un porcentaje específico de accionistas)."
+                  />
+                </label>
+                <Controller
+                  name="agreement.corp_newShareholdersAdmission"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "Decisión Unánime"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Decisión Unánime", label: "Decisión Unánime" },
+                        { value: "Mayoría", label: "Mayoría" },
+                      ]}
+                      ariaLabel="New shareholders admission"
+                      name={field.name}
+                    />
+                  )}
+                />
+                {watch("agreement.corp_newShareholdersAdmission") === "Mayoría" && (
+                  <div className="mt-3">
+                    <label className="label">Porcentaje requerido para mayoría</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="50.01"
+                        max="99.99"
+                        step="0.01"
+                        className="input w-24"
+                        placeholder="50.1"
+                        {...register("agreement.corp_newShareholdersMajority", { 
+                          valueAsNumber: true,
+                          min: 50.01,
+                          max: 99.99
+                        })}
+                      />
+                      <span className="text-sm text-gray-500">%</span>
+                    </div>
+                    <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="label">Si la corporación necesitara más capital, ¿cómo se haría esto? Típicamente cada accionista es requerido invertir una cantidad en proporción. Si se necesitara $100 mil más en capital, un dueño con el 50% de acciones necesitaría invertir unos 50 mil más.</label>

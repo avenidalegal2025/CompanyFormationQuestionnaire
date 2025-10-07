@@ -113,7 +113,8 @@ export const AgreementSchema = z
     corp_specificResponsibilities_5: z.string().optional(),
     corp_hoursCommitment: z.string().optional(),
     // C-Corp capital & loans
-    corp_newShareholdersAdmission: z.string().optional(),
+    corp_newShareholdersAdmission: z.enum(["Decisión Unánime", "Mayoría"]).optional(),
+    corp_newShareholdersMajority: z.number().min(50.01).max(99.99).optional(),
     corp_moreCapitalProcess: z.string().optional(),
     corp_withdrawFundsPolicy: z.string().optional(),
     // C-Corp governance & decisions
