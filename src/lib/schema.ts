@@ -116,20 +116,18 @@ export const AgreementSchema = z
     corp_newShareholdersAdmission: z.string().optional(),
     corp_moreCapitalProcess: z.string().optional(),
     corp_withdrawFundsPolicy: z.string().optional(),
-    corp_shareholderLoans: z.string().optional(),
     // C-Corp governance & decisions
     corp_saleDecisionThreshold: z.string().optional(),
-    corp_bankSigners: z.string().optional(),
+    corp_bankSigners: z.enum(["Un firmante", "Dos firmantes"]).optional(),
     corp_majorDecisionThreshold: z.string().optional(),
-    corp_restrictions: z.string().optional(),
-    corp_nonCompete: z.string().optional(),
-    corp_voteTieBreaker: z.string().optional(),
+    corp_shareholderLoans: z.enum(["Yes", "No"]).optional(),
+    corp_nonCompete: z.enum(["Yes", "No"]).optional(),
     // C-Corp shares & succession
-    corp_rofr: z.string().optional(),
+    corp_rofr: z.enum(["Yes", "No"]).optional(),
     corp_transferToRelatives: z.string().optional(),
-    corp_incapacityHeirsPolicy: z.string().optional(),
-    corp_divorceBuyoutPolicy: z.string().optional(),
-    corp_tagDragRights: z.string().optional(),
+    corp_incapacityHeirsPolicy: z.enum(["Yes", "No"]).optional(),
+    corp_divorceBuyoutPolicy: z.enum(["Yes", "No"]).optional(),
+    corp_tagDragRights: z.enum(["Yes", "No"]).optional(),
     corp_additionalClauses: z.string().optional(),
 
     // LLC specific fields (owners & roles)

@@ -17,28 +17,108 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext }: StepP
           {isCorp ? (
             <>
               <div>
-                <label className="label">¿Quiere que los accionistas tengan el derecho de ser los primeros en rechazar una oferta de venta de la compañía?</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.corp_rofr")} />
+                <label className="label flex items-center gap-2">
+                  ¿Quiere que los accionistas tengan el derecho de ser los primeros en rechazar una oferta de venta de la compañía?
+                  <InfoTooltip
+                    title="Right of First Refusal"
+                    body="El derecho de preferencia permite que los accionistas existentes tengan la primera oportunidad de comprar las acciones de un accionista que desea vender, antes de que se ofrezcan a terceros."
+                  />
+                </label>
+                <Controller
+                  name="agreement.corp_rofr"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "No"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Yes", label: "Sí" },
+                        { value: "No", label: "No" },
+                      ]}
+                      ariaLabel="Right of first refusal"
+                      name={field.name}
+                    />
+                  )}
+                />
               </div>
               <div>
                 <label className="label">¿Podrán los accionistas libremente transferir sus acciones a sus parientes, o deberá ser esta transferencia sujeta a una decisión unánime, mayoría o el 65.1% de los accionistas?</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.corp_transferToRelatives")} />
               </div>
               <div>
-                <label className="label">En el caso de incapacidad o de la muerte de algún accionista, ¿querrá que los herederos estén obligados a vender las acciones a la compañía, o que lo hagan solo si así lo decide la compañía?</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.corp_incapacityHeirsPolicy")} />
+                <label className="label flex items-center gap-2">
+                  En el caso de incapacidad o de la muerte de algún accionista, ¿querrá que los herederos estén obligados a vender las acciones a la compañía, o que lo hagan solo si así lo decide la compañía?
+                  <InfoTooltip
+                    title="Política de Herederos"
+                    body="Esta cláusula determina si los herederos de un accionista fallecido o incapacitado deben vender sus acciones a la corporación, evitando que personas no deseadas se conviertan en accionistas."
+                  />
+                </label>
+                <Controller
+                  name="agreement.corp_incapacityHeirsPolicy"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "No"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Yes", label: "Sí" },
+                        { value: "No", label: "No" },
+                      ]}
+                      ariaLabel="Incapacity heirs policy"
+                      name={field.name}
+                    />
+                  )}
+                />
               </div>
               <div>
-                <label className="label">Si en el caso de un divorcio donde las partes no puedan ponerse de acuerdo sobre las acciones de la compañía, ¿quisiera que la compañía tuviera el derecho de comprar a la ex pareja todas las acciones que tengan al precio del mercado?</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.corp_divorceBuyoutPolicy")} />
+                <label className="label flex items-center gap-2">
+                  Si en el caso de un divorcio donde las partes no puedan ponerse de acuerdo sobre las acciones de la compañía, ¿quisiera que la compañía tuviera el derecho de comprar a la ex pareja todas las acciones que tengan al precio del mercado?
+                  <InfoTooltip
+                    title="Política de Divorcio"
+                    body="Esta cláusula protege a la corporación de disputas matrimoniales al permitir que la empresa compre las acciones de la ex pareja a precio de mercado, evitando que un cónyuge no deseado se convierta en accionista."
+                  />
+                </label>
+                <Controller
+                  name="agreement.corp_divorceBuyoutPolicy"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "No"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Yes", label: "Sí" },
+                        { value: "No", label: "No" },
+                      ]}
+                      ariaLabel="Divorce buyout policy"
+                      name={field.name}
+                    />
+                  )}
+                />
               </div>
               <div>
-                <label className="label">¿Quiere derechos de &quot;tag along&quot; o un &quot;drag along&quot;?</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.corp_tagDragRights")} />
-              </div>
-              <div>
-                <label className="label">Por favor indique aquí cualquier comentario o puntos que se hayan discutido al respecto de lo anterior, o cláusulas que quiera añadir</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.corp_additionalClauses")} />
+                <label className="label flex items-center gap-2">
+                  ¿Quiere derechos de "tag along" o un "drag along"?
+                  <InfoTooltip
+                    title="Tag Along / Drag Along"
+                    body="Tag Along: Permite que accionistas minoritarios vendan sus acciones cuando un accionista mayoritario vende. Drag Along: Permite que accionistas mayoritarios obliguen a minoritarios a vender cuando ellos venden."
+                  />
+                </label>
+                <Controller
+                  name="agreement.corp_tagDragRights"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "No"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Yes", label: "Sí" },
+                        { value: "No", label: "No" },
+                      ]}
+                      ariaLabel="Tag along drag along rights"
+                      name={field.name}
+                    />
+                  )}
+                />
               </div>
             </>
           ) : (

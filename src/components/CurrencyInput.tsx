@@ -43,8 +43,20 @@ const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const inputValue = e.target.value;
-      // Don't format during typing, just clean the input
-      const cleaned = inputValue.replace(/[^\d.]/g, "");
+      // Clean input and limit to 2 decimal places during typing
+      let cleaned = inputValue.replace(/[^\d.]/g, "");
+      
+      // Handle multiple decimal points - keep only the first one
+      const parts = cleaned.split(".");
+      if (parts.length > 2) {
+        cleaned = parts[0] + "." + parts.slice(1).join("");
+      }
+      
+      // Limit to 2 decimal places
+      if (parts.length === 2 && parts[1].length > 2) {
+        cleaned = parts[0] + "." + parts[1].substring(0, 2);
+      }
+      
       onChange?.(cleaned);
     };
 

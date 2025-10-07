@@ -21,20 +21,83 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                 <textarea className="input min-h-[80px]" {...register("agreement.corp_saleDecisionThreshold")} />
               </div>
               <div>
-                <label className="label">Para la cuenta de banco de la compañía, ¿quiere que haya un o dos firmantes?</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.corp_bankSigners")} />
+                <label className="label flex items-center gap-2">
+                  Para la cuenta de banco de la compañía, ¿quiere que haya un o dos firmantes?
+                  <InfoTooltip
+                    title="Firmantes Bancarios"
+                    body="Determina cuántas firmas se requieren para realizar transacciones bancarias. Un firmante permite mayor agilidad, dos firmantes proporciona mayor control y seguridad."
+                  />
+                </label>
+                <Controller
+                  name="agreement.corp_bankSigners"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "Un firmante"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Un firmante", label: "Un firmante" },
+                        { value: "Dos firmantes", label: "Dos firmantes" },
+                      ]}
+                      ariaLabel="Bank signers"
+                      name={field.name}
+                    />
+                  )}
+                />
               </div>
               <div>
                 <label className="label">Si hubiese que hacer una decisión importante (como decisiones que cuesten $….., despedir un empleado, pedir un préstamo, etc.), ¿quisiera que esta decisión fuese tomada por mayoría, unanimidad o un 65.1% de los miembros?</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.corp_majorDecisionThreshold")} />
               </div>
               <div>
-                <label className="label">¿Quiere que existan restricciones en los accionistas, ejecutivos, directores?</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.corp_restrictions")} />
+                <label className="label flex items-center gap-2">
+                  ¿Algún accionista podrá prestarle a la compañía? En un futuro podría haber préstamos de accionistas a la compañía
+                  <InfoTooltip
+                    title="Préstamos de Accionistas"
+                    body="Los préstamos de accionistas a la compañía pueden ser una fuente de financiamiento flexible. Esta cláusula establece si los accionistas pueden prestar dinero a la corporación y bajo qué términos."
+                  />
+                </label>
+                <Controller
+                  name="agreement.corp_shareholderLoans"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "No"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Yes", label: "Sí" },
+                        { value: "No", label: "No" },
+                      ]}
+                      ariaLabel="Shareholder loans"
+                      name={field.name}
+                    />
+                  )}
+                />
               </div>
               <div>
-                <label className="label">¿Quieren una cláusula de no competencia? Esto es algo que debe considerar con mucho cuidado. Se puede redactar una cláusula muy estricta para impedir competencia por alguien involucrado en la compañía</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.corp_nonCompete")} />
+                <label className="label flex items-center gap-2">
+                  ¿Quieren una cláusula de no competencia? Esto es algo que debe considerar con mucho cuidado. Se puede redactar una cláusula muy estricta para impedir competencia por alguien involucrado en la compañía
+                  <InfoTooltip
+                    title="Cláusula de No Competencia"
+                    body="Un covenant de no competencia impide que los accionistas, ejecutivos o directores compitan con la corporación durante y después de su participación. Esto puede incluir restricciones geográficas, temporales y de industria."
+                  />
+                </label>
+                <Controller
+                  name="agreement.corp_nonCompete"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "No"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Yes", label: "Sí" },
+                        { value: "No", label: "No" },
+                      ]}
+                      ariaLabel="Non compete covenant"
+                      name={field.name}
+                    />
+                  )}
+                />
               </div>
             </>
           ) : (
