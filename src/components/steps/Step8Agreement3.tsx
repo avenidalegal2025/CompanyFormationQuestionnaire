@@ -318,18 +318,18 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                   />
                 </div>
               </div>
-              <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
-                <label className="label inline-flex items-start gap-5 max-w-prose">Decisiones mayores (ej. &gt; $10,000):
+              <div>
+                <label className="label flex items-center gap-2">Decisiones mayores (ej. &gt; $10,000):
                   <InfoTooltip
                     title="Decisiones Mayores"
                     body="Decisiones de alto impacto financiero u operativo (por ejemplo, gastos superiores a un umbral, contratación/despido clave, endeudamiento). Especifique quién debe aprobarlas."
                   />
                 </label>
-                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
-                  <Controller
-                    name="agreement.llc_majorDecisions"
-                    control={control}
-                    render={({ field }) => (
+                <Controller
+                  name="agreement.llc_majorDecisions"
+                  control={control}
+                  render={({ field }) => (
+                    <div className="w-[43%] min-w-[320px]">
                       <SegmentedToggle
                         value={field.value || "Unánime"}
                         onChange={field.onChange}
@@ -340,22 +340,22 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                         ariaLabel="LLC major decisions"
                         name={field.name}
                       />
-                    )}
-                  />
-                </div>
+                    </div>
+                  )}
+                />
               </div>
-              <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
-                <label className="label inline-flex items-start gap-5 max-w-prose">Decisiones menores (&lt; $10,000):
+              <div>
+                <label className="label flex items-center gap-2">Decisiones menores (&lt; $10,000):
                   <InfoTooltip
                     title="Decisiones Menores"
                     body="Asuntos operativos cotidianos con menor impacto económico. Especifique si requieren unanimidad o si cualquiera de los dueños puede decidir."
                   />
                 </label>
-                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
-                  <Controller
-                    name="agreement.llc_minorDecisions"
-                    control={control}
-                    render={({ field }) => (
+                <Controller
+                  name="agreement.llc_minorDecisions"
+                  control={control}
+                  render={({ field }) => (
+                    <div className="w-[43%] min-w-[320px]">
                       <SegmentedToggle
                         value={field.value || "Unánime"}
                         onChange={field.onChange}
@@ -366,9 +366,9 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                         ariaLabel="LLC minor decisions"
                         name={field.name}
                       />
-                    )}
-                  />
-                </div>
+              </div>
+                  )}
+                />
               </div>
             </>
           )}
