@@ -54,7 +54,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext }: StepP
                   control={control}
                   render={({ field }) => (
                     <select
-                      className="mt-1 w-1/3 min-w-[240px] rounded-xl2 border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-300"
+                      className="mt-1 w-2/3 min-w-[360px] max-w-[800px] rounded-xl2 border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-300"
                       {...field}
                     >
                       <option value="">Seleccionar opción</option>
