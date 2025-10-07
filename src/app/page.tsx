@@ -251,35 +251,53 @@ export default function Page() {
   // Collaborative polling: refresh form if another user saved newer data (every 4s)
   useEffect(() => {
     if (!draftId) return;
-    const intervalId = window.setInterval(async () => {
-      try {
-        const res = await loadDraft(draftId);
-        const remoteUpdatedAt = res.item?.updatedAt as number | undefined;
-        if (res.item?.data && typeof remoteUpdatedAt === 'number') {
-          // Initialize baseline on first poll without showing notice
-          if (lastRemoteUpdatedAt === 0) {
-            setLastRemoteUpdatedAt(remoteUpdatedAt);
-            return;
+    
+    // Add a small delay before starting polling to avoid immediate false positives
+    const startPolling = () => {
+      const intervalId = window.setInterval(async () => {
+        try {
+          const res = await loadDraft(draftId);
+          const remoteUpdatedAt = res.item?.updatedAt as number | undefined;
+          if (res.item?.data && typeof remoteUpdatedAt === 'number') {
+            // Initialize baseline on first poll without showing notice
+            if (lastRemoteUpdatedAt === 0) {
+              setLastRemoteUpdatedAt(remoteUpdatedAt);
+              return;
+            }
+            
+            // Only refresh if remote is newer than what we've seen and newer than our last local save
+            const localLast = lastSavedAt ?? 0;
+            const timeDiff = remoteUpdatedAt - lastRemoteUpdatedAt;
+            
+            // Only show notice if there's a significant time difference (more than 1 second)
+            // This prevents false positives from rapid successive saves
+            if (timeDiff > 1000 && remoteUpdatedAt > localLast) {
+              form.reset(res.item.data);
+              setLastRemoteUpdatedAt(remoteUpdatedAt);
+              // Show collaborator snackbar only if there's actual external editing
+              setCollabNotice("Otro usuario está editando este cuestionario en este momento.");
+              // Keep the notice visible as long as remote edits continue. Hide only after inactivity.
+              const INACTIVITY_MS = 30000; // 30s without remote updates hides the notice
+              if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
+              noticeTimerRef.current = window.setTimeout(() => setCollabNotice(null), INACTIVITY_MS);
+            }
           }
-          
-          // Only refresh if remote is newer than what we've seen and newer than our last local save
-          const localLast = lastSavedAt ?? 0;
-          if (remoteUpdatedAt > lastRemoteUpdatedAt && remoteUpdatedAt > localLast) {
-            form.reset(res.item.data);
-            setLastRemoteUpdatedAt(remoteUpdatedAt);
-            // Show collaborator snackbar only if there's actual external editing
-            setCollabNotice("Otro usuario está editando este cuestionario en este momento.");
-            // Keep the notice visible as long as remote edits continue. Hide only after inactivity.
-            const INACTIVITY_MS = 30000; // 30s without remote updates hides the notice
-            if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
-            noticeTimerRef.current = window.setTimeout(() => setCollabNotice(null), INACTIVITY_MS);
-          }
+        } catch {
+          // ignore polling errors
         }
-      } catch {
-        // ignore polling errors
-      }
-    }, 4000);
-    return () => window.clearInterval(intervalId);
+      }, 4000);
+      return intervalId;
+    };
+    
+    // Start polling after a 2-second delay
+    const timeoutId = window.setTimeout(() => {
+      const intervalId = startPolling();
+      return () => window.clearInterval(intervalId);
+    }, 2000);
+    
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [draftId, lastSavedAt, lastRemoteUpdatedAt, form]);
 
   // Button handlers

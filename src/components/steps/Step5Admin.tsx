@@ -5,6 +5,7 @@ import { Controller, type FieldPath } from "react-hook-form";
 import HeroBanner from "@/components/HeroBanner";
 import SegmentedToggle from "@/components/SegmentedToggle";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
+import InfoTooltip from "@/components/InfoTooltip";
 import type { AllSteps } from "@/lib/schema";
 import type { StepProps } from "./types";
 
@@ -126,8 +127,12 @@ export default function Step5Admin({ form, setStep, onSave, onNext }: StepProps)
           <>
             {/* C-Corp — Directores */}
             <div className="mt-2 flex flex-col">
-              <label className="label">
+              <label className="label flex items-center gap-2">
                 ¿Todos los accionistas y solo los accionistas serán los directores?
+                <InfoTooltip
+                  title="Directores de la Corporación"
+                  body="Los directores son responsables de tomar las decisiones estratégicas de la corporación. Si todos los accionistas son directores, significa que cada accionista tiene derecho a participar en las decisiones importantes de la empresa. Esto es común en corporaciones pequeñas donde los accionistas quieren mantener control directo sobre la gestión."
+                />
               </label>
               <Controller
                 name="admin.directorsAllOwners"
@@ -206,8 +211,12 @@ export default function Step5Admin({ form, setStep, onSave, onNext }: StepProps)
 
             {/* C-Corp — Oficiales (replicated pattern) */}
             <div className="mt-8 flex flex-col">
-              <label className="label">
+              <label className="label flex items-center gap-2">
                 ¿Todos los accionistas y solo los accionistas serán los oficiales?
+                <InfoTooltip
+                  title="Oficiales de la Corporación"
+                  body="Los oficiales son responsables de las operaciones diarias de la corporación (CEO, CFO, Secretario, etc.). Si todos los accionistas son oficiales, significa que cada accionista puede ocupar un cargo ejecutivo en la empresa. Esto es común en corporaciones pequeñas donde los accionistas quieren participar activamente en la gestión operativa."
+                />
               </label>
               <Controller
                 name="admin.officersAllOwners"
