@@ -15,7 +15,7 @@ const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
   ({ value = "", onChange, placeholder = "0.00", className = "", name, ...props }, ref) => {
     const formatCurrency = (inputValue: string) => {
       // Remove all non-numeric characters except decimal point
-      const numericValue = inputValue.replace(/[^\d.]/g, "");
+      let numericValue = inputValue.replace(/[^\d.]/g, "");
       
       // Handle multiple decimal points - keep only the first one
       const parts = numericValue.split(".");
