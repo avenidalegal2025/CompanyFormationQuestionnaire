@@ -24,11 +24,15 @@ export default function CompanyNameCheckButton({
     }
     setLoading(true);
     try {
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 30000);
       const res = await fetch("/api/check-name", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ companyName: name, entityType, formationState }),
+        signal: controller.signal,
       });
+      window.clearTimeout(timeoutId);
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || "Error en la verificación");
 
@@ -45,7 +49,12 @@ export default function CompanyNameCheckButton({
         setResult({ status: "warn", message: "No se pudo determinar. Intenta de nuevo más tarde." });
       }
     } catch (e) {
-      setResult({ status: "error", message: e instanceof Error ? e.message : "Error desconocido" });
+      const msg = e instanceof Error ? e.message : "Error desconocido";
+      const friendly =
+        msg === "Failed to fetch" || msg === "The user aborted a request."
+          ? "No se pudo conectar con el servicio. Verifica tu conexión e intenta nuevamente."
+          : msg;
+      setResult({ status: "error", message: friendly });
     } finally {
       setLoading(false);
     }
