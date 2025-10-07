@@ -29,16 +29,16 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                     name="agreement.corp_newShareholdersAdmission"
                     control={control}
                     render={({ field }) => (
-                      <SegmentedToggle
-                        value={field.value || "Decisión Unánime"}
-                        onChange={field.onChange}
-                        options={[
-                          { value: "Decisión Unánime", label: "Decisión Unánime" },
-                          { value: "Mayoría", label: "Mayoría" },
-                        ]}
-                        ariaLabel="New shareholders admission"
-                        name={field.name}
-                      />
+                    <SegmentedToggle
+                      value={field.value || "Decisión Unánime"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Decisión Unánime", label: "Unánime" },
+                        { value: "Mayoría", label: "Mayoría" },
+                      ]}
+                      ariaLabel="New shareholders admission"
+                      name={field.name}
+                    />
                     )}
                   />
                 </div>
@@ -110,16 +110,16 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                       name="agreement.corp_moreCapitalDecision"
                       control={control}
                       render={({ field }) => (
-                        <SegmentedToggle
-                          value={field.value || "Decisión Unánime"}
-                          onChange={field.onChange}
-                          options={[
-                            { value: "Decisión Unánime", label: "Decisión Unánime" },
-                            { value: "Mayoría", label: "Mayoría" },
-                          ]}
-                          ariaLabel="More capital decision"
-                          name={field.name}
-                        />
+                    <SegmentedToggle
+                      value={field.value || "Decisión Unánime"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Decisión Unánime", label: "Unánime" },
+                        { value: "Mayoría", label: "Mayoría" },
+                      ]}
+                      ariaLabel="More capital decision"
+                      name={field.name}
+                    />
                       )}
                     />
                     {watch("agreement.corp_moreCapitalDecision") === "Mayoría" && (
@@ -197,16 +197,16 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                     name="agreement.llc_newMembersAdmission"
                     control={control}
                     render={({ field }) => (
-                      <SegmentedToggle
-                        value={field.value || "Decisión Unánime"}
-                        onChange={field.onChange}
-                        options={[
-                          { value: "Decisión Unánime", label: "Decisión Unánime" },
-                          { value: "Mayoría", label: "Mayoría" },
-                        ]}
-                        ariaLabel="New members admission"
-                        name={field.name}
-                      />
+                    <SegmentedToggle
+                      value={field.value || "Decisión Unánime"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Decisión Unánime", label: "Unánime" },
+                        { value: "Mayoría", label: "Mayoría" },
+                      ]}
+                      ariaLabel="New members admission"
+                      name={field.name}
+                    />
                     )}
                   />
                   {watch("agreement.llc_newMembersAdmission") === "Mayoría" && (
@@ -273,7 +273,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                             value={field.value || "Decisión Unánime"}
                             onChange={field.onChange}
                             options={[
-                              { value: "Decisión Unánime", label: "Decisión Unánime" },
+                              { value: "Decisión Unánime", label: "Unánime" },
                               { value: "Mayoría", label: "Mayoría" },
                             ]}
                             ariaLabel="Additional contributions decision"
