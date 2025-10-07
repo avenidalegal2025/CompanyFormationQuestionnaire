@@ -1,6 +1,7 @@
 "use client";
 
 import { Controller } from "react-hook-form";
+import HeroVideo from "@/components/HeroVideo";
 import CurrencyInput from "@/components/CurrencyInput";
 import SegmentedToggle from "@/components/SegmentedToggle";
 import InfoTooltip from "@/components/InfoTooltip";
@@ -17,6 +18,7 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepP
 
   return (
     <section className="space-y-6">
+      <HeroVideo title="Dueños & Roles" />
       <div className="card">
         <h2 className="text-xl font-semibold text-gray-900">Dueños & Roles</h2>
         <div className="mt-6 space-y-10 md:pl-12">
