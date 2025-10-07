@@ -16,30 +16,32 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
         <div className="mt-4 space-y-4">
           {isCorp ? (
             <>
-              <div>
-                <label className="label flex items-center gap-3">
+              <div className="mt-8 pt-8 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start first:mt-0 first:pt-0 first:border-0">
+                <label className="label inline-flex items-start gap-3 max-w-prose">
                   ¿Cómo se añadirán nuevos accionistas, por decisión unánime?, mayoría?
                   <InfoTooltip
                     title="Admisión de Nuevos Accionistas"
                     body="Esta cláusula establece el proceso para añadir nuevos accionistas a la corporación. Puede requerir decisión unánime (todos los accionistas deben estar de acuerdo) o mayoría (un porcentaje específico de accionistas)."
                   />
                 </label>
-                <Controller
-                  name="agreement.corp_newShareholdersAdmission"
-                  control={control}
-                  render={({ field }) => (
-                    <SegmentedToggle
-                      value={field.value || "Decisión Unánime"}
-                      onChange={field.onChange}
-                      options={[
-                        { value: "Decisión Unánime", label: "Decisión Unánime" },
-                        { value: "Mayoría", label: "Mayoría" },
-                      ]}
-                      ariaLabel="New shareholders admission"
-                      name={field.name}
-                    />
-                  )}
-                />
+                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
+                  <Controller
+                    name="agreement.corp_newShareholdersAdmission"
+                    control={control}
+                    render={({ field }) => (
+                      <SegmentedToggle
+                        value={field.value || "Decisión Unánime"}
+                        onChange={field.onChange}
+                        options={[
+                          { value: "Decisión Unánime", label: "Decisión Unánime" },
+                          { value: "Mayoría", label: "Mayoría" },
+                        ]}
+                        ariaLabel="New shareholders admission"
+                        name={field.name}
+                      />
+                    )}
+                  />
+                </div>
                 {watch("agreement.corp_newShareholdersAdmission") === "Mayoría" && (
                   <div className="mt-3">
                     <label className="label flex items-center gap-2">Porcentaje requerido para mayoría
@@ -70,30 +72,32 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                   </div>
                 )}
               </div>
-              <div className="pt-5 mt-5 border-t border-gray-100">
-                <label className="label flex items-center gap-3">
+              <div className="mt-8 pt-8 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
+                <label className="label inline-flex items-start gap-3 max-w-prose">
                   Si la corporación necesitara más capital, ¿Se haría en el mismo porcentaje a su participación accionaria, Pro-Rata? Ejemplo: Si se necesitara $100 mil más en capital, un dueño con el 50% de acciones necesitaría invertir unos 50 mil más.
                   <InfoTooltip
                     title="Aportaciones de Capital Pro-Rata"
                     body="Pro-Rata significa que cada accionista debe aportar capital adicional en la misma proporción que su participación accionaria. Si no es Pro-Rata, se puede establecer un proceso diferente para decidir las aportaciones."
                   />
                 </label>
-                <Controller
-                  name="agreement.corp_moreCapitalProcess"
-                  control={control}
-                  render={({ field }) => (
-                    <SegmentedToggle
-                      value={field.value || "Sí, Pro-Rata"}
-                      onChange={field.onChange}
-                      options={[
-                        { value: "Sí, Pro-Rata", label: "Sí, Pro-Rata" },
-                        { value: "No", label: "No" },
-                      ]}
-                      ariaLabel="More capital process"
-                      name={field.name}
-                    />
-                  )}
-                />
+                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
+                  <Controller
+                    name="agreement.corp_moreCapitalProcess"
+                    control={control}
+                    render={({ field }) => (
+                      <SegmentedToggle
+                        value={field.value || "Sí, Pro-Rata"}
+                        onChange={field.onChange}
+                        options={[
+                          { value: "Sí, Pro-Rata", label: "Sí, Pro-Rata" },
+                          { value: "No", label: "No" },
+                        ]}
+                        ariaLabel="More capital process"
+                        name={field.name}
+                      />
+                    )}
+                  />
+                </div>
                 {watch("agreement.corp_moreCapitalProcess") === "No" && (
                   <div className="mt-3">
                     <label className="label flex items-center gap-2">¿Cómo se decidiría la proporción de las aportaciones?
@@ -150,43 +154,45 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
               </div>
                 )}
               </div>
-              <div className="pt-5 mt-5 border-t border-gray-100">
-                <label className="label flex items-center gap-3">
+              <div className="mt-8 pt-8 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
+                <label className="label inline-flex items-start gap-3 max-w-prose">
                   ¿Algún accionista podrá prestarle a la compañía? En un futuro podría haber préstamos de accionistas a la compañía
                   <InfoTooltip
                     title="Préstamos de Accionistas"
                     body="Los préstamos de accionistas a la compañía pueden ser una fuente de financiamiento flexible. Esta cláusula establece si los accionistas pueden prestar dinero a la corporación y bajo qué términos."
                   />
                 </label>
-                <Controller
-                  name="agreement.corp_shareholderLoans"
-                  control={control}
-                  render={({ field }) => (
-                    <SegmentedToggle
-                      value={field.value || "No"}
-                      onChange={field.onChange}
-                      options={[
-                        { value: "Yes", label: "Sí" },
-                        { value: "No", label: "No" },
-                      ]}
-                      ariaLabel="Shareholder loans"
-                      name={field.name}
-                    />
-                  )}
-                />
+                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
+                  <Controller
+                    name="agreement.corp_shareholderLoans"
+                    control={control}
+                    render={({ field }) => (
+                      <SegmentedToggle
+                        value={field.value || "No"}
+                        onChange={field.onChange}
+                        options={[
+                          { value: "Yes", label: "Sí" },
+                          { value: "No", label: "No" },
+                        ]}
+                        ariaLabel="Shareholder loans"
+                        name={field.name}
+                      />
+                    )}
+                  />
+                </div>
               </div>
             </>
           ) : (
             <>
-              <div>
-                <label className="label flex items-center gap-3">
+              <div className="mt-8 pt-8 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
+                <label className="label inline-flex items-start gap-3 max-w-prose">
                   Adición de nuevos miembros a la LLC: ¿Cómo se añadirán?
                   <InfoTooltip
                     title="Admisión de Nuevos Miembros"
                     body="Esta cláusula establece el proceso para añadir nuevos miembros a la LLC. Puede requerir decisión unánime (todos los miembros deben estar de acuerdo) o mayoría (un porcentaje específico de miembros)."
                   />
                 </label>
-                <div className="flex items-center gap-4 flex-wrap">
+                <div className="flex items-center gap-4 flex-wrap md:justify-self-end md:w-[420px]">
                   <Controller
                     name="agreement.llc_newMembersAdmission"
                     control={control}
@@ -229,30 +235,32 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                   <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
                 )}
               </div>
-              <div className="pt-5 mt-5 border-t border-gray-100">
-                <label className="label flex items-center gap-3">
+              <div className="mt-8 pt-8 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
+                <label className="label inline-flex items-start gap-3 max-w-prose">
                   Aportaciones de capital adicionales: ¿Se haría en el mismo porcentaje a su participación, Pro-Rata? Ejemplo: Si se necesitara $100 mil más en capital, un socio con el 50% de participación necesitaría invertir unos 50 mil más.
                   <InfoTooltip
                     title="Aportaciones de Capital Pro-Rata"
                     body="Pro-Rata significa que cada socio debe aportar capital adicional en la misma proporción que su participación en la LLC. Si no es Pro-Rata, se puede establecer un proceso diferente para decidir las aportaciones."
                   />
                 </label>
-                <Controller
-                  name="agreement.llc_additionalContributions"
-                  control={control}
-                  render={({ field }) => (
-                    <SegmentedToggle
-                      value={field.value || "Sí, Pro-Rata"}
-                      onChange={field.onChange}
-                      options={[
-                        { value: "Sí, Pro-Rata", label: "Sí, Pro-Rata" },
-                        { value: "No", label: "No" },
-                      ]}
-                      ariaLabel="Additional contributions process"
-                      name={field.name}
-                    />
-                  )}
-                />
+                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
+                  <Controller
+                    name="agreement.llc_additionalContributions"
+                    control={control}
+                    render={({ field }) => (
+                      <SegmentedToggle
+                        value={field.value || "Sí, Pro-Rata"}
+                        onChange={field.onChange}
+                        options={[
+                          { value: "Sí, Pro-Rata", label: "Sí, Pro-Rata" },
+                          { value: "No", label: "No" },
+                        ]}
+                        ariaLabel="Additional contributions process"
+                        name={field.name}
+                      />
+                    )}
+                  />
+                </div>
                 {watch("agreement.llc_additionalContributions") === "No" && (
                   <div className="mt-3">
                     <label className="label">¿Cómo se decidiría la proporción de las aportaciones?</label>
@@ -301,30 +309,32 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
               </div>
                 )}
               </div>
-              <div className="pt-5 mt-5 border-t border-gray-100">
-                <label className="label flex items-center gap-3">
+              <div className="mt-8 pt-8 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
+                <label className="label inline-flex items-start gap-3 max-w-prose">
                   ¿Habrá préstamos de miembros a la LLC?
                   <InfoTooltip
                     title="Préstamos de Miembros"
                     body="Los préstamos de miembros a la LLC pueden ser una fuente de financiamiento flexible. Esta cláusula establece si los miembros pueden prestar dinero a la LLC y bajo qué términos."
                   />
                 </label>
-                <Controller
-                  name="agreement.llc_memberLoans"
-                  control={control}
-                  render={({ field }) => (
-                    <SegmentedToggle
-                      value={field.value || "No"}
-                      onChange={field.onChange}
-                      options={[
-                        { value: "Yes", label: "Sí" },
-                        { value: "No", label: "No" },
-                      ]}
-                      ariaLabel="Member loans"
-                      name={field.name}
-                    />
-                  )}
-                />
+                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
+                  <Controller
+                    name="agreement.llc_memberLoans"
+                    control={control}
+                    render={({ field }) => (
+                      <SegmentedToggle
+                        value={field.value || "No"}
+                        onChange={field.onChange}
+                        options={[
+                          { value: "Yes", label: "Sí" },
+                          { value: "No", label: "No" },
+                        ]}
+                        ariaLabel="Member loans"
+                        name={field.name}
+                      />
+                    )}
+                  />
+                </div>
               </div>
             </>
           )}

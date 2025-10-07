@@ -22,14 +22,14 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepP
         <div className="mt-4 space-y-4">
           {isCorp ? (
             <>
-              <div>
-                <label className="label flex items-center gap-2">¿Cuánto capital ha invertido cada dueño?
+              <div className="mt-8 pt-8 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start first:mt-0 first:pt-0 first:border-0">
+                <label className="label inline-flex items-start gap-3 max-w-prose">¿Cuánto capital ha invertido cada dueño?
                   <InfoTooltip
                     title="Capital Invertido"
                     body="Monto de dinero que cada dueño ha aportado inicialmente a la compañía. Sirve para documentar la inversión de cada parte."
                   />
                 </label>
-                <div className="mt-2 space-y-3">
+                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px] space-y-3">
                   {Array.from({ length: ownersCount }).map((_, idx) => {
                     const ownerName = ownersData[idx]?.fullName || `Accionista ${idx + 1}`;
                     return (
@@ -56,14 +56,14 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepP
                   })}
                 </div>
               </div>
-              <div className="pt-5 mt-5 border-t border-gray-100">
-                <label className="label flex items-center gap-3">¿Habrán responsabilidades específicas para cada dueño?
+              <div className="mt-8 pt-8 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
+                <label className="label inline-flex items-start gap-3 max-w-prose">¿Habrán responsabilidades específicas para cada dueño?
                   <InfoTooltip
                     title="Responsabilidades Específicas"
                     body="Funciones o cargos de cada dueño (por ejemplo, CEO, CTO, finanzas). Ayuda a aclarar expectativas y autoridad."
                   />
                 </label>
-                <div className="mt-2 space-y-3">
+                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px] space-y-3">
                   {Array.from({ length: ownersCount }).map((_, idx) => {
                     const ownerName = ownersData[idx]?.fullName || `Accionista ${idx + 1}`;
                     return (
@@ -94,14 +94,14 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepP
             </>
           ) : (
             <>
-              <div>
-                <label className="label flex items-center gap-3">Aportaciones de capital: ¿Cuánto dinero está contribuyendo cada dueño al negocio?
+              <div className="mt-8 pt-8 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start first:mt-0 first:pt-0 first:border-0">
+                <label className="label inline-flex items-start gap-3 max-w-prose">Aportaciones de capital: ¿Cuánto dinero está contribuyendo cada dueño al negocio?
                   <InfoTooltip
                     title="Aportaciones de Capital"
                     body="Monto que cada socio aporta al inicio. Se utiliza para definir la inversión de cada socio y, en algunos casos, su porcentaje de participación."
                   />
                 </label>
-                <div className="mt-2 space-y-3">
+                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px] space-y-3">
                   {Array.from({ length: ownersCount }).map((_, idx) => {
                     const ownerName = ownersData[idx]?.fullName || `Socio ${idx + 1}`;
                     return (
@@ -128,32 +128,34 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepP
                   })}
                 </div>
               </div>
-              <div className="pt-5 mt-5 border-t border-gray-100">
-                <label className="label flex items-center gap-3">
+              <div className="mt-8 pt-8 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
+                <label className="label inline-flex items-start gap-3 max-w-prose">
                   ¿Ambos dueños van a operar el negocio como miembros administradores (con derecho a firmar y tomar decisiones)?
                   <InfoTooltip
                     title="Miembros Administradores"
                     body="Los miembros administradores tienen derecho a firmar documentos y tomar decisiones operativas. Si no todos los miembros son administradores, solo los seleccionados tendrán estos poderes."
                   />
                 </label>
-                <Controller
-                  name="agreement.llc_managingMembers"
-                  control={control}
-                  render={({ field }) => (
-                    <SegmentedToggle
-                      value={field.value || "Yes"}
-                      onChange={field.onChange}
-                      options={[
-                        { value: "Yes", label: "Sí" },
-                        { value: "No", label: "No" },
-                      ]}
-                      ariaLabel="Managing members"
-                      name={field.name}
-                    />
-                  )}
-                />
+                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
+                  <Controller
+                    name="agreement.llc_managingMembers"
+                    control={control}
+                    render={({ field }) => (
+                      <SegmentedToggle
+                        value={field.value || "Yes"}
+                        onChange={field.onChange}
+                        options={[
+                          { value: "Yes", label: "Sí" },
+                          { value: "No", label: "No" },
+                        ]}
+                        ariaLabel="Managing members"
+                        name={field.name}
+                      />
+                    )}
+                  />
+                </div>
                 {watch("agreement.llc_managingMembers") === "No" && (
-                  <div className="mt-3">
+                  <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[420px]">
                     <label className="label">Seleccionar miembros administradores:</label>
                     <div className="space-y-2">
                       {Array.from({ length: ownersCount }).map((_, idx) => {
@@ -173,14 +175,14 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepP
                   </div>
                 )}
               </div>
-              <div className="pt-5 mt-5 border-t border-gray-100">
-                <label className="label flex items-center gap-3">¿Habrá roles específicos para cada parte? (Ej. uno a cargo de marketing, otro de asuntos legales)
+              <div className="mt-8 pt-8 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
+                <label className="label inline-flex items-start gap-3 max-w-prose">¿Habrá roles específicos para cada parte? (Ej. uno a cargo de marketing, otro de asuntos legales)
                   <InfoTooltip
                     title="Roles Específicos"
                     body="Funciones o áreas de responsabilidad asignadas a cada socio para organizar la operación del negocio."
                   />
                 </label>
-                <div className="mt-2 space-y-3">
+                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px] space-y-3">
                   {Array.from({ length: ownersCount }).map((_, idx) => {
                     const ownerName = ownersData[idx]?.fullName || `Socio ${idx + 1}`;
                     return (
