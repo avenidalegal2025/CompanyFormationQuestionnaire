@@ -70,7 +70,7 @@ const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
 
     return (
       <div className="relative">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none">
           $
         </span>
         <input
@@ -81,10 +81,10 @@ const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
           onChange={handleChange}
           onBlur={handleBlur}
           placeholder={placeholder}
-          className={`input pl-8 pr-12 ${className}`}
+          className={`w-full rounded-xl2 border border-gray-200 py-2 pl-8 pr-12 focus:outline-none focus:ring-2 focus:ring-brand-300 ${className}`}
           {...props}
         />
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none">
           USD
         </span>
       </div>
