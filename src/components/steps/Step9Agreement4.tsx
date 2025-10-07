@@ -53,7 +53,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext }: StepP
                   name="agreement.corp_transferToRelatives"
                   control={control}
                   render={({ field }) => (
-                    <select className="input mt-1" {...field}>
+                    <select className="input mt-1 w-1/3 min-w-[240px]" {...field}>
                       <option value="">Seleccionar opción</option>
                       <option value="Sí, podrán transferir libremente sus acciones.">
                         Sí, podrán transferir libremente sus acciones.
