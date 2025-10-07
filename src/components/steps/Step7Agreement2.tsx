@@ -24,10 +24,6 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                 <label className="label">Si la corporación necesitara más capital, ¿cómo se haría esto? Típicamente cada accionista es requerido invertir una cantidad en proporción. Si se necesitara $100 mil más en capital, un dueño con el 50% de acciones necesitaría invertir unos 50 mil más.</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.corp_moreCapitalProcess")} />
               </div>
-              <div>
-                <label className="label">¿Cómo retirar fondos? (Recomiendo que esto suceda solamente a la venta de las acciones de una parte o a la disolución de la compañía)</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.corp_withdrawFundsPolicy")} />
-              </div>
             </>
           ) : (
             <>
