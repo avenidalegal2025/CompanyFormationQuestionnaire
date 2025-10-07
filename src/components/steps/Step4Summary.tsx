@@ -445,7 +445,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                         <p className="text-gray-900">{owner?.isUsCitizen === "Yes" ? "Sí" : "No"}</p>
                       )}
                     </div>
-                    {owner?.isUsCitizen === "Yes" ? (
+                    {(owner?.isUsCitizen ?? "No") === "Yes" ? (
                       <div>
                         <span className="font-bold text-gray-700">SSN/EIN:</span>
                         {editingSection === "owners" ? (

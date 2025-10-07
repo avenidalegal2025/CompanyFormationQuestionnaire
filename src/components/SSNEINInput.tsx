@@ -12,8 +12,9 @@ type Props = {
   required?: boolean;
 };
 
-function onlyDigits(s: string) {
-  return (s || "").replace(/\D+/g, "").slice(0, 9);
+function onlyDigits(s: unknown) {
+  const str = typeof s === "string" ? s : String(s ?? "");
+  return str.replace(/\D+/g, "").slice(0, 9);
 }
 
 // Full SSN-style formatting when visible: ###-##-####
