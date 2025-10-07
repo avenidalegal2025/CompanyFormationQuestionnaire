@@ -589,14 +589,12 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                     <h4 className="text-md font-bold text-gray-900">Directores</h4>
                     {Array.from({ length: adminData?.directorsCount || 0 }).map((_, idx) => {
                       const name = watch(`admin.director${idx + 1}Name`);
-                      const role = watch(`admin.director${idx + 1}Role`);
                       const address = watch(`admin.director${idx + 1}Address`);
                       const nameStr = (name as string | undefined) || "No especificado";
-                      const roleStr = (role as string | undefined) || "No especificado";
                       const addressStr = (address as string | undefined) || "No especificado";
                       return (
                         <div key={idx} className="rounded-lg border border-gray-100 p-4">
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                               <span className="font-bold text-gray-700">Nombre:</span>
                               {editingSection === "admin" ? (
@@ -609,20 +607,6 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                                 />
                               ) : (
                                 <p className="text-gray-900">{nameStr}</p>
-                              )}
-                            </div>
-                            <div>
-                              <span className="font-bold text-gray-700">Rol:</span>
-                              {editingSection === "admin" ? (
-                                <Controller
-                                  name={`admin.director${idx + 1}Role` as never}
-                                  control={control}
-                                  render={({ field }) => (
-                                    <input className="input mt-1" {...field} />
-                                  )}
-                                />
-                              ) : (
-                                <p className="text-gray-900">{roleStr}</p>
                               )}
                             </div>
                             <div>
