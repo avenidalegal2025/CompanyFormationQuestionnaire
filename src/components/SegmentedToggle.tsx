@@ -25,6 +25,11 @@ export default function SegmentedToggle({
 
   const buttonsRef = useRef<Array<HTMLButtonElement | null>>([]);
 
+  // Check if this is a "Sí | No" toggle
+  const isYesNoToggle = opts.length === 2 && 
+    opts.some(opt => opt.label === "Sí" || opt.label === "Yes") &&
+    opts.some(opt => opt.label === "No");
+
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     const idx = opts.findIndex((o) => o.value === value);
     if (idx < 0) return;
@@ -47,7 +52,7 @@ export default function SegmentedToggle({
       role="radiogroup"
       aria-label={ariaLabel}
       aria-labelledby={name}
-      className="grid grid-cols-2 w-[200px] rounded-2xl border border-gray-300 overflow-hidden"
+      className={`grid grid-cols-2 ${isYesNoToggle ? 'w-[200px]' : 'w-auto min-w-[320px]'} rounded-2xl border border-gray-300 overflow-hidden`}
       onKeyDown={onKeyDown}
     >
       {opts.map((opt, idx) => {
