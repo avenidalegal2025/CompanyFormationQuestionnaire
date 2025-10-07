@@ -82,7 +82,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                           }}
                         />
                       </div>
-                      <span className="text-base text-gray-500">%</span>
+                      <span className="text-sm text-gray-500">%</span>
                     </div>
                     <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
                     {errors.agreement?.corp_newShareholdersMajority && (
@@ -181,7 +181,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                               }}
                             />
                           </div>
-                          <span className="text-base text-gray-500">%</span>
+                          <span className="text-sm text-gray-500">%</span>
                         </div>
                         <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
                       </div>
@@ -284,7 +284,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                             }}
                           />
                         </div>
-                        <span className="text-base text-gray-500">%</span>
+                        <span className="text-sm text-gray-500">%</span>
                       </div>
                       <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
                       {errors.agreement?.llc_newMembersMajority && (
@@ -384,7 +384,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                               }}
                             />
                           </div>
-                          <span className="text-base text-gray-500">%</span>
+                          <span className="text-sm text-gray-500">%</span>
                         </div>
                         <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
                       </div>
@@ -426,7 +426,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
         <div className="mt-8 pt-6 border-t flex items-center justify-between">
           <button type="button" className="btn" onClick={() => setStep(5)}>Atrás</button>
           <div className="flex items-center gap-4">
-            <button type="button" className="text-sm underline text-blue-600" onClick={() => void onSave?.()}>Guardar y continuar más tarde</button>
+            <button type="button" className="text-base underline text-blue-600" onClick={() => void onSave?.()}>Guardar y continuar más tarde</button>
             <button type="button" className="btn btn-primary" onClick={() => void onNext?.()}>Continuar</button>
           </div>
         </div>

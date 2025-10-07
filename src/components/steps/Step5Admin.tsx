@@ -347,7 +347,7 @@ export default function Step5Admin({ form, setStep, onSave, onNext }: StepProps)
           <div className="flex items-center gap-4">
             <button
               type="button"
-              className="text-sm underline text-blue-600 hover:text-blue-700"
+              className="text-base underline text-blue-600 hover:text-blue-700"
               onClick={() => void onSave?.()}
             >
               Guardar y continuar más tarde
