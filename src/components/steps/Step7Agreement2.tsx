@@ -82,7 +82,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                           }}
                         />
                       </div>
-                      <span className="text-sm text-gray-500">%</span>
+                      <span className="text-base text-gray-500">%</span>
                     </div>
                     <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
                     {errors.agreement?.corp_newShareholdersMajority && (
@@ -181,7 +181,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                               }}
                             />
                           </div>
-                          <span className="text-sm text-gray-500">%</span>
+                          <span className="text-base text-gray-500">%</span>
                         </div>
                         <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
                       </div>
@@ -284,7 +284,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                             }}
                           />
                         </div>
-                        <span className="text-sm text-gray-500">%</span>
+                        <span className="text-base text-gray-500">%</span>
                       </div>
                       <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
                       {errors.agreement?.llc_newMembersMajority && (
@@ -384,7 +384,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                               }}
                             />
                           </div>
-                          <span className="text-sm text-gray-500">%</span>
+                          <span className="text-base text-gray-500">%</span>
                         </div>
                         <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
                       </div>

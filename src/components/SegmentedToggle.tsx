@@ -58,7 +58,7 @@ export default function SegmentedToggle({
       {opts.map((opt, idx) => {
         const active = value === opt.value;
         const base =
-          "px-4 py-2 text-sm font-medium text-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 whitespace-nowrap";
+          "px-4 py-3 text-base font-medium text-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 whitespace-nowrap";
         const colors = active
           ? "bg-brand-600 text-white"
           : "bg-white text-gray-700 hover:bg-gray-50";
