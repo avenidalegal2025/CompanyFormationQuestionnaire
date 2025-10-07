@@ -96,9 +96,10 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
   // Obfuscate SSN/EIN
   // When isSSN is true, mask as ***-**-1234 (show last 4 only)
   // Otherwise, keep EIN formatting XX-XXXXXXX
-  const obfuscateSSNEIN = (value: string | undefined, isSSN: boolean) => {
-    if (!value) return "No especificado";
-    const digits = value.replace(/\D/g, "");
+  const obfuscateSSNEIN = (value: unknown, isSSN: boolean) => {
+    const raw = typeof value === "string" ? value : value == null ? "" : String(value);
+    if (!raw) return "No especificado";
+    const digits = raw.replace(/\D/g, "");
     if (digits.length !== 9) return value;
     if (isSSN) {
       // Show only last 4
@@ -421,7 +422,20 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                           name={`owners.${i}.isUsCitizen` as never}
                           control={control}
                           render={({ field }) => (
-                            <select className="input mt-1" {...field}>
+                            <select
+                              className="input mt-1"
+                              value={(field.value as string) || "No"}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                field.onChange(val);
+                                // initialize counterpart fields to safe defaults
+                                if (val === "Yes") {
+                                  form.setValue(`owners.${i}.tin` as any, (form.getValues(`owners.${i}.tin` as any) as string) || "");
+                                } else {
+                                  form.setValue(`owners.${i}.passportImage` as any, (form.getValues(`owners.${i}.passportImage` as any) as string) || "");
+                                }
+                              }}
+                            >
                               <option value="No">No</option>
                               <option value="Yes">Sí</option>
                             </select>
@@ -447,7 +461,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                             )}
                           />
                         ) : (
-                          <p className="text-gray-900">{obfuscateSSNEIN(owner?.tin, true)}</p>
+                          <p className="text-gray-900">{String(obfuscateSSNEIN(owner?.tin, true))}</p>
                         )}
                       </div>
                     ) : (
