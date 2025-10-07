@@ -254,7 +254,7 @@ export default function Step5Admin({ form, setStep, onSave, onNext }: StepProps)
                           render={({ field }) => (
                             <select
                               className="input"
-                              value={field.value || ""}
+                              value={field.value as string || ""}
                               onChange={field.onChange}
                             >
                               <option value="">Seleccionar rol</option>
