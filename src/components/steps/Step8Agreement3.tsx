@@ -64,6 +64,17 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                             min: 50.01,
                             max: 99.99
                           })}
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value);
+                            if (!isNaN(value)) {
+                              if (value < 50.01) {
+                                e.target.value = "50.01";
+                              } else if (value > 99.99) {
+                                e.target.value = "99.99";
+                              }
+                            }
+                            register("agreement.corp_saleDecisionMajority").onChange(e);
+                          }}
                         />
                       </div>
                       <span className="text-sm text-gray-500">%</span>
@@ -147,6 +158,17 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                             min: 50.01,
                             max: 99.99
                           })}
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value);
+                            if (!isNaN(value)) {
+                              if (value < 50.01) {
+                                e.target.value = "50.01";
+                              } else if (value > 99.99) {
+                                e.target.value = "99.99";
+                              }
+                            }
+                            register("agreement.corp_majorDecisionMajority").onChange(e);
+                          }}
                         />
                       </div>
                       <span className="text-sm text-gray-500">%</span>
@@ -228,6 +250,17 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                             min: 50.01,
                             max: 99.99,
                           })}
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value);
+                            if (!isNaN(value)) {
+                              if (value < 50.01) {
+                                e.target.value = "50.01";
+                              } else if (value > 99.99) {
+                                e.target.value = "99.99";
+                              }
+                            }
+                            register("agreement.llc_companySaleDecisionMajority").onChange(e);
+                          }}
                         />
               </div>
                       <span className="text-sm text-gray-500">%</span>

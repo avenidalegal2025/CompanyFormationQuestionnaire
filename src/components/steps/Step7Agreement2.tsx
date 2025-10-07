@@ -64,6 +64,17 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                             min: 50.01,
                             max: 99.99
                           })}
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value);
+                            if (!isNaN(value)) {
+                              if (value < 50.01) {
+                                e.target.value = "50.01";
+                              } else if (value > 99.99) {
+                                e.target.value = "99.99";
+                              }
+                            }
+                            register("agreement.corp_newShareholdersMajority").onChange(e);
+                          }}
                         />
                       </div>
                       <span className="text-sm text-gray-500">%</span>
@@ -144,6 +155,17 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                                 min: 50.01,
                                 max: 99.99
                               })}
+                              onChange={(e) => {
+                                const value = parseFloat(e.target.value);
+                                if (!isNaN(value)) {
+                                  if (value < 50.01) {
+                                    e.target.value = "50.01";
+                                  } else if (value > 99.99) {
+                                    e.target.value = "99.99";
+                                  }
+                                }
+                                register("agreement.corp_moreCapitalMajority").onChange(e);
+                              }}
                             />
                           </div>
                           <span className="text-sm text-gray-500">%</span>
@@ -231,6 +253,17 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                               min: 50.01,
                               max: 99.99
                             })}
+                            onChange={(e) => {
+                              const value = parseFloat(e.target.value);
+                              if (!isNaN(value)) {
+                                if (value < 50.01) {
+                                  e.target.value = "50.01";
+                                } else if (value > 99.99) {
+                                  e.target.value = "99.99";
+                                }
+                              }
+                              register("agreement.llc_newMembersMajority").onChange(e);
+                            }}
                           />
                         </div>
                         <span className="text-sm text-gray-500">%</span>
@@ -312,6 +345,17 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                                 min: 50.01,
                                 max: 99.99
                               })}
+                              onChange={(e) => {
+                                const value = parseFloat(e.target.value);
+                                if (!isNaN(value)) {
+                                  if (value < 50.01) {
+                                    e.target.value = "50.01";
+                                  } else if (value > 99.99) {
+                                    e.target.value = "99.99";
+                                  }
+                                }
+                                register("agreement.llc_additionalContributionsMajority").onChange(e);
+                              }}
                             />
                           </div>
                           <span className="text-sm text-gray-500">%</span>
