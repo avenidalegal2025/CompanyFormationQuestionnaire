@@ -281,19 +281,21 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                 name={"ownersCount" as never}
                 control={control}
                 render={({ field }) => (
-                  <input
-                    type="number"
-                    min={1}
-                    max={6}
-                    className="input mt-1 w-40"
-                    placeholder="(1-6)"
-                    value={field.value ?? ""}
-                    onChange={(e) => {
-                      const v = Number(e.target.value);
-                      if (!isNaN(v) && v >= 1 && v <= 6) field.onChange(v);
-                      if (e.target.value === "") field.onChange(undefined);
-                    }}
-                  />
+                  <div className="w-1/6 min-w-[120px]">
+                    <input
+                      type="number"
+                      min={1}
+                      max={6}
+                      className="input mt-1 w-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      placeholder="(1-6)"
+                      value={field.value ?? ""}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        if (!isNaN(v) && v >= 1 && v <= 6) field.onChange(v);
+                        if (e.target.value === "") field.onChange(undefined);
+                      }}
+                    />
+                  </div>
                 )}
               />
             </div>
@@ -441,10 +443,22 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                                 value={field.value ?? ""}
                                 onChange={(e) => {
                                   const digits = e.target.value.replace(/[^0-9]/g, "").slice(0, 9);
-                                  if (digits.length <= 5) field.onChange(digits.replace(/(\d{3})(\d{0,2})?/, (m, a, b) => (b ? `${a}-${b}` : a)));
-                                  else field.onChange(`${digits.slice(0,3)}-${digits.slice(3,5)}-${digits.slice(5,9)}`);
+                                  // If 9 digits and first two are not 00, format as EIN (XX-XXXXXXX)
+                                  if (digits.length === 9 && Number(digits.slice(0, 2)) > 0 && Number(digits.slice(2, 3)) >= 0) {
+                                    // Heuristic: if the user typed a dash after 2 digits or current value already looks like EIN, keep EIN
+                                    if (e.target.value.length <= 10 && /\d{2}-?\d{0,7}/.test(e.target.value)) {
+                                      field.onChange(`${digits.slice(0,2)}-${digits.slice(2)}`);
+                                      return;
+                                    }
+                                  }
+                                  // Default to SSN style XXX-XX-XXXX
+                                  if (digits.length <= 5) {
+                                    field.onChange(digits.replace(/(\d{3})(\d{0,2})?/, (m, a, b) => (b ? `${a}-${b}` : a)));
+                                  } else {
+                                    field.onChange(`${digits.slice(0,3)}-${digits.slice(3,5)}-${digits.slice(5,9)}`);
+                                  }
                                 }}
-                                placeholder="***-**-1234"
+                                placeholder="SSN: 123-45-6789 o EIN: 12-3456789"
                               />
                             )}
                           />
