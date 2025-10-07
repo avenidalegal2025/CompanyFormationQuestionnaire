@@ -6,7 +6,7 @@ import InfoTooltip from "@/components/InfoTooltip";
 import type { StepProps } from "./types";
 
 export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepProps) {
-  const { register, watch, control } = form;
+  const { register, watch, control, formState: { errors } } = form;
   const isCorp = watch("company.entityType") === "C-Corp";
 
   return (
