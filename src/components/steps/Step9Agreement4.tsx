@@ -96,7 +96,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext }: StepP
                             min: 50.01,
                             max: 99.99
                           })}
-                          onChange={(e) => {
+                          onBlur={(e) => {
                             const value = parseFloat(e.target.value);
                             if (!isNaN(value)) {
                               if (value < 50.01) {
@@ -296,7 +296,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext }: StepP
                             min: 50.01,
                             max: 99.99,
                           })}
-                          onChange={(e) => {
+                          onBlur={(e) => {
                             const value = parseFloat(e.target.value);
                             if (!isNaN(value)) {
                               if (value < 50.01) {
@@ -358,7 +358,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext }: StepP
                             min: 50.01,
                             max: 99.99,
                           })}
-                          onChange={(e) => {
+                          onBlur={(e) => {
                             const value = parseFloat(e.target.value);
                             if (!isNaN(value)) {
                               if (value < 50.01) {
