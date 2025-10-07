@@ -47,7 +47,7 @@ export default function SegmentedToggle({
       role="radiogroup"
       aria-label={ariaLabel}
       aria-labelledby={name}
-      className="grid grid-cols-2 w-auto min-w-[280px] rounded-2xl border border-gray-300 overflow-hidden"
+      className="grid grid-cols-2 w-1/3 min-w-[240px] rounded-2xl border border-gray-300 overflow-hidden"
       onKeyDown={onKeyDown}
     >
       {opts.map((opt, idx) => {

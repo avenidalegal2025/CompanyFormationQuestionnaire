@@ -33,7 +33,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                         value={field.value || "Decisión Unánime"}
                         onChange={field.onChange}
                         options={[
-                          { value: "Decisión Unánime", label: "Unánime" },
+                          { value: "Decisión Unánime", label: "Decisión Unánime" },
                           { value: "Mayoría", label: "Mayoría" },
                         ]}
                         ariaLabel="New shareholders admission"
@@ -113,8 +113,8 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                         <SegmentedToggle
                           value={field.value || "Decisión Unánime"}
                           onChange={field.onChange}
-                        options={[
-                            { value: "Decisión Unánime", label: "Unánime" },
+                          options={[
+                            { value: "Decisión Unánime", label: "Decisión Unánime" },
                             { value: "Mayoría", label: "Mayoría" },
                           ]}
                           ariaLabel="More capital decision"
@@ -201,7 +201,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                         value={field.value || "Decisión Unánime"}
                         onChange={field.onChange}
                         options={[
-                          { value: "Decisión Unánime", label: "Unánime" },
+                          { value: "Decisión Unánime", label: "Decisión Unánime" },
                           { value: "Mayoría", label: "Mayoría" },
                         ]}
                         ariaLabel="New members admission"
@@ -272,8 +272,8 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                           <SegmentedToggle
                             value={field.value || "Decisión Unánime"}
                             onChange={field.onChange}
-                        options={[
-                              { value: "Decisión Unánime", label: "Unánime" },
+                            options={[
+                              { value: "Decisión Unánime", label: "Decisión Unánime" },
                               { value: "Mayoría", label: "Mayoría" },
                             ]}
                             ariaLabel="Additional contributions decision"

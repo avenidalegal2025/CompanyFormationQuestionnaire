@@ -33,7 +33,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                         value={field.value || "Decisión Unánime"}
                         onChange={field.onChange}
                         options={[
-                          { value: "Decisión Unánime", label: "Unánime" },
+                          { value: "Decisión Unánime", label: "Decisión Unánime" },
                           { value: "Mayoría", label: "Mayoría" },
                         ]}
                         ariaLabel="Sale decision threshold"
@@ -116,7 +116,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                         value={field.value || "Decisión Unánime"}
                         onChange={field.onChange}
                         options={[
-                          { value: "Decisión Unánime", label: "Unánime" },
+                          { value: "Decisión Unánime", label: "Decisión Unánime" },
                           { value: "Mayoría", label: "Mayoría" },
                         ]}
                         ariaLabel="Major decision threshold"
@@ -202,7 +202,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                         value={field.value || "Decisión Unánime"}
                         onChange={field.onChange}
                         options={[
-                          { value: "Decisión Unánime", label: "Unánime" },
+                          { value: "Decisión Unánime", label: "Decisión Unánime" },
                           { value: "Mayoría", label: "Mayoría" },
                         ]}
                         ariaLabel="LLC sale decision"
