@@ -1,9 +1,12 @@
 "use client";
 
+import { Controller } from "react-hook-form";
+import SegmentedToggle from "@/components/SegmentedToggle";
+import InfoTooltip from "@/components/InfoTooltip";
 import type { StepProps } from "./types";
 
 export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepProps) {
-  const { register, watch } = form;
+  const { register, watch, control } = form;
   const isCorp = watch("company.entityType") === "C-Corp";
 
   return (
@@ -26,8 +29,29 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                 <textarea className="input min-h-[80px]" {...register("agreement.corp_withdrawFundsPolicy")} />
               </div>
               <div>
-                <label className="label">¿Algún accionista podrá prestarle a la compañía? En un futuro podría haber préstamos de accionistas a la compañía</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.corp_shareholderLoans")} />
+                <label className="label flex items-center gap-2">
+                  ¿Algún accionista podrá prestarle a la compañía? En un futuro podría haber préstamos de accionistas a la compañía
+                  <InfoTooltip
+                    title="Préstamos de Accionistas"
+                    body="Los préstamos de accionistas a la compañía pueden ser una fuente de financiamiento flexible. Esta cláusula establece si los accionistas pueden prestar dinero a la corporación y bajo qué términos."
+                  />
+                </label>
+                <Controller
+                  name="agreement.corp_shareholderLoans"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "No"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Yes", label: "Sí" },
+                        { value: "No", label: "No" },
+                      ]}
+                      ariaLabel="Shareholder loans"
+                      name={field.name}
+                    />
+                  )}
+                />
               </div>
             </>
           ) : (
