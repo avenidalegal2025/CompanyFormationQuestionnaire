@@ -276,7 +276,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
               </div>
               <div>
                 <label className="label flex items-center gap-2">
-                  ¿Habrá préstamos de miembros a la LLC? Si sí, ¿quién y cuánto?
+                  ¿Habrá préstamos de miembros a la LLC?
                   <InfoTooltip
                     title="Préstamos de Miembros"
                     body="Los préstamos de miembros a la LLC pueden ser una fuente de financiamiento flexible. Esta cláusula establece si los miembros pueden prestar dinero a la LLC y bajo qué términos."
