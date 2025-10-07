@@ -79,10 +79,6 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepP
                   })}
                 </div>
               </div>
-              <div>
-                <label className="label">¿Hay cierta cantidad de horas que el accionista esté comprometido a trabajar en este negocio?</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.corp_hoursCommitment")} />
-              </div>
             </>
           ) : (
             <>
