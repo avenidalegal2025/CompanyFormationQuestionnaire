@@ -322,7 +322,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                   </div>
                 )}
               </div>
-              <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
+              <div className="mt-8 pt-8 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
                 <label className="label inline-flex items-start gap-3 max-w-prose">
                   ¿Habrá préstamos de miembros a la LLC?
                   <InfoTooltip
