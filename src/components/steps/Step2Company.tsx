@@ -281,13 +281,15 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
         </div>
 
         {/* Dirección */}
-        <div className="mt-12 pt-10 border-t border-gray-100">
-          <div className="label-lg mb-1">¿Cuenta con una dirección en USA para su empresa?</div>
-          <p className="text-sm text-gray-600">
-            No puede ser P.O. BOX. Si no cuenta con una nosotros le podemos proveer una por $600
-            usd al año.
-          </p>
-          <div className="mt-2">
+        <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
+          <div>
+            <div className="label-lg mb-1">¿Cuenta con una dirección en USA para su empresa?</div>
+            <p className="text-sm text-gray-600">
+              No puede ser P.O. BOX. Si no cuenta con una nosotros le podemos proveer una por $600
+              usd al año.
+            </p>
+          </div>
+          <div className="md:col-start-2 md:justify-self-end">
             <Controller
               name="company.hasUsaAddress"
               control={control}
@@ -369,12 +371,14 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
         )}
 
         {/* Teléfono */}
-        <div className="mt-12 pt-10 border-t border-gray-100">
-          <div className="label-lg mb-1">¿Cuenta con número de teléfono de USA de su empresa?</div>
-          <p className="text-sm text-gray-600">
-            Si no cuenta con uno, nosotros se lo podemos proveer por $180 usd al año.
-          </p>
-          <div className="mt-2">
+        <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
+          <div>
+            <div className="label-lg mb-1">¿Cuenta con número de teléfono de USA de su empresa?</div>
+            <p className="text-sm text-gray-600">
+              Si no cuenta con uno, nosotros se lo podemos proveer por $180 usd al año.
+            </p>
+          </div>
+          <div className="md:col-start-2 md:justify-self-end">
             <Controller
               name="company.hasUsPhone"
               control={control}
