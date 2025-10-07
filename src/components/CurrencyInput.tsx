@@ -32,9 +32,9 @@ const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
       const num = parseFloat(numericValue);
       if (isNaN(num)) return "";
       
-      // Format with commas for thousands
+      // Format with commas for thousands and always show 2 decimal places
       const formatted = num.toLocaleString("en-US", {
-        minimumFractionDigits: 0,
+        minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       });
       
