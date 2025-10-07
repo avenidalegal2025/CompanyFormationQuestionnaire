@@ -50,21 +50,14 @@ export default function Step5Admin({ form, setStep, onSave, onNext }: StepProps)
         {entityType === "LLC" ? (
           <>
             {/* LLC — Gerentes */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end mt-6">
-              <div>
-                <label className="label">¿Número de gerentes?</label>
-                <input
-                  className="input w-24"
-                  type="number"
-                  min={1}
-                  step={1}
-                  {...register("admin.managersCount", { valueAsNumber: true })}
-                />
-              </div>
-
+            <div className="mt-6">
               <div className="flex flex-col">
-                <label className="label">
+                <label className="label flex items-center gap-2">
                   ¿Todos los socios y solo los socios son los gerentes?
+                  <InfoTooltip
+                    title="Gerentes de la LLC"
+                    body="Los gerentes son responsables de la gestión diaria de la LLC. Pueden ser socios o personas externas. Si todos los socios son gerentes, significa que cada socio tiene voz y voto en las decisiones operativas."
+                  />
                 </label>
                 <Controller
                   name="admin.managersAllOwners"
@@ -87,6 +80,18 @@ export default function Step5Admin({ form, setStep, onSave, onNext }: StepProps)
 
             {managersAllOwners === "No" && (
               <>
+                <div className="mt-6">
+                  <label className="label">Número de gerentes</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={6}
+                    className="input w-full max-w-xs"
+                    placeholder="1"
+                    {...register("admin.managersCount", { valueAsNumber: true })}
+                  />
+                </div>
+
                 {Array.from({ length: managersCount || 0 }).map((_, idx) => (
                   <div
                     key={idx}
