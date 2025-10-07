@@ -64,8 +64,72 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                 )}
               </div>
               <div>
-                <label className="label">Si la corporación necesitara más capital, ¿cómo se haría esto? Típicamente cada accionista es requerido invertir una cantidad en proporción. Si se necesitara $100 mil más en capital, un dueño con el 50% de acciones necesitaría invertir unos 50 mil más.</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.corp_moreCapitalProcess")} />
+                <label className="label flex items-center gap-2">
+                  Si la corporación necesitara más capital, ¿Se haría en el mismo porcentaje a su participación accionaria, Pro-Rata? Ejemplo: Si se necesitara $100 mil más en capital, un dueño con el 50% de acciones necesitaría invertir unos 50 mil más.
+                  <InfoTooltip
+                    title="Aportaciones de Capital Pro-Rata"
+                    body="Pro-Rata significa que cada accionista debe aportar capital adicional en la misma proporción que su participación accionaria. Si no es Pro-Rata, se puede establecer un proceso diferente para decidir las aportaciones."
+                  />
+                </label>
+                <Controller
+                  name="agreement.corp_moreCapitalProcess"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "Sí, Pro-Rata"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Sí, Pro-Rata", label: "Sí, Pro-Rata" },
+                        { value: "No", label: "No" },
+                      ]}
+                      ariaLabel="More capital process"
+                      name={field.name}
+                    />
+                  )}
+                />
+                {watch("agreement.corp_moreCapitalProcess") === "No" && (
+                  <div className="mt-3">
+                    <label className="label">¿Cómo se decidiría la proporción de las aportaciones?</label>
+                    <Controller
+                      name="agreement.corp_moreCapitalDecision"
+                      control={control}
+                      render={({ field }) => (
+                        <SegmentedToggle
+                          value={field.value || "Decisión Unánime"}
+                          onChange={field.onChange}
+                          options={[
+                            { value: "Decisión Unánime", label: "Decisión Unánime" },
+                            { value: "Mayoría", label: "Mayoría" },
+                          ]}
+                          ariaLabel="More capital decision"
+                          name={field.name}
+                        />
+                      )}
+                    />
+                    {watch("agreement.corp_moreCapitalDecision") === "Mayoría" && (
+                      <div className="mt-3">
+                        <label className="label">Porcentaje requerido para mayoría</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="50.01"
+                            max="99.99"
+                            step="0.01"
+                            className="input w-24"
+                            placeholder="50.1"
+                            {...register("agreement.corp_moreCapitalMajority", { 
+                              valueAsNumber: true,
+                              min: 50.01,
+                              max: 99.99
+                            })}
+                          />
+                          <span className="text-sm text-gray-500">%</span>
+                        </div>
+                        <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
+                      </div>
+                    )}
+              </div>
+                )}
               </div>
               <div>
                 <label className="label flex items-center gap-2">
