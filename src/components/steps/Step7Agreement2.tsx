@@ -259,11 +259,17 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                             min="50.01"
                             max="99.99"
                             step="0.01"
-                            className="input w-full"
+                            className={`input w-full ${errors.agreement?.llc_newMembersMajority ? 'border-red-500 focus:ring-red-500' : ''}`}
                             {...register("agreement.llc_newMembersMajority", { 
                               valueAsNumber: true,
-                              min: 50.01,
-                              max: 99.99
+                              min: {
+                                value: 50.01,
+                                message: "El valor debe ser mayor o igual a 50.01"
+                              },
+                              max: {
+                                value: 99.99,
+                                message: "El valor debe ser menor o igual a 99.99"
+                              }
                             })}
                             onBlur={(e) => {
                               const value = parseFloat(e.target.value);
@@ -281,6 +287,9 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                         <span className="text-sm text-gray-500">%</span>
                       </div>
                       <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
+                      {errors.agreement?.llc_newMembersMajority && (
+                        <p className="text-red-500 text-sm mt-1">{errors.agreement.llc_newMembersMajority.message}</p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -350,11 +359,17 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                               min="50.01"
                               max="99.99"
                               step="0.01"
-                              className="input w-full"
+                              className={`input w-full ${errors.agreement?.llc_additionalContributionsMajority ? 'border-red-500 focus:ring-red-500' : ''}`}
                               {...register("agreement.llc_additionalContributionsMajority", { 
                                 valueAsNumber: true,
-                                min: 50.01,
-                                max: 99.99
+                                min: {
+                                  value: 50.01,
+                                  message: "El valor debe ser mayor o igual a 50.01"
+                                },
+                                max: {
+                                  value: 99.99,
+                                  message: "El valor debe ser menor o igual a 99.99"
+                                }
                               })}
                               onBlur={(e) => {
                                 const value = parseFloat(e.target.value);
