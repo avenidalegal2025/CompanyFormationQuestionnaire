@@ -1,9 +1,12 @@
 "use client";
 
+import { Controller } from "react-hook-form";
+import SegmentedToggle from "@/components/SegmentedToggle";
+import InfoTooltip from "@/components/InfoTooltip";
 import type { StepProps } from "./types";
 
 export default function Step9Agreement4({ form, setStep, onSave, onNext }: StepProps) {
-  const { register, watch } = form;
+  const { register, watch, control } = form;
   const isCorp = watch("company.entityType") === "C-Corp";
 
   return (
@@ -41,12 +44,54 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext }: StepP
           ) : (
             <>
               <div>
-                <label className="label">Derecho de preferencia en venta de participaciones (Right of First Refusal)</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.llc_rofr")} />
+                <label className="label flex items-center gap-2">
+                  Derecho de preferencia en venta de participaciones (Right of First Refusal)
+                  <InfoTooltip
+                    title="Right of First Refusal"
+                    body="El derecho de preferencia permite que los socios existentes tengan la primera oportunidad de comprar las participaciones de un socio que desea vender, antes de que se ofrezcan a terceros."
+                  />
+                </label>
+                <Controller
+                  name="agreement.llc_rofr"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "No"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Yes", label: "Sí" },
+                        { value: "No", label: "No" },
+                      ]}
+                      ariaLabel="Right of first refusal"
+                      name={field.name}
+                    />
+                  )}
+                />
               </div>
               <div>
-                <label className="label">En caso de muerte o incapacidad de un miembro: ¿Herederos obligados a vender las participaciones a la LLC?</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.llc_incapacityHeirsPolicy")} />
+                <label className="label flex items-center gap-2">
+                  En caso de muerte o incapacidad de un miembro: ¿Herederos obligados a vender las participaciones a la LLC?
+                  <InfoTooltip
+                    title="Política de Herederos"
+                    body="Esta cláusula determina si los herederos de un socio fallecido o incapacitado deben vender sus participaciones a la LLC, evitando que personas no deseadas se conviertan en socios."
+                  />
+                </label>
+                <Controller
+                  name="agreement.llc_incapacityHeirsPolicy"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "No"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Yes", label: "Sí" },
+                        { value: "No", label: "No" },
+                      ]}
+                      ariaLabel="Incapacity heirs policy"
+                      name={field.name}
+                    />
+                  )}
+                />
               </div>
               <div>
                 <label className="label">Admisión de nuevos socios/partners: ¿Decisión unánime?</label>
@@ -55,10 +100,6 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext }: StepP
               <div>
                 <label className="label">Disolución de la LLC: ¿Decisión unánime?</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.llc_dissolutionDecision")} />
-              </div>
-              <div>
-                <label className="label">Términos específicos acordados por las partes</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.llc_specificTerms")} />
               </div>
             </>
           )}

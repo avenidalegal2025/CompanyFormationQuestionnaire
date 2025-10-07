@@ -43,12 +43,13 @@ const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const inputValue = e.target.value;
-      const formatted = formatCurrency(inputValue);
-      onChange?.(formatted);
+      // Don't format during typing, just clean the input
+      const cleaned = inputValue.replace(/[^\d.]/g, "");
+      onChange?.(cleaned);
     };
 
     const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-      // Ensure proper formatting on blur
+      // Format only on blur
       const formatted = formatCurrency(e.target.value);
       onChange?.(formatted);
     };

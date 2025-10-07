@@ -1,9 +1,12 @@
 "use client";
 
+import { Controller } from "react-hook-form";
+import SegmentedToggle from "@/components/SegmentedToggle";
+import InfoTooltip from "@/components/InfoTooltip";
 import type { StepProps } from "./types";
 
 export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepProps) {
-  const { register, watch } = form;
+  const { register, watch, control } = form;
   const isCorp = watch("company.entityType") === "C-Corp";
 
   return (
@@ -33,10 +36,6 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                 <label className="label">¿Quieren una cláusula de no competencia? Esto es algo que debe considerar con mucho cuidado. Se puede redactar una cláusula muy estricta para impedir competencia por alguien involucrado en la compañía</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.corp_nonCompete")} />
               </div>
-              <div>
-                <label className="label">¿Qué quiere que suceda en un empate en una votación para decidir algo importante? ¿Quiere que obligatoriamente alguien venda sus acciones y salga de la compañía, por ejemplo?</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.corp_voteTieBreaker")} />
-              </div>
             </>
           ) : (
             <>
@@ -45,12 +44,80 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                 <textarea className="input min-h-[80px]" {...register("agreement.llc_companySaleDecision")} />
               </div>
               <div>
-                <label className="label">¿Quién será el socio responsable de impuestos (Tax Partner)?</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.llc_taxPartner")} />
+                <label className="label flex items-center gap-2">
+                  ¿Quién será el socio responsable de impuestos (Tax Partner)?
+                  <InfoTooltip
+                    title="Tax Partner"
+                    body="El socio responsable de impuestos es quien se encarga de presentar las declaraciones de impuestos de la LLC y mantener los registros fiscales. Debe ser un miembro de la LLC."
+                  />
+                </label>
+                <Controller
+                  name="agreement.llc_taxPartner"
+                  control={control}
+                  render={({ field }) => (
+                    <select className="input mt-1" {...field}>
+                      <option value="">Seleccionar socio</option>
+                      {Array.from({ length: watch("ownersCount") || 1 }).map((_, idx) => {
+                        const ownerName = watch(`owners.${idx}.fullName`) || `Socio ${idx + 1}`;
+                        return (
+                          <option key={idx} value={ownerName}>
+                            {ownerName}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  )}
+                />
               </div>
               <div>
-                <label className="label">Cuenta bancaria: ¿Uno o dos firmantes para retirar dinero?</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.llc_bankSigners")} />
+                <label className="label flex items-center gap-2">
+                  Non Compete: ¿Covenant de no competencia entre los dueños?
+                  <InfoTooltip
+                    title="Covenant de No Competencia"
+                    body="Un covenant de no competencia impide que los socios compitan con la LLC durante y después de su participación. Esto puede incluir restricciones geográficas, temporales y de industria."
+                  />
+                </label>
+                <Controller
+                  name="agreement.llc_nonCompete"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "No"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Yes", label: "Sí" },
+                        { value: "No", label: "No" },
+                      ]}
+                      ariaLabel="Non compete covenant"
+                      name={field.name}
+                    />
+                  )}
+                />
+              </div>
+              <div>
+                <label className="label flex items-center gap-2">
+                  Cuenta bancaria: ¿Uno o dos firmantes para retirar dinero?
+                  <InfoTooltip
+                    title="Firmantes Bancarios"
+                    body="Determina cuántas firmas se requieren para realizar transacciones bancarias. Un firmante permite mayor agilidad, dos firmantes proporciona mayor control y seguridad."
+                  />
+                </label>
+                <Controller
+                  name="agreement.llc_bankSigners"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "Un firmante"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Un firmante", label: "Un firmante" },
+                        { value: "Dos firmantes", label: "Dos firmantes" },
+                      ]}
+                      ariaLabel="Bank signers"
+                      name={field.name}
+                    />
+                  )}
+                />
               </div>
               <div>
                 <label className="label">Decisiones mayores (ej. &gt; $10,000): ¿Unánimes o cualquiera de los dueños?</label>
