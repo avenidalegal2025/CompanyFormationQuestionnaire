@@ -214,13 +214,15 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
               name="company.entityType"
               control={control}
               render={({ field }) => (
-                <SegmentedToggle
-                  value={(field.value as string) ?? "LLC"}
-                  onChange={field.onChange}
-                  options={entityTypes.map((v) => ({ value: v, label: v }))}
-                  ariaLabel="Tipo de entidad"
-                  name={field.name}
-                />
+                <div className="w-fit">
+                  <SegmentedToggle
+                    value={(field.value as string) ?? "LLC"}
+                    onChange={field.onChange}
+                    options={entityTypes.map((v) => ({ value: v, label: v }))}
+                    ariaLabel="Tipo de entidad"
+                    name={field.name}
+                  />
+                </div>
               )}
             />
           </div>
