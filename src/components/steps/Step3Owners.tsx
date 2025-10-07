@@ -225,7 +225,7 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
         </div>
 
         {/* Footer actions */}
-        <div className="mt-8 flex items-center justify-between">
+        <div className="mt-8 pt-6 border-t flex items-center justify-between">
           <button
             type="button"
             className="btn"

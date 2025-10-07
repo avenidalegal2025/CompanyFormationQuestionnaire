@@ -326,7 +326,7 @@ export default function Step5Admin({ form, setStep, onSave, onNext }: StepProps)
         )}
 
         {/* footer */}
-        <div className="mt-8 flex items-center justify-between">
+        <div className="mt-8 pt-6 border-t flex items-center justify-between">
           <button
             type="button"
             className="btn"

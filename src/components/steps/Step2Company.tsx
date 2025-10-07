@@ -449,7 +449,7 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
         )}
 
         {/* Acciones */}
-        <div className="mt-8 flex items-center justify-between">
+        <div className="mt-8 pt-6 border-t flex items-center justify-between">
           <div />
           <div className="flex items-center gap-4">
             <button
