@@ -190,26 +190,6 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                 <label className="label">Decisiones menores (&lt; $10,000): ¿Unánimes o cualquiera de los dueños?</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.llc_minorDecisions")} />
               </div>
-              <div>
-                <label className="label">Restricciones a los miembros administradores (ej. no firmar sin el otro, no contratar sin aprobación)</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.llc_managerRestrictions")} />
-              </div>
-              <div>
-                <label className="label">¿Covenant de no competencia entre los dueños?</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.llc_nonCompete")} />
-              </div>
-              <div>
-                <label className="label">¿Qué hacer en caso de empate (deadlock)? ¿Forzar venta, arbitraje, terceros?</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.llc_deadlockResolution")} />
-              </div>
-              <div>
-                <label className="label">¿Seguro de &quot;Key Man&quot; requerido?</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.llc_keyManInsurance")} />
-              </div>
-              <div>
-                <label className="label">Resolución de disputas: ¿mediación, arbitraje, luego demanda?</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.llc_disputeResolution")} />
-              </div>
             </>
           )}
         </div>

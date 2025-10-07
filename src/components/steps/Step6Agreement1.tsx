@@ -2,6 +2,8 @@
 
 import { Controller } from "react-hook-form";
 import CurrencyInput from "@/components/CurrencyInput";
+import SegmentedToggle from "@/components/SegmentedToggle";
+import InfoTooltip from "@/components/InfoTooltip";
 import type { StepProps } from "./types";
 
 export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepProps) {
@@ -112,8 +114,49 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepP
                 </div>
               </div>
               <div>
-                <label className="label">¿Ambos dueños van a operar el negocio como miembros administradores (con derecho a firmar y tomar decisiones)?</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.llc_managingMembers")} />
+                <label className="label flex items-center gap-2">
+                  ¿Ambos dueños van a operar el negocio como miembros administradores (con derecho a firmar y tomar decisiones)?
+                  <InfoTooltip
+                    title="Miembros Administradores"
+                    body="Los miembros administradores tienen derecho a firmar documentos y tomar decisiones operativas. Si no todos los miembros son administradores, solo los seleccionados tendrán estos poderes."
+                  />
+                </label>
+                <Controller
+                  name="agreement.llc_managingMembers"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "Yes"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Yes", label: "Sí" },
+                        { value: "No", label: "No" },
+                      ]}
+                      ariaLabel="Managing members"
+                      name={field.name}
+                    />
+                  )}
+                />
+                {watch("agreement.llc_managingMembers") === "No" && (
+                  <div className="mt-3">
+                    <label className="label">Seleccionar miembros administradores:</label>
+                    <div className="space-y-2">
+                      {Array.from({ length: ownersCount }).map((_, idx) => {
+                        const ownerName = ownersData[idx]?.fullName || `Socio ${idx + 1}`;
+                        return (
+                          <label key={idx} className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              className="rounded border-gray-300"
+                              {...register(`agreement.llc_managingMember_${idx}` as never)}
+                            />
+                            <span className="text-sm text-gray-700">{ownerName}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="label">¿Habrá roles específicos para cada parte? (Ej. uno a cargo de marketing, otro de asuntos legales)</label>

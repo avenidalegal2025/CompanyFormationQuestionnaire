@@ -44,8 +44,29 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                 <textarea className="input min-h-[80px]" {...register("agreement.llc_withdrawContributions")} />
               </div>
               <div>
-                <label className="label">¿Habrá préstamos de miembros a la LLC? Si sí, ¿quién y cuánto?</label>
-                <textarea className="input min-h-[80px]" {...register("agreement.llc_memberLoans")} />
+                <label className="label flex items-center gap-2">
+                  ¿Habrá préstamos de miembros a la LLC? Si sí, ¿quién y cuánto?
+                  <InfoTooltip
+                    title="Préstamos de Miembros"
+                    body="Los préstamos de miembros a la LLC pueden ser una fuente de financiamiento flexible. Esta cláusula establece si los miembros pueden prestar dinero a la LLC y bajo qué términos."
+                  />
+                </label>
+                <Controller
+                  name="agreement.llc_memberLoans"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "No"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Yes", label: "Sí" },
+                        { value: "No", label: "No" },
+                      ]}
+                      ariaLabel="Member loans"
+                      name={field.name}
+                    />
+                  )}
+                />
               </div>
             </>
           )}
