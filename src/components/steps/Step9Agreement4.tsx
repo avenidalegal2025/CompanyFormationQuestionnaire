@@ -259,7 +259,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext }: StepP
                         value={field.value || "Decisión Unánime"}
                         onChange={field.onChange}
                         options={[
-                          { value: "Decisión Unánime", label: "Decisión Unánime" },
+                          { value: "Decisión Unánime", label: "Unánime" },
                           { value: "Mayoría", label: "Mayoría" },
                         ]}
                         ariaLabel="LLC new partners admission"
@@ -310,7 +310,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext }: StepP
                         value={field.value || "Decisión Unánime"}
                         onChange={field.onChange}
                         options={[
-                          { value: "Decisión Unánime", label: "Decisión Unánime" },
+                          { value: "Decisión Unánime", label: "Unánime" },
                           { value: "Mayoría", label: "Mayoría" },
                         ]}
                         ariaLabel="LLC dissolution decision"
