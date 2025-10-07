@@ -24,6 +24,31 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                 <label className="label">Si la corporación necesitara más capital, ¿cómo se haría esto? Típicamente cada accionista es requerido invertir una cantidad en proporción. Si se necesitara $100 mil más en capital, un dueño con el 50% de acciones necesitaría invertir unos 50 mil más.</label>
                 <textarea className="input min-h-[80px]" {...register("agreement.corp_moreCapitalProcess")} />
               </div>
+              <div>
+                <label className="label flex items-center gap-2">
+                  ¿Algún accionista podrá prestarle a la compañía? En un futuro podría haber préstamos de accionistas a la compañía
+                  <InfoTooltip
+                    title="Préstamos de Accionistas"
+                    body="Los préstamos de accionistas a la compañía pueden ser una fuente de financiamiento flexible. Esta cláusula establece si los accionistas pueden prestar dinero a la corporación y bajo qué términos."
+                  />
+                </label>
+                <Controller
+                  name="agreement.corp_shareholderLoans"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "No"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Yes", label: "Sí" },
+                        { value: "No", label: "No" },
+                      ]}
+                      ariaLabel="Shareholder loans"
+                      name={field.name}
+                    />
+                  )}
+                />
+              </div>
             </>
           ) : (
             <>

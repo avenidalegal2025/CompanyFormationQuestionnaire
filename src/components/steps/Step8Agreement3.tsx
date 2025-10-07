@@ -51,31 +51,6 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
               </div>
               <div>
                 <label className="label flex items-center gap-2">
-                  ¿Algún accionista podrá prestarle a la compañía? En un futuro podría haber préstamos de accionistas a la compañía
-                  <InfoTooltip
-                    title="Préstamos de Accionistas"
-                    body="Los préstamos de accionistas a la compañía pueden ser una fuente de financiamiento flexible. Esta cláusula establece si los accionistas pueden prestar dinero a la corporación y bajo qué términos."
-                  />
-                </label>
-                <Controller
-                  name="agreement.corp_shareholderLoans"
-                  control={control}
-                  render={({ field }) => (
-                    <SegmentedToggle
-                      value={field.value || "No"}
-                      onChange={field.onChange}
-                      options={[
-                        { value: "Yes", label: "Sí" },
-                        { value: "No", label: "No" },
-                      ]}
-                      ariaLabel="Shareholder loans"
-                      name={field.name}
-                    />
-                  )}
-                />
-              </div>
-              <div>
-                <label className="label flex items-center gap-2">
                   ¿Quieren una cláusula de no competencia? Esto es algo que debe considerar con mucho cuidado. Se puede redactar una cláusula muy estricta para impedir competencia por alguien involucrado en la compañía
                   <InfoTooltip
                     title="Cláusula de No Competencia"
