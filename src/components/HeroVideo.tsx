@@ -19,7 +19,10 @@ export default function HeroVideo({
         }}
         onLoadStart={() => console.log('Video loading started')}
         onLoadedData={() => console.log('Video data loaded')}
+        onCanPlay={() => console.log('Video can play')}
+        onPlay={() => console.log('Video playing')}
         onError={(e) => console.log('Video error:', e)}
+        onLoad={() => console.log('Video loaded')}
       >
         <source src="/hero-video.mp4" type="video/mp4" />
         Your browser does not support the video tag.

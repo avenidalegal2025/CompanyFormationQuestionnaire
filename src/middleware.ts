@@ -27,7 +27,7 @@ export async function middleware(req: NextRequest) {
   if (
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/static/") ||
-    pathname.match(/\.(png|jpg|jpeg|gif|svg|ico|css|js|map|txt|xml)$/i)
+    pathname.match(/\.(png|jpg|jpeg|gif|svg|ico|css|js|map|txt|xml|mp4|mov|webm|ogg)$/i)
   ) {
     return NextResponse.next();
   }
