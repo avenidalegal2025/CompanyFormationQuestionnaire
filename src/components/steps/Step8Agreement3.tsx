@@ -361,7 +361,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                   name="agreement.llc_majorDecisions"
                   control={control}
                   render={({ field }) => (
-                    <div className="w-[43%] min-w-[320px]">
+                    <div className="w-[43%] min-w-[420px]">
                       <SegmentedToggle
                         value={field.value || "Unánime"}
                         onChange={field.onChange}
@@ -387,7 +387,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                   name="agreement.llc_minorDecisions"
                   control={control}
                   render={({ field }) => (
-                    <div className="w-[43%] min-w-[320px]">
+                    <div className="w-[43%] min-w-[420px]">
                       <SegmentedToggle
                         value={field.value || "Unánime"}
                         onChange={field.onChange}
