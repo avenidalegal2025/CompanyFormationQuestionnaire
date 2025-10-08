@@ -1,4 +1,5 @@
 "use client";
+// Video component with middleware fix
 
 export default function HeroVideo({
   title = "Crea una empresa en Estados Unidos",
