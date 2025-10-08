@@ -350,7 +350,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                   />
                 </div>
               </div>
-              <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
+              <div className="mt-12 pt-10 border-t border-gray-200 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
                 <div>
                   <label className="label flex items-center gap-2">Decisiones mayores (ej. &gt; $10,000):
                     <InfoTooltip
@@ -378,7 +378,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                   />
                 </div>
               </div>
-              <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
+              <div className="mt-12 pt-10 border-t border-gray-200 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
                 <div>
                   <label className="label flex items-center gap-2">Decisiones menores (&lt; $10,000):
                     <InfoTooltip
