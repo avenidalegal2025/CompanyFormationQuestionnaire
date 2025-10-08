@@ -4,7 +4,7 @@
 import { Controller } from "react-hook-form";
 import SegmentedToggle from "@/components/SegmentedToggle";
 import SSNEINInput from "@/components/SSNEINInput";
-import HeroScreenRecording from "@/components/HeroScreenRecording";
+import HeroMiami2 from "@/components/HeroMiami2";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import type { StepProps } from "./types";
 
@@ -39,7 +39,7 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
   return (
     <section className="space-y-6">
       {/* Shared hero */}
-      <HeroScreenRecording title={heroTitle} />
+      <HeroMiami2 title={heroTitle} />
 
       <div className="card">
         <h2 className="text-xl font-semibold text-gray-900">Datos de los {groupLabel}</h2>
