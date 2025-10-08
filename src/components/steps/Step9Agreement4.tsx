@@ -18,7 +18,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext }: StepP
         <div className="mt-6 space-y-16 md:pl-12">
           {isCorp ? (
             <>
-              <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start first:mt-0 first:pt-0 first:border-0">
+              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start first:mt-0 first:pt-0 first:border-0 first:bg-transparent first:p-0 first:rounded-none first:shadow-none">
                 <label className="label inline-flex items-start gap-5 max-w-prose">
                   ¿Quiere que los accionistas tengan el derecho de ser los primeros en rechazar una oferta de venta de la compañía?
                   <InfoTooltip
@@ -200,7 +200,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext }: StepP
             </>
           ) : (
             <>
-              <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start first:mt-0 first:pt-0 first:border-0">
+              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start first:mt-0 first:pt-0 first:border-0 first:bg-transparent first:p-0 first:rounded-none first:shadow-none">
                 <label className="label inline-flex items-start gap-5 max-w-prose">
                   Derecho de preferencia en venta de participaciones (Right of First Refusal)
                   <InfoTooltip
