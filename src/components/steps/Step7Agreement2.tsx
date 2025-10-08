@@ -15,10 +15,10 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
       <HeroVideo title="Capital & Préstamos" />
       <div className="card">
         <h2 className="text-xl font-semibold text-gray-900">Capital & Préstamos</h2>
-        <div className="mt-6 space-y-24 md:pl-12">
+        <div className="mt-6 space-y-16 md:pl-12">
           {isCorp ? (
             <>
-              <div className="mt-20 pt-16 border-t border-gray-300 bg-gray-50/30 rounded-lg p-6 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start first:mt-0 first:pt-0 first:border-0 first:bg-transparent first:p-0 first:rounded-none">
+              <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start first:mt-0 first:pt-0 first:border-0">
                 <label className="label inline-flex items-start gap-3 max-w-prose">
                   ¿Cómo se añadirán nuevos accionistas, por decisión unánime?, mayoría?
                   <InfoTooltip
