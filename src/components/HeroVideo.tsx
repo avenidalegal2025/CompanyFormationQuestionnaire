@@ -18,7 +18,8 @@ export default function HeroVideo({
           aspectRatio: '16/9'
         }}
       >
-        <source src="https://avenida-legal-videos.s3.us-west-1.amazonaws.com/hero-video.mp4" type="video/mp4" />
+        <source src="/hero-video.mov" type="video/quicktime" />
+        <source src="/hero-video.mov" type="video/mp4" />
         Your browser does not support the video tag.
       </video>
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/25 to-transparent" />
