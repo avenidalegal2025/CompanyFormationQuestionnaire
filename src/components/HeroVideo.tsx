@@ -13,8 +13,12 @@ export default function HeroVideo({
         loop
         playsInline
         className="absolute inset-0 w-full h-full object-cover"
+        style={{
+          objectPosition: 'center center',
+          aspectRatio: '16/9'
+        }}
       >
-        <source src="/hero-video.mp4" type="video/mp4" />
+        <source src="https://avenida-legal-videos.s3.us-west-1.amazonaws.com/hero-video.mp4" type="video/mp4" />
         Your browser does not support the video tag.
       </video>
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/25 to-transparent" />
