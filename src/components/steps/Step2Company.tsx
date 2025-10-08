@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
+import HeroMiami2 from "@/components/HeroMiami2";
 import { Controller } from "react-hook-form";
 
 import SegmentedToggle from "@/components/SegmentedToggle";
@@ -160,21 +160,7 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
   return (
     <section className="space-y-6">
       {/* HERO */}
-      <div className="relative overflow-hidden rounded-2xl">
-        <Image
-          src="/miami.jpg"
-          alt="Miami skyline"
-          fill
-          priority
-          sizes="(min-width: 768px) 900px, 100vw"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/25 to-transparent" />
-        <div className="relative px-6 py-10 sm:px-10 sm:py-14">
-          <h1 className="text-white text-2xl sm:text-3xl font-semibold tracking-tight">
-            Crea una empresa en Estados Unidos
-          </h1>
-        </div>
-      </div>
+      <HeroMiami2 title="Crea una empresa en Estados Unidos" />
 
       {/* CARD */}
       <div className="card">

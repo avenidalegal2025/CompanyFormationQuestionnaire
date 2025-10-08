@@ -4,7 +4,7 @@
 import { useMemo, useState } from "react";
 import SSNEINInput from "@/components/SSNEINInput";
 import { Controller } from "react-hook-form";
-import HeroBanner from "@/components/HeroBanner";
+import HeroScreenRecording from "@/components/HeroScreenRecording";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import type { StepProps } from "./types";
 
@@ -132,7 +132,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
 
   return (
     <section className="space-y-6">
-      <HeroBanner title="Resumen de la Información" />
+      <HeroScreenRecording title="Resumen de la Información" />
 
       <div className="card">
         <h2 className="text-xl font-semibold text-gray-900 mb-6">Revise toda la información antes de continuar</h2>
