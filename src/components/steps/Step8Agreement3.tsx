@@ -15,10 +15,10 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
       <HeroVideo title="Acciones & Sucesión" />
       <div className="card">
         <h2 className="text-xl font-semibold text-gray-900">Gobierno & Decisiones</h2>
-        <div className="mt-6 space-y-10 md:pl-12">
+        <div className="mt-6 space-y-16 md:pl-12">
           {isCorp ? (
             <>
-              <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start first:mt-0 first:pt-0 first:border-0">
+              <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start first:mt-0 first:pt-0 first:border-0">
                 <label className="label inline-flex items-start gap-5 max-w-prose">
                   Si hubiese una oferta de compra o si usted quisiese vender la compañía, ¿quisiera que esta decisión se tome unánimemente o por mayoría?
                   <InfoTooltip
@@ -207,7 +207,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
             </>
           ) : (
             <>
-              <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start first:mt-0 first:pt-0 first:border-0">
+              <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start first:mt-0 first:pt-0 first:border-0">
                 <label className="label inline-flex items-start gap-5 max-w-prose">
                   Venta de la compañía: ¿Decisión unánime o por mayoría?
                   <InfoTooltip
@@ -350,7 +350,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                   />
                 </div>
               </div>
-              <div className="mt-12 pt-10 border-t border-gray-200 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
+              <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
                 <div>
                   <label className="label flex items-center gap-2">Decisiones mayores (ej. &gt; $10,000):
                     <InfoTooltip
@@ -378,7 +378,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                   />
                 </div>
               </div>
-              <div className="mt-12 pt-10 border-t border-gray-200 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
+              <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
                 <div>
                   <label className="label flex items-center gap-2">Decisiones menores (&lt; $10,000):
                     <InfoTooltip
