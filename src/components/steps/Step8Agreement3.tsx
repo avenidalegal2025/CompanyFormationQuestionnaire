@@ -350,18 +350,20 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                   />
                 </div>
               </div>
-              <div>
-                <label className="label flex items-center gap-2">Decisiones mayores (ej. &gt; $10,000):
-                  <InfoTooltip
-                    title="Decisiones Mayores"
-                    body="Decisiones de alto impacto financiero u operativo (por ejemplo, gastos superiores a un umbral, contratación/despido clave, endeudamiento). Especifique quién debe aprobarlas."
-                  />
-                </label>
-                <Controller
-                  name="agreement.llc_majorDecisions"
-                  control={control}
-                  render={({ field }) => (
-                    <div className="w-[43%] min-w-[420px]">
+              <div className="md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
+                <div>
+                  <label className="label flex items-center gap-2">Decisiones mayores (ej. &gt; $10,000):
+                    <InfoTooltip
+                      title="Decisiones Mayores"
+                      body="Decisiones de alto impacto financiero u operativo (por ejemplo, gastos superiores a un umbral, contratación/despido clave, endeudamiento). Especifique quién debe aprobarlas."
+                    />
+                  </label>
+                </div>
+                <div className="md:col-start-2 md:justify-self-end">
+                  <Controller
+                    name="agreement.llc_majorDecisions"
+                    control={control}
+                    render={({ field }) => (
                       <SegmentedToggle
                         value={field.value || "Unánime"}
                         onChange={field.onChange}
@@ -372,22 +374,24 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                         ariaLabel="LLC major decisions"
                         name={field.name}
                       />
-                    </div>
-                  )}
-                />
-              </div>
-              <div>
-                <label className="label flex items-center gap-2">Decisiones menores (&lt; $10,000):
-                  <InfoTooltip
-                    title="Decisiones Menores"
-                    body="Asuntos operativos cotidianos con menor impacto económico. Especifique si requieren unanimidad o si cualquiera de los dueños puede decidir."
+                    )}
                   />
-                </label>
-                <Controller
-                  name="agreement.llc_minorDecisions"
-                  control={control}
-                  render={({ field }) => (
-                    <div className="w-[43%] min-w-[420px]">
+                </div>
+              </div>
+              <div className="md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
+                <div>
+                  <label className="label flex items-center gap-2">Decisiones menores (&lt; $10,000):
+                    <InfoTooltip
+                      title="Decisiones Menores"
+                      body="Asuntos operativos cotidianos con menor impacto económico. Especifique si requieren unanimidad o si cualquiera de los dueños puede decidir."
+                    />
+                  </label>
+                </div>
+                <div className="md:col-start-2 md:justify-self-end">
+                  <Controller
+                    name="agreement.llc_minorDecisions"
+                    control={control}
+                    render={({ field }) => (
                       <SegmentedToggle
                         value={field.value || "Unánime"}
                         onChange={field.onChange}
@@ -398,9 +402,9 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                         ariaLabel="LLC minor decisions"
                         name={field.name}
                       />
-              </div>
-                  )}
-                />
+                    )}
+                  />
+                </div>
               </div>
             </>
           )}
