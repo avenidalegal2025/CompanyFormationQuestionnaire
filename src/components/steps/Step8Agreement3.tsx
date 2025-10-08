@@ -18,15 +18,16 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
         <div className="mt-6 space-y-16 md:pl-12">
           {isCorp ? (
             <>
-              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start first:mt-0 first:pt-0 first:border-0 first:bg-transparent first:p-0 first:rounded-none first:shadow-none">
-                <label className="label inline-flex items-start gap-5 max-w-prose">
-                  Si hubiese una oferta de compra o si usted quisiese vender la compañía, ¿quisiera que esta decisión se tome unánimemente o por mayoría?
-                  <InfoTooltip
-                    title="Decisión de Venta de la Compañía"
-                    body="Esta cláusula establece el proceso para decidir si vender la compañía. Puede requerir decisión unánime (todos los accionistas deben estar de acuerdo) o mayoría (un porcentaje específico de accionistas)."
-                  />
-                </label>
-                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
+              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start first:mt-0 first:pt-0 first:border-0 first:bg-transparent first:p-0 first:rounded-none first:shadow-none">
+                <div>
+                  <label className="label flex items-center gap-2">Si hubiese una oferta de compra o si usted quisiese vender la compañía, ¿quisiera que esta decisión se tome unánimemente o por mayoría?
+                    <InfoTooltip
+                      title="Decisión de Venta de la Compañía"
+                      body="Esta cláusula establece el proceso para decidir si vender la compañía. Puede requerir decisión unánime (todos los accionistas deben estar de acuerdo) o mayoría (un porcentaje específico de accionistas)."
+                    />
+                  </label>
+                </div>
+                <div className="md:col-start-2 md:justify-self-end">
                   <Controller
                     name="agreement.corp_saleDecisionThreshold"
                     control={control}
@@ -45,7 +46,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                   />
                 </div>
                 {watch("agreement.corp_saleDecisionThreshold") === "Mayoría" && (
-                  <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[420px]">
+                  <div className="mt-3 md:col-start-2 md:justify-self-end">
                     <label className="label flex items-center gap-5">Porcentaje requerido para mayoría
                       <InfoTooltip
                         title="Porcentaje de Mayoría"
@@ -84,15 +85,16 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                   </div>
                 )}
               </div>
-              <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
-                <label className="label inline-flex items-start gap-5 max-w-prose">
-                  Para la cuenta de banco de la compañía, ¿quiere que haya un o dos firmantes?
-                  <InfoTooltip
-                    title="Firmantes Bancarios"
-                    body="Determina cuántas firmas se requieren para realizar transacciones bancarias. Un firmante permite mayor agilidad, dos firmantes proporciona mayor control y seguridad."
-                  />
-                </label>
-                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
+              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
+                <div>
+                  <label className="label flex items-center gap-2">Para la cuenta de banco de la compañía, ¿quiere que haya un o dos firmantes?
+                    <InfoTooltip
+                      title="Firmantes Bancarios"
+                      body="Determina cuántas firmas se requieren para realizar transacciones bancarias. Un firmante permite mayor agilidad, dos firmantes proporciona mayor control y seguridad."
+                    />
+                  </label>
+                </div>
+                <div className="md:col-start-2 md:justify-self-end">
                   <Controller
                     name="agreement.corp_bankSigners"
                     control={control}
@@ -111,15 +113,16 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                   />
                 </div>
               </div>
-              <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
-                <label className="label inline-flex items-start gap-5 max-w-prose">
-                  Si hubiese que hacer una decisión importante (como decisiones que cuesten $….., despedir un empleado, pedir un préstamo, etc.) ¿quisiera que esta decisión se tome unánimemente o por mayoría?
-                  <InfoTooltip
-                    title="Decisiones Importantes"
-                    body="Esta cláusula establece el proceso para tomar decisiones importantes de la corporación. Puede requerir decisión unánime (todos los accionistas deben estar de acuerdo) o mayoría (un porcentaje específico de accionistas)."
-                  />
-                </label>
-                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
+              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
+                <div>
+                  <label className="label flex items-center gap-2">Si hubiese que hacer una decisión importante (como decisiones que cuesten $….., despedir un empleado, pedir un préstamo, etc.) ¿quisiera que esta decisión se tome unánimemente o por mayoría?
+                    <InfoTooltip
+                      title="Decisiones Importantes"
+                      body="Esta cláusula establece el proceso para tomar decisiones importantes de la corporación. Puede requerir decisión unánime (todos los accionistas deben estar de acuerdo) o mayoría (un porcentaje específico de accionistas)."
+                    />
+                  </label>
+                </div>
+                <div className="md:col-start-2 md:justify-self-end">
                   <Controller
                     name="agreement.corp_majorDecisionThreshold"
                     control={control}
@@ -138,7 +141,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                   />
                 </div>
                 {watch("agreement.corp_majorDecisionThreshold") === "Mayoría" && (
-                  <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[420px]">
+                  <div className="mt-3 md:col-start-2 md:justify-self-end">
                     <label className="label flex items-center gap-5">Porcentaje requerido para mayoría
                       <InfoTooltip
                         title="Porcentaje de Mayoría"
@@ -177,15 +180,16 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
               </div>
                 )}
               </div>
-              <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
-                <label className="label inline-flex items-start gap-5 max-w-prose">
-                  ¿Quieren una cláusula de no competencia? Esto es algo que debe considerar con mucho cuidado. Se puede redactar una cláusula muy estricta para impedir competencia por alguien involucrado en la compañía
-                  <InfoTooltip
-                    title="Cláusula de No Competencia"
-                    body="Un covenant de no competencia impide que los accionistas, ejecutivos o directores compitan con la corporación durante y después de su participación. Esto puede incluir restricciones geográficas, temporales y de industria."
-                  />
-                </label>
-                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
+              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
+                <div>
+                  <label className="label flex items-center gap-2">¿Quieren una cláusula de no competencia? Esto es algo que debe considerar con mucho cuidado. Se puede redactar una cláusula muy estricta para impedir competencia por alguien involucrado en la compañía
+                    <InfoTooltip
+                      title="Cláusula de No Competencia"
+                      body="Un covenant de no competencia impide que los accionistas, ejecutivos o directores compitan con la corporación durante y después de su participación. Esto puede incluir restricciones geográficas, temporales y de industria."
+                    />
+                  </label>
+                </div>
+                <div className="md:col-start-2 md:justify-self-end">
                   <Controller
                     name="agreement.corp_nonCompete"
                     control={control}
@@ -207,15 +211,16 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
             </>
           ) : (
             <>
-              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start first:mt-0 first:pt-0 first:border-0 first:bg-transparent first:p-0 first:rounded-none first:shadow-none">
-                <label className="label inline-flex items-start gap-5 max-w-prose">
-                  Venta de la compañía: ¿Decisión unánime o por mayoría?
-                  <InfoTooltip
-                    title="Decisión de Venta de la Compañía (LLC)"
-                    body="Esta cláusula establece el proceso para decidir si vender la compañía. Puede requerir decisión unánime (todos los miembros deben estar de acuerdo) o mayoría (un porcentaje específico de miembros)."
-                  />
-                </label>
-                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
+              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start first:mt-0 first:pt-0 first:border-0 first:bg-transparent first:p-0 first:rounded-none first:shadow-none">
+                <div>
+                  <label className="label flex items-center gap-2">Venta de la compañía: ¿Decisión unánime o por mayoría?
+                    <InfoTooltip
+                      title="Decisión de Venta de la Compañía (LLC)"
+                      body="Esta cláusula establece el proceso para decidir si vender la compañía. Puede requerir decisión unánime (todos los miembros deben estar de acuerdo) o mayoría (un porcentaje específico de miembros)."
+                    />
+                  </label>
+                </div>
+                <div className="md:col-start-2 md:justify-self-end">
                   <Controller
                     name="agreement.llc_companySaleDecision"
                     control={control}
@@ -234,7 +239,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                   />
                 </div>
                 {watch("agreement.llc_companySaleDecision") === "Mayoría" && (
-                  <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[420px]">
+                  <div className="mt-3 md:col-start-2 md:justify-self-end">
                     <label className="label">Porcentaje requerido para mayoría</label>
                     <div className="flex items-center gap-2">
                       <div className="w-1/6 min-w-[120px]">
@@ -268,15 +273,16 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
               </div>
                 )}
               </div>
-              <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
-                <label className="label inline-flex items-start gap-5 max-w-prose">
-                  ¿Quién será el socio responsable de impuestos (Tax Partner)?
-                  <InfoTooltip
-                    title="Tax Partner"
-                    body="El socio responsable de impuestos es quien se encarga de presentar las declaraciones de impuestos de la LLC y mantener los registros fiscales. Debe ser un miembro de la LLC."
-                  />
-                </label>
-                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
+              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
+                <div>
+                  <label className="label flex items-center gap-2">¿Quién será el socio responsable de impuestos (Tax Partner)?
+                    <InfoTooltip
+                      title="Tax Partner"
+                      body="El socio responsable de impuestos es quien se encarga de presentar las declaraciones de impuestos de la LLC y mantener los registros fiscales. Debe ser un miembro de la LLC."
+                    />
+                  </label>
+                </div>
+                <div className="md:col-start-2 md:justify-self-end">
                   <Controller
                     name="agreement.llc_taxPartner"
                     control={control}
@@ -296,15 +302,16 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                   />
                 </div>
               </div>
-              <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
-                <label className="label inline-flex items-start gap-5 max-w-prose">
-                  Non Compete: ¿Covenant de no competencia entre los dueños?
-                  <InfoTooltip
-                    title="Covenant de No Competencia"
-                    body="Un covenant de no competencia impide que los socios compitan con la LLC durante y después de su participación. Esto puede incluir restricciones geográficas, temporales y de industria."
-                  />
-                </label>
-                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
+              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
+                <div>
+                  <label className="label flex items-center gap-2">Non Compete: ¿Covenant de no competencia entre los dueños?
+                    <InfoTooltip
+                      title="Covenant de No Competencia"
+                      body="Un covenant de no competencia impide que los socios compitan con la LLC durante y después de su participación. Esto puede incluir restricciones geográficas, temporales y de industria."
+                    />
+                  </label>
+                </div>
+                <div className="md:col-start-2 md:justify-self-end">
                   <Controller
                     name="agreement.llc_nonCompete"
                     control={control}
@@ -323,15 +330,16 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                   />
                 </div>
               </div>
-              <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-6 md:items-start">
-                <label className="label inline-flex items-start gap-3 max-w-prose">
-                  Cuenta bancaria: ¿Uno o dos firmantes para retirar dinero?
-                  <InfoTooltip
-                    title="Firmantes Bancarios"
-                    body="Determina cuántas firmas se requieren para realizar transacciones bancarias. Un firmante permite mayor agilidad, dos firmantes proporciona mayor control y seguridad."
-                  />
-                </label>
-                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
+              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
+                <div>
+                  <label className="label flex items-center gap-2">Cuenta bancaria: ¿Uno o dos firmantes para retirar dinero?
+                    <InfoTooltip
+                      title="Firmantes Bancarios"
+                      body="Determina cuántas firmas se requieren para realizar transacciones bancarias. Un firmante permite mayor agilidad, dos firmantes proporciona mayor control y seguridad."
+                    />
+                  </label>
+                </div>
+                <div className="md:col-start-2 md:justify-self-end">
                   <Controller
                     name="agreement.llc_bankSigners"
                     control={control}
