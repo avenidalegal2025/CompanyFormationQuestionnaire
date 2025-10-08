@@ -25,8 +25,8 @@ export default function HeroVideo({
         onError={(e) => console.log('Video error:', e)}
         onLoad={() => console.log('Video loaded')}
       >
-        <source src="/hero-video.mp4" type="video/mp4" />
-        <source src="/hero-video.mp4" type="video/quicktime" />
+        <source src="/hero-video.mp4?v=2" type="video/mp4" />
+        <source src="/hero-video.mp4?v=2" type="video/quicktime" />
         Your browser does not support the video tag.
       </video>
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/25 to-transparent" />
