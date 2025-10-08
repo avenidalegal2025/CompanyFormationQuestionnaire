@@ -2,7 +2,7 @@
 "use client";
 
 import { Controller, type FieldPath } from "react-hook-form";
-import HeroVideo from "@/components/HeroVideo";
+import HeroScreenRecording from "@/components/HeroScreenRecording";
 import SegmentedToggle from "@/components/SegmentedToggle";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import InfoTooltip from "@/components/InfoTooltip";
@@ -37,7 +37,7 @@ export default function Step5Admin({ form, setStep, onSave, onNext }: StepProps)
 
   return (
     <section className="space-y-6">
-      <HeroVideo title="Datos Administrativos" />
+      <HeroScreenRecording title="Datos Administrativos" />
 
       <div className="card">
         <h2 className="text-xl font-semibold text-gray-900">Datos Administrativos</h2>
