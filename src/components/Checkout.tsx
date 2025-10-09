@@ -74,8 +74,14 @@ export default function Checkout({ formData, onSuccess, onCancel }: CheckoutProp
         throw new Error(sessionError);
       }
 
-      // Redirect to Stripe Checkout
-      window.location.href = `https://checkout.stripe.com/pay/${sessionId}`;
+      // For demo mode, show success message instead of redirecting
+      if (sessionId.startsWith('cs_test_')) {
+        alert('Demo Mode: Checkout would redirect to Stripe payment page');
+        onSuccess(sessionId);
+      } else {
+        // Redirect to Stripe Checkout
+        window.location.href = `https://checkout.stripe.com/pay/${sessionId}`;
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       setLoading(false);
