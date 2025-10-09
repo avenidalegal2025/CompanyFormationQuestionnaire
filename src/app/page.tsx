@@ -11,6 +11,7 @@ import Step7Agreement2 from "@/components/steps/Step7Agreement2";
 import Step8Agreement3 from "@/components/steps/Step8Agreement3";
 import Step9Agreement4 from "@/components/steps/Step9Agreement4";
 import Step5Admin from "@/components/steps/Step5Admin";
+import Step10Checkout from "@/components/steps/Step10Checkout";
 import ProgressSidebar, { type ProgressItem } from "@/components/ProgressSidebar";
 
 import type { AllSteps } from "@/lib/schema";
@@ -34,7 +35,7 @@ export default function Page() {
   // We now have a 4-step flow (2, 3, 4, 5)
   const [step, setStep] = useState<number>(1);
   const [wantsAgreement, setWantsAgreement] = useState<boolean>(false);
-  const totalSteps = wantsAgreement ? 8 : 4;
+  const totalSteps = wantsAgreement ? 9 : 5;
 
   // If arriving from a short link, prefill the form from localStorage
   useEffect(() => {
@@ -171,7 +172,8 @@ export default function Page() {
         { key: "step-ag-1", label: t1, status: step === 5 ? "active" : step > 5 ? "done" : "todo" },
         { key: "step-ag-2", label: t2, status: step === 6 ? "active" : step > 6 ? "done" : "todo" },
         { key: "step-ag-3", label: t3, status: step === 7 ? "active" : step > 7 ? "done" : "todo" },
-        { key: "step-ag-4", label: t4, status: step === 8 ? "active" : "todo" },
+        { key: "step-ag-4", label: t4, status: step === 8 ? "active" : step > 8 ? "done" : "todo" },
+        { key: "step-checkout", label: "Checkout", status: step === 9 ? "active" : step > 9 ? "done" : "todo" },
       );
     }
     return base;
@@ -389,6 +391,9 @@ export default function Page() {
           )}
           {wantsAgreement && step === 8 && (
             <Step9Agreement4 form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />
+          )}
+          {step === 9 && (
+            <Step10Checkout form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />
           )}
         </form>
       </main>
