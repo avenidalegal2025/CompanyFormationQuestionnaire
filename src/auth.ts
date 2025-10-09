@@ -7,11 +7,16 @@ const authOptions: AuthOptions = {
 
   // Auth0 (socials like Google/Microsoft can be enabled inside Auth0)
   providers: [
-    Auth0Provider({
-      clientId: process.env.AUTH0_CLIENT_ID!,
-      clientSecret: process.env.AUTH0_CLIENT_SECRET!,
-      issuer: process.env.AUTH0_ISSUER, // e.g. https://your-tenant.us.auth0.com
-    }),
+    // Only add Auth0 provider if environment variables are available
+    ...(process.env.AUTH0_CLIENT_ID && process.env.AUTH0_CLIENT_SECRET && process.env.AUTH0_ISSUER
+      ? [
+          Auth0Provider({
+            clientId: process.env.AUTH0_CLIENT_ID,
+            clientSecret: process.env.AUTH0_CLIENT_SECRET,
+            issuer: process.env.AUTH0_ISSUER, // e.g. https://your-tenant.us.auth0.com
+          }),
+        ]
+      : []),
   ],
 
   callbacks: {
