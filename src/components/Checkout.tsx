@@ -74,18 +74,8 @@ export default function Checkout({ formData, onSuccess, onCancel }: CheckoutProp
         throw new Error(sessionError);
       }
 
-      const stripe = await stripePromise;
-      if (!stripe) {
-        throw new Error('Stripe failed to load');
-      }
-
-      const { error: stripeError } = await stripe.redirectToCheckout({
-        sessionId,
-      });
-
-      if (stripeError) {
-        throw new Error(stripeError.message);
-      }
+      // Redirect to Stripe Checkout
+      window.location.href = `https://checkout.stripe.com/pay/${sessionId}`;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       setLoading(false);
