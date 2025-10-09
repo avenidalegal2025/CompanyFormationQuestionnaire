@@ -1,24 +1,59 @@
 import { NextRequest, NextResponse } from 'next/server';
+import Stripe from 'stripe';
 import { SERVICES } from '@/lib/pricing';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '2025-09-30.clover',
+});
 
 export async function POST(request: NextRequest) {
   try {
     const { formData, selectedServices, totalPrice } = await request.json();
 
-    // For now, return a mock session ID for testing
-    // In production, you would integrate with Stripe here
-    const mockSessionId = `cs_test_${Date.now()}`;
+    // Create line items for Stripe
+    const lineItems = selectedServices.map((serviceId: string) => {
+      const service = SERVICES.find(s => s.id === serviceId);
+      if (!service) {
+        throw new Error(`Service ${serviceId} not found`);
+      }
 
-    console.log('Checkout request:', {
-      formData: formData.company?.entityType,
-      selectedServices,
-      totalPrice,
+      return {
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: service.name,
+            description: service.description,
+            metadata: {
+              serviceId: service.id,
+              category: service.category,
+            },
+          },
+          unit_amount: service.price,
+        },
+        quantity: 1,
+      };
     });
 
-    return NextResponse.json({ 
-      sessionId: mockSessionId,
-      message: 'Checkout session created (demo mode)' 
+    // Create Stripe checkout session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: lineItems,
+      mode: 'payment',
+      success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout/cancel`,
+      metadata: {
+        formData: JSON.stringify(formData),
+        selectedServices: JSON.stringify(selectedServices),
+        entityType: formData.company?.entityType || 'LLC',
+      },
+      customer_email: formData.profile?.email,
+      billing_address_collection: 'required',
+      shipping_address_collection: {
+        allowed_countries: ['US'],
+      },
     });
+
+    return NextResponse.json({ sessionId: session.id });
   } catch (error) {
     console.error('Error creating checkout session:', error);
     return NextResponse.json(
