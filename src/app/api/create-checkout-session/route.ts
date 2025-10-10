@@ -5,7 +5,7 @@ import { SERVICES, FORMATION_PRICES } from '@/lib/pricing';
 // Only initialize Stripe if the secret key is available
 const stripe = process.env.STRIPE_SECRET_KEY 
   ? new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: '2024-12-18.acacia',
+      apiVersion: '2025-09-30.clover',
     })
   : null;
 
@@ -108,7 +108,6 @@ export async function POST(request: NextRequest) {
       mode: 'payment',
       success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout/cancel`,
-      customer: customer?.id,
       customer_email: formData.profile?.email,
       metadata: {
         formData: JSON.stringify(formData),
@@ -120,12 +119,6 @@ export async function POST(request: NextRequest) {
         skipAgreement: skipAgreement.toString(),
       },
       billing_address_collection: 'required',
-      shipping_address_collection: {
-        allowed_countries: ['US'],
-      },
-      invoice_creation: {
-        enabled: true,
-      },
     });
 
     return NextResponse.json({ sessionId: session.id });
