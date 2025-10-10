@@ -5,7 +5,7 @@ import { SERVICES, FORMATION_PRICES } from '@/lib/pricing';
 // Only initialize Stripe if the secret key is available
 const stripe = process.env.STRIPE_SECRET_KEY 
   ? new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: '2025-09-30.clover',
+      apiVersion: '2024-12-18.acacia',
     })
   : null;
 
@@ -131,8 +131,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ sessionId: session.id });
   } catch (error) {
     console.error('Error creating checkout session:', error);
+    
+    // Log more detailed error information
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to create checkout session' },
+      { 
+        error: 'Failed to create checkout session',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }
