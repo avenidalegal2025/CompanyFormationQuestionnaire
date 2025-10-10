@@ -936,7 +936,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                 onClick={() => {
                   setWantsAgreement(false);
                   setShowAgreementModal(false);
-                  void onNext?.();
+                  setStep(9); // Go directly to checkout when skipping agreement
                 }}
               >
                 Quiero continuar con el alto riesgo que esto conlleva
