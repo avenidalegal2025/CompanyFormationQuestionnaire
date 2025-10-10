@@ -7,22 +7,8 @@ import type { StepProps } from './types';
 
 export default function Step10Checkout({ form, setStep, onSave, onNext }: StepProps) {
   const [showCheckout, setShowCheckout] = useState(false);
-  const [skipAgreement, setSkipAgreement] = useState(false);
-  const [showModal, setShowModal] = useState(false);
 
   const handleStartCheckout = () => {
-    setShowModal(true);
-  };
-
-  const handleAcceptAgreement = () => {
-    setSkipAgreement(false);
-    setShowModal(false);
-    setShowCheckout(true);
-  };
-
-  const handleSkipAgreement = () => {
-    setSkipAgreement(true);
-    setShowModal(false);
     setShowCheckout(true);
   };
 
@@ -42,7 +28,7 @@ export default function Step10Checkout({ form, setStep, onSave, onNext }: StepPr
         formData={form.getValues()}
         onSuccess={handleCheckoutSuccess}
         onCancel={handleCheckoutCancel}
-        skipAgreement={skipAgreement}
+        skipAgreement={false}
       />
     );
   }
@@ -101,56 +87,6 @@ export default function Step10Checkout({ form, setStep, onSave, onNext }: StepPr
         </div>
       </div>
 
-      {/* Modal for Agreement Recommendation */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 max-w-md mx-4">
-            <div className="flex items-center mb-4">
-              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold mr-3">
-                A
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900">Avenida Legal</h3>
-              <button 
-                onClick={() => setShowModal(false)}
-                className="ml-auto text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
-            </div>
-            
-            <p className="font-semibold text-gray-900 mb-4">
-              Antes de continuar, te recomendamos altamente que también tengas un Acuerdo de Accionistas.
-            </p>
-            
-            <p className="text-sm text-gray-600 mb-2">¿Por qué es tan importante?</p>
-            <p className="text-sm text-gray-700 mb-4">
-              Podría salvar tu empresa si las cosas no quedan bien claras desde el principio, ahorrar cientos de miles de dólares en litigios entre socios.
-            </p>
-            <p className="text-sm text-blue-600 underline mb-4">
-              Leer nuestro artículo que te explica al detalle
-            </p>
-            
-            <p className="text-sm text-gray-700 mb-6">
-              Inversión asociada: $600 USD.
-            </p>
-            
-            <div className="space-y-3">
-              <button
-                onClick={handleAcceptAgreement}
-                className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700"
-              >
-                Lo quiero
-              </button>
-              <button
-                onClick={handleSkipAgreement}
-                className="w-full text-sm text-gray-600 underline hover:text-gray-800"
-              >
-                Quiero continuar con el alto riesgo que esto conlleva
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </section>
   );
 }
