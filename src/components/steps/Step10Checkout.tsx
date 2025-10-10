@@ -11,6 +11,9 @@ export default function Step10Checkout({ form, setStep, onSave, onNext }: StepPr
   
   // Check if user wants agreement based on form data
   const wantsAgreement = formData.admin?.wantAgreement === 'Yes';
+  
+  // Get the formation state for display
+  const formationState = formData.company?.formationState || 'Delaware';
 
   const handleStartCheckout = () => {
     setShowCheckout(true);

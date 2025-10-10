@@ -26,7 +26,7 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
   const heroTitle = isCorp ? "Datos de los accionistas" : "Datos de los socios";
   
   // Get state for pricing
-  const state = watch("company.state") as string || "Delaware";
+  const state = watch("company.formationState") as string || "Delaware";
   const formationPrice = FORMATION_PRICES[entityType || "LLC"]?.[state] || (entityType === "C-Corp" ? 80000 : 60000);
 
   // How many blocks to render (stored at root as ownersCount)

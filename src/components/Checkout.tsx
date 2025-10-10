@@ -20,7 +20,7 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
   const [error, setError] = useState<string | null>(null);
 
   const entityType = formData.company?.entityType as 'LLC' | 'C-Corp';
-  const state = formData.company?.state || 'Delaware'; // Default to Delaware
+  const state = formData.company?.formationState || 'Delaware'; // Use formationState, not state
   const hasUsAddress = formData.company?.hasUsaAddress === 'Yes';
   const hasUsPhone = formData.company?.hasUsPhone === 'Yes';
 
