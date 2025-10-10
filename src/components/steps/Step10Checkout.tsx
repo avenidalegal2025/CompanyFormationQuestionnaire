@@ -8,6 +8,9 @@ import type { StepProps } from './types';
 export default function Step10Checkout({ form, setStep, onSave, onNext }: StepProps) {
   const [showCheckout, setShowCheckout] = useState(false);
   const formData = form.getValues();
+  
+  // Check if user wants agreement based on form data
+  const wantsAgreement = formData.admin?.wantAgreement === 'Yes';
 
   const handleStartCheckout = () => {
     setShowCheckout(true);
@@ -29,7 +32,7 @@ export default function Step10Checkout({ form, setStep, onSave, onNext }: StepPr
         formData={form.getValues()}
         onSuccess={handleCheckoutSuccess}
         onCancel={handleCheckoutCancel}
-        skipAgreement={false}
+        skipAgreement={!wantsAgreement}
       />
     );
   }
@@ -59,7 +62,9 @@ export default function Step10Checkout({ form, setStep, onSave, onNext }: StepPr
               {formData.company?.hasUsPhone !== 'Yes' && (
                 <li>• Número de teléfono comercial en EE. UU.</li>
               )}
-              <li>• Acuerdo Operativo/De Accionistas</li>
+              {wantsAgreement && (
+                <li>• Acuerdo Operativo/De Accionistas</li>
+              )}
               <li>• Toda la documentación requerida</li>
             </ul>
           </div>
@@ -74,7 +79,9 @@ export default function Step10Checkout({ form, setStep, onSave, onNext }: StepPr
               {formData.company?.hasUsPhone !== 'Yes' && (
                 <li>• Configuración de teléfono: 1 día hábil</li>
               )}
-              <li>• Documentos legales: 3-5 días hábiles</li>
+              {wantsAgreement && (
+                <li>• Documentos legales: 3-5 días hábiles</li>
+              )}
             </ul>
           </div>
         </div>
