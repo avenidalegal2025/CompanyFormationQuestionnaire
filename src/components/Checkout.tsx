@@ -5,7 +5,9 @@ import { loadStripe } from '@stripe/stripe-js';
 import { SERVICES, PACKAGES, calculateTotalPrice, formatPrice, FORMATION_PRICES } from '@/lib/pricing';
 import type { AllSteps } from '@/lib/schema';
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY 
+  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+  : null;
 
 interface CheckoutProps {
   formData: AllSteps;
@@ -18,6 +20,12 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Debug environment variables
+  useEffect(() => {
+    console.log('Stripe publishable key available:', !!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
+    console.log('Stripe promise available:', !!stripePromise);
+  }, []);
 
   const entityType = formData.company?.entityType as 'LLC' | 'C-Corp';
   const state = formData.company?.formationState || 'Delaware'; // Use formationState, not state
@@ -63,6 +71,12 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
   const handleCheckout = async () => {
     setLoading(true);
     setError(null);
+
+    if (!stripePromise) {
+      setError('Stripe no está configurado correctamente');
+      setLoading(false);
+      return;
+    }
 
     try {
       const response = await fetch('/api/create-checkout-session', {
