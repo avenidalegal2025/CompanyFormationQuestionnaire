@@ -21,8 +21,8 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
 
   const entityType = formData.company?.entityType as 'LLC' | 'C-Corp';
   const state = formData.company?.state || 'Delaware'; // Default to Delaware
-  const hasUsAddress = formData.company?.hasUsAddress || false;
-  const hasUsPhone = formData.company?.hasUsPhone || false;
+  const hasUsAddress = formData.company?.hasUsaAddress === 'Yes';
+  const hasUsPhone = formData.company?.hasUsPhone === 'Yes';
 
   // Auto-select services based on user's current status
   useEffect(() => {
