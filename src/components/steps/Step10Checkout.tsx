@@ -14,6 +14,10 @@ export default function Step10Checkout({ form, setStep, onSave, onNext }: StepPr
   
   // Get the formation state for display
   const formationState = formData.company?.formationState || 'Delaware';
+  
+  // Get entity type for agreement display
+  const entityType = formData.company?.entityType as 'LLC' | 'C-Corp' | undefined;
+  const agreementName = entityType === 'C-Corp' ? 'Acuerdo de Accionistas' : 'Acuerdo Operativo';
 
   const handleStartCheckout = () => {
     setShowCheckout(true);
@@ -66,7 +70,7 @@ export default function Step10Checkout({ form, setStep, onSave, onNext }: StepPr
                 <li>• Número de teléfono comercial en EE. UU.</li>
               )}
               {wantsAgreement && (
-                <li>• Acuerdo Operativo/De Accionistas</li>
+                <li>• {agreementName}</li>
               )}
               <li>• Toda la documentación requerida</li>
             </ul>
