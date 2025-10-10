@@ -118,9 +118,12 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
     if (service.id === 'business_phone' && hasUsPhone) return false;
     
     // Show agreement service only if user didn't skip it
-    if (skipAgreement) return false;
-    if (entityType === 'LLC' && service.id === 'operating_agreement') return true;
-    if (entityType === 'C-Corp' && service.id === 'shareholder_agreement') return true;
+    if (entityType === 'LLC' && service.id === 'operating_agreement') {
+      return !skipAgreement;
+    }
+    if (entityType === 'C-Corp' && service.id === 'shareholder_agreement') {
+      return !skipAgreement;
+    }
     
     // Show other services
     if (service.category === 'address' || service.category === 'phone') return true;
