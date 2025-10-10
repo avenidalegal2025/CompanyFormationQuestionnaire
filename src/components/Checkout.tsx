@@ -161,15 +161,15 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
       return false;
     }
     
-    // Show agreement service only if user didn't skip it
-    if (entityType === 'LLC' && service.id === 'operating_agreement') {
-      const shouldShow = !skipAgreement;
-      console.log(`Operating agreement should show: ${shouldShow} (skipAgreement: ${skipAgreement})`);
+    // Show agreement service only if user didn't skip it AND it matches the entity type
+    if (service.id === 'operating_agreement') {
+      const shouldShow = !skipAgreement && entityType === 'LLC';
+      console.log(`Operating agreement should show: ${shouldShow} (skipAgreement: ${skipAgreement}, entityType: ${entityType})`);
       return shouldShow;
     }
-    if (entityType === 'C-Corp' && service.id === 'shareholder_agreement') {
-      const shouldShow = !skipAgreement;
-      console.log(`Shareholder agreement should show: ${shouldShow} (skipAgreement: ${skipAgreement})`);
+    if (service.id === 'shareholder_agreement') {
+      const shouldShow = !skipAgreement && entityType === 'C-Corp';
+      console.log(`Shareholder agreement should show: ${shouldShow} (skipAgreement: ${skipAgreement}, entityType: ${entityType})`);
       return shouldShow;
     }
     
