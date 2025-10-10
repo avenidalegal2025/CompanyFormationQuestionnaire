@@ -52,8 +52,12 @@ export default function Step10Checkout({ form, setStep, onSave, onNext }: StepPr
             <h3 className="font-semibold text-blue-900 mb-2">¿Qué está Incluido?</h3>
             <ul className="text-sm text-blue-800 space-y-1">
               <li>• Archivo completo de formación de empresa</li>
-              <li>• Dirección comercial en EE. UU. (1 año)</li>
-              <li>• Número de teléfono comercial en EE. UU.</li>
+              {formData.company?.hasUsaAddress !== 'Yes' && (
+                <li>• Dirección comercial en EE. UU. (1 año)</li>
+              )}
+              {formData.company?.hasUsPhone !== 'Yes' && (
+                <li>• Número de teléfono comercial en EE. UU.</li>
+              )}
               <li>• Acuerdo Operativo/De Accionistas</li>
               <li>• Toda la documentación requerida</li>
             </ul>
@@ -63,8 +67,12 @@ export default function Step10Checkout({ form, setStep, onSave, onNext }: StepPr
             <h3 className="font-semibold text-gray-900 mb-2">Tiempo de Procesamiento</h3>
             <ul className="text-sm text-gray-700 space-y-1">
               <li>• Formación de empresa: 5-7 días hábiles</li>
-              <li>• Configuración de dirección: 1-2 días hábiles</li>
-              <li>• Configuración de teléfono: 1 día hábil</li>
+              {formData.company?.hasUsaAddress !== 'Yes' && (
+                <li>• Configuración de dirección: 1-2 días hábiles</li>
+              )}
+              {formData.company?.hasUsPhone !== 'Yes' && (
+                <li>• Configuración de teléfono: 1 día hábil</li>
+              )}
               <li>• Documentos legales: 3-5 días hábiles</li>
             </ul>
           </div>
