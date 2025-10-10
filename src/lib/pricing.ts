@@ -47,7 +47,7 @@ export const SERVICES: ServiceItem[] = [
     id: 'business_address',
     name: 'Dirección Comercial en EE. UU.',
     description: 'Servicio de agente registrado y dirección comercial en EE. UU. por 1 año',
-    price: 19900, // $199
+    price: 60000, // $600
     required: false,
     category: 'address'
   },
@@ -55,7 +55,7 @@ export const SERVICES: ServiceItem[] = [
     id: 'business_phone',
     name: 'Número de Teléfono en EE. UU.',
     description: 'Número de teléfono virtual para su negocio con desvío de llamadas',
-    price: 9900, // $99
+    price: 18000, // $180
     required: false,
     category: 'phone'
   },
