@@ -7,6 +7,7 @@ import type { StepProps } from './types';
 
 export default function Step10Checkout({ form, setStep, onSave, onNext }: StepProps) {
   const [showCheckout, setShowCheckout] = useState(false);
+  const formData = form.getValues();
 
   const handleStartCheckout = () => {
     setShowCheckout(true);
