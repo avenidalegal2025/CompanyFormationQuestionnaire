@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
-import { SERVICES, PACKAGES, calculateTotalPrice, formatPrice } from '@/lib/pricing';
+import { SERVICES, PACKAGES, calculateTotalPrice, formatPrice, FORMATION_PRICES } from '@/lib/pricing';
 import type { AllSteps } from '@/lib/schema';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
@@ -11,39 +11,48 @@ interface CheckoutProps {
   formData: AllSteps;
   onSuccess: (sessionId: string) => void;
   onCancel: () => void;
+  skipAgreement?: boolean;
 }
 
-export default function Checkout({ formData, onSuccess, onCancel }: CheckoutProps) {
+export default function Checkout({ formData, onSuccess, onCancel, skipAgreement = false }: CheckoutProps) {
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const entityType = formData.company?.entityType as 'LLC' | 'C-Corp';
-  const formationService = entityType === 'LLC' ? 'llc_formation' : 'corp_formation';
+  const state = formData.company?.state || 'Delaware'; // Default to Delaware
+  const hasUsAddress = formData.company?.hasUsAddress || false;
+  const hasUsPhone = formData.company?.hasUsPhone || false;
 
-  // Auto-select formation service and recommended services
+  // Auto-select services based on user's current status
   useEffect(() => {
-    const recommended = [formationService];
+    const recommended: string[] = [];
     
-    // Auto-select business address for all packages
-    recommended.push('business_address');
+    // Always add business address if user doesn't have one
+    if (!hasUsAddress) {
+      recommended.push('business_address');
+    }
     
-    // Auto-select agreement based on entity type
-    if (entityType === 'LLC') {
-      recommended.push('operating_agreement');
-    } else {
-      recommended.push('shareholder_agreement');
+    // Always add business phone if user doesn't have one
+    if (!hasUsPhone) {
+      recommended.push('business_phone');
+    }
+    
+    // Add agreement if user didn't skip it
+    if (!skipAgreement) {
+      if (entityType === 'LLC') {
+        recommended.push('operating_agreement');
+      } else {
+        recommended.push('shareholder_agreement');
+      }
     }
     
     setSelectedServices(recommended);
-  }, [entityType, formationService]);
+  }, [entityType, hasUsAddress, hasUsPhone, skipAgreement]);
 
-  const totalPrice = calculateTotalPrice(selectedServices, entityType);
+  const totalPrice = calculateTotalPrice(selectedServices, entityType, state, hasUsAddress, hasUsPhone, skipAgreement);
 
   const handleServiceToggle = (serviceId: string) => {
-    // Formation service is always required
-    if (serviceId === formationService) return;
-    
     setSelectedServices(prev => 
       prev.includes(serviceId) 
         ? prev.filter(id => id !== serviceId)
@@ -65,6 +74,11 @@ export default function Checkout({ formData, onSuccess, onCancel }: CheckoutProp
           formData,
           selectedServices,
           totalPrice,
+          entityType,
+          state,
+          hasUsAddress,
+          hasUsPhone,
+          skipAgreement,
         }),
       });
 
@@ -77,14 +91,17 @@ export default function Checkout({ formData, onSuccess, onCancel }: CheckoutProp
       // Redirect to Stripe Checkout
       window.location.href = `https://checkout.stripe.com/pay/${sessionId}`;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : 'Ocurrió un error');
       setLoading(false);
     }
   };
 
   const availableServices = SERVICES.filter(service => {
-    // Show formation service for current entity type
-    if (service.id === formationService) return true;
+    // Show address service only if user doesn't have one
+    if (service.id === 'business_address' && hasUsAddress) return false;
+    
+    // Show phone service only if user doesn't have one
+    if (service.id === 'business_phone' && hasUsPhone) return false;
     
     // Show agreement service for current entity type
     if (entityType === 'LLC' && service.id === 'operating_agreement') return true;
@@ -96,19 +113,52 @@ export default function Checkout({ formData, onSuccess, onCancel }: CheckoutProp
     return false;
   });
 
+  // Get formation price for display
+  const formationPrice = FORMATION_PRICES[entityType]?.[state] || (entityType === 'LLC' ? 60000 : 80000);
+
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Complete Your Order</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Completa tu Pedido</h1>
         <p className="text-gray-600">
-          Review and customize your company formation package
+          Revisa y personaliza tu paquete de formación de empresa
         </p>
       </div>
 
       <div className="grid md:grid-cols-2 gap-8">
         {/* Services Selection */}
         <div className="space-y-6">
-          <h2 className="text-xl font-semibold text-gray-900">Select Services</h2>
+          <h2 className="text-xl font-semibold text-gray-900">Selecciona Servicios</h2>
+          
+          {/* Formation Service - Always shown */}
+          <div className="border rounded-lg p-4 border-blue-500 bg-blue-50">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={true}
+                    disabled={true}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <h3 className="font-medium text-gray-900">
+                    Formación de {entityType} - {state}
+                  </h3>
+                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                    Requerido
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600 mt-1">
+                  Formación completa de {entityType} con archivo estatal y documentación
+                </p>
+              </div>
+              <div className="text-right">
+                <div className="text-lg font-semibold text-gray-900">
+                  {formatPrice(formationPrice)}
+                </div>
+              </div>
+            </div>
+          </div>
           
           {availableServices.map((service) => (
             <div
@@ -117,8 +167,8 @@ export default function Checkout({ formData, onSuccess, onCancel }: CheckoutProp
                 selectedServices.includes(service.id) 
                   ? 'border-blue-500 bg-blue-50' 
                   : 'border-gray-200'
-              } ${service.required ? 'opacity-75' : 'cursor-pointer hover:border-gray-300'}`}
-              onClick={() => !service.required && handleServiceToggle(service.id)}
+              } cursor-pointer hover:border-gray-300`}
+              onClick={() => handleServiceToggle(service.id)}
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -126,16 +176,10 @@ export default function Checkout({ formData, onSuccess, onCancel }: CheckoutProp
                     <input
                       type="checkbox"
                       checked={selectedServices.includes(service.id)}
-                      onChange={() => !service.required && handleServiceToggle(service.id)}
-                      disabled={service.required}
+                      onChange={() => handleServiceToggle(service.id)}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
                     <h3 className="font-medium text-gray-900">{service.name}</h3>
-                    {service.required && (
-                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                        Required
-                      </span>
-                    )}
                   </div>
                   <p className="text-sm text-gray-600 mt-1">{service.description}</p>
                 </div>
@@ -151,9 +195,15 @@ export default function Checkout({ formData, onSuccess, onCancel }: CheckoutProp
 
         {/* Order Summary */}
         <div className="bg-gray-50 rounded-lg p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Order Summary</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Resumen del Pedido</h2>
           
           <div className="space-y-3 mb-6">
+            {/* Formation Service */}
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Formación de {entityType} - {state}</span>
+              <span className="font-medium">{formatPrice(formationPrice)}</span>
+            </div>
+            
             {selectedServices.map(serviceId => {
               const service = SERVICES.find(s => s.id === serviceId);
               if (!service) return null;
@@ -177,17 +227,17 @@ export default function Checkout({ formData, onSuccess, onCancel }: CheckoutProp
           <div className="mt-6 space-y-3">
             <button
               onClick={handleCheckout}
-              disabled={loading || selectedServices.length === 0}
+              disabled={loading}
               className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Processing...' : 'Proceed to Payment'}
+              {loading ? 'Procesando...' : 'Proceder al Pago'}
             </button>
             
             <button
               onClick={onCancel}
               className="w-full bg-gray-200 text-gray-800 py-3 px-4 rounded-lg font-medium hover:bg-gray-300"
             >
-              Cancel
+              Cancelar
             </button>
           </div>
           
