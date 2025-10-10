@@ -112,8 +112,22 @@ export async function POST(request: NextRequest) {
       state,
       hasUsAddress,
       hasUsPhone,
-      skipAgreement
+      skipAgreement,
+      lineItems: lineItems.map(item => ({
+        name: item.price_data?.product_data?.name,
+        amount: item.price_data?.unit_amount,
+        quantity: item.quantity
+      }))
     });
+
+    // Test Stripe connection
+    try {
+      const account = await stripe.accounts.retrieve();
+      console.log('Stripe connection successful, account:', account.id);
+    } catch (stripeError) {
+      console.error('Stripe connection failed:', stripeError);
+      throw new Error('Stripe connection failed');
+    }
 
     // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({

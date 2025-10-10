@@ -5,9 +5,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { SERVICES, PACKAGES, calculateTotalPrice, formatPrice, FORMATION_PRICES } from '@/lib/pricing';
 import type { AllSteps } from '@/lib/schema';
 
-const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY 
-  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
-  : null;
+// Stripe will be initialized inside the component
 
 interface CheckoutProps {
   formData: AllSteps;
@@ -20,11 +18,33 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stripePromise, setStripePromise] = useState<any>(null);
+  const [stripeLoading, setStripeLoading] = useState(true);
 
-  // Debug environment variables
+  // Initialize Stripe
   useEffect(() => {
-    console.log('Stripe publishable key available:', !!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
-    console.log('Stripe promise available:', !!stripePromise);
+    const initStripe = async () => {
+      try {
+        const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+        console.log('Stripe publishable key available:', !!publishableKey);
+        
+        if (publishableKey) {
+          const stripe = await loadStripe(publishableKey);
+          setStripePromise(stripe);
+          console.log('Stripe initialized successfully');
+        } else {
+          console.error('Stripe publishable key not found');
+          setError('Stripe no está configurado correctamente');
+        }
+      } catch (err) {
+        console.error('Error initializing Stripe:', err);
+        setError('Error al inicializar Stripe');
+      } finally {
+        setStripeLoading(false);
+      }
+    };
+
+    initStripe();
   }, []);
 
   const entityType = formData.company?.entityType as 'LLC' | 'C-Corp';
@@ -73,7 +93,7 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
     setError(null);
 
     if (!stripePromise) {
-      setError('Stripe no está configurado correctamente');
+      setError('Stripe no está configurado correctamente. Por favor, recarga la página.');
       setLoading(false);
       return;
     }
@@ -242,14 +262,14 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
             </div>
           </div>
           
-          <div className="mt-6 space-y-3">
-            <button
-              onClick={handleCheckout}
-              disabled={loading}
-              className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Procesando...' : 'Proceder al Pago'}
-            </button>
+              <div className="mt-6 space-y-3">
+                <button
+                  onClick={handleCheckout}
+                  disabled={loading || stripeLoading || !stripePromise}
+                  className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {stripeLoading ? 'Inicializando...' : loading ? 'Procesando...' : 'Proceder al Pago'}
+                </button>
             
             <button
               onClick={onCancel}
