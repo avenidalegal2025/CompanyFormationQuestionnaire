@@ -103,7 +103,8 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
     // Show phone service only if user doesn't have one
     if (service.id === 'business_phone' && hasUsPhone) return false;
     
-    // Show agreement service for current entity type
+    // Show agreement service only if user didn't skip it
+    if (skipAgreement) return false;
     if (entityType === 'LLC' && service.id === 'operating_agreement') return true;
     if (entityType === 'C-Corp' && service.id === 'shareholder_agreement') return true;
     
