@@ -52,6 +52,16 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
   const hasUsAddress = formData.company?.hasUsaAddress === 'Yes';
   const hasUsPhone = formData.company?.hasUsPhone === 'Yes';
 
+  // Debug form data
+  console.log('Checkout form data:', {
+    entityType,
+    state,
+    hasUsAddress,
+    hasUsPhone,
+    skipAgreement,
+    companyData: formData.company
+  });
+
   // Auto-select services based on user's current status
   useEffect(() => {
     const recommended: string[] = [];
@@ -131,23 +141,44 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
   };
 
   const availableServices = SERVICES.filter(service => {
+    console.log(`Checking service ${service.id}:`, {
+      hasUsAddress,
+      hasUsPhone,
+      skipAgreement,
+      entityType,
+      serviceCategory: service.category
+    });
+    
     // Show address service only if user doesn't have one
-    if (service.id === 'business_address' && hasUsAddress) return false;
+    if (service.id === 'business_address' && hasUsAddress) {
+      console.log('Filtering out business_address because user has US address');
+      return false;
+    }
     
     // Show phone service only if user doesn't have one
-    if (service.id === 'business_phone' && hasUsPhone) return false;
+    if (service.id === 'business_phone' && hasUsPhone) {
+      console.log('Filtering out business_phone because user has US phone');
+      return false;
+    }
     
     // Show agreement service only if user didn't skip it
     if (entityType === 'LLC' && service.id === 'operating_agreement') {
-      return !skipAgreement;
+      const shouldShow = !skipAgreement;
+      console.log(`Operating agreement should show: ${shouldShow} (skipAgreement: ${skipAgreement})`);
+      return shouldShow;
     }
     if (entityType === 'C-Corp' && service.id === 'shareholder_agreement') {
-      return !skipAgreement;
+      const shouldShow = !skipAgreement;
+      console.log(`Shareholder agreement should show: ${shouldShow} (skipAgreement: ${skipAgreement})`);
+      return shouldShow;
     }
     
     // Show all other services (address, phone, agreement)
+    console.log(`Showing service ${service.id}`);
     return true;
   });
+
+  console.log('Available services:', availableServices.map(s => s.id));
 
   // Get formation price for display
   const formationPrice = FORMATION_PRICES[entityType]?.[state] || (entityType === 'LLC' ? 60000 : 80000);
