@@ -6,7 +6,6 @@ import SegmentedToggle from "@/components/SegmentedToggle";
 import SSNEINInput from "@/components/SSNEINInput";
 import HeroMiami2 from "@/components/HeroMiami2";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
-import { FORMATION_PRICES, formatPrice } from "@/lib/pricing";
 import type { StepProps } from "./types";
 
 const MAX_OWNERS = 6;
@@ -24,10 +23,6 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
   const groupLabel = isCorp ? "accionistas" : "socios";
   const singleLabel = isCorp ? "Accionista" : "Socio";
   const heroTitle = isCorp ? "Datos de los accionistas" : "Datos de los socios";
-  
-  // Get state for pricing
-  const state = watch("company.formationState") as string || "Delaware";
-  const formationPrice = FORMATION_PRICES[entityType || "LLC"]?.[state] || (entityType === "C-Corp" ? 80000 : 60000);
 
   // How many blocks to render (stored at root as ownersCount)
   const ownersCount = (watch("ownersCount") as number | undefined) ?? 1;
@@ -45,21 +40,6 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
     <section className="space-y-6">
       {/* Shared hero */}
       <HeroMiami2 title={heroTitle} />
-
-      {/* Cost Display */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <div className="text-center">
-          <h3 className="text-lg font-semibold text-blue-900 mb-2">
-            Costo de Formación de {entityType} - {state}
-          </h3>
-          <div className="text-3xl font-bold text-blue-900 mb-2">
-            {formatPrice(formationPrice)}
-          </div>
-          <p className="text-sm text-blue-700">
-            *El costo ya incluye todos los cargos gubernamentales.
-          </p>
-        </div>
-      </div>
 
       <div className="card">
         <h2 className="text-xl font-semibold text-gray-900">Datos de los {groupLabel}</h2>
