@@ -101,13 +101,27 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Get the base URL from the request
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
+      `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+
+    console.log('Creating checkout session with:', {
+      baseUrl,
+      lineItemsCount: lineItems.length,
+      entityType,
+      state,
+      hasUsAddress,
+      hasUsPhone,
+      skipAgreement
+    });
+
     // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: lineItems,
       mode: 'payment',
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout/cancel`,
+      success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/checkout/cancel`,
       customer_email: formData.profile?.email,
       metadata: {
         formData: JSON.stringify(formData),
