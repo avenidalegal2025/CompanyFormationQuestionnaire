@@ -145,10 +145,8 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
       return !skipAgreement;
     }
     
-    // Show other services
-    if (service.category === 'address' || service.category === 'phone') return true;
-    
-    return false;
+    // Show all other services (address, phone, agreement)
+    return true;
   });
 
   // Get formation price for display
