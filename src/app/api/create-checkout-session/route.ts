@@ -144,43 +144,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Create Stripe checkout session
-        // Create a simple test session first
-        const testSession = await stripe.checkout.sessions.create({
+        // Create a minimal session with just one simple line item
+        const session = await stripe.checkout.sessions.create({
           payment_method_types: ['card'],
           line_items: [{
             price_data: {
               currency: 'usd',
               product_data: {
-                name: 'Test Product',
+                name: 'Company Formation Service',
               },
-              unit_amount: 1000, // $10.00
+              unit_amount: 60000, // $600.00
             },
             quantity: 1,
           }],
           mode: 'payment',
           success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
           cancel_url: `${baseUrl}/checkout/cancel`,
-        });
-
-        console.log('Test session created successfully:', testSession.id);
-
-        const session = await stripe.checkout.sessions.create({
-          payment_method_types: ['card'],
-          line_items: lineItems,
-          mode: 'payment',
-          success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `${baseUrl}/checkout/cancel`,
-          customer_email: formData.profile?.email,
-          metadata: {
-            formData: JSON.stringify(formData),
-            selectedServices: JSON.stringify(selectedServices),
-            entityType: entityType,
-            state: state,
-            hasUsAddress: hasUsAddress.toString(),
-            hasUsPhone: hasUsPhone.toString(),
-            skipAgreement: skipAgreement.toString(),
-          },
-          billing_address_collection: 'required',
         });
 
         console.log('Checkout session created successfully:', session.id);
