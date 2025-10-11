@@ -105,20 +105,34 @@ export async function POST(request: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
       `${request.nextUrl.protocol}//${request.nextUrl.host}`;
 
-    console.log('Creating checkout session with:', {
-      baseUrl,
-      lineItemsCount: lineItems.length,
-      entityType,
-      state,
-      hasUsAddress,
-      hasUsPhone,
-      skipAgreement,
-      lineItems: lineItems.map(item => ({
-        name: item.price_data?.product_data?.name,
-        amount: item.price_data?.unit_amount,
-        quantity: item.quantity
-      }))
-    });
+        console.log('Creating checkout session with:', {
+          baseUrl,
+          lineItemsCount: lineItems.length,
+          entityType,
+          state,
+          hasUsAddress,
+          hasUsPhone,
+          skipAgreement,
+          lineItems: lineItems.map(item => ({
+            name: item.price_data?.product_data?.name,
+            amount: item.price_data?.unit_amount,
+            quantity: item.quantity
+          }))
+        });
+
+        // Validate line items
+        if (lineItems.length === 0) {
+          throw new Error('No line items provided');
+        }
+
+        lineItems.forEach((item, index) => {
+          if (!item.price_data?.product_data?.name) {
+            throw new Error(`Line item ${index} missing product name`);
+          }
+          if (!item.price_data?.unit_amount || item.price_data.unit_amount <= 0) {
+            throw new Error(`Line item ${index} has invalid amount: ${item.price_data?.unit_amount}`);
+          }
+        });
 
     // Test Stripe connection
     try {
@@ -130,24 +144,44 @@ export async function POST(request: NextRequest) {
     }
 
     // Create Stripe checkout session
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: lineItems,
-      mode: 'payment',
-      success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/checkout/cancel`,
-      customer_email: formData.profile?.email,
-      metadata: {
-        formData: JSON.stringify(formData),
-        selectedServices: JSON.stringify(selectedServices),
-        entityType: entityType,
-        state: state,
-        hasUsAddress: hasUsAddress.toString(),
-        hasUsPhone: hasUsPhone.toString(),
-        skipAgreement: skipAgreement.toString(),
-      },
-      billing_address_collection: 'required',
-    });
+        // Create a simple test session first
+        const testSession = await stripe.checkout.sessions.create({
+          payment_method_types: ['card'],
+          line_items: [{
+            price_data: {
+              currency: 'usd',
+              product_data: {
+                name: 'Test Product',
+              },
+              unit_amount: 1000, // $10.00
+            },
+            quantity: 1,
+          }],
+          mode: 'payment',
+          success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${baseUrl}/checkout/cancel`,
+        });
+
+        console.log('Test session created successfully:', testSession.id);
+
+        const session = await stripe.checkout.sessions.create({
+          payment_method_types: ['card'],
+          line_items: lineItems,
+          mode: 'payment',
+          success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${baseUrl}/checkout/cancel`,
+          customer_email: formData.profile?.email,
+          metadata: {
+            formData: JSON.stringify(formData),
+            selectedServices: JSON.stringify(selectedServices),
+            entityType: entityType,
+            state: state,
+            hasUsAddress: hasUsAddress.toString(),
+            hasUsPhone: hasUsPhone.toString(),
+            skipAgreement: skipAgreement.toString(),
+          },
+          billing_address_collection: 'required',
+        });
 
         console.log('Checkout session created successfully:', session.id);
         return NextResponse.json({ 
