@@ -145,15 +145,8 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
       
       console.log('Session ID received:', sessionId);
 
-      // Use Stripe's redirectToCheckout method
-      const stripe = await stripePromise;
-      const { error } = await stripe.redirectToCheckout({
-        sessionId: sessionId
-      });
-      
-      if (error) {
-        throw new Error(error.message);
-      }
+      // Redirect to Stripe Checkout using the session URL
+      window.location.href = `https://checkout.stripe.com/c/pay/${sessionId}`;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ocurrió un error');
       setLoading(false);
