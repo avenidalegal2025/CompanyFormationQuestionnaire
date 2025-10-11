@@ -25,9 +25,8 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
   useEffect(() => {
     const initStripe = async () => {
       try {
-        // Fetch publishable key from API
-        const response = await fetch('/api/stripe-config');
-        const { publishableKey } = await response.json();
+        // Hardcoded publishable key for testing
+        const publishableKey = 'pk_test_51SGTFyGoKexkldbNsdNd2lWJGuWB58srkRs8UBWOyQoGLkr6ecvAmr1X0ZiWc6ZITQvUx1aKXn3qOWJH1URddSXq00TVfjU31N';
         
         console.log('Stripe publishable key available:', !!publishableKey);
         
