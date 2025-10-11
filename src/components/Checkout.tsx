@@ -128,14 +128,32 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
         }),
       });
 
-      const { sessionId, error: sessionError } = await response.json();
+      const result = await response.json();
+      console.log('API Response:', result);
+      
+      const { sessionId, error: sessionError } = result;
 
       if (sessionError) {
+        console.error('Session creation error:', sessionError);
         throw new Error(sessionError);
       }
+      
+      if (!sessionId) {
+        console.error('No sessionId received');
+        throw new Error('No session ID received from server');
+      }
+      
+      console.log('Session ID received:', sessionId);
 
-      // Redirect to Stripe Checkout
-      window.location.href = `https://checkout.stripe.com/pay/${sessionId}`;
+      // Use Stripe's redirectToCheckout method
+      const stripe = await stripePromise;
+      const { error } = await stripe.redirectToCheckout({
+        sessionId: sessionId
+      });
+      
+      if (error) {
+        throw new Error(error.message);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ocurrió un error');
       setLoading(false);

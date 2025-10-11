@@ -149,7 +149,11 @@ export async function POST(request: NextRequest) {
       billing_address_collection: 'required',
     });
 
-    return NextResponse.json({ sessionId: session.id });
+        console.log('Checkout session created successfully:', session.id);
+        return NextResponse.json({ 
+          sessionId: session.id,
+          success: true 
+        });
   } catch (error) {
     console.error('Error creating checkout session:', error);
     
