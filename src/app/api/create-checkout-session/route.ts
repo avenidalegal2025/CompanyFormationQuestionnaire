@@ -144,29 +144,37 @@ export async function POST(request: NextRequest) {
     }
 
     // Create Stripe checkout session
-        // Create a minimal session with just one simple line item
-        const session = await stripe.checkout.sessions.create({
-          payment_method_types: ['card'],
-          line_items: [{
-            price_data: {
-              currency: 'usd',
-              product_data: {
-                name: 'Company Formation Service',
-              },
-              unit_amount: 60000, // $600.00
-            },
-            quantity: 1,
-          }],
-          mode: 'payment',
-          success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `${baseUrl}/checkout/cancel`,
-        });
+    const session = await stripe.checkout.sessions.create({
+      customer: customer?.id,
+      payment_method_types: ['card'],
+      line_items: lineItems,
+      mode: 'payment',
+      success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/checkout/cancel`,
+      invoice_creation: {
+        enabled: true,
+        invoice_data: {
+          description: `Company Formation Service - ${entityType} in ${state}`,
+          metadata: {
+            entityType: entityType,
+            state: state,
+            hasUsAddress: hasUsAddress.toString(),
+            hasUsPhone: hasUsPhone.toString(),
+            skipAgreement: skipAgreement.toString(),
+            totalAmount: totalPrice.toString()
+          }
+        }
+      },
+      ...(formData.profile?.email && {
+        customer_email: formData.profile.email
+      })
+    });
 
-        console.log('Checkout session created successfully:', session.id);
-        return NextResponse.json({ 
-          sessionId: session.id,
-          success: true 
-        });
+    console.log('Checkout session created successfully:', session.id);
+    return NextResponse.json({ 
+      paymentLinkUrl: session.url,
+      success: true 
+    });
   } catch (error) {
     console.error('Error creating checkout session:', error);
     
