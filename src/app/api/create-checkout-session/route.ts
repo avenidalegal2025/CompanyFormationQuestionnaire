@@ -11,7 +11,7 @@ console.log('Stripe key starts with:', stripeKey.substring(0, 10));
 console.log('Stripe key ends with:', stripeKey.substring(stripeKey.length - 10));
 
 const stripe = new Stripe(stripeKey, {
-  apiVersion: '2024-12-18.acacia',
+  apiVersion: '2025-09-30.clover',
 });
 
 export async function POST(request: NextRequest) {
