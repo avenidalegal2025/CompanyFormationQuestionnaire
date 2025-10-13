@@ -5,8 +5,13 @@ import { SERVICES, FORMATION_PRICES } from '@/lib/pricing';
 // Initialize Stripe with fallback key to bypass environment variable issues
 const encodedKey = 'c2tfdGVzdF81MUdHRlZ5R29LZXhrbGRiTlZTaFQ3R25vSGU3blR2bDJDaTdzUTJrMW1UQlN2VlowWnBGRDg3QlZpN3pvSHMyOVBLWEdJZ2RpbmIzdWlFV3dZcjJkcm0yMDAyMjlGczN5';
 const stripeKey = process.env.STRIPE_SECRET_KEY || Buffer.from(encodedKey, 'base64').toString();
+
+console.log('Stripe key length:', stripeKey.length);
+console.log('Stripe key starts with:', stripeKey.substring(0, 10));
+console.log('Stripe key ends with:', stripeKey.substring(stripeKey.length - 10));
+
 const stripe = new Stripe(stripeKey, {
-  apiVersion: '2025-09-30.clover',
+  apiVersion: '2024-12-18.acacia',
 });
 
 export async function POST(request: NextRequest) {
