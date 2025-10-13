@@ -143,31 +143,22 @@ export async function POST(request: NextRequest) {
       throw new Error('Stripe connection failed');
     }
 
-    // Create Stripe checkout session
+    // Create Stripe checkout session with simplified approach
     const session = await stripe.checkout.sessions.create({
-      customer: customer?.id,
       payment_method_types: ['card'],
       line_items: lineItems,
       mode: 'payment',
       success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/checkout/cancel`,
-      invoice_creation: {
-        enabled: true,
-        invoice_data: {
-          description: `Company Formation Service - ${entityType} in ${state}`,
-          metadata: {
-            entityType: entityType,
-            state: state,
-            hasUsAddress: hasUsAddress.toString(),
-            hasUsPhone: hasUsPhone.toString(),
-            skipAgreement: skipAgreement.toString(),
-            totalAmount: totalPrice.toString()
-          }
-        }
-      },
-      ...(formData.profile?.email && {
-        customer_email: formData.profile.email
-      })
+      customer_email: formData.profile?.email,
+      metadata: {
+        entityType: entityType,
+        state: state,
+        hasUsAddress: hasUsAddress.toString(),
+        hasUsPhone: hasUsPhone.toString(),
+        skipAgreement: skipAgreement.toString(),
+        totalAmount: totalPrice.toString()
+      }
     });
 
     console.log('Checkout session created successfully:', session.id);
@@ -184,10 +175,22 @@ export async function POST(request: NextRequest) {
       console.error('Error stack:', error.stack);
     }
     
+    // Check if it's a Stripe error
+    if (error && typeof error === 'object' && 'type' in error) {
+      console.error('Stripe error type:', (error as any).type);
+      console.error('Stripe error code:', (error as any).code);
+      console.error('Stripe error param:', (error as any).param);
+    }
+    
     return NextResponse.json(
       { 
         error: 'Failed to create checkout session',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
+        stripeError: error && typeof error === 'object' && 'type' in error ? {
+          type: (error as any).type,
+          code: (error as any).code,
+          param: (error as any).param
+        } : null
       },
       { status: 500 }
     );
