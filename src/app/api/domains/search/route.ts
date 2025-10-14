@@ -125,8 +125,8 @@ export async function POST(request: NextRequest) {
     });
 
     // Separate primary result (first available) and suggestions
-    const primaryResult = sortedResults.find(r => r.available) || sortedResults[0];
-    const suggestions = sortedResults.filter(r => r !== primaryResult);
+    const primaryResult = sortedResults.find((r: any) => r.available) || sortedResults[0];
+    const suggestions = sortedResults.filter((r: any) => r !== primaryResult);
 
     return NextResponse.json({
       success: true,
