@@ -29,10 +29,18 @@ export const authOptions = {
       clientId: clientId!,
       clientSecret: clientSecret!,
       issuer: issuer!,
+      authorization: {
+        params: {
+          scope: "openid email profile",
+        },
+      },
     }),
   ],
   callbacks: {
     async session({ session, token }: { session: any; token: any }) {
+      console.log('Session callback - token:', token ? 'present' : 'missing');
+      console.log('Session callback - session:', session ? 'present' : 'missing');
+      
       // Ensure session persists with token data
       if (token) {
         session.user = token.user as any;
@@ -41,14 +49,26 @@ export const authOptions = {
       return session;
     },
     async jwt({ token, account, user }: { token: any; account: any; user: any }) {
+      console.log('JWT callback - account:', account ? 'present' : 'missing');
+      console.log('JWT callback - user:', user ? 'present' : 'missing');
+      console.log('JWT callback - token:', token ? 'present' : 'missing');
+      
       // Persist OAuth access_token and user info to the token right after signin
       if (account) {
         token.accessToken = account.access_token;
+        console.log('Added access token to JWT');
       }
       if (user) {
         token.user = user;
+        console.log('Added user to JWT');
       }
       return token;
+    },
+    async signIn({ user, account, profile }: { user: any; account: any; profile?: any }) {
+      console.log('SignIn callback - user:', user);
+      console.log('SignIn callback - account:', account);
+      console.log('SignIn callback - profile:', profile);
+      return true; // Allow sign in
     },
   },
 };

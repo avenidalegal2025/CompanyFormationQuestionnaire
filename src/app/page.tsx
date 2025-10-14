@@ -25,11 +25,28 @@ export default function Page() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
+  // Initialize form first to avoid conditional hook usage
+  const form = useForm<AllSteps>({
+    defaultValues: {
+      profile: {},     // kept in schema but unused in UI (email comes from Auth0)
+      company: {},
+      owners: [],
+      ownersCount: undefined, // Start empty, will default to 1 for rendering
+      admin: {},
+      banking: {},
+      attachments: {},
+    },
+  });
+
   // Authentication check - redirect to signin if not authenticated
   useEffect(() => {
+    console.log('Auth status:', status);
+    console.log('Session:', session);
+    
     if (status === 'loading') return; // Still loading
     
     if (status === 'unauthenticated' || !session) {
+      console.log('Redirecting to signin - status:', status, 'session:', !!session);
       router.push('/signin');
       return;
     }
@@ -51,18 +68,6 @@ export default function Page() {
   if (status === 'unauthenticated' || !session) {
     return null; // Will redirect
   }
-
-  const form = useForm<AllSteps>({
-    defaultValues: {
-      profile: {},     // kept in schema but unused in UI (email comes from Auth0)
-      company: {},
-      owners: [],
-      ownersCount: undefined, // Start empty, will default to 1 for rendering
-      admin: {},
-      banking: {},
-      attachments: {},
-    },
-  });
 
   // We now have a 4-step flow (2, 3, 4, 5)
   const [step, setStep] = useState<number>(1);
