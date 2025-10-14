@@ -3,7 +3,7 @@ import Auth0Provider from "next-auth/providers/auth0";
 
 const clientId = process.env.AUTH0_CLIENT_ID;
 const clientSecret = process.env.AUTH0_CLIENT_SECRET;
-const issuer = process.env.AUTH0_ISSUER;
+const issuer = process.env.AUTH0_ISSUER_BASE_URL || process.env.AUTH0_ISSUER;
 const secret = process.env.AUTH_SECRET;
 
 // Debug logging
