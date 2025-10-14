@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
 import Stripe from 'stripe';
 import { SERVICES, FORMATION_PRICES } from '@/lib/pricing';
+import { authOptions } from '@/lib/auth';
 
 // Initialize Stripe with fallback key to bypass environment variable issues
 const encodedKey = 'c2tfdGVzdF81MUdHRlZ5R29LZXhrbGRiTlZTaFQ3R25vSGU3blR2bDJDaTdzUTJrMW1UQlN2VlowWnBGRDg3QlZpN3pvSHMyOVBLWEdJZ2RpbmIzdWlFV3dZcjJkcm0yMDAyMjlGczN5';
@@ -16,6 +18,15 @@ const stripe = new Stripe(stripeKey, {
 
 export async function POST(request: NextRequest) {
   try {
+    // Get the authenticated session
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.email) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
 
     const { 
       formData, 
@@ -73,31 +84,29 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Create or get customer
+    // Create or get customer using session email
     let customer;
-    if (formData.profile?.email) {
-      try {
-        const existingCustomers = await stripe.customers.list({
-          email: formData.profile.email,
-          limit: 1,
+    try {
+      const existingCustomers = await stripe.customers.list({
+        email: session.user.email,
+        limit: 1,
+      });
+      
+      if (existingCustomers.data.length > 0) {
+        customer = existingCustomers.data[0];
+      } else {
+        customer = await stripe.customers.create({
+          email: session.user.email,
+          name: session.user.name || formData.company?.companyName,
+          metadata: {
+            entityType: entityType,
+            state: state,
+          },
         });
-        
-        if (existingCustomers.data.length > 0) {
-          customer = existingCustomers.data[0];
-        } else {
-          customer = await stripe.customers.create({
-            email: formData.profile.email,
-            name: formData.profile.name || formData.company?.companyName,
-            metadata: {
-              entityType: entityType,
-              state: state,
-            },
-          });
-        }
-      } catch (customerError) {
-        console.warn('Error creating/finding customer:', customerError);
-        // Continue without customer if there's an error
       }
+    } catch (customerError) {
+      console.warn('Error creating/finding customer:', customerError);
+      // Continue without customer if there's an error
     }
 
     // Get the base URL from the request
@@ -143,13 +152,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Create Stripe checkout session with simplified approach
-    const session = await stripe.checkout.sessions.create({
+    const checkoutSession = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: lineItems,
       mode: 'payment',
       success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/checkout/cancel`,
-      customer_email: formData.profile?.email,
+      customer_email: session.user.email,
       metadata: {
         entityType: entityType,
         state: state,
@@ -160,10 +169,10 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    console.log('Checkout session created successfully:', session.id);
+    console.log('Checkout session created successfully:', checkoutSession.id);
     return NextResponse.json({ 
-      sessionId: session.id,
-      paymentLinkUrl: session.url,
+      sessionId: checkoutSession.id,
+      paymentLinkUrl: checkoutSession.url,
       success: true 
     });
   } catch (error) {

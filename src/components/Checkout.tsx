@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { loadStripe } from '@stripe/stripe-js';
 import { SERVICES, PACKAGES, calculateTotalPrice, formatPrice, FORMATION_PRICES } from '@/lib/pricing';
 import type { AllSteps } from '@/lib/schema';
@@ -15,6 +16,7 @@ interface CheckoutProps {
 }
 
 export default function Checkout({ formData, onSuccess, onCancel, skipAgreement = false }: CheckoutProps) {
+  const { data: session, status } = useSession();
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -103,6 +105,19 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
   const handleCheckout = async () => {
     setLoading(true);
     setError(null);
+
+    // Check if user is authenticated
+    if (status === 'loading') {
+      setError('Verificando autenticación...');
+      setLoading(false);
+      return;
+    }
+
+    if (status === 'unauthenticated' || !session?.user?.email) {
+      setError('Debes iniciar sesión para proceder con el pago.');
+      setLoading(false);
+      return;
+    }
 
     if (!stripePromise) {
       setError('Stripe no está configurado correctamente. Por favor, recarga la página.');
