@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     ];
 
     // Create domain list with all extensions
-    const domainsToCheck = commonExtensions.map(ext => `${baseDomain}.${ext.ext}`);
+    const domainsToCheck = commonExtensions.map((ext: any) => `${baseDomain}.${ext.ext}`);
 
     // Call Namecheap proxy to search for domain availability
     const response = await fetch(`${NAMECHEAP_PROXY_URL}/domains/check`, {
@@ -77,9 +77,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Enhance results with real pricing data
-    const enhancedResults = results.map(result => {
+    const enhancedResults = results.map((result: any) => {
       const extension = result.domain.split('.').pop() || '';
-      const extInfo = commonExtensions.find(ext => ext.ext === extension) || {
+      const extInfo = commonExtensions.find((ext: any) => ext.ext === extension) || {
         ext: extension,
         popular: false
       };
