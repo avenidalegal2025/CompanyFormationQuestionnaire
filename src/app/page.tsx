@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
+import AuthWrapper from "@/components/AuthWrapper";
 
 import Step2Company from "@/components/steps/Step2Company";
 import Step3Owners from "@/components/steps/Step3Owners";
@@ -21,11 +20,8 @@ import { saveDraft, loadDraft, type DraftItem } from "@/lib/drafts";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
-export default function Page() {
-  const { data: session, status } = useSession();
-  const router = useRouter();
-
-  // Initialize form first to avoid conditional hook usage
+function QuestionnaireContent() {
+  // Initialize form
   const form = useForm<AllSteps>({
     defaultValues: {
       profile: {},     // kept in schema but unused in UI (email comes from Auth0)
@@ -37,37 +33,6 @@ export default function Page() {
       attachments: {},
     },
   });
-
-  // Authentication check - redirect to signin if not authenticated
-  useEffect(() => {
-    console.log('Auth status:', status);
-    console.log('Session:', session);
-    
-    if (status === 'loading') return; // Still loading
-    
-    if (status === 'unauthenticated' || !session) {
-      console.log('Redirecting to signin - status:', status, 'session:', !!session);
-      router.push('/signin');
-      return;
-    }
-  }, [status, session, router]);
-
-  // Show loading while checking authentication
-  if (status === 'loading') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-center p-8 bg-white rounded-lg shadow-md">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-700">Verificando autenticación...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Don't render the form if not authenticated
-  if (status === 'unauthenticated' || !session) {
-    return null; // Will redirect
-  }
 
   // We now have a 4-step flow (2, 3, 4, 5)
   const [step, setStep] = useState<number>(1);
@@ -436,5 +401,12 @@ export default function Page() {
       </main>
     </div>
   );
-}// Test deployment fix
-// Test single deployment
+}
+
+export default function Page() {
+  return (
+    <AuthWrapper>
+      <QuestionnaireContent />
+    </AuthWrapper>
+  );
+}

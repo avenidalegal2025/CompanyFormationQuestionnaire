@@ -24,6 +24,7 @@ export const authOptions = {
       }
     }
   },
+  debug: process.env.NODE_ENV === 'development',
   providers: [
     Auth0Provider({
       clientId: clientId!,
@@ -34,6 +35,7 @@ export const authOptions = {
           scope: "openid email profile",
         },
       },
+      checks: ["state"],
     }),
   ],
   callbacks: {
