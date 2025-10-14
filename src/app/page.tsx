@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 
 import Step2Company from "@/components/steps/Step2Company";
@@ -20,6 +22,36 @@ import { saveDraft, loadDraft, type DraftItem } from "@/lib/drafts";
 type SaveState = "idle" | "saving" | "saved" | "error";
 
 export default function Page() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  // Authentication check - redirect to signin if not authenticated
+  useEffect(() => {
+    if (status === 'loading') return; // Still loading
+    
+    if (status === 'unauthenticated' || !session) {
+      router.push('/signin');
+      return;
+    }
+  }, [status, session, router]);
+
+  // Show loading while checking authentication
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-center p-8 bg-white rounded-lg shadow-md">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-700">Verificando autenticación...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render the form if not authenticated
+  if (status === 'unauthenticated' || !session) {
+    return null; // Will redirect
+  }
+
   const form = useForm<AllSteps>({
     defaultValues: {
       profile: {},     // kept in schema but unused in UI (email comes from Auth0)
