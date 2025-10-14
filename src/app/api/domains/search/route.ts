@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     if (pricingResponse.ok) {
       const pricingResult = await pricingResponse.json();
       if (pricingResult.success) {
-        pricingData = pricingResult.pricing.reduce((acc, item) => {
+        pricingData = pricingResult.pricing.reduce((acc: any, item: any) => {
           acc[item.domain] = item;
           return acc;
         }, {});
