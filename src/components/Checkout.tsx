@@ -63,7 +63,8 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
     hasUsAddress,
     hasUsPhone,
     skipAgreement,
-    companyData: formData.company
+    companyData: formData.company,
+    fullFormData: formData
   });
 
   // Auto-select services based on user's current status
@@ -193,12 +194,12 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
     
     // Show agreement service only if user didn't skip it AND it matches the entity type
     if (service.id === 'operating_agreement') {
-      const shouldShow = !skipAgreement && entityType === 'LLC';
+      const shouldShow = !skipAgreement && (entityType === 'LLC' || entityType === undefined);
       console.log(`Operating agreement should show: ${shouldShow} (skipAgreement: ${skipAgreement}, entityType: ${entityType})`);
       return shouldShow;
     }
     if (service.id === 'shareholder_agreement') {
-      const shouldShow = !skipAgreement && entityType === 'C-Corp';
+      const shouldShow = !skipAgreement && (entityType === 'C-Corp' || entityType === undefined);
       console.log(`Shareholder agreement should show: ${shouldShow} (skipAgreement: ${skipAgreement}, entityType: ${entityType})`);
       return shouldShow;
     }

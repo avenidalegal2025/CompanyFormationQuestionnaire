@@ -91,18 +91,19 @@ export default function DomainsPage() {
       }
     ]);
 
-    // Handle Stripe checkout success/cancel
+    // Handle Stripe checkout success/cancel - only show if actually coming from Stripe
     const urlParams = new URLSearchParams(window.location.search);
     const success = urlParams.get('success');
     const canceled = urlParams.get('canceled');
     const sessionId = urlParams.get('session_id');
 
-    if (success && sessionId) {
+    // Only show success modal if we have both success=true AND session_id (indicating actual Stripe return)
+    if (success === 'true' && sessionId) {
       // Payment was successful, show success message
       alert('Payment successful! Your domains are being registered. You will receive a confirmation email shortly.');
       // Clear URL parameters
       window.history.replaceState({}, document.title, window.location.pathname);
-    } else if (canceled) {
+    } else if (canceled === 'true') {
       // Payment was canceled
       alert('Payment was canceled. You can try again anytime.');
       // Clear URL parameters

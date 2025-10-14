@@ -34,9 +34,14 @@ export default function Step10Checkout({ form, setStep, onSave, onNext }: StepPr
   };
 
   if (showCheckout) {
+    // Get fresh form data when showing checkout
+    const currentFormData = form.getValues();
+    console.log('Step10Checkout - Current form data:', currentFormData);
+    console.log('Step10Checkout - Entity type:', currentFormData.company?.entityType);
+    
     return (
       <Checkout
-        formData={form.getValues()}
+        formData={currentFormData}
         onSuccess={handleCheckoutSuccess}
         onCancel={handleCheckoutCancel}
         skipAgreement={!wantsAgreement}
