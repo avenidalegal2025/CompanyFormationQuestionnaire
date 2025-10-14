@@ -58,7 +58,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   }
 
   const domains = JSON.parse(session.metadata.domains || '[]');
-  const customerEmail = session.customer_email;
+  const customerEmail = session.customer_email || '';
   const customerName = session.metadata.customer_name || '';
 
   console.log('Processing domain purchase:', { domains, customerEmail, customerName });
