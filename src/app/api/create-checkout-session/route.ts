@@ -162,6 +162,7 @@ export async function POST(request: NextRequest) {
 
     console.log('Checkout session created successfully:', session.id);
     return NextResponse.json({ 
+      sessionId: session.id,
       paymentLinkUrl: session.url,
       success: true 
     });

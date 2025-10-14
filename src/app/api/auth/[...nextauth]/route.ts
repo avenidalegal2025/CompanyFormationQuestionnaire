@@ -6,6 +6,15 @@ const clientSecret = process.env.AUTH0_CLIENT_SECRET;
 const issuer = process.env.AUTH0_ISSUER;
 const secret = process.env.AUTH_SECRET;
 
+// Debug logging
+console.log('Auth0 Config Check:', {
+  hasClientId: !!clientId,
+  hasClientSecret: !!clientSecret,
+  hasIssuer: !!issuer,
+  hasSecret: !!secret,
+  issuer: issuer
+});
+
 // Only create Auth0 handler if all required environment variables are available
 const handler = (clientId && clientSecret && issuer && secret)
   ? NextAuth({

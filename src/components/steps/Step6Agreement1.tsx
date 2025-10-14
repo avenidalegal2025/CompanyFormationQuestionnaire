@@ -139,22 +139,22 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepP
                   />
                 </label>
                 <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
-                  <Controller
-                    name="agreement.llc_managingMembers"
-                    control={control}
-                    render={({ field }) => (
-                      <SegmentedToggle
-                        value={field.value || "Yes"}
-                        onChange={field.onChange}
-                        options={[
-                          { value: "Yes", label: "Sí" },
-                          { value: "No", label: "No" },
-                        ]}
-                        ariaLabel="Managing members"
-                        name={field.name}
-                      />
-                    )}
-                  />
+                <Controller
+                  name="agreement.llc_managingMembers"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "Yes"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Yes", label: "Sí" },
+                        { value: "No", label: "No" },
+                      ]}
+                      ariaLabel="Managing members"
+                      name={field.name}
+                    />
+                  )}
+                />
                 </div>
                 {watch("agreement.llc_managingMembers") === "No" && (
                   <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[420px]">

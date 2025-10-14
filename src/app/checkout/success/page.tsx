@@ -14,6 +14,13 @@ function CheckoutSuccessContent() {
     if (sessionId) {
       // Here you would typically verify the session with your backend
       // and update your database with the completed order
+      
+      // Set a flag in localStorage to indicate payment completion
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('paymentCompleted', 'true');
+        localStorage.setItem('paymentSessionId', sessionId);
+      }
+      
       setLoading(false);
     } else {
       setError('No session ID found');
@@ -72,14 +79,20 @@ function CheckoutSuccessContent() {
 
         <div className="space-y-3">
           <Link
-            href="/"
+            href="/client"
             className="block w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700"
           >
-            Regresar al Panel
+            Ir a Mi Hub Empresarial
+          </Link>
+          <Link
+            href="/landing"
+            className="block w-full bg-gray-200 text-gray-800 py-3 px-4 rounded-lg hover:bg-gray-300"
+          >
+            Ver Página Principal
           </Link>
           <button
             onClick={() => window.print()}
-            className="block w-full bg-gray-200 text-gray-800 py-3 px-4 rounded-lg hover:bg-gray-300"
+            className="block w-full bg-gray-100 text-gray-600 py-3 px-4 rounded-lg hover:bg-gray-200"
           >
             Imprimir Recibo
           </button>
@@ -103,3 +116,4 @@ export default function CheckoutSuccess() {
     </Suspense>
   );
 }
+

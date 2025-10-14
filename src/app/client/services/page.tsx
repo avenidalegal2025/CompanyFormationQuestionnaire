@@ -11,7 +11,7 @@ import {
   ArrowRightOnRectangleIcon,
   UserIcon
 } from '@heroicons/react/24/outline';
-import AuthGuard from '@/components/AuthGuard';
+import ClientNavigation from '@/components/ClientNavigation';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -25,6 +25,7 @@ interface ServiceCard {
   category: 'estate' | 'legal' | 'digital';
   featured?: boolean;
   popular?: boolean;
+  isNew?: boolean;
   features: string[];
   estimatedTime: string;
   rating?: number;
@@ -138,6 +139,25 @@ const serviceCards: ServiceCard[] = [
     ],
     estimatedTime: '1-2 días hábiles',
     rating: 4.7
+  },
+  {
+    id: 'domain-registration',
+    title: 'Registro de Dominio .com',
+    description: 'Asegura tu dominio perfecto para tu negocio con registro y configuración',
+    price: 'desde $12.99 al año',
+    icon: '🌐',
+    category: 'digital',
+    features: [
+      'Registro de dominio .com',
+      'Configuración DNS',
+      'Protección de privacidad',
+      'Renovación automática',
+      'Soporte técnico 24/7',
+      'Gestión desde tu hub empresarial'
+    ],
+    estimatedTime: 'Inmediato',
+    rating: 4.8,
+    isNew: true
   }
 ];
 
@@ -203,32 +223,35 @@ export default function ServicesPage() {
   const isInCart = (serviceId: string) => cart.includes(serviceId);
 
   return (
-    <AuthGuard>
-      <div className="min-h-screen bg-gray-50">
-        {/* Sticky Header */}
-        <header className="sticky top-0 z-50 bg-white shadow-sm border-b">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <div className="flex items-center">
-                <h1 className="text-2xl font-bold text-gray-900">{getCompanyDisplayName()}</h1>
-              </div>
-              <div className="flex items-center space-x-4">
-                <Link href="/client/profile" className="p-2 text-gray-400 hover:text-gray-500">
-                  <UserIcon className="h-6 w-6" />
-                </Link>
-                <button 
-                  onClick={handleLogout}
-                  className="p-2 text-gray-400 hover:text-gray-500"
-                  title="Cerrar Sesión"
-                >
-                  <ArrowRightOnRectangleIcon className="h-6 w-6" />
-                </button>
+    <div className="min-h-screen bg-gray-50">
+      <div className="flex">
+        {/* Sidebar */}
+        <ClientNavigation currentTab="services" onTabChange={() => {}} />
+
+        {/* Main Content */}
+        <div className="flex-1 lg:ml-64">
+          {/* Header */}
+          <header className="bg-white shadow-sm border-b">
+            <div className="px-4 sm:px-6 lg:px-8">
+              <div className="flex justify-between items-center h-16">
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">Servicios Adicionales</h1>
+                  <p className="text-sm text-gray-600">{getCompanyDisplayName()}</p>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <Link
+                    href="/"
+                    className="text-gray-600 hover:text-gray-900 text-sm"
+                  >
+                    Volver al Cuestionario
+                  </Link>
+                </div>
               </div>
             </div>
-          </div>
-        </header>
+          </header>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Main Content */}
+          <main className="px-4 sm:px-6 lg:px-8 py-8">
           {/* Categories */}
           <div className="mb-8">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Categorías</h2>
@@ -377,8 +400,9 @@ export default function ServicesPage() {
               Contactar Asesor
             </button>
           </div>
+          </main>
         </div>
       </div>
-    </AuthGuard>
+    </div>
   );
 }

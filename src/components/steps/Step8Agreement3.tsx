@@ -19,31 +19,31 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
           {isCorp ? (
             <>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start first:mt-0 first:pt-0 first:border-0 first:bg-transparent first:p-0 first:rounded-none first:shadow-none">
-                <div>
+              <div>
                   <label className="label flex items-center gap-2">Si hubiese una oferta de compra o si usted quisiese vender la compañía, ¿quisiera que esta decisión se tome unánimemente o por mayoría?
-                    <InfoTooltip
-                      title="Decisión de Venta de la Compañía"
-                      body="Esta cláusula establece el proceso para decidir si vender la compañía. Puede requerir decisión unánime (todos los accionistas deben estar de acuerdo) o mayoría (un porcentaje específico de accionistas)."
-                    />
-                  </label>
+                  <InfoTooltip
+                    title="Decisión de Venta de la Compañía"
+                    body="Esta cláusula establece el proceso para decidir si vender la compañía. Puede requerir decisión unánime (todos los accionistas deben estar de acuerdo) o mayoría (un porcentaje específico de accionistas)."
+                  />
+                </label>
                 </div>
                 <div className="md:col-start-2 md:justify-self-end">
-                  <Controller
-                    name="agreement.corp_saleDecisionThreshold"
-                    control={control}
-                    render={({ field }) => (
-                      <SegmentedToggle
-                        value={field.value || "Decisión Unánime"}
-                        onChange={field.onChange}
-                        options={[
+                <Controller
+                  name="agreement.corp_saleDecisionThreshold"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "Decisión Unánime"}
+                      onChange={field.onChange}
+                      options={[
                           { value: "Decisión Unánime", label: "Unánime" },
-                          { value: "Mayoría", label: "Mayoría" },
-                        ]}
-                        ariaLabel="Sale decision threshold"
-                        name={field.name}
-                      />
-                    )}
-                  />
+                        { value: "Mayoría", label: "Mayoría" },
+                      ]}
+                      ariaLabel="Sale decision threshold"
+                      name={field.name}
+                    />
+                  )}
+                />
                 </div>
                 {watch("agreement.corp_saleDecisionThreshold") === "Mayoría" && (
                   <div className="mt-3 md:col-start-2 md:justify-self-end">
@@ -86,59 +86,59 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                 )}
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
-                <div>
+              <div>
                   <label className="label flex items-center gap-2">Para la cuenta de banco de la compañía, ¿quiere que haya un o dos firmantes?
-                    <InfoTooltip
-                      title="Firmantes Bancarios"
-                      body="Determina cuántas firmas se requieren para realizar transacciones bancarias. Un firmante permite mayor agilidad, dos firmantes proporciona mayor control y seguridad."
-                    />
-                  </label>
+                  <InfoTooltip
+                    title="Firmantes Bancarios"
+                    body="Determina cuántas firmas se requieren para realizar transacciones bancarias. Un firmante permite mayor agilidad, dos firmantes proporciona mayor control y seguridad."
+                  />
+                </label>
                 </div>
                 <div className="md:col-start-2 md:justify-self-end">
-                  <Controller
-                    name="agreement.corp_bankSigners"
-                    control={control}
-                    render={({ field }) => (
-                      <SegmentedToggle
-                        value={field.value || "Un firmante"}
-                        onChange={field.onChange}
-                        options={[
-                          { value: "Un firmante", label: "Un firmante" },
-                          { value: "Dos firmantes", label: "Dos firmantes" },
-                        ]}
-                        ariaLabel="Bank signers"
-                        name={field.name}
-                      />
-                    )}
-                  />
-                </div>
+                <Controller
+                  name="agreement.corp_bankSigners"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "Un firmante"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Un firmante", label: "Un firmante" },
+                        { value: "Dos firmantes", label: "Dos firmantes" },
+                      ]}
+                      ariaLabel="Bank signers"
+                      name={field.name}
+                    />
+                  )}
+                />
+              </div>
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
-                <div>
+              <div>
                   <label className="label flex items-center gap-2">Si hubiese que hacer una decisión importante (como decisiones que cuesten $….., despedir un empleado, pedir un préstamo, etc.) ¿quisiera que esta decisión se tome unánimemente o por mayoría?
-                    <InfoTooltip
-                      title="Decisiones Importantes"
-                      body="Esta cláusula establece el proceso para tomar decisiones importantes de la corporación. Puede requerir decisión unánime (todos los accionistas deben estar de acuerdo) o mayoría (un porcentaje específico de accionistas)."
-                    />
-                  </label>
+                  <InfoTooltip
+                    title="Decisiones Importantes"
+                    body="Esta cláusula establece el proceso para tomar decisiones importantes de la corporación. Puede requerir decisión unánime (todos los accionistas deben estar de acuerdo) o mayoría (un porcentaje específico de accionistas)."
+                  />
+                </label>
                 </div>
                 <div className="md:col-start-2 md:justify-self-end">
-                  <Controller
-                    name="agreement.corp_majorDecisionThreshold"
-                    control={control}
-                    render={({ field }) => (
-                      <SegmentedToggle
-                        value={field.value || "Decisión Unánime"}
-                        onChange={field.onChange}
-                        options={[
+                <Controller
+                  name="agreement.corp_majorDecisionThreshold"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "Decisión Unánime"}
+                      onChange={field.onChange}
+                      options={[
                           { value: "Decisión Unánime", label: "Unánime" },
-                          { value: "Mayoría", label: "Mayoría" },
-                        ]}
-                        ariaLabel="Major decision threshold"
-                        name={field.name}
-                      />
-                    )}
-                  />
+                        { value: "Mayoría", label: "Mayoría" },
+                      ]}
+                      ariaLabel="Major decision threshold"
+                      name={field.name}
+                    />
+                  )}
+                />
                 </div>
                 {watch("agreement.corp_majorDecisionThreshold") === "Mayoría" && (
                   <div className="mt-3 md:col-start-2 md:justify-self-end">
@@ -181,62 +181,62 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                 )}
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
-                <div>
+              <div>
                   <label className="label flex items-center gap-2">¿Quieren una cláusula de no competencia? Esto es algo que debe considerar con mucho cuidado. Se puede redactar una cláusula muy estricta para impedir competencia por alguien involucrado en la compañía
-                    <InfoTooltip
-                      title="Cláusula de No Competencia"
-                      body="Un covenant de no competencia impide que los accionistas, ejecutivos o directores compitan con la corporación durante y después de su participación. Esto puede incluir restricciones geográficas, temporales y de industria."
-                    />
-                  </label>
+                  <InfoTooltip
+                    title="Cláusula de No Competencia"
+                    body="Un covenant de no competencia impide que los accionistas, ejecutivos o directores compitan con la corporación durante y después de su participación. Esto puede incluir restricciones geográficas, temporales y de industria."
+                  />
+                </label>
                 </div>
                 <div className="md:col-start-2 md:justify-self-end">
-                  <Controller
-                    name="agreement.corp_nonCompete"
-                    control={control}
-                    render={({ field }) => (
-                      <SegmentedToggle
-                        value={field.value || "No"}
-                        onChange={field.onChange}
-                        options={[
-                          { value: "Yes", label: "Sí" },
-                          { value: "No", label: "No" },
-                        ]}
-                        ariaLabel="Non compete covenant"
-                        name={field.name}
-                      />
-                    )}
-                  />
+                <Controller
+                  name="agreement.corp_nonCompete"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "No"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Yes", label: "Sí" },
+                        { value: "No", label: "No" },
+                      ]}
+                      ariaLabel="Non compete covenant"
+                      name={field.name}
+                    />
+                  )}
+                />
                 </div>
               </div>
             </>
           ) : (
             <>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start first:mt-0 first:pt-0 first:border-0 first:bg-transparent first:p-0 first:rounded-none first:shadow-none">
-                <div>
+              <div>
                   <label className="label flex items-center gap-2">Venta de la compañía: ¿Decisión unánime o por mayoría?
-                    <InfoTooltip
-                      title="Decisión de Venta de la Compañía (LLC)"
-                      body="Esta cláusula establece el proceso para decidir si vender la compañía. Puede requerir decisión unánime (todos los miembros deben estar de acuerdo) o mayoría (un porcentaje específico de miembros)."
-                    />
-                  </label>
+                  <InfoTooltip
+                    title="Decisión de Venta de la Compañía (LLC)"
+                    body="Esta cláusula establece el proceso para decidir si vender la compañía. Puede requerir decisión unánime (todos los miembros deben estar de acuerdo) o mayoría (un porcentaje específico de miembros)."
+                  />
+                </label>
                 </div>
                 <div className="md:col-start-2 md:justify-self-end">
-                  <Controller
-                    name="agreement.llc_companySaleDecision"
-                    control={control}
-                    render={({ field }) => (
-                      <SegmentedToggle
-                        value={field.value || "Decisión Unánime"}
-                        onChange={field.onChange}
-                        options={[
+                <Controller
+                  name="agreement.llc_companySaleDecision"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "Decisión Unánime"}
+                      onChange={field.onChange}
+                      options={[
                           { value: "Decisión Unánime", label: "Unánime" },
-                          { value: "Mayoría", label: "Mayoría" },
-                        ]}
-                        ariaLabel="LLC sale decision"
-                        name={field.name}
-                      />
-                    )}
-                  />
+                        { value: "Mayoría", label: "Mayoría" },
+                      ]}
+                      ariaLabel="LLC sale decision"
+                      name={field.name}
+                    />
+                  )}
+                />
                 </div>
                 {watch("agreement.llc_companySaleDecision") === "Mayoría" && (
                   <div className="mt-3 md:col-start-2 md:justify-self-end">
@@ -274,92 +274,92 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                 )}
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
-                <div>
+              <div>
                   <label className="label flex items-center gap-2">¿Quién será el socio responsable de impuestos (Tax Partner)?
-                    <InfoTooltip
-                      title="Tax Partner"
-                      body="El socio responsable de impuestos es quien se encarga de presentar las declaraciones de impuestos de la LLC y mantener los registros fiscales. Debe ser un miembro de la LLC."
-                    />
-                  </label>
+                  <InfoTooltip
+                    title="Tax Partner"
+                    body="El socio responsable de impuestos es quien se encarga de presentar las declaraciones de impuestos de la LLC y mantener los registros fiscales. Debe ser un miembro de la LLC."
+                  />
+                </label>
                 </div>
                 <div className="md:col-start-2 md:justify-self-end">
-                  <Controller
-                    name="agreement.llc_taxPartner"
-                    control={control}
-                    render={({ field }) => (
-                      <select className="input mt-1" {...field}>
-                        <option value="">Seleccionar socio</option>
-                        {Array.from({ length: watch("ownersCount") || 1 }).map((_, idx) => {
-                          const ownerName = watch(`owners.${idx}.fullName`) || `Socio ${idx + 1}`;
-                          return (
-                            <option key={idx} value={ownerName}>
-                              {ownerName}
-                            </option>
-                          );
-                        })}
-                      </select>
-                    )}
-                  />
-                </div>
+                <Controller
+                  name="agreement.llc_taxPartner"
+                  control={control}
+                  render={({ field }) => (
+                    <select className="input mt-1" {...field}>
+                      <option value="">Seleccionar socio</option>
+                      {Array.from({ length: watch("ownersCount") || 1 }).map((_, idx) => {
+                        const ownerName = watch(`owners.${idx}.fullName`) || `Socio ${idx + 1}`;
+                        return (
+                          <option key={idx} value={ownerName}>
+                            {ownerName}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  )}
+                />
+              </div>
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
-                <div>
+              <div>
                   <label className="label flex items-center gap-2">Non Compete: ¿Covenant de no competencia entre los dueños?
-                    <InfoTooltip
-                      title="Covenant de No Competencia"
-                      body="Un covenant de no competencia impide que los socios compitan con la LLC durante y después de su participación. Esto puede incluir restricciones geográficas, temporales y de industria."
-                    />
-                  </label>
+                  <InfoTooltip
+                    title="Covenant de No Competencia"
+                    body="Un covenant de no competencia impide que los socios compitan con la LLC durante y después de su participación. Esto puede incluir restricciones geográficas, temporales y de industria."
+                  />
+                </label>
                 </div>
                 <div className="md:col-start-2 md:justify-self-end">
-                  <Controller
-                    name="agreement.llc_nonCompete"
-                    control={control}
-                    render={({ field }) => (
-                      <SegmentedToggle
-                        value={field.value || "No"}
-                        onChange={field.onChange}
-                        options={[
-                          { value: "Yes", label: "Sí" },
-                          { value: "No", label: "No" },
-                        ]}
-                        ariaLabel="Non compete covenant"
-                        name={field.name}
-                      />
-                    )}
-                  />
-                </div>
+                <Controller
+                  name="agreement.llc_nonCompete"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "No"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Yes", label: "Sí" },
+                        { value: "No", label: "No" },
+                      ]}
+                      ariaLabel="Non compete covenant"
+                      name={field.name}
+                    />
+                  )}
+                />
+              </div>
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
-                <div>
+              <div>
                   <label className="label flex items-center gap-2">Cuenta bancaria: ¿Uno o dos firmantes para retirar dinero?
-                    <InfoTooltip
-                      title="Firmantes Bancarios"
-                      body="Determina cuántas firmas se requieren para realizar transacciones bancarias. Un firmante permite mayor agilidad, dos firmantes proporciona mayor control y seguridad."
-                    />
-                  </label>
+                  <InfoTooltip
+                    title="Firmantes Bancarios"
+                    body="Determina cuántas firmas se requieren para realizar transacciones bancarias. Un firmante permite mayor agilidad, dos firmantes proporciona mayor control y seguridad."
+                  />
+                </label>
                 </div>
                 <div className="md:col-start-2 md:justify-self-end">
-                  <Controller
-                    name="agreement.llc_bankSigners"
-                    control={control}
-                    render={({ field }) => (
-                      <SegmentedToggle
-                        value={field.value || "Un firmante"}
-                        onChange={field.onChange}
-                        options={[
-                          { value: "Un firmante", label: "Un firmante" },
-                          { value: "Dos firmantes", label: "Dos firmantes" },
-                        ]}
-                        ariaLabel="Bank signers"
-                        name={field.name}
-                      />
-                    )}
-                  />
-                </div>
+                <Controller
+                  name="agreement.llc_bankSigners"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "Un firmante"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Un firmante", label: "Un firmante" },
+                        { value: "Dos firmantes", label: "Dos firmantes" },
+                      ]}
+                      ariaLabel="Bank signers"
+                      name={field.name}
+                    />
+                  )}
+                />
+              </div>
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
-                <div>
+              <div>
                   <label className="label flex items-center gap-2">Decisiones mayores (ej. &gt; $10,000):
                     <InfoTooltip
                       title="Decisiones Mayores"
@@ -368,10 +368,10 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                   </label>
                 </div>
                 <div className="md:col-start-2 md:justify-self-end">
-                  <Controller
-                    name="agreement.llc_majorDecisions"
-                    control={control}
-                    render={({ field }) => (
+                <Controller
+                  name="agreement.llc_majorDecisions"
+                  control={control}
+                  render={({ field }) => (
                       <SegmentedToggle
                         value={field.value || "Unánime"}
                         onChange={field.onChange}
@@ -382,12 +382,12 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                         ariaLabel="LLC major decisions"
                         name={field.name}
                       />
-                    )}
-                  />
+                  )}
+                />
                 </div>
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
-                <div>
+              <div>
                   <label className="label flex items-center gap-2">Decisiones menores (&lt; $10,000):
                     <InfoTooltip
                       title="Decisiones Menores"
@@ -396,10 +396,10 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                   </label>
                 </div>
                 <div className="md:col-start-2 md:justify-self-end">
-                  <Controller
-                    name="agreement.llc_minorDecisions"
-                    control={control}
-                    render={({ field }) => (
+                <Controller
+                  name="agreement.llc_minorDecisions"
+                  control={control}
+                  render={({ field }) => (
                       <SegmentedToggle
                         value={field.value || "Unánime"}
                         onChange={field.onChange}
@@ -410,8 +410,8 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext }: StepP
                         ariaLabel="LLC minor decisions"
                         name={field.name}
                       />
-                    )}
-                  />
+                  )}
+                />
                 </div>
               </div>
             </>

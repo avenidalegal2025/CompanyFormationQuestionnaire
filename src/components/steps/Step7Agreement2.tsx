@@ -27,10 +27,10 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                   />
                 </label>
                 <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
-                  <Controller
-                    name="agreement.corp_newShareholdersAdmission"
-                    control={control}
-                    render={({ field }) => (
+                <Controller
+                  name="agreement.corp_newShareholdersAdmission"
+                  control={control}
+                  render={({ field }) => (
                     <SegmentedToggle
                       value={field.value || "Decisión Unánime"}
                       onChange={field.onChange}
@@ -41,8 +41,8 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                       ariaLabel="New shareholders admission"
                       name={field.name}
                     />
-                    )}
-                  />
+                  )}
+                />
                 </div>
                 {watch("agreement.corp_newShareholdersAdmission") === "Mayoría" && (
                   <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[420px]">
@@ -102,22 +102,22 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                   />
                 </label>
                 <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
-                  <Controller
-                    name="agreement.corp_moreCapitalProcess"
-                    control={control}
-                    render={({ field }) => (
-                      <SegmentedToggle
-                        value={field.value || "Sí, Pro-Rata"}
-                        onChange={field.onChange}
-                        options={[
-                          { value: "Sí, Pro-Rata", label: "Sí, Pro-Rata" },
-                          { value: "No", label: "No" },
-                        ]}
-                        ariaLabel="More capital process"
-                        name={field.name}
-                      />
-                    )}
-                  />
+                <Controller
+                  name="agreement.corp_moreCapitalProcess"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "Sí, Pro-Rata"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Sí, Pro-Rata", label: "Sí, Pro-Rata" },
+                        { value: "No", label: "No" },
+                      ]}
+                      ariaLabel="More capital process"
+                      name={field.name}
+                    />
+                  )}
+                />
                 </div>
                 {watch("agreement.corp_moreCapitalProcess") === "No" && (
                   <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[420px]">
@@ -131,16 +131,16 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                       name="agreement.corp_moreCapitalDecision"
                       control={control}
                       render={({ field }) => (
-                    <SegmentedToggle
-                      value={field.value || "Decisión Unánime"}
-                      onChange={field.onChange}
-                      options={[
+                        <SegmentedToggle
+                          value={field.value || "Decisión Unánime"}
+                          onChange={field.onChange}
+                          options={[
                         { value: "Decisión Unánime", label: "Unánime" },
-                        { value: "Mayoría", label: "Mayoría" },
-                      ]}
-                      ariaLabel="More capital decision"
-                      name={field.name}
-                    />
+                            { value: "Mayoría", label: "Mayoría" },
+                          ]}
+                          ariaLabel="More capital decision"
+                          name={field.name}
+                        />
                       )}
                     />
                     {watch("agreement.corp_moreCapitalDecision") === "Mayoría" && (
@@ -188,7 +188,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                         <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
                       </div>
                     )}
-                  </div>
+              </div>
                 )}
               </div>
               <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
@@ -200,22 +200,22 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                   />
                 </label>
                 <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
-                  <Controller
-                    name="agreement.corp_shareholderLoans"
-                    control={control}
-                    render={({ field }) => (
-                      <SegmentedToggle
-                        value={field.value || "No"}
-                        onChange={field.onChange}
-                        options={[
-                          { value: "Yes", label: "Sí" },
-                          { value: "No", label: "No" },
-                        ]}
-                        ariaLabel="Shareholder loans"
-                        name={field.name}
-                      />
-                    )}
-                  />
+                <Controller
+                  name="agreement.corp_shareholderLoans"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "No"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Yes", label: "Sí" },
+                        { value: "No", label: "No" },
+                      ]}
+                      ariaLabel="Shareholder loans"
+                      name={field.name}
+                    />
+                  )}
+                />
                 </div>
               </div>
             </>
@@ -234,16 +234,16 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                     name="agreement.llc_newMembersAdmission"
                     control={control}
                     render={({ field }) => (
-                    <SegmentedToggle
-                      value={field.value || "Decisión Unánime"}
-                      onChange={field.onChange}
-                      options={[
+                      <SegmentedToggle
+                        value={field.value || "Decisión Unánime"}
+                        onChange={field.onChange}
+                        options={[
                         { value: "Decisión Unánime", label: "Unánime" },
-                        { value: "Mayoría", label: "Mayoría" },
-                      ]}
-                      ariaLabel="New members admission"
-                      name={field.name}
-                    />
+                          { value: "Mayoría", label: "Mayoría" },
+                        ]}
+                        ariaLabel="New members admission"
+                        name={field.name}
+                      />
                     )}
                   />
                   {watch("agreement.llc_newMembersAdmission") === "Mayoría" && (
@@ -254,16 +254,16 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                           body="Define el porcentaje mínimo de votos necesario para aprobar una decisión por mayoría. Por ejemplo, 60% o 75%."
                         />
                       </label>
-                      <div className="flex items-center gap-2">
-                        <div className="w-1/6 min-w-[120px]">
-                          <input
-                            type="number"
-                            min="50.01"
-                            max="99.99"
-                            step="0.01"
+                    <div className="flex items-center gap-2">
+                      <div className="w-1/6 min-w-[120px]">
+                        <input
+                          type="number"
+                          min="50.01"
+                          max="99.99"
+                          step="0.01"
                             className={`input w-full ${errors.agreement?.llc_newMembersMajority ? 'border-red-500 focus:ring-red-500' : ''}`}
-                            {...register("agreement.llc_newMembersMajority", { 
-                              valueAsNumber: true,
+                          {...register("agreement.llc_newMembersMajority", { 
+                            valueAsNumber: true,
                               min: {
                                 value: 50.01,
                                 message: "El valor debe ser mayor o igual a 50.01"
@@ -284,9 +284,9 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                               }
                               register("agreement.llc_newMembersMajority").onChange(e);
                             }}
-                          />
-                        </div>
-                        <span className="text-sm text-gray-500">%</span>
+                        />
+                      </div>
+                      <span className="text-sm text-gray-500">%</span>
                       </div>
                       <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
                       {errors.agreement?.llc_newMembersMajority && (
@@ -305,22 +305,22 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                   />
                 </label>
                 <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
-                  <Controller
-                    name="agreement.llc_additionalContributions"
-                    control={control}
-                    render={({ field }) => (
-                      <SegmentedToggle
-                        value={field.value || "Sí, Pro-Rata"}
-                        onChange={field.onChange}
-                        options={[
-                          { value: "Sí, Pro-Rata", label: "Sí, Pro-Rata" },
-                          { value: "No", label: "No" },
-                        ]}
-                        ariaLabel="Additional contributions process"
-                        name={field.name}
-                      />
-                    )}
-                  />
+                <Controller
+                  name="agreement.llc_additionalContributions"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "Sí, Pro-Rata"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Sí, Pro-Rata", label: "Sí, Pro-Rata" },
+                        { value: "No", label: "No" },
+                      ]}
+                      ariaLabel="Additional contributions process"
+                      name={field.name}
+                    />
+                  )}
+                />
                 </div>
                 {watch("agreement.llc_additionalContributions") === "No" && (
                   <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[420px]">
@@ -330,23 +330,23 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                         body="Si no es Pro-Rata, especifique si las aportaciones adicionales se deciden por unanimidad o por mayoría y, de ser mayoría, el porcentaje requerido."
                       />
                     </label>
-                    <Controller
-                      name="agreement.llc_additionalContributionsDecision"
-                      control={control}
-                      render={({ field }) => (
-                        <SegmentedToggle
-                          value={field.value || "Decisión Unánime"}
-                          onChange={field.onChange}
-                          options={[
+                      <Controller
+                        name="agreement.llc_additionalContributionsDecision"
+                        control={control}
+                        render={({ field }) => (
+                          <SegmentedToggle
+                            value={field.value || "Decisión Unánime"}
+                            onChange={field.onChange}
+                            options={[
                             { value: "Decisión Unánime", label: "Unánime" },
-                            { value: "Mayoría", label: "Mayoría" },
-                          ]}
-                          ariaLabel="Additional contributions decision"
-                          name={field.name}
-                        />
-                      )}
-                    />
-                    {watch("agreement.llc_additionalContributionsDecision") === "Mayoría" && (
+                              { value: "Mayoría", label: "Mayoría" },
+                            ]}
+                            ariaLabel="Additional contributions decision"
+                            name={field.name}
+                          />
+                        )}
+                      />
+                      {watch("agreement.llc_additionalContributionsDecision") === "Mayoría" && (
                       <div className="mt-3">
                         <label className="label flex items-center gap-2">Porcentaje requerido para mayoría
                           <InfoTooltip
@@ -389,9 +389,9 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                           <span className="text-sm text-gray-500">%</span>
                         </div>
                         <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
-                      </div>
+                    </div>
                     )}
-                  </div>
+              </div>
                 )}
               </div>
               <div className="mt-8 pt-8 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
@@ -403,22 +403,22 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext }: StepP
                   />
                 </label>
                 <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
-                  <Controller
-                    name="agreement.llc_memberLoans"
-                    control={control}
-                    render={({ field }) => (
-                      <SegmentedToggle
-                        value={field.value || "No"}
-                        onChange={field.onChange}
-                        options={[
-                          { value: "Yes", label: "Sí" },
-                          { value: "No", label: "No" },
-                        ]}
-                        ariaLabel="Member loans"
-                        name={field.name}
-                      />
-                    )}
-                  />
+                <Controller
+                  name="agreement.llc_memberLoans"
+                  control={control}
+                  render={({ field }) => (
+                    <SegmentedToggle
+                      value={field.value || "No"}
+                      onChange={field.onChange}
+                      options={[
+                        { value: "Yes", label: "Sí" },
+                        { value: "No", label: "No" },
+                      ]}
+                      ariaLabel="Member loans"
+                      name={field.name}
+                    />
+                  )}
+                />
                 </div>
               </div>
             </>

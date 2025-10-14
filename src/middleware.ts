@@ -10,8 +10,20 @@ const PUBLIC_PATHS = [
   "/signin",
   "/api/auth",   // next-auth routes & callbacks
   "/api/check-name", // company name availability check
+  "/api/test-auth", // auth configuration test
+  "/test-auth", // auth test page
   "/diag",
   "/api/diag",
+  // Domain management APIs
+  "/api/domains", // domain search, check, purchase, pricing
+  "/api/test-namecheap", // Namecheap proxy test
+  // Stripe webhooks (must be public for Stripe to access)
+  "/api/webhooks", // Stripe webhook endpoints
+  // Stripe Checkout return URLs must be public to display success/cancel pages
+  "/checkout/success",
+  "/checkout/cancel",
+  "/landing", // public landing page for post-payment
+  "/client", // business hub - accessible after payment without additional login
   "/favicon.ico",
   "/logo.svg",
 ];

@@ -131,22 +131,24 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
       const result = await response.json();
       console.log('API Response:', result);
       
-      const { sessionId, error: sessionError } = result;
+      const { sessionId, paymentLinkUrl, error: sessionError } = result;
 
       if (sessionError) {
         console.error('Session creation error:', sessionError);
         throw new Error(sessionError);
       }
       
-      if (!sessionId) {
-        console.error('No sessionId received');
-        throw new Error('No session ID received from server');
+      // Stripe.js redirectToCheckout is removed in API version clover (2025-09-30).
+      // Prefer server-provided Checkout Session URL. Fallback to c/pay/:id if needed.
+      if (paymentLinkUrl) {
+        window.location.href = paymentLinkUrl as string;
+        return;
       }
-      
-      console.log('Session ID received:', sessionId);
-
-      // Redirect to Stripe Checkout using the session URL
-      window.location.href = `https://checkout.stripe.com/c/pay/${sessionId}`;
+      if (sessionId) {
+        window.location.href = `https://checkout.stripe.com/c/pay/${sessionId}`;
+        return;
+      }
+      throw new Error('No session URL or ID received from server');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ocurrió un error');
       setLoading(false);
