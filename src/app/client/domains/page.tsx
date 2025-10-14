@@ -182,17 +182,7 @@ export default function DomainsPage() {
   const handlePurchaseDomains = async () => {
     if (selectedDomains.length === 0) return;
     
-    // Check if user is authenticated before showing modal
-    if (status === 'loading') {
-      alert('Please wait while we verify your authentication...');
-      return;
-    }
-
-    if (status === 'unauthenticated' || !session) {
-      alert('Please sign in to purchase domains');
-      return;
-    }
-
+    // Show modal - authentication will be checked in handleConfirmPurchase
     setShowPurchaseModal(true);
   };
 
