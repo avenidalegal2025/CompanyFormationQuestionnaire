@@ -39,6 +39,18 @@ export async function POST(request: NextRequest) {
       skipAgreement 
     } = await request.json();
 
+    // Debug the incoming data
+    console.log('Incoming request data:', {
+      formData: formData ? Object.keys(formData) : 'undefined',
+      selectedServices,
+      totalPrice,
+      entityType,
+      state,
+      hasUsAddress,
+      hasUsPhone,
+      skipAgreement
+    });
+
     // Create line items for Stripe
     const lineItems = [];
     
@@ -110,23 +122,31 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the base URL from the request
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
-      `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+    const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || 
+      `https://${request.nextUrl.host}`).trim();
 
-        console.log('Creating checkout session with:', {
-          baseUrl,
-          lineItemsCount: lineItems.length,
-          entityType,
-          state,
-          hasUsAddress,
-          hasUsPhone,
-          skipAgreement,
-          lineItems: lineItems.map(item => ({
-            name: item.price_data?.product_data?.name,
-            amount: item.price_data?.unit_amount,
-            quantity: item.quantity
-          }))
-        });
+    // Validate baseUrl
+    try {
+      new URL(baseUrl);
+    } catch (urlError) {
+      console.error('Invalid baseUrl:', baseUrl, urlError);
+      throw new Error(`Invalid base URL: ${baseUrl}`);
+    }
+
+    console.log('Creating checkout session with:', {
+      baseUrl,
+      lineItemsCount: lineItems.length,
+      entityType,
+      state,
+      hasUsAddress,
+      hasUsPhone,
+      skipAgreement,
+      lineItems: lineItems.map(item => ({
+        name: item.price_data?.product_data?.name,
+        amount: item.price_data?.unit_amount,
+        quantity: item.quantity
+      }))
+    });
 
         // Validate line items
         if (lineItems.length === 0) {
