@@ -235,6 +235,9 @@ export default function DomainsPage() {
         const result = await response.json();
         console.log('Checkout session created:', result);
         
+        // Close the purchase modal before redirecting
+        setShowPurchaseModal(false);
+        
         // Redirect to Stripe checkout
         window.location.href = result.url;
       } else {

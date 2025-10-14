@@ -28,7 +28,9 @@ export default function DomainPurchase({ selectedDomains, onPurchase, onCancel }
     
     try {
       await onPurchase(selectedDomains);
-      setPurchaseStep('success');
+      // Don't set to success here - let the parent handle success after Stripe return
+      // The parent will redirect to Stripe checkout, so we just close the modal
+      onCancel();
     } catch (error) {
       console.error('Purchase error:', error);
       setPurchaseStep('error');
