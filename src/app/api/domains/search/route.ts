@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
       suggestions,
       results: sortedResults,
       totalChecked: domainsToCheck.length,
-      availableCount: results.filter(r => r.available).length
+      availableCount: results.filter((r: any) => r.available).length
     });
 
   } catch (error) {
