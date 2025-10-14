@@ -65,11 +65,11 @@ export async function POST(request: NextRequest) {
       }),
     });
 
-    let pricingData = {};
+    let pricingData: { [key: string]: any } = {};
     if (pricingResponse.ok) {
       const pricingResult = await pricingResponse.json();
       if (pricingResult.success) {
-        pricingData = pricingResult.pricing.reduce((acc: any, item: any) => {
+        pricingData = pricingResult.pricing.reduce((acc: { [key: string]: any }, item: any) => {
           acc[item.domain] = item;
           return acc;
         }, {});
