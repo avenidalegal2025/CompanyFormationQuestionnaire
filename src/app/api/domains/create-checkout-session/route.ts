@@ -66,13 +66,25 @@ export async function POST(request: NextRequest) {
     // Calculate total amount
     const totalAmount = pricingData.pricing.reduce((sum: number, domain: any) => sum + domain.price, 0);
 
+    // Get the base URL and trim any whitespace/newlines
+    const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || 
+      `https://${request.nextUrl.host}`).trim();
+
+    // Validate baseUrl
+    try {
+      new URL(baseUrl);
+    } catch (urlError) {
+      console.error('Invalid baseUrl:', baseUrl, urlError);
+      throw new Error(`Invalid base URL: ${baseUrl}`);
+    }
+
     // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: lineItems,
       mode: 'payment',
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/client/domains?success=true&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/client/domains?canceled=true`,
+      success_url: `${baseUrl}/client/domains?success=true&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/client/domains?canceled=true`,
       customer_email: customerEmail,
       metadata: {
         domains: JSON.stringify(domains),
