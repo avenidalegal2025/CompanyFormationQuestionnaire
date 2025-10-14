@@ -81,11 +81,11 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
       recommended.push('business_phone');
     }
     
-    // Add agreement if user didn't skip it
+    // Add agreement if user didn't skip it and it matches the entity type
     if (!skipAgreement) {
       if (entityType === 'LLC') {
         recommended.push('operating_agreement');
-      } else {
+      } else if (entityType === 'C-Corp') {
         recommended.push('shareholder_agreement');
       }
     }
@@ -194,12 +194,12 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
     
     // Show agreement service only if user didn't skip it AND it matches the entity type
     if (service.id === 'operating_agreement') {
-      const shouldShow = !skipAgreement && (entityType === 'LLC' || entityType === undefined);
+      const shouldShow = !skipAgreement && entityType === 'LLC';
       console.log(`Operating agreement should show: ${shouldShow} (skipAgreement: ${skipAgreement}, entityType: ${entityType})`);
       return shouldShow;
     }
     if (service.id === 'shareholder_agreement') {
-      const shouldShow = !skipAgreement && (entityType === 'C-Corp' || entityType === undefined);
+      const shouldShow = !skipAgreement && entityType === 'C-Corp';
       console.log(`Shareholder agreement should show: ${shouldShow} (skipAgreement: ${skipAgreement}, entityType: ${entityType})`);
       return shouldShow;
     }
