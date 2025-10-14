@@ -70,6 +70,8 @@ export default function DomainsPage() {
     }
 
     // Debug session data
+    console.log('Session status:', status);
+    console.log('Session data:', session);
     if (session) {
       console.log('User session data:', session);
       console.log('User email:', session.user?.email);
@@ -188,13 +190,18 @@ export default function DomainsPage() {
 
   const handleConfirmPurchase = async (domains: string[]) => {
     try {
+      // Debug authentication status
+      console.log('Authentication status:', { status, session: !!session, user: session?.user });
+      
       // Check if user is authenticated
       if (status === 'loading') {
+        console.log('Authentication still loading...');
         alert('Please wait while we verify your authentication...');
         return;
       }
 
       if (status === 'unauthenticated' || !session) {
+        console.log('User not authenticated:', { status, session });
         alert('Please sign in to purchase domains');
         return;
       }
