@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Sort results: available first, then by popularity, then by price
-    const sortedResults = enhancedResults.sort((a, b) => {
+    const sortedResults = enhancedResults.sort((a: any, b: any) => {
       if (a.available !== b.available) {
         return a.available ? -1 : 1; // Available first
       }
