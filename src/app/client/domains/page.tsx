@@ -26,6 +26,16 @@ interface DomainResult {
   renewalPrice?: number;
 }
 
+interface SearchResponse {
+  success: boolean;
+  domain: string;
+  primaryResult: any;
+  suggestions: any[];
+  results: any[];
+  totalChecked: number;
+  availableCount: number;
+}
+
 interface PurchasedDomain {
   id: string;
   domain: string;
@@ -40,7 +50,7 @@ export default function DomainsPage() {
   const { data: session, status } = useSession();
   const [currentTab, setCurrentTab] = useState('domains');
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchResults, setSearchResults] = useState<DomainResult[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchResponse[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [selectedDomains, setSelectedDomains] = useState<string[]>([]);
   const [purchasedDomains, setPurchasedDomains] = useState<PurchasedDomain[]>([]);
