@@ -56,8 +56,14 @@ export async function POST(request: NextRequest) {
       throw new Error('Invalid pricing data');
     }
 
-    // Create line items for Stripe
-    const lineItems = pricingData.pricing.map((domain: any) => ({
+    // Apply 50% markup to match UI (first year at 1.5x of Namecheap list)
+    const pricingWithMarkup = pricingData.pricing.map((p: any) => ({
+      ...p,
+      price_with_markup: Number((p.price * 1.5).toFixed(2)),
+    }));
+
+    // Create line items for Stripe with markup
+    const lineItems = pricingWithMarkup.map((domain: any) => ({
       price_data: {
         currency: 'usd',
         product_data: {
@@ -69,13 +75,13 @@ export async function POST(request: NextRequest) {
             renewal_price: domain.renewal_price.toString(),
           },
         },
-        unit_amount: Math.round(domain.price * 100), // Convert to cents
+        unit_amount: Math.round(domain.price_with_markup * 100), // cents
       },
       quantity: 1,
     }));
 
     // Calculate total amount
-    const totalAmount = pricingData.pricing.reduce((sum: number, domain: any) => sum + domain.price, 0);
+    const totalAmount = pricingWithMarkup.reduce((sum: number, d: any) => sum + d.price_with_markup, 0);
 
     // Get the base URL and trim any whitespace/newlines
     const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || 

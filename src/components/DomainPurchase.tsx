@@ -14,11 +14,13 @@ interface DomainResult {
 
 interface DomainPurchaseProps {
   selectedDomains: string[];
+  // Optional map of domain -> price (already includes markup, per UI cards)
+  domainPrices?: Record<string, number>;
   onPurchase: (domains: string[]) => Promise<void>;
   onCancel: () => void;
 }
 
-export default function DomainPurchase({ selectedDomains, onPurchase, onCancel }: DomainPurchaseProps) {
+export default function DomainPurchase({ selectedDomains, domainPrices, onPurchase, onCancel }: DomainPurchaseProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [purchaseStep, setPurchaseStep] = useState<'confirm' | 'processing' | 'success' | 'error'>('confirm');
 
@@ -40,8 +42,7 @@ export default function DomainPurchase({ selectedDomains, onPurchase, onCancel }
   };
 
   const getTotalPrice = () => {
-    // Mock pricing - in real implementation, this would come from the API
-    return selectedDomains.length * 12.99;
+    return selectedDomains.reduce((sum, d) => sum + (domainPrices?.[d] ?? 0), 0);
   };
 
   if (purchaseStep === 'success') {
@@ -131,7 +132,9 @@ export default function DomainPurchase({ selectedDomains, onPurchase, onCancel }
             {selectedDomains.map((domain, index) => (
               <div key={index} className="flex items-center justify-between py-2">
                 <span className="text-gray-900">{domain}</span>
-                <span className="text-sm text-gray-600">$12.99/año</span>
+                <span className="text-sm text-gray-600">
+                  {domainPrices?.[domain] != null ? `$${domainPrices[domain].toFixed(2)}/año` : '...'}
+                </span>
               </div>
             ))}
           </div>
@@ -144,9 +147,7 @@ export default function DomainPurchase({ selectedDomains, onPurchase, onCancel }
               ${getTotalPrice().toFixed(2)}
             </span>
           </div>
-          <p className="text-sm text-gray-600 mt-1">
-            Pago anual • Renovación automática
-          </p>
+          <p className="text-sm text-gray-600 mt-1">Pago anual • Auto‑renovación desactivada</p>
         </div>
 
         <div className="bg-blue-50 rounded-lg p-4 mb-6">
@@ -180,6 +181,7 @@ export default function DomainPurchase({ selectedDomains, onPurchase, onCancel }
     </div>
   );
 }
+
 
 
 
