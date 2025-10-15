@@ -1,0 +1,44 @@
+# Production Environment Variables Template
+# Copy this to .env.local and fill in your actual values
+
+# ===========================================
+# NAMECHEAP PRODUCTION API CREDENTIALS
+# ===========================================
+# Get these from: https://www.namecheap.com/support/api/
+NAMECHEAP_PROD_API_USER=your_production_api_user_here
+NAMECHEAP_PROD_API_KEY=your_production_api_key_here
+NAMECHEAP_PROD_USERNAME=your_production_username_here
+NAMECHEAP_PROD_CLIENT_IP=3.149.156.19
+NAMECHEAP_ENV=production
+
+# ===========================================
+# GOOGLE WORKSPACE API CREDENTIALS
+# ===========================================
+# Get these from: https://console.cloud.google.com/
+GOOGLE_WORKSPACE_CLIENT_ID=your_google_client_id_here
+GOOGLE_WORKSPACE_CLIENT_SECRET=your_google_client_secret_here
+GOOGLE_WORKSPACE_REFRESH_TOKEN=your_google_refresh_token_here
+GOOGLE_WORKSPACE_CUSTOMER_ID=your_google_customer_id_here
+
+# ===========================================
+# EXISTING CREDENTIALS (KEEP THESE)
+# ===========================================
+AUTH0_CLIENT_ID=your_auth0_client_id
+AUTH0_CLIENT_SECRET=your_auth0_client_secret
+AUTH0_ISSUER_BASE_URL=your_auth0_issuer
+AUTH_SECRET=your_auth_secret
+STRIPE_SECRET_KEY=your_stripe_secret_key
+NEXT_PUBLIC_BASE_URL=your_base_url
+
+# ===========================================
+# PROXY SERVER CONFIGURATION
+# ===========================================
+NAMECHEAP_PROXY_TOKEN=your_proxy_token_here
+
+# ===========================================
+# AWS CONFIGURATION
+# ===========================================
+AWS_REGION=us-west-1
+AWS_ACCESS_KEY_ID=your_aws_access_key
+AWS_SECRET_ACCESS_KEY=your_aws_secret_key
+DYNAMO_TABLE=Company_Creation_Questionaire_Avenida_Legal

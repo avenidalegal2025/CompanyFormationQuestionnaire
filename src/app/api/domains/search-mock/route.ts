@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+const NAMECHEAP_PROXY_URL = 'http://3.149.156.19:8000';
+const PROXY_TOKEN = process.env.NAMECHEAP_PROXY_TOKEN || 'super-secret-32char-token-12345';
+
 export async function POST(request: NextRequest) {
   try {
     const { domain } = await request.json();
@@ -11,47 +14,127 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Mock response for testing
-    const mockResults = [
-      {
-        domain: domain,
-        available: true,
-        price: 12.99,
-        currency: 'USD',
-        registrationPeriod: 1,
-        renewalPrice: 12.99
-      },
-      {
-        domain: domain.replace('.com', '.net'),
-        available: true,
-        price: 14.99,
-        currency: 'USD',
-        registrationPeriod: 1,
-        renewalPrice: 14.99
-      },
-      {
-        domain: domain.replace('.com', '.org'),
-        available: false,
-        price: 0,
-        currency: 'USD',
-        registrationPeriod: 0,
-        renewalPrice: 0
-      }
+    // Clean the domain name (remove extensions if user included them)
+    const baseDomain = domain.replace(/\.(com|org|net|io|co|ai|lat|to)$/i, '').toLowerCase();
+    
+    // Define the most common domain extensions
+    const commonExtensions = [
+      { ext: 'com', popular: true },
+      { ext: 'org', popular: true },
+      { ext: 'net', popular: true },
+      { ext: 'io', popular: true },
+      { ext: 'co', popular: true },
+      { ext: 'ai', popular: true },
+      { ext: 'lat', popular: false },
+      { ext: 'to', popular: false },
+      { ext: 'us', popular: false },
+      { ext: 'biz', popular: false }
     ];
+
+    // Create domain list with all extensions
+    const domainsToCheck = commonExtensions.map((ext: any) => `${baseDomain}.${ext.ext}`);
+
+    // Get real pricing from Namecheap
+    const pricingResponse = await fetch(`${NAMECHEAP_PROXY_URL}/domains/pricing`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-proxy-token': PROXY_TOKEN,
+      },
+      body: JSON.stringify({
+        domains: domainsToCheck
+      }),
+    });
+
+    let pricingData: { [key: string]: any } = {};
+    if (pricingResponse.ok) {
+      const pricingResult = await pricingResponse.json();
+      if (pricingResult.success) {
+        pricingData = pricingResult.pricing.reduce((acc: { [key: string]: any }, item: any) => {
+          acc[item.domain] = item;
+          return acc;
+        }, {});
+      }
+    }
+
+    // Create mock results with real pricing
+    const results = domainsToCheck.map((domainName: string) => {
+      const extension = domainName.split('.').pop() || '';
+      const extInfo = commonExtensions.find((ext: any) => ext.ext === extension) || {
+        ext: extension,
+        popular: false
+      };
+
+      // Get real pricing from Namecheap
+      const realPricing = pricingData[domainName] || {
+        price: 12.99,
+        renewal_price: 14.99,
+        currency: 'USD'
+      };
+
+      // Apply 50% markup over Namecheap list price
+      const namecheapPrice = realPricing.price;
+      const namecheapRenewalPrice = realPricing.renewal_price || realPricing.price * 1.2;
+      
+      // Customer prices with 50% markup
+      const firstYearPrice = namecheapPrice * 1.5;
+      const secondYearPrice = namecheapRenewalPrice * 1.5;
+      
+      // Calculate discount (using second year as "retail" price)
+      const discount = secondYearPrice > firstYearPrice ? 
+        Math.round(((secondYearPrice - firstYearPrice) / secondYearPrice) * 100) : 0;
+
+      // Mock availability (simulate some domains as available)
+      const available = Math.random() > 0.3; // 70% chance of being available
+
+      return {
+        domain: domainName,
+        available: available,
+        extension,
+        displayPrice: firstYearPrice,
+        secondYearPrice: secondYearPrice,
+        retailPrice: secondYearPrice, // For discount calculation
+        discount: discount,
+        popular: extInfo.popular,
+        savings: secondYearPrice - firstYearPrice,
+        formattedPrice: `$${firstYearPrice.toFixed(2)}/yr`,
+        formattedSecondYearPrice: `$${secondYearPrice.toFixed(2)}/yr`,
+        discountText: discount > 0 ? `${discount}% OFF` : null,
+        specialOffer: discount > 50 ? `ONLY $${(firstYearPrice * 2).toFixed(2)} FOR 2 YEARS` : null,
+        renewalPrice: secondYearPrice, // Second year pricing
+        currency: realPricing.currency,
+        namecheapPrice: namecheapPrice, // Original Namecheap price for reference
+        markup: 50 // 50% markup applied
+      };
+    });
+
+    // Sort results: available first, then by popularity, then by price
+    const sortedResults = results.sort((a: any, b: any) => {
+      if (a.available !== b.available) {
+        return a.available ? -1 : 1; // Available first
+      }
+      if (a.popular !== b.popular) {
+        return a.popular ? -1 : 1; // Popular first
+      }
+      return a.displayPrice - b.displayPrice; // Then by price
+    });
+
+    // Separate primary result (first available) and suggestions
+    const primaryResult = sortedResults.find((r: any) => r.available) || sortedResults[0];
+    const suggestions = sortedResults.filter((r: any) => r !== primaryResult);
 
     return NextResponse.json({
       success: true,
-      domain,
-      results: mockResults,
-      suggestions: [
-        `${domain.replace('.com', '')}app.com`,
-        `${domain.replace('.com', '')}io.com`,
-        `${domain.replace('.com', '')}co.com`
-      ]
+      domain: baseDomain,
+      primaryResult,
+      suggestions,
+      results: sortedResults,
+      totalChecked: domainsToCheck.length,
+      availableCount: results.filter((r: any) => r.available).length
     });
 
   } catch (error) {
-    console.error('Mock domain search error:', error);
+    console.error('Domain search error:', error);
     return NextResponse.json(
       { 
         error: 'Failed to search domain',
@@ -61,7 +144,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-
-
-

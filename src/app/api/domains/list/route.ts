@@ -24,6 +24,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
+    // Check if DynamoDB is configured
+    if (!process.env.AWS_REGION || !process.env.DYNAMO_TABLE) {
+      return NextResponse.json(
+        { 
+          error: 'Database not configured',
+          details: 'AWS_REGION and DYNAMO_TABLE environment variables are required'
+        }, 
+        { status: 503 }
+      );
+    }
+
     // Get domains from DynamoDB
     const domains = await getDomainsByUser(userId);
 
