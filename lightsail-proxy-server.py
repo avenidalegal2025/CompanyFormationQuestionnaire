@@ -452,7 +452,7 @@ def purchase_domain():
             # SSL Certificate parameters
             'AddFreePositiveSSL': 'yes',
             'EnableWhoisGuard': 'yes',
-            'AutoRenew': 'yes'
+            'AutoRenew': 'no'
         }
         
         # Make Namecheap API call
@@ -489,10 +489,10 @@ def purchase_domain():
                     'charged_amount': charged_amount,
                     'ssl_enabled': True,
                     'ssl_type': 'PositiveSSL',
-                    'auto_renew': True,
+                    'auto_renew': False,
                     'whois_guard': True,
                     'warning': warning_msg,
-                    'message': 'Domain registration completed successfully with SSL certificate'
+                    'message': 'Domain registration completed successfully with SSL certificate (no auto-renewal)'
                 })
             else:
                 return jsonify({'error': 'Invalid response from Namecheap API'}), 500
