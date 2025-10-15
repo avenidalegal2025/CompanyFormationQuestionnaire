@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if Namecheap proxy is configured
-    if (!PROXY_TOKEN || PROXY_TOKEN === 'super-secret-32char-token-12345') {
+    if (!PROXY_TOKEN) {
       return NextResponse.json(
         { 
           error: 'Domain search service not configured',
