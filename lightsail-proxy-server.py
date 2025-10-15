@@ -22,30 +22,40 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Configuration
-NAMECHEAP_ENV = os.getenv('NAMECHEAP_ENV', 'sandbox').lower()
-
-# Environment-based API URL switching
-if NAMECHEAP_ENV == 'production':
-    NAMECHEAP_API_URL = "https://api.namecheap.com/xml.response"
-    NAMECHEAP_USER = os.getenv('NAMECHEAP_PROD_API_USER', '')
-    NAMECHEAP_API_KEY = os.getenv('NAMECHEAP_PROD_API_KEY', '')
-    NAMECHEAP_USERNAME = os.getenv('NAMECHEAP_PROD_USERNAME', '')
-    CLIENT_IP = os.getenv('NAMECHEAP_PROD_CLIENT_IP', '127.0.0.1')
-else:
-    # Sandbox (default)
-    NAMECHEAP_API_URL = "https://api.sandbox.namecheap.com/xml.response"
-    NAMECHEAP_USER = os.getenv('NAMECHEAP_USER', '')
-    NAMECHEAP_API_KEY = os.getenv('NAMECHEAP_API_KEY', '')
-    NAMECHEAP_USERNAME = os.getenv('NAMECHEAP_USERNAME', '')
-    CLIENT_IP = os.getenv('CLIENT_IP', '127.0.0.1')
-
 PROXY_TOKEN = os.getenv('PROXY_TOKEN', 'super-secret-32char-token')
 
-# Log current environment
-logger.info(f"Namecheap API Environment: {NAMECHEAP_ENV}")
-logger.info(f"API URL: {NAMECHEAP_API_URL}")
-logger.info(f"User: {NAMECHEAP_USER}")
-logger.info(f"Client IP: {CLIENT_IP}")
+def get_namecheap_config():
+    """Fetch Namecheap configuration from environment for each request.
+    This avoids stale values if the process was started with incomplete env.
+    """
+    env = os.getenv('NAMECHEAP_ENV', 'sandbox').lower()
+    if env == 'production':
+        api_url = "https://api.namecheap.com/xml.response"
+        api_user = os.getenv('NAMECHEAP_PROD_API_USER', '')
+        api_key = os.getenv('NAMECHEAP_PROD_API_KEY', '')
+        username = os.getenv('NAMECHEAP_PROD_USERNAME', '')
+        client_ip = os.getenv('NAMECHEAP_PROD_CLIENT_IP', '127.0.0.1')
+    else:
+        api_url = "https://api.sandbox.namecheap.com/xml.response"
+        api_user = os.getenv('NAMECHEAP_USER', '')
+        api_key = os.getenv('NAMECHEAP_API_KEY', '')
+        username = os.getenv('NAMECHEAP_USERNAME', '')
+        client_ip = os.getenv('CLIENT_IP', '127.0.0.1')
+    return {
+        'env': env,
+        'api_url': api_url,
+        'api_user': api_user,
+        'api_key': api_key,
+        'username': username,
+        'client_ip': client_ip,
+    }
+
+# Log current environment at startup for visibility
+_cfg = get_namecheap_config()
+logger.info(f"Namecheap API Environment: {_cfg['env']}")
+logger.info(f"API URL: {_cfg['api_url']}")
+logger.info(f"User (present?): {bool(_cfg['api_user'])}")
+logger.info(f"Client IP: {_cfg['client_ip']}")
 
 # Database setup
 def init_db():
@@ -105,20 +115,35 @@ def call_namecheap_api(command, params=None):
     """Make API call to Namecheap"""
     if params is None:
         params = {}
-    
+
+    # Load config fresh each call
+    cfg = get_namecheap_config()
+
+    # Validate required credentials
+    missing = [k for k, v in {
+        'ApiUser': cfg['api_user'],
+        'ApiKey': cfg['api_key'],
+        'UserName': cfg['username'],
+        'ClientIp': cfg['client_ip'],
+    }.items() if not v]
+    if missing:
+        logger.error(f"Missing required Namecheap credentials: {missing}; env={cfg['env']}")
+        raise RuntimeError(f"Missing Namecheap credentials: {','.join(missing)}")
+
     # Add required parameters
     params.update({
-        'ApiUser': NAMECHEAP_USER,
-        'ApiKey': NAMECHEAP_API_KEY,
-        'UserName': NAMECHEAP_USERNAME,
-        'ClientIp': CLIENT_IP,
+        'ApiUser': cfg['api_user'],
+        'ApiKey': cfg['api_key'],
+        'UserName': cfg['username'],
+        'ClientIp': cfg['client_ip'],
         'Command': command
     })
-    
-    logger.info(f"Making Namecheap API call: {command} with params: {params}")
+
+    log_params = {**params, 'ApiKey': '***', 'ApiUser': '***' if params.get('ApiUser') else '', 'UserName': params.get('UserName', '')}
+    logger.info(f"Making Namecheap API call: {command} with params: {log_params}")
     
     try:
-        response = requests.get(NAMECHEAP_API_URL, params=params, timeout=30)
+        response = requests.get(cfg['api_url'], params=params, timeout=30)
         response.raise_for_status()
         
         logger.info(f"Namecheap API response: {response.text[:200]}...")
@@ -226,9 +251,12 @@ def check_domains():
                 logger.error(f"API errors found: {[error.text for error in errors]}")
                 return jsonify({'error': f"Namecheap API error: {errors[0].text}"}), 500
             
-            # Parse domain check results (handle namespace)
+            # Parse domain check results (handle namespace and non-namespaced)
             domain_results = root.findall('.//{http://api.namecheap.com/xml.response}DomainCheckResult')
-            logger.info(f"Found {len(domain_results)} domain results")
+            if not domain_results:
+                # Fallback in case Namecheap omits the namespace in some responses
+                domain_results = root.findall('.//DomainCheckResult')
+            logger.info(f"Found {len(domain_results)} domain results (after namespace fallback)")
             
             for domain_check in domain_results:
                 domain = domain_check.get('Domain')
@@ -250,10 +278,12 @@ def check_domains():
             logger.error(f"Domain parsing error: {e}")
             return jsonify({'error': 'Failed to parse domain results'}), 500
         
-        return jsonify({
-            'success': True,
-            'results': results
-        })
+        # If we parsed successfully but got zero results, surface as an error to callers
+        if len(results) == 0:
+            logger.error("Domain check returned zero parsed results")
+            return jsonify({'error': 'No availability results parsed from Namecheap response'}), 502
+
+        return jsonify({'success': True, 'results': results})
         
     except Exception as e:
         logger.error(f"Domain check error: {e}")
