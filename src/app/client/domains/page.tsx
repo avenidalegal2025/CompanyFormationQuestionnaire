@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import ClientNavigation from '@/components/ClientNavigation';
 import DomainPurchase from '@/components/DomainPurchase';
@@ -63,6 +63,24 @@ export default function DomainsPage() {
   const [purchasedDomains, setPurchasedDomains] = useState<PurchasedDomain[]>([]);
   const [companyData, setCompanyData] = useState<any>(null);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+
+  // Build a map of domain -> displayPrice from the latest search results
+  const domainPrices: Record<string, number> = useMemo(() => {
+    const map: Record<string, number> = {};
+    const first = searchResults[0];
+    const all = first?.results || [];
+    for (const r of all) {
+      if (r?.domain && typeof r?.displayPrice === 'number') {
+        map[r.domain] = Number(r.displayPrice.toFixed(2));
+      }
+    }
+    // Also include primaryResult if not already in list
+    if (first?.primaryResult?.domain && typeof first?.primaryResult?.displayPrice === 'number') {
+      const d = first.primaryResult.domain;
+      if (!(d in map)) map[d] = Number(first.primaryResult.displayPrice.toFixed(2));
+    }
+    return map;
+  }, [searchResults]);
 
   useEffect(() => {
     // Get company data from localStorage
@@ -626,6 +644,7 @@ export default function DomainsPage() {
       {showPurchaseModal && (
         <DomainPurchase
           selectedDomains={selectedDomains}
+          domainPrices={domainPrices}
           onPurchase={handleConfirmPurchase}
           onCancel={() => setShowPurchaseModal(false)}
         />
