@@ -14,7 +14,10 @@ import {
   ShoppingCartIcon,
   PlusIcon,
   EyeIcon,
-  Cog6ToothIcon
+  Cog6ToothIcon,
+  ShieldCheckIcon,
+  EnvelopeIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 
 interface DomainResult {
@@ -37,13 +40,17 @@ interface SearchResponse {
 }
 
 interface PurchasedDomain {
-  id: string;
   domain: string;
-  status: 'active' | 'pending' | 'expired';
-  purchaseDate: string;
+  namecheapOrderId: string;
+  registrationDate: string;
   expiryDate: string;
+  status: 'pending' | 'active' | 'failed' | 'expired';
+  stripePaymentId: string;
   price: number;
-  autoRenew: boolean;
+  sslEnabled: boolean;
+  sslExpiryDate?: string;
+  googleWorkspaceStatus: 'none' | 'dns_configured' | 'verified' | 'active';
+  nameservers: string[];
 }
 
 export default function DomainsPage() {
@@ -78,18 +85,8 @@ export default function DomainsPage() {
       console.log('User name:', session.user?.name);
     }
 
-    // Load purchased domains (mock data for now)
-    setPurchasedDomains([
-      {
-        id: '1',
-        domain: 'mycompany.com',
-        status: 'active',
-        purchaseDate: '2024-01-15',
-        expiryDate: '2025-01-15',
-        price: 12.99,
-        autoRenew: true
-      }
-    ]);
+    // Load purchased domains from DynamoDB
+    loadPurchasedDomains();
 
     // Handle Stripe checkout success/cancel - only show if actually coming from Stripe
     const urlParams = new URLSearchParams(window.location.search);
@@ -274,6 +271,52 @@ export default function DomainsPage() {
         return 'text-red-600 bg-red-100';
       default:
         return 'text-gray-600 bg-gray-100';
+    }
+  };
+
+  const loadPurchasedDomains = async () => {
+    try {
+      if (!session?.user?.email) return;
+      
+      const response = await fetch(`/api/domains/list?userId=${encodeURIComponent(session.user.email)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setPurchasedDomains(data.domains || []);
+      } else {
+        console.error('Failed to load domains:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Error loading domains:', error);
+    }
+  };
+
+  const getGoogleWorkspaceStatusIcon = (status: string) => {
+    switch (status) {
+      case 'active':
+        return <CheckCircleIcon className="h-4 w-4 text-green-500" />;
+      case 'verified':
+        return <ShieldCheckIcon className="h-4 w-4 text-blue-500" />;
+      case 'dns_configured':
+        return <ClockIcon className="h-4 w-4 text-yellow-500" />;
+      case 'none':
+        return <ExclamationTriangleIcon className="h-4 w-4 text-gray-400" />;
+      default:
+        return <ClockIcon className="h-4 w-4 text-gray-400" />;
+    }
+  };
+
+  const getGoogleWorkspaceStatusText = (status: string) => {
+    switch (status) {
+      case 'active':
+        return 'Gmail Activo';
+      case 'verified':
+        return 'Dominio Verificado';
+      case 'dns_configured':
+        return 'DNS Configurado';
+      case 'none':
+        return 'No Configurado';
+      default:
+        return 'Pendiente';
     }
   };
 
@@ -491,21 +534,38 @@ export default function DomainsPage() {
               {purchasedDomains.length > 0 ? (
                 <div className="divide-y divide-gray-200">
                   {purchasedDomains.map((domain) => (
-                    <div key={domain.id} className="px-6 py-4 hover:bg-gray-50">
+                    <div key={domain.namecheapOrderId} className="px-6 py-4 hover:bg-gray-50">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center">
                           {getStatusIcon(domain.status)}
                           <div className="ml-3">
                             <h4 className="text-lg font-medium text-gray-900">{domain.domain}</h4>
                             <p className="text-sm text-gray-600">
-                              Comprado: {new Date(domain.purchaseDate).toLocaleDateString('es-ES')}
+                              Registrado: {new Date(domain.registrationDate).toLocaleDateString('es-ES')}
                             </p>
+                            <div className="flex items-center mt-1 space-x-4">
+                              {/* SSL Status */}
+                              <div className="flex items-center">
+                                <ShieldCheckIcon className={`h-4 w-4 mr-1 ${domain.sslEnabled ? 'text-green-500' : 'text-gray-400'}`} />
+                                <span className="text-xs text-gray-600">
+                                  {domain.sslEnabled ? 'SSL Activo' : 'Sin SSL'}
+                                </span>
+                              </div>
+                              {/* Google Workspace Status */}
+                              <div className="flex items-center">
+                                {getGoogleWorkspaceStatusIcon(domain.googleWorkspaceStatus)}
+                                <span className="text-xs text-gray-600 ml-1">
+                                  {getGoogleWorkspaceStatusText(domain.googleWorkspaceStatus)}
+                                </span>
+                              </div>
+                            </div>
                           </div>
                         </div>
                         <div className="flex items-center space-x-4">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(domain.status)}`}>
                             {domain.status === 'active' ? 'Activo' : 
-                             domain.status === 'pending' ? 'Pendiente' : 'Expirado'}
+                             domain.status === 'pending' ? 'Pendiente' : 
+                             domain.status === 'failed' ? 'Error' : 'Expirado'}
                           </span>
                           <div className="text-right">
                             <p className="text-sm font-medium text-gray-900">
@@ -522,6 +582,18 @@ export default function DomainsPage() {
                             <button className="p-2 text-gray-400 hover:text-gray-600" title="Configurar">
                               <Cog6ToothIcon className="h-4 w-4" />
                             </button>
+                            {/* Google Workspace Admin Console Link */}
+                            {domain.googleWorkspaceStatus !== 'none' && (
+                              <a
+                                href={`https://admin.google.com/ac/overview?domain=${domain.domain}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-2 text-blue-400 hover:text-blue-600"
+                                title="Google Workspace Admin"
+                              >
+                                <EnvelopeIcon className="h-4 w-4" />
+                              </a>
+                            )}
                           </div>
                         </div>
                       </div>

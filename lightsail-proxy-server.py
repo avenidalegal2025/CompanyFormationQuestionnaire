@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 import logging
 from functools import wraps
 import hashlib
+import time
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -21,12 +22,30 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Configuration
-NAMECHEAP_API_URL = "https://api.sandbox.namecheap.com/xml.response"
-NAMECHEAP_USER = os.getenv('NAMECHEAP_USER', '')
-NAMECHEAP_API_KEY = os.getenv('NAMECHEAP_API_KEY', '')
-NAMECHEAP_USERNAME = os.getenv('NAMECHEAP_USERNAME', '')
-CLIENT_IP = os.getenv('CLIENT_IP', '127.0.0.1')
+NAMECHEAP_ENV = os.getenv('NAMECHEAP_ENV', 'sandbox').lower()
+
+# Environment-based API URL switching
+if NAMECHEAP_ENV == 'production':
+    NAMECHEAP_API_URL = "https://api.namecheap.com/xml.response"
+    NAMECHEAP_USER = os.getenv('NAMECHEAP_PROD_API_USER', '')
+    NAMECHEAP_API_KEY = os.getenv('NAMECHEAP_PROD_API_KEY', '')
+    NAMECHEAP_USERNAME = os.getenv('NAMECHEAP_PROD_USERNAME', '')
+    CLIENT_IP = os.getenv('NAMECHEAP_PROD_CLIENT_IP', '127.0.0.1')
+else:
+    # Sandbox (default)
+    NAMECHEAP_API_URL = "https://api.sandbox.namecheap.com/xml.response"
+    NAMECHEAP_USER = os.getenv('NAMECHEAP_USER', '')
+    NAMECHEAP_API_KEY = os.getenv('NAMECHEAP_API_KEY', '')
+    NAMECHEAP_USERNAME = os.getenv('NAMECHEAP_USERNAME', '')
+    CLIENT_IP = os.getenv('CLIENT_IP', '127.0.0.1')
+
 PROXY_TOKEN = os.getenv('PROXY_TOKEN', 'super-secret-32char-token')
+
+# Log current environment
+logger.info(f"Namecheap API Environment: {NAMECHEAP_ENV}")
+logger.info(f"API URL: {NAMECHEAP_API_URL}")
+logger.info(f"User: {NAMECHEAP_USER}")
+logger.info(f"Client IP: {CLIENT_IP}")
 
 # Database setup
 def init_db():
@@ -240,10 +259,50 @@ def check_domains():
         logger.error(f"Domain check error: {e}")
         return jsonify({'error': str(e)}), 500
 
+# Pricing cache (in-memory, 24 hours)
+pricing_cache = {}
+CACHE_DURATION = 24 * 60 * 60  # 24 hours in seconds
+
+def get_cached_pricing():
+    """Get cached TLD pricing data"""
+    current_time = time.time()
+    if 'tld_prices' in pricing_cache:
+        cache_time, data = pricing_cache['tld_prices']
+        if current_time - cache_time < CACHE_DURATION:
+            logger.info("Using cached TLD pricing data")
+            return data
+    
+    logger.info("Fetching fresh TLD pricing from Namecheap API")
+    return None
+
+def cache_pricing_data(data):
+    """Cache TLD pricing data"""
+    pricing_cache['tld_prices'] = (time.time(), data)
+
+def get_fallback_pricing():
+    """Fallback pricing data when API fails"""
+    return {
+        'com': {'register': 12.99, 'renew': 14.99, 'restore': 80.00},
+        'org': {'register': 7.48, 'renew': 12.98, 'restore': 80.00},
+        'net': {'register': 10.98, 'renew': 14.98, 'restore': 80.00},
+        'io': {'register': 45.99, 'renew': 49.99, 'restore': 80.00},
+        'co': {'register': 29.99, 'renew': 34.99, 'restore': 80.00},
+        'ai': {'register': 89.98, 'renew': 92.98, 'restore': 80.00},
+        'lat': {'register': 1.80, 'renew': 40.98, 'restore': 80.00},
+        'to': {'register': 29.98, 'renew': 66.98, 'restore': 80.00},
+        'us': {'register': 8.99, 'renew': 10.99, 'restore': 80.00},
+        'biz': {'register': 6.99, 'renew': 8.99, 'restore': 80.00},
+        'info': {'register': 2.99, 'renew': 14.99, 'restore': 80.00},
+        'me': {'register': 19.99, 'renew': 19.99, 'restore': 80.00},
+        'tv': {'register': 29.99, 'renew': 29.99, 'restore': 80.00},
+        'cc': {'register': 24.99, 'renew': 24.99, 'restore': 80.00},
+        'ws': {'register': 9.99, 'renew': 9.99, 'restore': 80.00}
+    }
+
 @app.route('/domains/pricing', methods=['POST'])
 @require_auth
 def get_domain_pricing():
-    """Get real domain pricing from Namecheap"""
+    """Get real domain pricing from Namecheap API with caching"""
     try:
         data = request.get_json()
         domains = data.get('domains', [])
@@ -251,33 +310,39 @@ def get_domain_pricing():
         if not domains:
             return jsonify({'error': 'Domains list is required'}), 400
         
-        # Realistic pricing data for common TLDs (since sandbox doesn't provide pricing)
-        tld_prices = {
-            'com': {'register': 12.99, 'renew': 14.99, 'restore': 80.00},
-            'org': {'register': 7.48, 'renew': 12.98, 'restore': 80.00},
-            'net': {'register': 10.98, 'renew': 14.98, 'restore': 80.00},
-            'io': {'register': 45.99, 'renew': 49.99, 'restore': 80.00},
-            'co': {'register': 29.99, 'renew': 34.99, 'restore': 80.00},
-            'ai': {'register': 89.98, 'renew': 92.98, 'restore': 80.00},
-            'lat': {'register': 1.80, 'renew': 40.98, 'restore': 80.00},
-            'to': {'register': 29.98, 'renew': 66.98, 'restore': 80.00},
-            'us': {'register': 8.99, 'renew': 10.99, 'restore': 80.00},
-            'biz': {'register': 6.99, 'renew': 8.99, 'restore': 80.00},
-            'info': {'register': 2.99, 'renew': 14.99, 'restore': 80.00},
-            'me': {'register': 19.99, 'renew': 19.99, 'restore': 80.00},
-            'tv': {'register': 29.99, 'renew': 29.99, 'restore': 80.00},
-            'cc': {'register': 24.99, 'renew': 24.99, 'restore': 80.00},
-            'ws': {'register': 9.99, 'renew': 9.99, 'restore': 80.00}
-        }
+        # Check cache first
+        cached_pricing = get_cached_pricing()
+        
+        if cached_pricing is None:
+            # Fetch real pricing from Namecheap API
+            try:
+                tld_response = call_namecheap_api('namecheap.domains.getTldList')
+                if tld_response and 'success' in tld_response:
+                    tld_prices = {}
+                    for tld in tld_response.get('tlds', []):
+                        tld_name = tld.get('name', '').lower()
+                        tld_prices[tld_name] = {
+                            'register': float(tld.get('register', 12.99)),
+                            'renew': float(tld.get('renew', 14.99)),
+                            'restore': float(tld.get('restore', 80.00))
+                        }
+                    cache_pricing_data(tld_prices)
+                    cached_pricing = tld_prices
+                else:
+                    logger.warning("Failed to fetch TLD pricing from API, using fallback")
+                    cached_pricing = get_fallback_pricing()
+            except Exception as e:
+                logger.error(f"Error fetching TLD pricing: {e}")
+                cached_pricing = get_fallback_pricing()
         
         # Get pricing for each domain
         pricing = []
         for domain in domains:
             extension = domain.split('.')[-1] if '.' in domain else 'com'
             
-            # Get pricing from TLD list
-            if extension in tld_prices:
-                price_info = tld_prices[extension]
+            # Get pricing from cached data
+            if extension in cached_pricing:
+                price_info = cached_pricing[extension]
                 pricing.append({
                     'domain': domain,
                     'price': price_info['register'],
@@ -302,7 +367,7 @@ def get_domain_pricing():
         return jsonify({
             'success': True,
             'pricing': pricing,
-            'tld_count': len(tld_prices)
+            'cached': 'tld_prices' in pricing_cache
         })
         
     except Exception as e:
@@ -337,7 +402,7 @@ def purchase_domain():
         first_name = customer_name.split(' ')[0] if customer_name else 'Customer'
         last_name = ' '.join(customer_name.split(' ')[1:]) if customer_name and ' ' in customer_name else 'User'
         
-        # Namecheap domain registration parameters
+        # Namecheap domain registration parameters with SSL
         params = {
             'DomainName': domain,
             'Years': years,
@@ -383,7 +448,11 @@ def purchase_domain():
             'AddFreeWhoisguard': 'yes',
             'WGEnabled': 'yes',
             'IsPremiumDomain': 'false',
-            'EapFee': '0.00'
+            'EapFee': '0.00',
+            # SSL Certificate parameters
+            'AddFreePositiveSSL': 'yes',
+            'EnableWhoisGuard': 'yes',
+            'AutoRenew': 'yes'
         }
         
         # Make Namecheap API call
@@ -412,16 +481,18 @@ def purchase_domain():
                 registered = domain_result.get('Registered') == 'true'
                 charged_amount = domain_result.get('ChargedAmount', '0.00')
                 
-                # Store purchase in database
-                store_domain_purchase(domain, customer_email, float(charged_amount), registered)
-                
+                # Return registration result (database operations handled by Next.js)
                 return jsonify({
                     'success': True,
                     'domain': domain_name_result,
                     'registered': registered,
                     'charged_amount': charged_amount,
+                    'ssl_enabled': True,
+                    'ssl_type': 'PositiveSSL',
+                    'auto_renew': True,
+                    'whois_guard': True,
                     'warning': warning_msg,
-                    'message': 'Domain registration completed successfully'
+                    'message': 'Domain registration completed successfully with SSL certificate'
                 })
             else:
                 return jsonify({'error': 'Invalid response from Namecheap API'}), 500
@@ -538,6 +609,93 @@ def admin_stats():
             'total_revenue': revenue
         }
     })
+
+@app.route('/domains/configure-dns', methods=['POST'])
+@require_auth
+def configure_domain_dns():
+    """Configure DNS records for Google Workspace"""
+    try:
+        data = request.get_json()
+        domain = data.get('domain')
+        records = data.get('records', [])
+        
+        if not domain or not records:
+            return jsonify({'error': 'Domain and DNS records are required'}), 400
+        
+        logger.info(f"Configuring DNS for domain: {domain}")
+        logger.info(f"DNS records to configure: {records}")
+        
+        # Convert DNS records to Namecheap format
+        dns_hosts = []
+        for record in records:
+            if record['type'] == 'MX':
+                dns_hosts.append({
+                    'HostName': '@',
+                    'RecordType': 'MX',
+                    'Address': record['value'],
+                    'MXPref': record.get('priority', 10),
+                    'TTL': record.get('ttl', 3600)
+                })
+            elif record['type'] == 'TXT':
+                dns_hosts.append({
+                    'HostName': '@',
+                    'RecordType': 'TXT',
+                    'Address': record['value'],
+                    'TTL': record.get('ttl', 3600)
+                })
+            elif record['type'] == 'CNAME':
+                dns_hosts.append({
+                    'HostName': record['name'].replace(f'.{domain}', ''),
+                    'RecordType': 'CNAME',
+                    'Address': record['value'],
+                    'TTL': record.get('ttl', 3600)
+                })
+        
+        # Call Namecheap DNS API
+        params = {
+            'DomainName': domain,
+            'EmailType': 'MX',
+            'Nameservers': 'dns1.registrar-servers.com,dns2.registrar-servers.com'
+        }
+        
+        # Add DNS hosts to parameters
+        for i, host in enumerate(dns_hosts):
+            params[f'HostName{i+1}'] = host['HostName']
+            params[f'RecordType{i+1}'] = host['RecordType']
+            params[f'Address{i+1}'] = host['Address']
+            if 'MXPref' in host:
+                params[f'MXPref{i+1}'] = host['MXPref']
+            params[f'TTL{i+1}'] = host['TTL']
+        
+        response = call_namecheap_api('namecheap.domains.dns.setHosts', params)
+        
+        # Parse response
+        try:
+            import xml.etree.ElementTree as ET
+            root = ET.fromstring(response)
+            
+            # Check for errors
+            errors = root.findall('.//{http://api.namecheap.com/xml.response}Error')
+            if errors:
+                error_msg = errors[0].text
+                logger.error(f"DNS configuration error: {error_msg}")
+                return jsonify({'error': f"DNS configuration failed: {error_msg}"}), 500
+            
+            logger.info(f"DNS configuration successful for {domain}")
+            return jsonify({
+                'success': True,
+                'domain': domain,
+                'records_configured': len(dns_hosts),
+                'message': 'DNS records configured successfully'
+            })
+            
+        except Exception as e:
+            logger.error(f"DNS response parsing error: {e}")
+            return jsonify({'error': 'Failed to parse DNS configuration response'}), 500
+        
+    except Exception as e:
+        logger.error(f"DNS configuration error: {e}")
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     # Initialize database

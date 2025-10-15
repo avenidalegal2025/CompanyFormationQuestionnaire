@@ -31,7 +31,8 @@
     "sharp": "0.33.5",
     "stripe": "^19.1.0",
     "tailwind-merge": "2.5.4",
-    "zod": "3.23.8"
+    "zod": "3.23.8",
+    "googleapis": "^128.0.0"
   },
   "devDependencies": {
     "@types/google.maps": "3.55.0",

@@ -91,25 +91,35 @@ export async function POST(request: NextRequest) {
         currency: 'USD'
       };
 
-      // Calculate discount (using renewal price as "retail" price)
-      const retailPrice = realPricing.renewal_price || realPricing.price * 1.2;
-      const discount = retailPrice > realPricing.price ? 
-        Math.round(((retailPrice - realPricing.price) / retailPrice) * 100) : 0;
+      // Apply 50% markup over Namecheap list price
+      const namecheapPrice = realPricing.price;
+      const namecheapRenewalPrice = realPricing.renewal_price || realPricing.price * 1.2;
+      
+      // Customer prices with 50% markup
+      const firstYearPrice = namecheapPrice * 1.5;
+      const secondYearPrice = namecheapRenewalPrice * 1.5;
+      
+      // Calculate discount (using second year as "retail" price)
+      const discount = secondYearPrice > firstYearPrice ? 
+        Math.round(((secondYearPrice - firstYearPrice) / secondYearPrice) * 100) : 0;
 
       return {
         ...result,
         extension,
-        displayPrice: realPricing.price,
-        retailPrice: retailPrice,
+        displayPrice: firstYearPrice,
+        secondYearPrice: secondYearPrice,
+        retailPrice: secondYearPrice, // For discount calculation
         discount: discount,
         popular: extInfo.popular,
-        savings: retailPrice - realPricing.price,
-        formattedPrice: `$${realPricing.price.toFixed(2)}/yr`,
-        formattedRetailPrice: `$${retailPrice.toFixed(2)}/yr`,
+        savings: secondYearPrice - firstYearPrice,
+        formattedPrice: `$${firstYearPrice.toFixed(2)}/yr`,
+        formattedSecondYearPrice: `$${secondYearPrice.toFixed(2)}/yr`,
         discountText: discount > 0 ? `${discount}% OFF` : null,
-        specialOffer: discount > 50 ? `ONLY $${(realPricing.price * 2).toFixed(2)} FOR 2 YEARS` : null,
-        renewalPrice: realPricing.renewal_price,
-        currency: realPricing.currency
+        specialOffer: discount > 50 ? `ONLY $${(firstYearPrice * 2).toFixed(2)} FOR 2 YEARS` : null,
+        renewalPrice: secondYearPrice, // Second year pricing
+        currency: realPricing.currency,
+        namecheapPrice: namecheapPrice, // Original Namecheap price for reference
+        markup: 50 // 50% markup applied
       };
     });
 

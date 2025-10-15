@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-09-30.clover',
@@ -10,6 +12,12 @@ const PROXY_TOKEN = process.env.NAMECHEAP_PROXY_TOKEN || 'super-secret-32char-to
 
 export async function POST(request: NextRequest) {
   try {
+    // Get user session for user_id
+    const userSession = await getServerSession(authOptions);
+    if (!userSession?.user?.email) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
     const { domains, customerEmail, customerName } = await request.json();
 
     if (!domains || !Array.isArray(domains) || domains.length === 0) {
@@ -25,6 +33,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Use session email as user_id (or you can use a different identifier)
+    const userId = userSession.user.email;
 
     // Get pricing for the domains
     const pricingResponse = await fetch(`${NAMECHEAP_PROXY_URL}/domains/pricing`, {
@@ -91,6 +102,7 @@ export async function POST(request: NextRequest) {
         customer_name: customerName || '',
         total_amount: totalAmount.toString(),
         type: 'domain_purchase',
+        user_id: userId,
       },
       invoice_creation: {
         enabled: true,
