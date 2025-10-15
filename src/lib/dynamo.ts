@@ -41,13 +41,29 @@ export interface DomainRegistration {
 // Domain-specific DynamoDB operations
 export async function saveDomainRegistration(userId: string, domainData: DomainRegistration) {
   try {
+    // First, try to get existing domains to see if the attribute exists
+    let existingDomains: DomainRegistration[] = [];
+    try {
+      const getCommand = new GetCommand({
+        TableName: TABLE_NAME,
+        Key: { id: userId },
+        ProjectionExpression: 'registeredDomains'
+      });
+      const getResult = await ddb.send(getCommand);
+      existingDomains = getResult.Item?.registeredDomains || [];
+    } catch (getError) {
+      console.log('No existing domains found, creating new list');
+    }
+
+    // Add the new domain to the list
+    const updatedDomains = [...existingDomains, domainData];
+
     const command = new UpdateCommand({
       TableName: TABLE_NAME,
       Key: { id: userId },
-      UpdateExpression: 'SET registeredDomains = list_append(if_not_exists(registeredDomains, :empty_list), :domain)',
+      UpdateExpression: 'SET registeredDomains = :domains',
       ExpressionAttributeValues: {
-        ':domain': [domainData],
-        ':empty_list': []
+        ':domains': updatedDomains
       },
       ReturnValues: 'UPDATED_NEW'
     });
@@ -70,9 +86,19 @@ export async function getDomainsByUser(userId: string) {
     });
 
     const result = await ddb.send(command);
-    return result.Item?.registeredDomains || [];
+    
+    // If the item doesn't exist or doesn't have registeredDomains, return empty array
+    if (!result.Item || !result.Item.registeredDomains) {
+      return [];
+    }
+    
+    return result.Item.registeredDomains;
   } catch (error) {
     console.error('Error getting domains by user:', error);
+    // If the item doesn't exist, return empty array instead of throwing
+    if (error instanceof Error && error.name === 'ResourceNotFoundException') {
+      return [];
+    }
     throw error;
   }
 }
@@ -81,6 +107,12 @@ export async function updateDomainStatus(userId: string, domainId: string, statu
   try {
     // First get the current domains
     const domains = await getDomainsByUser(userId);
+    
+    // If no domains exist, nothing to update
+    if (domains.length === 0) {
+      console.log('No domains found for user, nothing to update');
+      return { success: true };
+    }
     
     // Find and update the specific domain
     const updatedDomains = domains.map((domain: DomainRegistration) => 
@@ -112,6 +144,12 @@ export async function updateGoogleWorkspaceStatus(userId: string, domainId: stri
   try {
     // First get the current domains
     const domains = await getDomainsByUser(userId);
+    
+    // If no domains exist, nothing to update
+    if (domains.length === 0) {
+      console.log('No domains found for user, nothing to update');
+      return { success: true };
+    }
     
     // Find and update the specific domain
     const updatedDomains = domains.map((domain: DomainRegistration) => 
