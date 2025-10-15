@@ -6,6 +6,8 @@ export const REGION = process.env.AWS_REGION || "us-west-1";
 export const TABLE_NAME =
   process.env.DYNAMO_TABLE ||
   "Company_Creation_Questionaire_Avenida_Legal"; // fallback for local/dev
+// Allow overriding the table's partition key attribute name to match deployed schema
+export const TABLE_PK_NAME = process.env.DYNAMO_PK_NAME || 'id';
 
 const ddbClient = new DynamoDBClient({
   region: REGION,
@@ -46,7 +48,7 @@ export async function saveDomainRegistration(userId: string, domainData: DomainR
     try {
       const getCommand = new GetCommand({
         TableName: TABLE_NAME,
-        Key: { id: userId },
+        Key: { [TABLE_PK_NAME]: userId },
         ProjectionExpression: 'registeredDomains'
       });
       const getResult = await ddb.send(getCommand);
@@ -60,7 +62,7 @@ export async function saveDomainRegistration(userId: string, domainData: DomainR
 
     const command = new UpdateCommand({
       TableName: TABLE_NAME,
-      Key: { id: userId },
+      Key: { [TABLE_PK_NAME]: userId },
       UpdateExpression: 'SET registeredDomains = :domains',
       ExpressionAttributeValues: {
         ':domains': updatedDomains
@@ -81,7 +83,7 @@ export async function getDomainsByUser(userId: string) {
   try {
     const command = new GetCommand({
       TableName: TABLE_NAME,
-      Key: { id: userId },
+      Key: { [TABLE_PK_NAME]: userId },
       ProjectionExpression: 'registeredDomains'
     });
 
@@ -123,7 +125,7 @@ export async function updateDomainStatus(userId: string, domainId: string, statu
 
     const command = new UpdateCommand({
       TableName: TABLE_NAME,
-      Key: { id: userId },
+      Key: { [TABLE_PK_NAME]: userId },
       UpdateExpression: 'SET registeredDomains = :domains',
       ExpressionAttributeValues: {
         ':domains': updatedDomains
@@ -160,7 +162,7 @@ export async function updateGoogleWorkspaceStatus(userId: string, domainId: stri
 
     const command = new UpdateCommand({
       TableName: TABLE_NAME,
-      Key: { id: userId },
+      Key: { [TABLE_PK_NAME]: userId },
       UpdateExpression: 'SET registeredDomains = :domains',
       ExpressionAttributeValues: {
         ':domains': updatedDomains
