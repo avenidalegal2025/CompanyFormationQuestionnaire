@@ -13,7 +13,7 @@ const PROXY_TOKEN = process.env.NAMECHEAP_PROXY_TOKEN || 'super-secret-32char-to
 
 export async function POST(request: NextRequest) {
   try {
-    const { domain, userId, customerEmail, customerName } = await request.json();
+    const { domain, userId, customerEmail, customerName, primaryEmail } = await request.json();
 
     if (!domain || !userId || !customerEmail) {
       return NextResponse.json(
@@ -27,7 +27,8 @@ export async function POST(request: NextRequest) {
     // Step 1: Create Google Workspace account
     let workspaceAccount: GoogleWorkspaceAccount;
     try {
-      workspaceAccount = await createWorkspaceAccount(domain, customerEmail, customerName);
+      const adminEmail = primaryEmail || `admin@${domain}`;
+      workspaceAccount = await createWorkspaceAccount(domain, adminEmail, customerName);
       console.log(`Google Workspace account created: ${workspaceAccount.adminEmail}`);
     } catch (error) {
       console.error(`Failed to create Google Workspace account for ${domain}:`, error);

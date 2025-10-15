@@ -62,13 +62,14 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   const customerEmail = session.customer_email || '';
   const customerName = session.metadata.customer_name || '';
   const userId = session.metadata.user_id || '';
+  const emailPreferences = JSON.parse(session.metadata.email_preferences || '{}');
 
-  console.log('Processing domain purchase:', { domains, customerEmail, customerName, userId });
+  console.log('Processing domain purchase:', { domains, customerEmail, customerName, userId, emailPreferences });
 
   // Register domains with Namecheap
   for (const domain of domains) {
     try {
-      const registrationResult = await registerDomain(domain, customerEmail, customerName, userId, session.id);
+      const registrationResult = await registerDomain(domain, customerEmail, customerName, userId, session.id, emailPreferences[domain]);
       
       // If domain registration was successful, trigger Google Workspace setup
       if (registrationResult.success && registrationResult.registered) {
@@ -85,6 +86,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
               userId: userId,
               customerEmail: customerEmail,
               customerName: customerName,
+              primaryEmail: emailPreferences[domain],
             }),
           });
 
@@ -111,7 +113,7 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
   // Additional payment processing logic can go here
 }
 
-async function registerDomain(domain: string, customerEmail: string, customerName: string, userId: string, stripePaymentId: string) {
+async function registerDomain(domain: string, customerEmail: string, customerName: string, userId: string, stripePaymentId: string, primaryEmail?: string) {
   const response = await fetch(`${NAMECHEAP_PROXY_URL}/domains/purchase`, {
     method: 'POST',
     headers: {
@@ -146,7 +148,8 @@ async function registerDomain(domain: string, customerEmail: string, customerNam
       sslEnabled: result.ssl_enabled || false,
       sslExpiryDate: result.ssl_enabled ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString() : undefined,
       googleWorkspaceStatus: 'none',
-      nameservers: ['dns1.registrar-servers.com', 'dns2.registrar-servers.com']
+      nameservers: ['dns1.registrar-servers.com', 'dns2.registrar-servers.com'],
+      primaryEmail: primaryEmail
     };
 
     try {

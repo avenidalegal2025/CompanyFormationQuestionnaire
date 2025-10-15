@@ -48,6 +48,7 @@ export interface DomainRegistration {
   sslExpiryDate?: string;
   googleWorkspaceStatus: 'none' | 'dns_configured' | 'verified' | 'active';
   nameservers: string[];
+  primaryEmail?: string;
 }
 
 // Domain-specific DynamoDB operations

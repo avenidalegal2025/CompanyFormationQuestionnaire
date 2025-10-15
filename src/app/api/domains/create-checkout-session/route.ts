@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const { domains, customerEmail, customerName } = await request.json();
+    const { domains, customerEmail, customerName, emailPreferences } = await request.json();
 
     if (!domains || !Array.isArray(domains) || domains.length === 0) {
       return NextResponse.json(
@@ -109,6 +109,7 @@ export async function POST(request: NextRequest) {
         total_amount: totalAmount.toString(),
         type: 'domain_purchase',
         user_id: userId,
+        email_preferences: JSON.stringify(emailPreferences || {}),
       },
       invoice_creation: {
         enabled: true,

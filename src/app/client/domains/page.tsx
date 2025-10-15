@@ -204,7 +204,7 @@ export default function DomainsPage() {
     setShowPurchaseModal(true);
   };
 
-  const handleConfirmPurchase = async (domains: string[]) => {
+  const handleConfirmPurchase = async (domains: string[], emailPreferences?: Record<string, string>) => {
     try {
       // Debug authentication status
       console.log('Authentication status:', { status, session: !!session, user: session?.user });
@@ -232,6 +232,7 @@ export default function DomainsPage() {
       }
 
       console.log('Using customer data:', { customerEmail, customerName });
+      console.log('Email preferences:', emailPreferences);
 
       // Create Stripe checkout session
       const response = await fetch('/api/domains/create-checkout-session', {
@@ -242,7 +243,8 @@ export default function DomainsPage() {
         body: JSON.stringify({
           domains: selectedDomains,
           customerEmail: customerEmail,
-          customerName: customerName
+          customerName: customerName,
+          emailPreferences: emailPreferences || {}
         }),
       });
 
