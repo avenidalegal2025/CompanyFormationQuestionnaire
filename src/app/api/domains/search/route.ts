@@ -45,7 +45,17 @@ async function searchDomains(baseDomain: string) {
     throw err;
   }
   const availabilityData = await availabilityResponse.json();
-  const results = availabilityData.results || [];
+  if (availabilityData.error) {
+    const err: any = new Error(`Proxy availability error: ${availabilityData.error}`);
+    err.status = 502;
+    throw err;
+  }
+  const results = Array.isArray(availabilityData.results) ? availabilityData.results : [];
+  if (results.length === 0) {
+    const err: any = new Error('Proxy returned no availability results');
+    err.status = 502;
+    throw err;
+  }
 
   // Pricing (no fallback)
   const pricingResponse = await fetch(`${NAMECHEAP_PROXY_URL}/domains/pricing`, {
@@ -91,8 +101,7 @@ async function searchDomains(baseDomain: string) {
     const namecheapRenewalPrice = realPricing.renewal_price || realPricing.price * 1.2;
     const firstYearPrice = namecheapPrice * 1.5;
     const secondYearPrice = namecheapRenewalPrice * 1.5;
-    const discount = secondYearPrice > firstYearPrice ? 
-      Math.round(((secondYearPrice - firstYearPrice) / secondYearPrice) * 100) : 0;
+    const discount = 0; // remove discount display per request
 
     return {
       ...result,
@@ -105,8 +114,8 @@ async function searchDomains(baseDomain: string) {
       savings: secondYearPrice - firstYearPrice,
       formattedPrice: `$${firstYearPrice.toFixed(2)}/yr`,
       formattedSecondYearPrice: `$${secondYearPrice.toFixed(2)}/yr`,
-      discountText: discount > 0 ? `${discount}% OFF` : null,
-      specialOffer: discount > 50 ? `ONLY $${(firstYearPrice * 2).toFixed(2)} FOR 2 YEARS` : null,
+      discountText: null,
+      specialOffer: null,
       renewalPrice: secondYearPrice,
       currency: realPricing.currency,
       namecheapPrice: namecheapPrice,

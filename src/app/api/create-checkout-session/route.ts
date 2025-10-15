@@ -75,7 +75,8 @@ export async function POST(request: NextRequest) {
     });
 
     // Add other selected services
-    selectedServices.forEach((serviceId: string) => {
+    const normalizedSelected = Array.from(new Set(selectedServices || []));
+    (normalizedSelected as string[]).forEach((serviceId: string) => {
       const service = SERVICES.find(s => s.id === serviceId);
       if (service) {
         lineItems.push({
@@ -95,6 +96,28 @@ export async function POST(request: NextRequest) {
         });
       }
     });
+
+    // Ensure agreement is included based on entity type if not skipped
+    if (!skipAgreement) {
+      const agreementId = entityType === 'LLC' ? 'operating_agreement' : entityType === 'C-Corp' ? 'shareholder_agreement' : undefined;
+      if (agreementId && !normalizedSelected.includes(agreementId)) {
+        const agreementService = SERVICES.find(s => s.id === agreementId);
+        if (agreementService) {
+          lineItems.push({
+            price_data: {
+              currency: 'usd',
+              product_data: {
+                name: agreementService.name,
+                description: agreementService.description,
+                metadata: { serviceId: agreementService.id, category: agreementService.category },
+              },
+              unit_amount: agreementService.price,
+            },
+            quantity: 1,
+          });
+        }
+      }
+    }
 
     // Create or get customer using session email
     let customer;
