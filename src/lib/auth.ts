@@ -50,9 +50,10 @@ export const authOptions = {
       }
       return session;
     },
-    async jwt({ token, account, user }: { token: any; account: any; user: any }) {
+    async jwt({ token, account, user, profile }: { token: any; account: any; user: any; profile?: any }) {
       console.log('JWT callback - account:', account ? 'present' : 'missing');
       console.log('JWT callback - user:', user ? 'present' : 'missing');
+      console.log('JWT callback - profile:', profile ? 'present' : 'missing');
       console.log('JWT callback - token:', token ? 'present' : 'missing');
       
       // Persist OAuth access_token and user info to the token right after signin
@@ -60,10 +61,19 @@ export const authOptions = {
         token.accessToken = account.access_token;
         console.log('Added access token to JWT');
       }
-      if (user) {
-        token.user = user;
-        console.log('Added user to JWT');
+      
+      // Extract user data from Auth0 profile or user object
+      if (user || profile) {
+        const userData = user || profile;
+        token.user = {
+          id: userData.sub || userData.id,
+          name: userData.name || userData.nickname || (userData.given_name && userData.family_name ? `${userData.given_name} ${userData.family_name}` : 'User'),
+          email: userData.email,
+          image: userData.picture || userData.avatar_url
+        };
+        console.log('Added user to JWT:', token.user);
       }
+      
       return token;
     },
     async signIn({ user, account, profile }: { user: any; account: any; profile?: any }) {
