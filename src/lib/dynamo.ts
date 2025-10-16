@@ -6,10 +6,10 @@ export const REGION = process.env.AWS_REGION || "us-west-1";
 export const TABLE_NAME =
   process.env.DYNAMO_TABLE ||
   "Company_Creation_Questionaire_Avenida_Legal"; // fallback for local/dev
-// Allow overriding the table's partition key attribute name to match deployed schema
-export const TABLE_PK_NAME = process.env.DYNAMO_PK_NAME || 'id';
-export const TABLE_SK_NAME = process.env.DYNAMO_SK_NAME; // optional
-export const TABLE_SK_VALUE = process.env.DYNAMO_SK_VALUE || 'DOMAINS'; // used only if SK name is provided
+// Force correct key names to match deployed schema
+export const TABLE_PK_NAME = 'id'; // Force correct key name
+export const TABLE_SK_NAME = 'sk'; // Force correct key name  
+export const TABLE_SK_VALUE = 'DOMAINS'; // Force correct value
 
 function buildUserKey(userId: string) {
   const key: Record<string, any> = { [TABLE_PK_NAME]: userId };
