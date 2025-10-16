@@ -130,7 +130,7 @@ export async function getDomainsByUserSafe(userId: string) {
     const fromGet = getResult.Item?.registeredDomains || [];
     if (fromGet.length > 0) return fromGet;
 
-    // Fallback: Scan by id attribute in case of schema/env drift
+    // Fallback A: Scan by id attribute in case of schema/env drift
     const scanResult = await ddb.send(new ScanCommand({
       TableName: TABLE_NAME,
       FilterExpression: '#id = :id',
@@ -139,7 +139,18 @@ export async function getDomainsByUserSafe(userId: string) {
       ProjectionExpression: 'registeredDomains'
     }));
     const scanned = (scanResult.Items && scanResult.Items[0]?.registeredDomains) || [];
-    return Array.isArray(scanned) ? scanned : [];
+    if (Array.isArray(scanned) && scanned.length > 0) return scanned;
+
+    // Fallback B: Scan by pk attribute for legacy rows
+    const scanResultPk = await ddb.send(new ScanCommand({
+      TableName: TABLE_NAME,
+      FilterExpression: '#pk = :id',
+      ExpressionAttributeNames: { '#pk': 'pk' },
+      ExpressionAttributeValues: { ':id': userId },
+      ProjectionExpression: 'registeredDomains'
+    }));
+    const scannedPk = (scanResultPk.Items && scanResultPk.Items[0]?.registeredDomains) || [];
+    return Array.isArray(scannedPk) ? scannedPk : [];
   } catch (err) {
     console.warn('getDomainsByUserSafe error; returning empty:', err);
     return [];
