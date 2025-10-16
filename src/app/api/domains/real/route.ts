@@ -11,6 +11,12 @@ export async function GET(request: NextRequest) {
     }
 
     console.log('Real API - Getting domains for user:', userId);
+    console.log('Real API - Environment variables:', {
+      region: process.env.AWS_REGION,
+      tableName: process.env.DYNAMO_TABLE,
+      pkName: process.env.DYNAMO_PK_NAME,
+      skName: process.env.DYNAMO_SK_NAME
+    });
     
     // Use the shared library with correct key schema
     const domains = await getDomainsByUser(userId);
