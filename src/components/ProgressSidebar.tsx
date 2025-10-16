@@ -3,6 +3,8 @@
 import { useState } from "react";
 import clsx from "clsx";
 import ShareModal from "./ShareModal";
+import { Session } from "next-auth";
+import { handleShareWithAuth } from "@/lib/auth-helpers";
 
 export type ProgressItem = {
   key: string;
@@ -10,14 +12,7 @@ export type ProgressItem = {
   status: "todo" | "active" | "done";
 };
 
-export default function ProgressSidebar({
-  current,
-  total,
-  items,
-  onGo,
-  onSendInvites,
-  onGenerateLink,
-}: {
+interface ProgressSidebarProps {
   current: number;
   total: number;
   items: ProgressItem[];
@@ -30,7 +25,22 @@ export default function ProgressSidebar({
     instructions?: string;
   }>;
   onGenerateLink?: () => Promise<string>;
-}) {
+  session: Session | null;
+  anonymousId: string;
+  form?: any;
+}
+
+export default function ProgressSidebar({
+  current,
+  total,
+  items,
+  onGo,
+  onSendInvites,
+  onGenerateLink,
+  session,
+  anonymousId,
+  form,
+}: ProgressSidebarProps) {
   const [showShareModal, setShowShareModal] = useState(false);
   return (
     <aside className="w-[260px] shrink-0 sticky top-24 select-none">
@@ -114,7 +124,23 @@ export default function ProgressSidebar({
 
       {/* Share Button */}
       <button
-        onClick={() => setShowShareModal(true)}
+        onClick={() => {
+          if (!session) {
+            // Save anonymous draft and redirect to signup
+            const formData = form?.getValues?.();
+            if (formData) {
+              // Save to localStorage as backup
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('anonymousDraftId', anonymousId);
+                localStorage.setItem('anonymousDraftData', JSON.stringify(formData));
+              }
+              // Redirect to signup with callback
+              window.location.href = `/signin?callbackUrl=${encodeURIComponent(`/?action=share&draftId=${anonymousId}`)}`;
+            }
+          } else {
+            setShowShareModal(true);
+          }
+        }}
         className="mt-6 w-full flex items-center justify-center gap-2 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

@@ -6,8 +6,15 @@ import CurrencyInput from "@/components/CurrencyInput";
 import SegmentedToggle from "@/components/SegmentedToggle";
 import InfoTooltip from "@/components/InfoTooltip";
 import type { StepProps } from "./types";
+import { Session } from "next-auth";
+import { handleSaveWithAuth } from "@/lib/auth-helpers";
 
-export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepProps) {
+interface Step6Agreement1Props extends StepProps {
+  session: Session | null;
+  anonymousId: string;
+}
+
+export default function Step6Agreement1({ form, setStep, onSave, onNext, session, anonymousId }: Step6Agreement1Props) {
   const { register, watch, control } = form;
   const entityType = watch("company.entityType");
   const isCorp = entityType === "C-Corp";
@@ -219,7 +226,7 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext }: StepP
         <div className="mt-8 pt-6 border-t flex items-center justify-between">
           <button type="button" className="btn" onClick={() => setStep(4)}>Atrás</button>
           <div className="flex items-center gap-4">
-            <button type="button" className="text-base underline text-blue-600" onClick={() => void onSave?.()}>Guardar y continuar más tarde</button>
+            <button type="button" className="text-base underline text-blue-600" onClick={() => handleSaveWithAuth(session, anonymousId, form, onSave)}>Guardar y continuar más tarde</button>
             <button type="button" className="btn btn-primary" onClick={() => void onNext?.()}>Continuar</button>
           </div>
         </div>

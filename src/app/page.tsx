@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
-import AuthWrapper from "@/components/AuthWrapper";
+import { useSession } from "next-auth/react";
 
 import Step2Company from "@/components/steps/Step2Company";
 import Step3Owners from "@/components/steps/Step3Owners";
@@ -21,6 +21,10 @@ import { saveDraft, loadDraft, type DraftItem } from "@/lib/drafts";
 type SaveState = "idle" | "saving" | "saved" | "error";
 
 function QuestionnaireContent() {
+  // Session management
+  const { data: session, status } = useSession();
+  const isSignedUp = status === 'authenticated';
+  
   // Initialize form
   const form = useForm<AllSteps>({
     defaultValues: {
@@ -38,6 +42,53 @@ function QuestionnaireContent() {
   const [step, setStep] = useState<number>(1);
   const [wantsAgreement, setWantsAgreement] = useState<boolean>(false);
   const totalSteps = wantsAgreement ? 9 : 5;
+  
+  // Anonymous draft management
+  const [anonymousId, setAnonymousId] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('anonymousDraftId') || crypto.randomUUID();
+    }
+    return crypto.randomUUID();
+  });
+
+  // Browser close warning for unsigned users
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!isSignedUp && step > 1) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isSignedUp, step]);
+
+  // Handle post-signup actions
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const action = urlParams.get('action');
+    const draftId = urlParams.get('draftId');
+    
+    if (isSignedUp && action && draftId) {
+      // Clear URL params
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('action');
+      newUrl.searchParams.delete('draftId');
+      window.history.replaceState({}, '', newUrl.toString());
+      
+      // Handle the action
+      if (action === 'save') {
+        alert('¡Progreso guardado!');
+      } else if (action === 'share') {
+        // Trigger share modal (will be handled by ProgressSidebar)
+        // Note: This will be handled by ProgressSidebar component
+      } else if (action === 'checkout') {
+        setStep(9);
+      }
+    }
+  }, [isSignedUp]);
 
   // If arriving from a short link, prefill the form from localStorage
   useEffect(() => {
@@ -326,13 +377,16 @@ function QuestionnaireContent() {
     <div className="flex min-h-screen">
       {/* Sidebar */}
       <aside className="bg-white border-r border-gray-100 p-6 hidden md:block">
-        <ProgressSidebar 
-          current={step} 
-          total={totalSteps} 
-          items={items} 
+        <ProgressSidebar
+          current={step}
+          total={totalSteps}
+          items={items}
           onGo={setStep}
           onSendInvites={handleSendInvites}
           onGenerateLink={handleGenerateLink}
+          session={session}
+          anonymousId={anonymousId}
+          form={form}
         />
       </aside>
 
@@ -371,31 +425,31 @@ function QuestionnaireContent() {
           className="space-y-6"
         >
           {step === 1 && (
-            <Step2Company form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />
+            <Step2Company form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} session={session} anonymousId={anonymousId} />
           )}
           {step === 2 && (
-            <Step3Owners form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />
+            <Step3Owners form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} session={session} anonymousId={anonymousId} />
           )}
           {step === 3 && (
-            <Step5Admin form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />
+            <Step5Admin form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} session={session} anonymousId={anonymousId} />
           )}
           {step === 4 && (
-            <Step4Summary form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} setWantsAgreement={setWantsAgreement} />
+            <Step4Summary form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} setWantsAgreement={setWantsAgreement} session={session} anonymousId={anonymousId} />
           )}
           {wantsAgreement && step === 5 && (
-            <Step6Agreement1 form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />
+            <Step6Agreement1 form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} session={session} anonymousId={anonymousId} />
           )}
           {wantsAgreement && step === 6 && (
-            <Step7Agreement2 form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />
+            <Step7Agreement2 form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} session={session} anonymousId={anonymousId} />
           )}
           {wantsAgreement && step === 7 && (
-            <Step8Agreement3 form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />
+            <Step8Agreement3 form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} session={session} anonymousId={anonymousId} />
           )}
           {wantsAgreement && step === 8 && (
-            <Step9Agreement4 form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />
+            <Step9Agreement4 form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} session={session} anonymousId={anonymousId} />
           )}
           {step === 9 && (
-            <Step10Checkout form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />
+            <Step10Checkout form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} session={session} anonymousId={anonymousId} />
           )}
         </form>
       </main>
@@ -404,9 +458,5 @@ function QuestionnaireContent() {
 }
 
 export default function Page() {
-  return (
-    <AuthWrapper>
-      <QuestionnaireContent />
-    </AuthWrapper>
-  );
+  return <QuestionnaireContent />;
 }

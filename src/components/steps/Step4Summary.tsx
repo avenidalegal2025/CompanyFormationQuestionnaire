@@ -7,6 +7,8 @@ import { Controller } from "react-hook-form";
 import HeroMiami1 from "@/components/HeroMiami1";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import type { StepProps } from "./types";
+import { Session } from "next-auth";
+import { handleSaveWithAuth } from "@/lib/auth-helpers";
 
 // Edit button component
 const EditButton = ({ 
@@ -52,7 +54,13 @@ const EditButton = ({
   </div>
 );
 
-export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAgreement }: StepProps & { setWantsAgreement: (w: boolean) => void }) {
+interface Step4SummaryProps extends StepProps {
+  setWantsAgreement: (w: boolean) => void;
+  session: Session | null;
+  anonymousId: string;
+}
+
+export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAgreement, session, anonymousId }: Step4SummaryProps) {
   const { watch, control, setValue } = form;
 
   // Get all form data
@@ -864,7 +872,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
             <button
               type="button"
               className="text-sm underline text-blue-600 hover:text-blue-700"
-              onClick={() => void onSave?.()}
+              onClick={() => handleSaveWithAuth(session, anonymousId, form, onSave)}
             >
               Guardar y continuar más tarde
             </button>

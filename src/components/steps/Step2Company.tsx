@@ -9,7 +9,9 @@ import SegmentedToggle from "@/components/SegmentedToggle";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import InfoTooltip from "@/components/InfoTooltip";
 import type { StepProps } from "./types";
+import { Session } from "next-auth";
 import CompanyNameCheckButton from "./CompanyNameCheckButton";
+import { handleSaveWithAuth } from "@/lib/auth-helpers";
 
 const formationStates = [
   "Florida",
@@ -32,7 +34,12 @@ function formatWithCommas(n: number | string | undefined): string {
   return s.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
-export default function Step2Company({ form, setStep, onSave, onNext }: StepProps) {
+interface Step2CompanyProps extends StepProps {
+  session: Session | null;
+  anonymousId: string;
+}
+
+export default function Step2Company({ form, setStep, onSave, onNext, session, anonymousId }: Step2CompanyProps) {
   const {
     control,
     register,
@@ -447,7 +454,7 @@ export default function Step2Company({ form, setStep, onSave, onNext }: StepProp
             <button
               type="button"
               className="text-base underline text-blue-600 hover:text-blue-700"
-              onClick={() => void onSave?.()}
+              onClick={() => handleSaveWithAuth(session, anonymousId, form, onSave)}
             >
               Guardar y continuar más tarde
             </button>

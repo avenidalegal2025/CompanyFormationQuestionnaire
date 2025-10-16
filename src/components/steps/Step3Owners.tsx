@@ -7,10 +7,17 @@ import SSNEINInput from "@/components/SSNEINInput";
 import HeroMiami2 from "@/components/HeroMiami2";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import type { StepProps } from "./types";
+import { Session } from "next-auth";
+import { handleSaveWithAuth } from "@/lib/auth-helpers";
 
 const MAX_OWNERS = 6;
 
-export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps) {
+interface Step3OwnersProps extends StepProps {
+  session: Session | null;
+  anonymousId: string;
+}
+
+export default function Step3Owners({ form, setStep, onSave, onNext, session, anonymousId }: Step3OwnersProps) {
   const { register, control, watch, setValue } = form;
 
   // Loosen types ONLY for ad-hoc (non-schema) paths without using `any`
@@ -246,7 +253,7 @@ export default function Step3Owners({ form, setStep, onSave, onNext }: StepProps
             <button
               type="button"
               className="text-base underline text-blue-600 hover:text-blue-700"
-              onClick={() => void onSave?.()}
+              onClick={() => handleSaveWithAuth(session, anonymousId, form, onSave)}
             >
               Guardar y continuar más tarde
             </button>

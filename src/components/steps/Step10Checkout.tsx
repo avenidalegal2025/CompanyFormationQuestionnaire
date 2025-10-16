@@ -4,8 +4,15 @@ import { useState } from 'react';
 import Checkout from '@/components/Checkout';
 import HeroVideo from '@/components/HeroVideo';
 import type { StepProps } from './types';
+import { Session } from "next-auth";
+import { handleCheckoutWithAuth } from "@/lib/auth-helpers";
 
-export default function Step10Checkout({ form, setStep, onSave, onNext }: StepProps) {
+interface Step10CheckoutProps extends StepProps {
+  session: Session | null;
+  anonymousId: string;
+}
+
+export default function Step10Checkout({ form, setStep, onSave, onNext, session, anonymousId }: Step10CheckoutProps) {
   const [showCheckout, setShowCheckout] = useState(false);
   const formData = form.getValues();
   
@@ -106,7 +113,7 @@ export default function Step10Checkout({ form, setStep, onSave, onNext }: StepPr
 
         <div className="flex gap-4">
           <button
-            onClick={handleStartCheckout}
+            onClick={() => handleCheckoutWithAuth(session, anonymousId, form, handleStartCheckout)}
             className="btn btn-primary flex-1"
           >
             Revisar Paquete y Proceder al Pago

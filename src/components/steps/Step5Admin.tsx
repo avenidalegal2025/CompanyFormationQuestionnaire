@@ -8,11 +8,18 @@ import AddressAutocomplete from "@/components/AddressAutocomplete";
 import InfoTooltip from "@/components/InfoTooltip";
 import type { AllSteps } from "@/lib/schema";
 import type { StepProps } from "./types";
+import { Session } from "next-auth";
+import { handleSaveWithAuth } from "@/lib/auth-helpers";
 
 // helper for dynamic field paths
 const fp = (s: string) => s as unknown as FieldPath<AllSteps>;
 
-export default function Step5Admin({ form, setStep, onSave, onNext }: StepProps) {
+interface Step5AdminProps extends StepProps {
+  session: Session | null;
+  anonymousId: string;
+}
+
+export default function Step5Admin({ form, setStep, onSave, onNext, session, anonymousId }: Step5AdminProps) {
   const { control, register, watch, setValue } = form;
 
   const entityType = watch("company.entityType");
@@ -348,7 +355,7 @@ export default function Step5Admin({ form, setStep, onSave, onNext }: StepProps)
             <button
               type="button"
               className="text-base underline text-blue-600 hover:text-blue-700"
-              onClick={() => void onSave?.()}
+              onClick={() => handleSaveWithAuth(session, anonymousId, form, onSave)}
             >
               Guardar y continuar más tarde
             </button>

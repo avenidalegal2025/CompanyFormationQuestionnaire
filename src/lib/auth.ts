@@ -33,6 +33,7 @@ export const authOptions = {
       authorization: {
         params: {
           scope: "openid email profile",
+          screen_hint: "signup",
         },
       },
       checks: ["state"],
