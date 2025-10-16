@@ -264,15 +264,40 @@ def check_domains():
                 
                 logger.info(f"Domain: {domain}, Available: {available}")
                 
-                results.append({
-                    'domain': domain,
-                    'available': available,
-                    'price': 12.99 if available else None,
-                    'currency': 'USD'
-                })
+                # Check if domain is premium (heuristic detection)
+                is_premium = False
+                if available:
+                    domain_name = domain.split('.')[0]
+                    # Single character domains are often premium
+                    if len(domain_name) <= 2:
+                        is_premium = True
+                    # Very short domains (1-3 chars) are often premium
+                    elif len(domain_name) <= 3 and domain_name.isalpha():
+                        is_premium = True
+                    # Common premium patterns
+                    elif domain_name in ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']:
+                        is_premium = True
+                
+                if is_premium:
+                    results.append({
+                        'domain': domain,
+                        'available': False,
+                        'error': 'Premium domain - not available for standard registration',
+                        'is_premium': True,
+                        'price': None,
+                        'currency': 'USD'
+                    })
+                else:
+                    results.append({
+                        'domain': domain,
+                        'available': available,
+                        'price': 12.99 if available else None,
+                        'currency': 'USD',
+                        'is_premium': False
+                    })
                 
                 # Store in database
-                store_domain_result(domain, available, 12.99 if available else None)
+                store_domain_result(domain, available and not is_premium, 12.99 if available and not is_premium else None)
                 
         except Exception as e:
             logger.error(f"Domain parsing error: {e}")

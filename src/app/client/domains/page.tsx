@@ -27,6 +27,7 @@ interface DomainResult {
   currency?: string;
   registrationPeriod?: number;
   renewalPrice?: number;
+  is_premium?: boolean; // Added for premium domain detection
 }
 
 interface SearchResponse {
@@ -524,7 +525,14 @@ export default function DomainsPage() {
                             </div>
                           )}
                           
-                          {!result.available && (
+                          {!result.available && result.is_premium && (
+                            <div className="space-y-2">
+                              <p className="text-sm text-amber-600 font-medium">Dominio Premium</p>
+                              <p className="text-xs text-gray-500">No disponible para registro estándar</p>
+                            </div>
+                          )}
+                          
+                          {!result.available && !result.is_premium && (
                             <p className="text-sm text-gray-500">No disponible</p>
                           )}
                         </div>
