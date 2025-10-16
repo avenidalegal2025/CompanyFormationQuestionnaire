@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, GetCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, ScanCommand } from '@aws-sdk/lib-dynamodb';
 
 export async function GET(request: NextRequest) {
   try {
@@ -33,25 +33,22 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Use the correct key structure
-    const key = { 
-      id: userId, 
-      sk: 'DOMAINS' 
-    };
+    // Use scan with filter to bypass key schema issues
+    console.log('Real API - Scanning for user:', userId);
 
-    console.log('Real API - Query key:', key);
-
-    // Make the query
-    const command = new GetCommand({
+    const command = new ScanCommand({
       TableName: tableName,
-      Key: key,
+      FilterExpression: 'id = :id',
+      ExpressionAttributeValues: {
+        ':id': userId
+      }
     });
 
     const result = await ddb.send(command);
-    const domains = result.Item?.registeredDomains || [];
+    const domains = result.Items?.[0]?.registeredDomains || [];
     
     console.log('Real API - Result:', { 
-      itemFound: !!result.Item, 
+      itemsFound: result.Items?.length || 0, 
       domainsCount: domains.length,
       firstDomain: domains[0]?.domain 
     });
