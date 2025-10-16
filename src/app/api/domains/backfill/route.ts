@@ -41,27 +41,63 @@ export async function POST(request: NextRequest) {
     const tableName = process.env.DYNAMO_TABLE || 'Company_Creation_Questionaire_Avenida_Legal';
     const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({ region }));
 
-    const key = { id: userId, sk: 'DOMAINS' } as const;
-    const current = await ddb.send(new GetCommand({ TableName: tableName, Key: key, ProjectionExpression: 'registeredDomains' }));
-    const existing: DomainRegistration[] = current.Item?.registeredDomains || [];
-    const already = existing.some(d => d.domain === domain);
+    // First attempt with id/sk
+    let mode = 'noop';
+    try {
+      const key = { id: userId, sk: 'DOMAINS' } as const;
+      const current = await ddb.send(new GetCommand({ TableName: tableName, Key: key, ProjectionExpression: 'registeredDomains' }));
+      const existing: DomainRegistration[] = current.Item?.registeredDomains || [];
+      const already = existing.some(d => d.domain === domain);
 
-    if (!current.Item) {
-      await ddb.send(new PutCommand({
-        TableName: tableName,
-        Item: { ...key, registeredDomains: [domainData] },
-      }));
-    } else if (!already) {
-      await ddb.send(new UpdateCommand({
-        TableName: tableName,
-        Key: key,
-        UpdateExpression: 'SET registeredDomains = :domains',
-        ExpressionAttributeValues: { ':domains': [...existing, domainData] },
-        ReturnValues: 'UPDATED_NEW',
-      }));
+      if (!current.Item) {
+        await ddb.send(new PutCommand({ TableName: tableName, Item: { ...key, registeredDomains: [domainData] } }));
+        mode = 'put_id_sk';
+      } else if (!already) {
+        await ddb.send(new UpdateCommand({
+          TableName: tableName,
+          Key: key,
+          UpdateExpression: 'SET registeredDomains = :domains',
+          ExpressionAttributeValues: { ':domains': [...existing, domainData] },
+          ReturnValues: 'UPDATED_NEW',
+        }));
+        mode = 'update_id_sk';
+      } else {
+        mode = 'noop_id_sk';
+      }
+      return NextResponse.json({ success: true, userId, domain: domainData, mode });
+    } catch (e: any) {
+      const message = (e?.name || '') + ':' + (e?.message || '');
+      if (!/ValidationException/i.test(message)) {
+        // Not a schema error; bubble as handled error
+        return NextResponse.json({ success: false, error: message, attempt: 'id_sk' }, { status: 200 });
+      }
+      // Retry with pk/sk
+      try {
+        const key2 = { pk: userId, sk: 'DOMAINS' } as const;
+        const current2 = await ddb.send(new GetCommand({ TableName: tableName, Key: key2, ProjectionExpression: 'registeredDomains' }));
+        const existing2: DomainRegistration[] = current2.Item?.registeredDomains || [];
+        const already2 = existing2.some(d => d.domain === domain);
+
+        if (!current2.Item) {
+          await ddb.send(new PutCommand({ TableName: tableName, Item: { ...key2, registeredDomains: [domainData] } }));
+          mode = 'put_pk_sk';
+        } else if (!already2) {
+          await ddb.send(new UpdateCommand({
+            TableName: tableName,
+            Key: key2,
+            UpdateExpression: 'SET registeredDomains = :domains',
+            ExpressionAttributeValues: { ':domains': [...existing2, domainData] },
+            ReturnValues: 'UPDATED_NEW',
+          }));
+          mode = 'update_pk_sk';
+        } else {
+          mode = 'noop_pk_sk';
+        }
+        return NextResponse.json({ success: true, userId, domain: domainData, mode });
+      } catch (e2: any) {
+        return NextResponse.json({ success: false, error: (e2?.message || 'Unknown'), attempts: ['id_sk','pk_sk'] }, { status: 200 });
+      }
     }
-
-    return NextResponse.json({ success: true, userId, domain: domainData, mode: !current.Item ? 'put' : already ? 'noop' : 'update' });
   } catch (e) {
     return NextResponse.json({ success: false, error: (e as Error).message }, { status: 200 });
   }
