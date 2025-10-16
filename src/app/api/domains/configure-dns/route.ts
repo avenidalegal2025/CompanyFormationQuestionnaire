@@ -26,6 +26,13 @@ export async function POST(request: NextRequest) {
     console.log(`Configuring DNS for domain: ${domain}`);
     console.log('DNS records to configure:', dnsRecords);
 
+    // Parse domain into SLD and TLD for Namecheap API
+    const domainParts = domain.split('.');
+    const sld = domainParts[0];
+    const tld = domainParts.slice(1).join('.');
+    
+    console.log(`Domain parsed - SLD: ${sld}, TLD: ${tld}`);
+
     // Call the Lightsail proxy to configure DNS
     const response = await fetch(`${NAMECHEAP_PROXY_URL}/domains/configure-dns`, {
       method: 'POST',
@@ -35,6 +42,8 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         domain: domain,
+        sld: sld,
+        tld: tld,
         records: dnsRecords
       }),
     });

@@ -706,9 +706,15 @@ def configure_domain_dns():
                     'TTL': record.get('ttl', 3600)
                 })
         
+        # Parse domain into SLD and TLD for Namecheap API
+        domain_parts = domain.split('.')
+        sld = domain_parts[0]
+        tld = '.'.join(domain_parts[1:])
+        
         # Call Namecheap DNS API
         params = {
-            'DomainName': domain,
+            'SLD': sld,
+            'TLD': tld,
             'EmailType': 'MX',
             'Nameservers': 'dns1.registrar-servers.com,dns2.registrar-servers.com'
         }
