@@ -63,7 +63,23 @@ export async function GET(request: NextRequest) {
       domains: domains,
       count: domains.length,
       userId: userId,
-      source: 'real_dynamodb'
+      source: 'real_dynamodb',
+      debug: {
+        envVars: {
+          AWS_REGION: process.env.AWS_REGION,
+          DYNAMO_TABLE: process.env.DYNAMO_TABLE,
+          DYNAMO_PK_NAME: process.env.DYNAMO_PK_NAME,
+          DYNAMO_SK_NAME: process.env.DYNAMO_SK_NAME,
+          AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID ? 'SET' : 'NOT_SET',
+          AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY ? 'SET' : 'NOT_SET',
+        },
+        testKey: testKey,
+        directQueryResult: {
+          itemFound: !!testResult.Item,
+          keys: testResult.Item ? Object.keys(testResult.Item) : [],
+          domainsCount: testResult.Item?.registeredDomains?.length || 0
+        }
+      }
     });
 
   } catch (error) {
