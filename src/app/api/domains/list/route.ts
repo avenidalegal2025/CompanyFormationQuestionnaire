@@ -2,7 +2,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { getDomainsByUser } from '@/lib/dynamo';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, GetCommand } from '@aws-sdk/lib-dynamodb';
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,19 +25,33 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    // Check if DynamoDB is configured
-    if (!process.env.AWS_REGION || !process.env.DYNAMO_TABLE) {
-      return NextResponse.json(
-        { 
-          error: 'Database not configured',
-          details: 'AWS_REGION and DYNAMO_TABLE environment variables are required'
-        }, 
-        { status: 503 }
-      );
-    }
+    // Use hardcoded values to bypass environment variable issues
+    const region = 'us-west-1';
+    const tableName = 'Company_Creation_Questionaire_Avenida_Legal';
+    
+    // Create DynamoDB client
+    const ddbClient = new DynamoDBClient({ region });
+    const ddb = DynamoDBDocumentClient.from(ddbClient, {
+      marshallOptions: {
+        removeUndefinedValues: true,
+        convertClassInstanceToMap: true,
+      },
+    });
 
-    // Get domains from DynamoDB
-    const domains = await getDomainsByUser(userId);
+    // Use the correct key structure
+    const key = { 
+      id: userId, 
+      sk: 'DOMAINS' 
+    };
+
+    // Make the query
+    const command = new GetCommand({
+      TableName: tableName,
+      Key: key,
+    });
+
+    const result = await ddb.send(command);
+    const domains = result.Item?.registeredDomains || [];
 
     return NextResponse.json({
       success: true,
