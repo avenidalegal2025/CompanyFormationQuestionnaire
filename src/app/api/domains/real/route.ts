@@ -7,6 +7,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
     
+    console.log('[REBUILD] DynamoDB Real API v2.0 - Getting domains');
+    
     if (!userId) {
       return NextResponse.json({ error: 'userId is required' }, { status: 400 });
     }
