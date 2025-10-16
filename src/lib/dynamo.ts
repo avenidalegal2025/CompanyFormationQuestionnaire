@@ -48,6 +48,8 @@ export interface DomainRegistration {
   sslExpiryDate?: string;
   googleWorkspaceStatus: 'none' | 'dns_configured' | 'verified' | 'active';
   nameservers: string[];
+  // Optional applied DNS snapshot to show setup info in UI
+  dnsApplied?: Array<{ type: string; name: string; value: string; ttl?: number; priority?: number }>;
 }
 
 // Domain-specific DynamoDB operations
@@ -142,6 +144,33 @@ export async function getDomainsByUserSafe(userId: string) {
     console.warn('getDomainsByUserSafe error; returning empty:', err);
     return [];
   }
+}
+
+// Update a specific domain with DNS applied records and status
+export async function updateDomainDnsApplied(
+  userId: string,
+  domain: string,
+  records: Array<{ type: string; name: string; value: string; ttl?: number; priority?: number }>,
+) {
+  // Get current list
+  const current = await getDomainsByUser(userId);
+  const next = current.map(d =>
+    d.domain === domain
+      ? { ...d, dnsApplied: records, googleWorkspaceStatus: 'dns_configured' }
+      : d
+  );
+
+  const command = new UpdateCommand({
+    TableName: TABLE_NAME,
+    Key: buildUserKey(userId),
+    UpdateExpression: 'SET registeredDomains = :domains',
+    ExpressionAttributeValues: {
+      ':domains': next,
+    },
+    ReturnValues: 'UPDATED_NEW',
+  });
+  await ddb.send(command);
+  return next;
 }
 
 export async function updateDomainStatus(userId: string, domainId: string, status: DomainRegistration['status']) {

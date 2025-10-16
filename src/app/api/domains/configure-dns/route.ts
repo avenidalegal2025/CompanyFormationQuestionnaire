@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { updateDomainDnsApplied } from '@/lib/dynamo';
 
 const NAMECHEAP_PROXY_URL = 'http://3.149.156.19:8000';
 const PROXY_TOKEN = process.env.NAMECHEAP_PROXY_TOKEN || 'super-secret-32char-token-12345';
@@ -62,6 +63,13 @@ export async function POST(request: NextRequest) {
 
     const result = await response.json();
     console.log('DNS configuration result:', result);
+
+    // Persist applied DNS records so UI can display setup info immediately
+    try {
+      await updateDomainDnsApplied(session.user.email, domain, dnsRecords);
+    } catch (e) {
+      console.warn('Failed to persist dnsApplied snapshot:', e);
+    }
 
     return NextResponse.json({
       success: true,
