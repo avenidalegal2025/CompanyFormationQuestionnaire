@@ -19,9 +19,9 @@ export async function GET(request: NextRequest) {
       skName: process.env.DYNAMO_SK_NAME
     });
     
-    // Use hardcoded values that we know work locally
-    const region = 'us-west-1';
-    const tableName = 'Company_Creation_Questionaire_Avenida_Legal';
+    // Use environment variables from Vercel
+    const region = process.env.AWS_REGION || 'us-west-1';
+    const tableName = process.env.DYNAMO_TABLE || 'Company_Creation_Questionaire_Avenida_Legal';
     
     console.log('Real API - Using hardcoded values:', { region, tableName, userId });
     
@@ -37,9 +37,13 @@ export async function GET(request: NextRequest) {
     const ddb = DynamoDBDocumentClient.from(ddbClient);
     
     // Use the correct key structure based on environment variables
+    const pkName = process.env.DYNAMO_PK_NAME || 'id';
+    const skName = process.env.DYNAMO_SK_NAME || 'sk';
+    const skValue = process.env.DYNAMO_SK_VALUE || 'DOMAINS';
+    
     const key = {
-      id: userId,
-      sk: 'DOMAINS'
+      [pkName]: userId,
+      [skName]: skValue
     };
     
     console.log('Real API - Querying with key:', key);
