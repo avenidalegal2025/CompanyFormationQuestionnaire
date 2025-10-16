@@ -66,6 +66,7 @@ export default function DomainsPage() {
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [isLoadingDomains, setIsLoadingDomains] = useState(false);
   const [domainsError, setDomainsError] = useState<string | null>(null);
+  const [configuringDNS, setConfiguringDNS] = useState<string | null>(null);
 
   // Build a map of domain -> displayPrice from the latest search results
   const domainPrices: Record<string, number> = useMemo(() => {
@@ -123,28 +124,6 @@ export default function DomainsPage() {
   useEffect(() => {
     if (status === 'authenticated' && session?.user?.email) {
       console.log('Session ready, loading domains for:', session.user.email);
-      
-      // Simple hardcoded solution for admin user
-      if (session.user.email === 'admin@partner.avenidalegal.com') {
-        console.log('Setting hardcoded domain data');
-        setPurchasedDomains([{
-          domain: 'avenidalegal.lat',
-          namecheapOrderId: 'avenidalegal.lat',
-          registrationDate: '2025-10-16T04:13:09.905Z',
-          expiryDate: '2026-10-16T04:13:09.908Z',
-          status: 'active' as const,
-          stripePaymentId: 'cs_actual_purchase',
-          price: 1.8,
-          sslEnabled: true,
-          sslExpiryDate: '2026-10-16T04:13:09.908Z',
-          googleWorkspaceStatus: 'none' as const,
-          nameservers: ['dns1.registrar-servers.com', 'dns2.registrar-servers.com']
-        }]);
-        setIsLoadingDomains(false);
-        setDomainsError(null);
-        return;
-      }
-      
       loadPurchasedDomains();
     }
   }, [status, session]);
@@ -341,31 +320,8 @@ export default function DomainsPage() {
       
       console.log('Loading domains for user:', session.user.email);
       
-      // Temporary workaround: hardcode the domain data for admin@partner.avenidalegal.com
-      if (session.user.email === 'admin@partner.avenidalegal.com') {
-        console.log('Using hardcoded domain data for admin user');
-        const hardcodedDomains = [{
-          domain: 'avenidalegal.lat',
-          namecheapOrderId: 'avenidalegal.lat',
-          registrationDate: '2025-10-16T04:13:09.905Z',
-          expiryDate: '2026-10-16T04:13:09.908Z',
-          status: 'active' as const,
-          stripePaymentId: 'cs_actual_purchase',
-          price: 1.8,
-          sslEnabled: true,
-          sslExpiryDate: '2026-10-16T04:13:09.908Z',
-          googleWorkspaceStatus: 'none' as const,
-          nameservers: ['dns1.registrar-servers.com', 'dns2.registrar-servers.com']
-        }];
-        
-        setPurchasedDomains(hardcodedDomains);
-        setDomainsError(null);
-        setIsLoadingDomains(false);
-        return;
-      }
-      
-      // For other users, try the API
-      const response = await fetch(`/api/domains/direct?userId=${encodeURIComponent(session.user.email)}`);
+      // Use the real DynamoDB API
+      const response = await fetch(`/api/domains/real?userId=${encodeURIComponent(session.user.email)}`);
       
       if (response.ok) {
         const data = await response.json();
@@ -412,6 +368,76 @@ export default function DomainsPage() {
         return 'No Configurado';
       default:
         return 'Pendiente';
+    }
+  };
+
+  const configureDNS = async (domain: string) => {
+    try {
+      setConfiguringDNS(domain);
+      
+      // Configure basic DNS records for web hosting
+      const dnsRecords = [
+        {
+          type: 'A',
+          name: '@',
+          value: '192.0.2.1', // Placeholder IP - should be replaced with actual hosting IP
+          ttl: 3600
+        },
+        {
+          type: 'CNAME',
+          name: 'www',
+          value: domain,
+          ttl: 3600
+        },
+        {
+          type: 'MX',
+          name: '@',
+          value: 'aspmx.l.google.com',
+          priority: 10,
+          ttl: 3600
+        },
+        {
+          type: 'TXT',
+          name: '@',
+          value: `v=spf1 include:_spf.google.com ~all`,
+          ttl: 3600
+        }
+      ];
+
+      const response = await fetch('/api/domains/configure-dns', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          domain: domain,
+          dnsRecords: dnsRecords
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('DNS configuration successful:', result);
+        alert(`DNS configurado exitosamente para ${domain}`);
+        
+        // Update the domain status
+        setPurchasedDomains(prev => 
+          prev.map(d => 
+            d.domain === domain 
+              ? { ...d, googleWorkspaceStatus: 'dns_configured' as const }
+              : d
+          )
+        );
+      } else {
+        const error = await response.json();
+        console.error('DNS configuration failed:', error);
+        alert(`Error configurando DNS: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('DNS configuration error:', error);
+      alert(`Error configurando DNS: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setConfiguringDNS(null);
     }
   };
 
@@ -709,26 +735,35 @@ export default function DomainsPage() {
                              domain.status === 'pending' ? 'Pendiente' : 
                              domain.status === 'failed' ? 'Error' : 'Expirado'}
                           </span>
-                          <div className="flex space-x-2">
-                            <button className="p-2 text-gray-400 hover:text-gray-600" title="Ver detalles">
-                              <EyeIcon className="h-4 w-4" />
-                            </button>
-                            <button className="p-2 text-gray-400 hover:text-gray-600" title="Configurar">
-                              <Cog6ToothIcon className="h-4 w-4" />
-                            </button>
-                            {/* Google Workspace Admin Console Link */}
-                            {domain.googleWorkspaceStatus !== 'none' && (
-                              <a
-                                href={`https://admin.google.com/ac/overview?domain=${domain.domain}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-2 text-blue-400 hover:text-blue-600"
-                                title="Google Workspace Admin"
-                              >
-                                <EnvelopeIcon className="h-4 w-4" />
-                              </a>
-                            )}
-                          </div>
+                              <div className="flex space-x-2">
+                                <button className="p-2 text-gray-400 hover:text-gray-600" title="Ver detalles">
+                                  <EyeIcon className="h-4 w-4" />
+                                </button>
+                                <button 
+                                  onClick={() => configureDNS(domain.domain)}
+                                  disabled={configuringDNS === domain.domain}
+                                  className="p-2 text-blue-400 hover:text-blue-600 disabled:opacity-50" 
+                                  title="Configurar DNS"
+                                >
+                                  {configuringDNS === domain.domain ? (
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                                  ) : (
+                                    <Cog6ToothIcon className="h-4 w-4" />
+                                  )}
+                                </button>
+                                {/* Google Workspace Admin Console Link */}
+                                {domain.googleWorkspaceStatus !== 'none' && (
+                                  <a
+                                    href={`https://admin.google.com/ac/overview?domain=${domain.domain}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-2 text-blue-400 hover:text-blue-600"
+                                    title="Google Workspace Admin"
+                                  >
+                                    <EnvelopeIcon className="h-4 w-4" />
+                                  </a>
+                                )}
+                              </div>
                         </div>
                       </div>
                     </div>
