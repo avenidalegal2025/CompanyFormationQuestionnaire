@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDomainsByUser } from '@/lib/dynamo';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand } from '@aws-sdk/lib-dynamodb';
 
@@ -20,32 +19,51 @@ export async function GET(request: NextRequest) {
       skName: process.env.DYNAMO_SK_NAME
     });
     
-    // First, let's just return the environment variables without making any DynamoDB calls
-    const envVars = {
-      AWS_REGION: process.env.AWS_REGION,
-      DYNAMO_TABLE: process.env.DYNAMO_TABLE,
-      DYNAMO_PK_NAME: process.env.DYNAMO_PK_NAME,
-      DYNAMO_SK_NAME: process.env.DYNAMO_SK_NAME,
-      AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID ? 'SET' : 'NOT_SET',
-      AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY ? 'SET' : 'NOT_SET',
+    // Use hardcoded values that we know work locally
+    const region = 'us-west-1';
+    const tableName = 'Company_Creation_Questionaire_Avenida_Legal';
+    
+    console.log('Real API - Using hardcoded values:', { region, tableName, userId });
+    
+    // Create DynamoDB client with hardcoded credentials
+    const ddbClient = new DynamoDBClient({ 
+      region,
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+      }
+    });
+    
+    const ddb = DynamoDBDocumentClient.from(ddbClient);
+    
+    // Use the correct key structure that we know works
+    const key = {
+      id: userId,
+      sk: 'DOMAINS'
     };
     
-    console.log('Real API - Environment variables:', envVars);
+    console.log('Real API - Querying with key:', key);
     
-    // Temporarily skip DynamoDB call to see environment variables
-    const domains: any[] = [];
+    const command = new GetCommand({
+      TableName: tableName,
+      Key: key
+    });
     
-    console.log('Real API - Skipping DynamoDB call for now');
+    const result = await ddb.send(command);
+    const domains = result.Item?.registeredDomains || [];
+    
+    console.log('Real API - Result:', { 
+      itemFound: !!result.Item,
+      domainsCount: domains.length,
+      firstDomain: domains[0]?.domain 
+    });
 
     return NextResponse.json({
       success: true,
       domains: domains,
       count: domains.length,
       userId: userId,
-      source: 'real_dynamodb',
-      debug: {
-        envVars: envVars
-      }
+      source: 'real_dynamodb'
     });
 
   } catch (error) {
