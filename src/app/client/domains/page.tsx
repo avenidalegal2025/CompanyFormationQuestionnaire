@@ -19,7 +19,7 @@ import {
   EnvelopeIcon,
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
-import { ClipboardIcon, CheckIcon, InformationCircleIcon } from '@heroicons/react/24/solid';
+import { Squares2X2Icon, CheckIcon, InformationCircleIcon } from '@heroicons/react/24/solid';
 
 interface DomainResult {
   domain: string;
@@ -698,7 +698,13 @@ export default function DomainsPage() {
                           {getStatusIcon(domain.status)}
                           <div className="ml-4">
                             <div className="flex items-center gap-3">
-                              <h4 className="text-2xl font-semibold text-gray-900">{domain.domain}</h4>
+                              <button
+                                onClick={() => copyToClipboard('domain', domain.domain)}
+                                className="text-2xl font-semibold text-gray-900 hover:underline"
+                                title="Copiar dominio"
+                              >
+                                {domain.domain}
+                              </button>
                               <button
                                 onClick={() => copyToClipboard('domain', domain.domain)}
                                 className="group p-1.5 rounded-md border border-gray-200 hover:bg-gray-100"
@@ -707,7 +713,7 @@ export default function DomainsPage() {
                                 {copiedField === 'domain' ? (
                                   <CheckIcon className="h-4 w-4 text-green-600" />
                                 ) : (
-                                  <ClipboardIcon className="h-4 w-4 text-gray-500 group-hover:text-gray-700" />
+                                  <Squares2X2Icon className="h-4 w-4 text-gray-500 group-hover:text-gray-700" />
                                 )}
                               </button>
                             </div>
@@ -719,7 +725,13 @@ export default function DomainsPage() {
                               <div className="space-y-2">
                                 <div className="flex items-center gap-2">
                                   <span className="text-sm font-medium text-gray-600 w-24">Order ID:</span>
-                                  <span className="text-sm text-gray-800 font-mono">{domain.namecheapOrderId}</span>
+                                  <button
+                                    onClick={() => copyToClipboard('orderId', domain.namecheapOrderId)}
+                                    className="text-sm text-gray-800 font-mono hover:underline"
+                                    title="Copiar Order ID"
+                                  >
+                                    {domain.namecheapOrderId}
+                                  </button>
                                   <button
                                     onClick={() => copyToClipboard('orderId', domain.namecheapOrderId)}
                                     className="group p-1 rounded-md hover:bg-gray-100"
@@ -728,7 +740,7 @@ export default function DomainsPage() {
                                     {copiedField === 'orderId' ? (
                                       <CheckIcon className="h-4 w-4 text-green-600" />
                                     ) : (
-                                      <ClipboardIcon className="h-4 w-4 text-gray-500 group-hover:text-gray-700" />
+                                      <Squares2X2Icon className="h-4 w-4 text-gray-500 group-hover:text-gray-700" />
                                     )}
                                   </button>
                                 </div>
@@ -755,25 +767,57 @@ export default function DomainsPage() {
                                     {getGoogleWorkspaceStatusText(domain.googleWorkspaceStatus)}
                                   </span>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-medium text-gray-600">Nameservers:</span>
-                                  <span className="text-sm text-gray-800 ml-1 font-mono">
-                                    {domain.nameservers.length > 0 ? domain.nameservers.join(', ') : 'No configurados'}
-                                  </span>
-                                  {domain.nameservers.length > 0 && (
-                                    <button
-                                      onClick={() => copyToClipboard('nameservers', domain.nameservers.join(', '))}
-                                      className="group p-1 rounded-md hover:bg-gray-100"
-                                      title="Copiar Nameservers"
-                                    >
-                                      {copiedField === 'nameservers' ? (
-                                        <CheckIcon className="h-4 w-4 text-green-600" />
-                                      ) : (
-                                        <ClipboardIcon className="h-4 w-4 text-gray-500 group-hover:text-gray-700" />
+                                <div className="flex items-start gap-2">
+                                  <span className="text-sm font-medium text-gray-600 pt-0.5">Nameservers:</span>
+                                  {domain.nameservers.length > 0 ? (
+                                    <div className="flex flex-col gap-1">
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          onClick={() => copyToClipboard('ns1', domain.nameservers[0])}
+                                          className="text-left font-mono text-sm text-gray-800 hover:underline"
+                                          title="Copiar Nameserver 1"
+                                        >
+                                          {domain.nameservers[0]}
+                                        </button>
+                                        <button
+                                          onClick={() => copyToClipboard('ns1', domain.nameservers[0])}
+                                          className="group p-1 rounded-md hover:bg-gray-100"
+                                          title="Copiar Nameserver 1"
+                                        >
+                                          {copiedField === 'ns1' ? (
+                                            <CheckIcon className="h-4 w-4 text-green-600" />
+                                          ) : (
+                                            <Squares2X2Icon className="h-4 w-4 text-gray-500 group-hover:text-gray-700" />
+                                          )}
+                                        </button>
+                                      </div>
+                                      {domain.nameservers[1] && (
+                                        <div className="flex items-center gap-2">
+                                          <button
+                                            onClick={() => copyToClipboard('ns2', domain.nameservers[1])}
+                                            className="text-left font-mono text-sm text-gray-800 hover:underline"
+                                            title="Copiar Nameserver 2"
+                                          >
+                                            {domain.nameservers[1]}
+                                          </button>
+                                          <button
+                                            onClick={() => copyToClipboard('ns2', domain.nameservers[1])}
+                                            className="group p-1 rounded-md hover:bg-gray-100"
+                                            title="Copiar Nameserver 2"
+                                          >
+                                            {copiedField === 'ns2' ? (
+                                              <CheckIcon className="h-4 w-4 text-green-600" />
+                                            ) : (
+                                              <Squares2X2Icon className="h-4 w-4 text-gray-500 group-hover:text-gray-700" />
+                                            )}
+                                          </button>
+                                        </div>
                                       )}
-                                    </button>
+                                    </div>
+                                  ) : (
+                                    <span className="text-sm text-gray-800 ml-1">No configurados</span>
                                   )}
-                                  <InformationCircleIcon className="h-4 w-4 text-gray-400" title="Usa estos nameservers en tu proveedor si no es Namecheap" />
+                                  <InformationCircleIcon className="h-4 w-4 text-gray-400" title="Si tu hosting usa otros nameservers, cámbialos en Namecheap" />
                                 </div>
                               </div>
                             </div>
@@ -849,6 +893,11 @@ export default function DomainsPage() {
           onPurchase={handleConfirmPurchase}
           onCancel={() => setShowPurchaseModal(false)}
         />
+      )}
+      {copiedField && (
+        <div className="fixed bottom-4 right-4 bg-black text-white text-sm px-3 py-2 rounded-md shadow-md opacity-90">
+          Copiado
+        </div>
       )}
     </div>
   );

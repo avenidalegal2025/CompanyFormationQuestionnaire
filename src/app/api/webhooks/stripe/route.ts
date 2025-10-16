@@ -159,7 +159,7 @@ async function registerDomain(domain: string, customerEmail: string, customerNam
   if (result.success && result.registered) {
     const domainData: DomainRegistration = {
       domain: result.domain,
-      namecheapOrderId: result.domain, // Use domain as ID for now
+      namecheapOrderId: (result.order_id || result.orderId || result.transaction_id || result.domain),
       registrationDate: new Date().toISOString(),
       expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year from now
       status: 'active',
