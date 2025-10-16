@@ -56,13 +56,13 @@ export async function POST(request: NextRequest) {
       throw new Error('Invalid pricing data');
     }
 
-    // Apply 50% markup to match UI (first year at 1.5x of Namecheap list)
+    // Use original pricing without markup
     const pricingWithMarkup = pricingData.pricing.map((p: any) => ({
       ...p,
-      price_with_markup: Number((p.price * 1.5).toFixed(2)),
+      price_with_markup: p.price, // No markup
     }));
 
-    // Create line items for Stripe with markup
+    // Create line items for Stripe without markup
     const lineItems = pricingWithMarkup.map((domain: any) => ({
       price_data: {
         currency: 'usd',
@@ -75,13 +75,13 @@ export async function POST(request: NextRequest) {
             renewal_price: domain.renewal_price.toString(),
           },
         },
-        unit_amount: Math.round(domain.price_with_markup * 100), // cents
+        unit_amount: Math.round(domain.price * 100), // No markup, convert to cents
       },
       quantity: 1,
     }));
 
-    // Calculate total amount
-    const totalAmount = pricingWithMarkup.reduce((sum: number, d: any) => sum + d.price_with_markup, 0);
+    // Calculate total amount without markup
+    const totalAmount = pricingWithMarkup.reduce((sum: number, d: any) => sum + d.price, 0);
 
     // Get the base URL and trim any whitespace/newlines
     const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || 

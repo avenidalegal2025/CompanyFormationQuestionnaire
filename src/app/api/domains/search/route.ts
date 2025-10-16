@@ -99,8 +99,8 @@ async function searchDomains(baseDomain: string) {
 
     const namecheapPrice = realPricing.price;
     const namecheapRenewalPrice = realPricing.renewal_price || realPricing.price * 1.2;
-    const firstYearPrice = namecheapPrice * 1.5;
-    const secondYearPrice = namecheapRenewalPrice * 1.5;
+    const firstYearPrice = namecheapPrice; // No markup
+    const secondYearPrice = namecheapRenewalPrice; // No markup
     const discount = 0; // remove discount display per request
 
     return {
@@ -119,7 +119,7 @@ async function searchDomains(baseDomain: string) {
       renewalPrice: secondYearPrice,
       currency: realPricing.currency,
       namecheapPrice: namecheapPrice,
-      markup: 50
+      markup: 0 // No markup
     };
   });
 
