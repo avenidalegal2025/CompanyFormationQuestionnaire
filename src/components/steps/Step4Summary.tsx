@@ -129,6 +129,11 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
   const groupLabel = isCorp ? "accionistas" : "socios";
 
   const agreementName = entityType === "LLC" ? "Operating Agreement" : "Shareholder Agreement";
+  
+  // Debug logging
+  console.log('Step4Summary - entityType:', entityType);
+  console.log('Step4Summary - isCorp:', isCorp);
+  console.log('Step4Summary - agreementName:', agreementName);
 
   return (
     <section className="space-y-6">

@@ -394,7 +394,7 @@ function QuestionnaireContent() {
           {wantsAgreement && step === 8 && (
             <Step9Agreement4 form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />
           )}
-          {(step === 9 || (!wantsAgreement && step === 5)) && (
+          {step === 9 && (
             <Step10Checkout form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} />
           )}
         </form>
