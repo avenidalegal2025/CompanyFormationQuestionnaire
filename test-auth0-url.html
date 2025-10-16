@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Auth0 URL</title>
+</head>
+<body>
+    <h1>Test Auth0 URL Generation</h1>
+    <button onclick="testAuth0Url()">Test Auth0 URL</button>
+    <div id="result"></div>
+
+    <script>
+        function testAuth0Url() {
+            const baseUrl = 'dev-hx5xtiwldskmbisi.us.auth0.com';
+            const clientId = '8dvSA0Br1funvuupTaKSCdKgCAFSmfUT';
+            const redirectUri = 'https://company-formation-questionnaire.vercel.app/api/auth/callback/auth0';
+            const callbackUrl = '/?action=test&draftId=test123';
+            
+            const params = new URLSearchParams({
+                response_type: 'code',
+                client_id: clientId,
+                redirect_uri: redirectUri,
+                scope: 'openid email profile',
+                screen_hint: 'signup',
+                prompt: 'login',
+                state: callbackUrl,
+            });
+            
+            const auth0Url = `https://${baseUrl}/authorize?${params.toString()}`;
+            
+            document.getElementById('result').innerHTML = `
+                <p><strong>Generated URL:</strong></p>
+                <p><a href="${auth0Url}" target="_blank">${auth0Url}</a></p>
+                <p><button onclick="window.open('${auth0Url}', '_blank')">Open Auth0 URL</button></p>
+            `;
+        }
+    </script>
+</body>
+</html>
