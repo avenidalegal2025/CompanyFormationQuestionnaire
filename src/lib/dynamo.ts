@@ -150,7 +150,18 @@ export async function getDomainsByUserSafe(userId: string) {
       ProjectionExpression: 'registeredDomains'
     }));
     const scannedPk = (scanResultPk.Items && scanResultPk.Items[0]?.registeredDomains) || [];
-    return Array.isArray(scannedPk) ? scannedPk : [];
+    if (Array.isArray(scannedPk) && scannedPk.length > 0) return scannedPk;
+
+    // Fallback C: Scan by uppercase PK for older tables
+    const scanResultPK = await ddb.send(new ScanCommand({
+      TableName: TABLE_NAME,
+      FilterExpression: '#PK = :id',
+      ExpressionAttributeNames: { '#PK': 'PK' },
+      ExpressionAttributeValues: { ':id': userId },
+      ProjectionExpression: 'registeredDomains'
+    }));
+    const scannedPK = (scanResultPK.Items && scanResultPK.Items[0]?.registeredDomains) || [];
+    return Array.isArray(scannedPK) ? scannedPK : [];
   } catch (err) {
     console.warn('getDomainsByUserSafe error; returning empty:', err);
     return [];
