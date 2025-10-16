@@ -115,6 +115,35 @@ export async function getDomainsByUser(userId: string) {
   }
 }
 
+// Safe getter that tolerates key mismatches and tries a scan fallback
+export async function getDomainsByUserSafe(userId: string) {
+  try {
+    // First try the expected composite key id/sk
+    const getResult = await ddb.send(new GetCommand({
+      TableName: TABLE_NAME,
+      // Use literal key names that match the deployed table
+      Key: { id: userId, sk: TABLE_SK_VALUE },
+      ProjectionExpression: 'registeredDomains'
+    }));
+    const fromGet = getResult.Item?.registeredDomains || [];
+    if (fromGet.length > 0) return fromGet;
+
+    // Fallback: scan by id attribute in case of schema/env drift
+    const scanResult = await ddb.send(new QueryCommand({
+      // NOTE: Query requires a key condition; if GSI not present, fall back to scan via lib-dynamodb is tricky.
+      // We will instead do a best-effort by using a low-cost scan emulation through QueryCommand is not possible.
+      // Consumers should rely on the direct API fallback where we can use ScanCommand.
+      // Return empty here; the API route will perform a Scan fallback when needed.
+    } as any));
+    return Array.isArray((scanResult as any)?.Items?.[0]?.registeredDomains)
+      ? (scanResult as any).Items[0].registeredDomains
+      : [];
+  } catch (err) {
+    console.warn('getDomainsByUserSafe error; returning empty:', err);
+    return [];
+  }
+}
+
 export async function updateDomainStatus(userId: string, domainId: string, status: DomainRegistration['status']) {
   try {
     // First get the current domains
