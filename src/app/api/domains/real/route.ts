@@ -32,13 +32,10 @@ export async function GET(request: NextRequest) {
     
     console.log('Real API - Environment variables:', envVars);
     
-    // Use the shared library with correct key schema
-    const domains = await getDomainsByUser(userId);
+    // Temporarily skip DynamoDB call to see environment variables
+    const domains: any[] = [];
     
-    console.log('Real API - Shared library result:', { 
-      domainsCount: domains.length,
-      firstDomain: domains[0]?.domain 
-    });
+    console.log('Real API - Skipping DynamoDB call for now');
 
     return NextResponse.json({
       success: true,
