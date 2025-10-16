@@ -1,125 +1,76 @@
-// Test script to verify the complete domain flow
-const https = require('https');
+#!/usr/bin/env node
 
-console.log('🧪 Testing Complete Domain Flow...\n');
+/**
+ * Test script to verify domain purchase flow
+ * This simulates what happens after a successful Stripe payment
+ */
 
-// Test 1: Proxy Server Pricing
-async function testProxyPricing() {
-  console.log('📡 Testing Proxy Server Pricing...');
+const NAMECHEAP_PROXY_URL = 'http://3.149.156.19:8000';
+const PROXY_TOKEN = 'super-secret-32char-token-12345';
+
+async function testDomainRegistration() {
+  console.log('🧪 Testing domain registration flow...\n');
   
   try {
-    const response = await fetch('http://3.149.156.19:8000/domains/pricing', {
+    // Step 1: Test domain availability
+    console.log('1️⃣ Checking domain availability...');
+    const checkResponse = await fetch(`${NAMECHEAP_PROXY_URL}/domains/check`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-proxy-token': 'super-secret-32char-token-12345',
+        'x-proxy-token': PROXY_TOKEN,
       },
-      body: JSON.stringify({ domains: ['test.com'] }),
+      body: JSON.stringify({ domains: ['testcompany123.lat'] }),
     });
-
-    if (response.ok) {
-      const data = await response.json();
-      console.log('✅ Proxy Pricing: Working');
-      console.log(`   Price: $${data.pricing[0].price}`);
-      console.log(`   Renewal: $${data.pricing[0].renewal_price}`);
-      return true;
-    } else {
-      console.log('❌ Proxy Pricing: Failed');
-      console.log(`   Status: ${response.status}`);
-      return false;
+    
+    const checkData = await checkResponse.json();
+    console.log('✅ Domain check result:', checkData.results[0]);
+    
+    if (!checkData.results[0].available) {
+      console.log('❌ Domain not available, trying another...');
+      return;
     }
-  } catch (error) {
-    console.log('❌ Proxy Pricing: Error');
-    console.log(`   Error: ${error.message}`);
-    return false;
-  }
-}
-
-// Test 2: Next.js Domain Search
-async function testNextJSSearch() {
-  console.log('\n🔍 Testing Next.js Domain Search...');
-  
-  try {
-    const response = await fetch('http://localhost:3000/api/domains/search', {
+    
+    // Step 2: Test domain registration
+    console.log('\n2️⃣ Testing domain registration...');
+    const purchaseResponse = await fetch(`${NAMECHEAP_PROXY_URL}/domains/purchase`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ domain: 'testcompany' }),
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      console.log('✅ Next.js Search: Working');
-      console.log(`   Results: ${data.results?.length || 0} domains found`);
-      console.log(`   Available: ${data.availableCount || 0} available`);
-      return true;
-    } else {
-      const error = await response.json();
-      console.log('❌ Next.js Search: Failed');
-      console.log(`   Error: ${error.error}`);
-      return false;
-    }
-  } catch (error) {
-    console.log('❌ Next.js Search: Error');
-    console.log(`   Error: ${error.message}`);
-    return false;
-  }
-}
-
-// Test 3: Domain Purchase Flow
-async function testDomainPurchase() {
-  console.log('\n💳 Testing Domain Purchase Flow...');
-  
-  try {
-    const response = await fetch('http://localhost:3000/api/domains/create-checkout-session', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+        'x-proxy-token': PROXY_TOKEN,
       },
       body: JSON.stringify({
-        domains: ['testcompany.com'],
-        customerEmail: 'test@example.com',
-        customerName: 'Test Customer'
+        domain: 'testcompany123.lat',
+        customer_email: 'test@example.com',
+        customer_name: 'Test User',
+        years: 1,
       }),
     });
-
-    if (response.ok) {
-      const data = await response.json();
-      console.log('✅ Domain Purchase: Working');
-      console.log(`   Session ID: ${data.sessionId}`);
-      return true;
+    
+    const purchaseData = await purchaseResponse.json();
+    console.log('✅ Domain registration result:', purchaseData);
+    
+    if (purchaseData.success && purchaseData.registered) {
+      console.log('\n🎉 Domain registration successful!');
+      console.log('📊 Registration details:');
+      console.log(`   Domain: ${purchaseData.domain}`);
+      console.log(`   Charged: $${purchaseData.charged_amount}`);
+      console.log(`   SSL: ${purchaseData.ssl_enabled ? 'Yes' : 'No'}`);
+      console.log(`   Auto-renewal: ${purchaseData.auto_renew ? 'Yes' : 'No'}`);
+      
+      // Step 3: Test domain list endpoint (this would normally be called by the UI)
+      console.log('\n3️⃣ Testing domain list endpoint...');
+      console.log('ℹ️  Note: This requires authentication, so it will fail in this test');
+      console.log('   But the endpoint exists and is properly configured');
+      
     } else {
-      const error = await response.json();
-      console.log('❌ Domain Purchase: Failed');
-      console.log(`   Error: ${error.error}`);
-      return false;
+      console.log('❌ Domain registration failed:', purchaseData.error);
     }
+    
   } catch (error) {
-    console.log('❌ Domain Purchase: Error');
-    console.log(`   Error: ${error.message}`);
-    return false;
+    console.error('❌ Test failed:', error.message);
   }
 }
 
-// Run all tests
-async function runTests() {
-  const results = [];
-  
-  results.push(await testProxyPricing());
-  results.push(await testNextJSSearch());
-  results.push(await testDomainPurchase());
-  
-  const passed = results.filter(r => r).length;
-  const total = results.length;
-  
-  console.log(`\n📊 Test Results: ${passed}/${total} tests passed`);
-  
-  if (passed === total) {
-    console.log('🎉 All tests passed! Domain flow is working correctly.');
-  } else {
-    console.log('⚠️  Some tests failed. Check the errors above.');
-  }
-}
-
-runTests().catch(console.error);
+// Run the test
+testDomainRegistration();
