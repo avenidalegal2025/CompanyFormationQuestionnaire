@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { CheckCircleIcon, XCircleIcon, ClockIcon } from '@heroicons/react/24/outline';
-import EmailPreferenceStep from './EmailPreferenceStep';
 
 interface DomainResult {
   domain: string;
@@ -17,27 +16,20 @@ interface DomainPurchaseProps {
   selectedDomains: string[];
   // Optional map of domain -> price (already includes markup, per UI cards)
   domainPrices?: Record<string, number>;
-  onPurchase: (domains: string[], emailPreferences?: Record<string, string>) => Promise<void>;
+  onPurchase: (domains: string[]) => Promise<void>;
   onCancel: () => void;
 }
 
 export default function DomainPurchase({ selectedDomains, domainPrices, onPurchase, onCancel }: DomainPurchaseProps) {
   const [isProcessing, setIsProcessing] = useState(false);
-  const [purchaseStep, setPurchaseStep] = useState<'confirm' | 'email-preference' | 'processing' | 'success' | 'error'>('confirm');
-  const [emailPreferences, setEmailPreferences] = useState<Record<string, string>>({});
+  const [purchaseStep, setPurchaseStep] = useState<'confirm' | 'processing' | 'success' | 'error'>('confirm');
 
   const handlePurchase = async () => {
-    // Move to email preference step first
-    setPurchaseStep('email-preference');
-  };
-
-  const handleEmailPreferenceContinue = async (preferences: Record<string, string>) => {
-    setEmailPreferences(preferences);
     setIsProcessing(true);
     setPurchaseStep('processing');
     
     try {
-      await onPurchase(selectedDomains, preferences);
+      await onPurchase(selectedDomains);
       // Don't set to success here - let the parent handle success after Stripe return
       // The parent will redirect to Stripe checkout, so we just close the modal
       onCancel();
@@ -47,10 +39,6 @@ export default function DomainPurchase({ selectedDomains, domainPrices, onPurcha
     } finally {
       setIsProcessing(false);
     }
-  };
-
-  const handleEmailPreferenceBack = () => {
-    setPurchaseStep('confirm');
   };
 
   const getTotalPrice = () => {
@@ -113,15 +101,6 @@ export default function DomainPurchase({ selectedDomains, domainPrices, onPurcha
     );
   }
 
-  if (purchaseStep === 'email-preference') {
-    return (
-      <EmailPreferenceStep
-        selectedDomains={selectedDomains}
-        onContinue={handleEmailPreferenceContinue}
-        onBack={handleEmailPreferenceBack}
-      />
-    );
-  }
 
   if (purchaseStep === 'processing') {
     return (

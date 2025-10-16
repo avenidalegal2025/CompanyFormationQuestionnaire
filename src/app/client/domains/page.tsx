@@ -106,6 +106,16 @@ export default function DomainsPage() {
     // Load purchased domains from DynamoDB
     loadPurchasedDomains();
 
+    // Auto-refresh for pending domains
+    const refreshInterval = setInterval(() => {
+      const hasPending = purchasedDomains.some(d => d.status === 'pending');
+      if (hasPending) {
+        loadPurchasedDomains();
+      }
+    }, 10000); // Refresh every 10 seconds if there are pending domains
+
+    return () => clearInterval(refreshInterval);
+
     // Handle Stripe checkout success/cancel - only show if actually coming from Stripe
     const urlParams = new URLSearchParams(window.location.search);
     const success = urlParams.get('success');
@@ -204,7 +214,7 @@ export default function DomainsPage() {
     setShowPurchaseModal(true);
   };
 
-  const handleConfirmPurchase = async (domains: string[], emailPreferences?: Record<string, string>) => {
+  const handleConfirmPurchase = async (domains: string[]) => {
     try {
       // Debug authentication status
       console.log('Authentication status:', { status, session: !!session, user: session?.user });
@@ -232,7 +242,6 @@ export default function DomainsPage() {
       }
 
       console.log('Using customer data:', { customerEmail, customerName });
-      console.log('Email preferences:', emailPreferences);
 
       // Create Stripe checkout session
       const response = await fetch('/api/domains/create-checkout-session', {
@@ -243,8 +252,7 @@ export default function DomainsPage() {
         body: JSON.stringify({
           domains: selectedDomains,
           customerEmail: customerEmail,
-          customerName: customerName,
-          emailPreferences: emailPreferences || {}
+          customerName: customerName
         }),
       });
 
@@ -563,20 +571,42 @@ export default function DomainsPage() {
                             <p className="text-sm text-gray-600">
                               Registrado: {new Date(domain.registrationDate).toLocaleDateString('es-ES')}
                             </p>
-                            <div className="flex items-center mt-1 space-x-4">
-                              {/* SSL Status */}
-                              <div className="flex items-center">
-                                <ShieldCheckIcon className={`h-4 w-4 mr-1 ${domain.sslEnabled ? 'text-green-500' : 'text-gray-400'}`} />
-                                <span className="text-xs text-gray-600">
-                                  {domain.sslEnabled ? 'SSL Activo' : 'Sin SSL'}
-                                </span>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+                              {/* Domain Details */}
+                              <div className="space-y-1">
+                                <div className="flex items-center">
+                                  <span className="text-xs font-medium text-gray-500 w-20">Order ID:</span>
+                                  <span className="text-xs text-gray-700 font-mono">{domain.namecheapOrderId}</span>
+                                </div>
+                                <div className="flex items-center">
+                                  <span className="text-xs font-medium text-gray-500 w-20">Precio:</span>
+                                  <span className="text-xs text-gray-700">${domain.price.toFixed(2)}</span>
+                                </div>
+                                <div className="flex items-center">
+                                  <span className="text-xs font-medium text-gray-500 w-20">Expira:</span>
+                                  <span className="text-xs text-gray-700">{new Date(domain.expiryDate).toLocaleDateString('es-ES')}</span>
+                                </div>
                               </div>
-                              {/* Google Workspace Status */}
-                              <div className="flex items-center">
-                                {getGoogleWorkspaceStatusIcon(domain.googleWorkspaceStatus)}
-                                <span className="text-xs text-gray-600 ml-1">
-                                  {getGoogleWorkspaceStatusText(domain.googleWorkspaceStatus)}
-                                </span>
+                              {/* Status Indicators */}
+                              <div className="space-y-1">
+                                <div className="flex items-center">
+                                  <ShieldCheckIcon className={`h-4 w-4 mr-1 ${domain.sslEnabled ? 'text-green-500' : 'text-gray-400'}`} />
+                                  <span className="text-xs text-gray-600">
+                                    {domain.sslEnabled ? 'SSL Activo' : 'Sin SSL'}
+                                  </span>
+                                </div>
+                                <div className="flex items-center">
+                                  {getGoogleWorkspaceStatusIcon(domain.googleWorkspaceStatus)}
+                                  <span className="text-xs text-gray-600 ml-1">
+                                    {getGoogleWorkspaceStatusText(domain.googleWorkspaceStatus)}
+                                  </span>
+                                </div>
+                                <div className="flex items-center">
+                                  <span className="text-xs font-medium text-gray-500">Nameservers:</span>
+                                  <span className="text-xs text-gray-700 ml-1">
+                                    {domain.nameservers.length > 0 ? domain.nameservers.join(', ') : 'No configurados'}
+                                  </span>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -587,14 +617,6 @@ export default function DomainsPage() {
                              domain.status === 'pending' ? 'Pendiente' : 
                              domain.status === 'failed' ? 'Error' : 'Expirado'}
                           </span>
-                          <div className="text-right">
-                            <p className="text-sm font-medium text-gray-900">
-                              Expira: {new Date(domain.expiryDate).toLocaleDateString('es-ES')}
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              ${domain.price.toFixed(2)}/año
-                            </p>
-                          </div>
                           <div className="flex space-x-2">
                             <button className="p-2 text-gray-400 hover:text-gray-600" title="Ver detalles">
                               <EyeIcon className="h-4 w-4" />

@@ -62,18 +62,19 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   const customerEmail = session.customer_email || '';
   const customerName = session.metadata.customer_name || '';
   const userId = session.metadata.user_id || '';
-  const emailPreferences = JSON.parse(session.metadata.email_preferences || '{}');
 
-  console.log('Processing domain purchase:', { domains, customerEmail, customerName, userId, emailPreferences });
+  console.log('Processing domain purchase:', { domains, customerEmail, customerName, userId });
 
   // Register domains with Namecheap
   for (const domain of domains) {
     try {
-      const registrationResult = await registerDomain(domain, customerEmail, customerName, userId, session.id, emailPreferences[domain]);
+      console.log(`🔄 Starting registration for domain: ${domain}`);
+      const registrationResult = await registerDomain(domain, customerEmail, customerName, userId, session.id);
+      console.log(`✅ Domain ${domain} registered successfully:`, registrationResult);
       
       // If domain registration was successful, trigger Google Workspace setup
       if (registrationResult.success && registrationResult.registered) {
-        console.log(`Triggering Google Workspace setup for ${domain}`);
+        console.log(`🚀 Triggering Google Workspace setup for ${domain}`);
         
         try {
           const workspaceResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/domains/setup-workspace`, {
@@ -86,23 +87,42 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
               userId: userId,
               customerEmail: customerEmail,
               customerName: customerName,
-              primaryEmail: emailPreferences[domain],
             }),
           });
 
           if (workspaceResponse.ok) {
             const workspaceResult = await workspaceResponse.json();
-            console.log(`Google Workspace setup initiated for ${domain}:`, workspaceResult);
+            console.log(`✅ Google Workspace setup initiated for ${domain}:`, workspaceResult);
           } else {
-            console.error(`Failed to setup Google Workspace for ${domain}`);
+            console.error(`❌ Failed to setup Google Workspace for ${domain}`);
           }
         } catch (workspaceError) {
-          console.error(`Error setting up Google Workspace for ${domain}:`, workspaceError);
+          console.error(`❌ Error setting up Google Workspace for ${domain}:`, workspaceError);
           // Don't fail the entire process if Workspace setup fails
         }
       }
     } catch (error) {
-      console.error(`Failed to register domain ${domain}:`, error);
+      console.error(`❌ Failed to register domain ${domain}:`, error);
+      
+      // Save failed status to DynamoDB
+      try {
+        await saveDomainRegistration(userId, {
+          domain: domain,
+          namecheapOrderId: `failed-${Date.now()}`,
+          registrationDate: new Date().toISOString(),
+          expiryDate: new Date().toISOString(),
+          status: 'failed',
+          stripePaymentId: session.id,
+          price: 0,
+          sslEnabled: false,
+          googleWorkspaceStatus: 'none',
+          nameservers: []
+        });
+        console.log(`💾 Saved failed status for domain ${domain}`);
+      } catch (dbError) {
+        console.error(`❌ Failed to save error status for ${domain}:`, dbError);
+      }
+      
       // Continue with other domains even if one fails
     }
   }
@@ -113,7 +133,7 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
   // Additional payment processing logic can go here
 }
 
-async function registerDomain(domain: string, customerEmail: string, customerName: string, userId: string, stripePaymentId: string, primaryEmail?: string) {
+async function registerDomain(domain: string, customerEmail: string, customerName: string, userId: string, stripePaymentId: string) {
   const response = await fetch(`${NAMECHEAP_PROXY_URL}/domains/purchase`, {
     method: 'POST',
     headers: {
@@ -148,8 +168,7 @@ async function registerDomain(domain: string, customerEmail: string, customerNam
       sslEnabled: result.ssl_enabled || false,
       sslExpiryDate: result.ssl_enabled ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString() : undefined,
       googleWorkspaceStatus: 'none',
-      nameservers: ['dns1.registrar-servers.com', 'dns2.registrar-servers.com'],
-      primaryEmail: primaryEmail
+      nameservers: ['dns1.registrar-servers.com', 'dns2.registrar-servers.com']
     };
 
     try {
