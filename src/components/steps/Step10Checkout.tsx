@@ -9,6 +9,9 @@ export default function Step10Checkout({ form, setStep, onSave, onNext }: StepPr
   const [showCheckout, setShowCheckout] = useState(false);
   const formData = form.getValues();
   
+  // Get entity type for agreement display
+  const entityType = formData.company?.entityType as 'LLC' | 'C-Corp' | undefined;
+  
   // Check if user wants agreement based on form data
   const wantsAgreement = formData.admin?.wantAgreement === 'Yes';
   
@@ -20,9 +23,6 @@ export default function Step10Checkout({ form, setStep, onSave, onNext }: StepPr
   
   // Get the formation state for display
   const formationState = formData.company?.formationState || 'Delaware';
-  
-  // Get entity type for agreement display
-  const entityType = formData.company?.entityType as 'LLC' | 'C-Corp' | undefined;
   const agreementName = entityType === 'C-Corp' ? 'Acuerdo de Accionistas' : 'Acuerdo Operativo';
 
   const handleStartCheckout = () => {
