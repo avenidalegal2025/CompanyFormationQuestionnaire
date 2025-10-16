@@ -58,24 +58,32 @@ export async function GET(request: NextRequest) {
     
     let domains = getResult.Item?.registeredDomains || [];
     
-    // If no data found with GetCommand, try ScanCommand
+    // If no data found with GetCommand, try ScanCommand to see what's in the table
     if (domains.length === 0) {
       console.log('Real API - No data found with GetCommand, trying ScanCommand');
       const scanCommand = new ScanCommand({
         TableName: tableName,
-        FilterExpression: 'id = :id',
-        ExpressionAttributeValues: {
-          ':id': userId
-        }
+        Limit: 10 // Limit to first 10 items to see what's in the table
       });
       
       const scanResult = await ddb.send(scanCommand);
       console.log('Real API - ScanCommand result:', { 
         itemsFound: scanResult.Items?.length || 0,
-        firstItemKeys: scanResult.Items?.[0] ? Object.keys(scanResult.Items[0]) : []
+        firstItemKeys: scanResult.Items?.[0] ? Object.keys(scanResult.Items[0]) : [],
+        allItems: scanResult.Items?.map(item => ({
+          keys: Object.keys(item),
+          id: item.id,
+          sk: item.sk,
+          hasDomains: !!item.registeredDomains
+        })) || []
       });
       
-      domains = scanResult.Items?.[0]?.registeredDomains || [];
+      // Look for our specific user
+      const userItem = scanResult.Items?.find(item => item.id === userId);
+      if (userItem) {
+        domains = userItem.registeredDomains || [];
+        console.log('Real API - Found user data in scan:', { domainsCount: domains.length });
+      }
     }
     
     console.log('Real API - Final result:', { 
