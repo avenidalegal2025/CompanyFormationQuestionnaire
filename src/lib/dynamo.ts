@@ -125,9 +125,15 @@ export async function getDomainsByUserSafe(userId: string) {
       TableName: TABLE_NAME,
       // Use literal key names that match the deployed table
       Key: { id: userId, sk: TABLE_SK_VALUE },
-      ProjectionExpression: 'registeredDomains'
     }));
-    const fromGet = getResult.Item?.registeredDomains || [];
+    const fromGetCandidate = getResult.Item as any;
+    const fromGet = Array.isArray(fromGetCandidate?.registeredDomains)
+      ? fromGetCandidate.registeredDomains
+      : Array.isArray(fromGetCandidate?.domains)
+      ? fromGetCandidate.domains
+      : Array.isArray(fromGetCandidate?.domainList)
+      ? fromGetCandidate.domainList
+      : [];
     if (fromGet.length > 0) return fromGet;
 
     // Fallback A: Scan by id attribute in case of schema/env drift
@@ -136,9 +142,15 @@ export async function getDomainsByUserSafe(userId: string) {
       FilterExpression: '#id = :id',
       ExpressionAttributeNames: { '#id': 'id' },
       ExpressionAttributeValues: { ':id': userId },
-      ProjectionExpression: 'registeredDomains'
     }));
-    const scanned = (scanResult.Items && scanResult.Items[0]?.registeredDomains) || [];
+    const scannedItem = (scanResult.Items && (scanResult.Items[0] as any)) || undefined;
+    const scanned = Array.isArray(scannedItem?.registeredDomains)
+      ? scannedItem.registeredDomains
+      : Array.isArray(scannedItem?.domains)
+      ? scannedItem.domains
+      : Array.isArray(scannedItem?.domainList)
+      ? scannedItem.domainList
+      : [];
     if (Array.isArray(scanned) && scanned.length > 0) return scanned;
 
     // Fallback B: Scan by pk attribute for legacy rows
@@ -147,9 +159,15 @@ export async function getDomainsByUserSafe(userId: string) {
       FilterExpression: '#pk = :id',
       ExpressionAttributeNames: { '#pk': 'pk' },
       ExpressionAttributeValues: { ':id': userId },
-      ProjectionExpression: 'registeredDomains'
     }));
-    const scannedPk = (scanResultPk.Items && scanResultPk.Items[0]?.registeredDomains) || [];
+    const scannedPkItem = (scanResultPk.Items && (scanResultPk.Items[0] as any)) || undefined;
+    const scannedPk = Array.isArray(scannedPkItem?.registeredDomains)
+      ? scannedPkItem.registeredDomains
+      : Array.isArray(scannedPkItem?.domains)
+      ? scannedPkItem.domains
+      : Array.isArray(scannedPkItem?.domainList)
+      ? scannedPkItem.domainList
+      : [];
     if (Array.isArray(scannedPk) && scannedPk.length > 0) return scannedPk;
 
     // Fallback C: Scan by uppercase PK for older tables
@@ -158,9 +176,15 @@ export async function getDomainsByUserSafe(userId: string) {
       FilterExpression: '#PK = :id',
       ExpressionAttributeNames: { '#PK': 'PK' },
       ExpressionAttributeValues: { ':id': userId },
-      ProjectionExpression: 'registeredDomains'
     }));
-    const scannedPK = (scanResultPK.Items && scanResultPK.Items[0]?.registeredDomains) || [];
+    const scannedPKItem = (scanResultPK.Items && (scanResultPK.Items[0] as any)) || undefined;
+    const scannedPK = Array.isArray(scannedPKItem?.registeredDomains)
+      ? scannedPKItem.registeredDomains
+      : Array.isArray(scannedPKItem?.domains)
+      ? scannedPKItem.domains
+      : Array.isArray(scannedPKItem?.domainList)
+      ? scannedPKItem.domainList
+      : [];
     return Array.isArray(scannedPK) ? scannedPK : [];
   } catch (err) {
     console.warn('getDomainsByUserSafe error; returning empty:', err);
