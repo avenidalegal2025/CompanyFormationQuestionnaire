@@ -86,6 +86,11 @@ function QuestionnaireContent() {
         // Note: This will be handled by ProgressSidebar component
       } else if (action === 'checkout') {
         setStep(9);
+      } else if (action === 'continue') {
+        const targetStep = urlParams.get('step');
+        if (targetStep) {
+          setStep(parseInt(targetStep, 10));
+        }
       }
     }
   }, [isSignedUp]);
@@ -367,6 +372,20 @@ function QuestionnaireContent() {
   const onContinuar = async () => {
     try {
       await doSave();
+      
+      // Check if user needs to sign up after resumen step (step 4)
+      if (step === 4 && !isSignedUp) {
+        // Save anonymous draft and redirect to signup
+        const formData = form.getValues();
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('anonymousDraftId', anonymousId);
+          localStorage.setItem('anonymousDraftData', JSON.stringify(formData));
+        }
+        // Redirect to signup with callback to continue to next step
+        window.location.href = `/signin?callbackUrl=${encodeURIComponent(`/?action=continue&draftId=${anonymousId}&step=${step + 1}`)}`;
+        return;
+      }
+      
       setStep((s) => Math.min(totalSteps, s + 1));
     } catch {
       setSaveState("error");
