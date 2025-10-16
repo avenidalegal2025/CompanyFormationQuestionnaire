@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       owner: userId,
       migratedFrom: `anon_${anonymousId}`,
       migratedAt: Date.now()
-    };
+    } as any;
 
     const putUserCommand = new PutCommand({
       TableName: TABLE_NAME,
