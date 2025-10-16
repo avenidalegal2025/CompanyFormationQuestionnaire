@@ -5,10 +5,17 @@
 export function getAuth0SignupUrl(callbackUrl: string): string {
   const baseUrl = process.env.NEXT_PUBLIC_AUTH0_ISSUER_BASE_URL || process.env.NEXT_PUBLIC_AUTH0_ISSUER;
   const clientId = process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID;
-  const redirectUri = `${process.env.NEXT_PUBLIC_URL}/api/auth/callback/auth0`;
+  const redirectUri = `${process.env.NEXT_PUBLIC_URL || window.location.origin}/api/auth/callback/auth0`;
+  
+  console.log('Auth0 Config Debug:', {
+    baseUrl,
+    clientId,
+    redirectUri,
+    callbackUrl
+  });
   
   if (!baseUrl || !clientId) {
-    console.error('Missing Auth0 configuration');
+    console.error('Missing Auth0 configuration:', { baseUrl, clientId });
     return '/signin';
   }
   
