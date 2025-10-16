@@ -67,14 +67,6 @@ export default function Step10Checkout({ form, setStep, onSave, onNext }: StepPr
           <p className="text-green-800 text-sm">
             Tenemos toda la información necesaria para formar tu empresa. Revisa tu paquete y procede al pago.
           </p>
-          {/* Debug info */}
-          <div className="mt-4 p-3 bg-yellow-100 border border-yellow-300 rounded text-xs">
-            <strong>Debug Info:</strong><br/>
-            Entity Type: {entityType || 'undefined'}<br/>
-            Wants Agreement: {wantsAgreement ? 'Yes' : 'No'}<br/>
-            Admin Want Agreement: {formData.admin?.wantAgreement || 'undefined'}<br/>
-            Formation State: {formationState}
-          </div>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6 mb-6">
