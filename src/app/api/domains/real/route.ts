@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, GetCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, GetCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 
 export async function GET(request: NextRequest) {
   try {
@@ -36,24 +36,49 @@ export async function GET(request: NextRequest) {
     
     const ddb = DynamoDBDocumentClient.from(ddbClient);
     
-    // Try different key structures to find the correct one
+    // Use the correct key structure based on environment variables
     const key = {
-      pk: userId,
+      id: userId,
       sk: 'DOMAINS'
     };
     
     console.log('Real API - Querying with key:', key);
     
-    const command = new GetCommand({
+    // Try GetCommand first
+    const getCommand = new GetCommand({
       TableName: tableName,
       Key: key
     });
     
-    const result = await ddb.send(command);
-    const domains = result.Item?.registeredDomains || [];
+    const getResult = await ddb.send(getCommand);
+    console.log('Real API - GetCommand result:', { 
+      itemFound: !!getResult.Item,
+      keys: getResult.Item ? Object.keys(getResult.Item) : []
+    });
     
-    console.log('Real API - Result:', { 
-      itemFound: !!result.Item,
+    let domains = getResult.Item?.registeredDomains || [];
+    
+    // If no data found with GetCommand, try ScanCommand
+    if (domains.length === 0) {
+      console.log('Real API - No data found with GetCommand, trying ScanCommand');
+      const scanCommand = new ScanCommand({
+        TableName: tableName,
+        FilterExpression: 'id = :id',
+        ExpressionAttributeValues: {
+          ':id': userId
+        }
+      });
+      
+      const scanResult = await ddb.send(scanCommand);
+      console.log('Real API - ScanCommand result:', { 
+        itemsFound: scanResult.Items?.length || 0,
+        firstItemKeys: scanResult.Items?.[0] ? Object.keys(scanResult.Items[0]) : []
+      });
+      
+      domains = scanResult.Items?.[0]?.registeredDomains || [];
+    }
+    
+    console.log('Real API - Final result:', { 
       domainsCount: domains.length,
       firstDomain: domains[0]?.domain 
     });
