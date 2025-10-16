@@ -1,6 +1,6 @@
 // src/lib/dynamo.ts
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, PutCommand, GetCommand, UpdateCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, PutCommand, GetCommand, UpdateCommand, QueryCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
 
 export const REGION = process.env.AWS_REGION || "us-west-1";
 export const TABLE_NAME =
@@ -130,16 +130,16 @@ export async function getDomainsByUserSafe(userId: string) {
     const fromGet = getResult.Item?.registeredDomains || [];
     if (fromGet.length > 0) return fromGet;
 
-    // Fallback: scan by id attribute in case of schema/env drift
-    const scanResult = await ddb.send(new QueryCommand({
-      // NOTE: Query requires a key condition; if GSI not present, fall back to scan via lib-dynamodb is tricky.
-      // We will instead do a best-effort by using a low-cost scan emulation through QueryCommand is not possible.
-      // Consumers should rely on the direct API fallback where we can use ScanCommand.
-      // Return empty here; the API route will perform a Scan fallback when needed.
-    } as any));
-    return Array.isArray((scanResult as any)?.Items?.[0]?.registeredDomains)
-      ? (scanResult as any).Items[0].registeredDomains
-      : [];
+    // Fallback: Scan by id attribute in case of schema/env drift
+    const scanResult = await ddb.send(new ScanCommand({
+      TableName: TABLE_NAME,
+      FilterExpression: '#id = :id',
+      ExpressionAttributeNames: { '#id': 'id' },
+      ExpressionAttributeValues: { ':id': userId },
+      ProjectionExpression: 'registeredDomains'
+    }));
+    const scanned = (scanResult.Items && scanResult.Items[0]?.registeredDomains) || [];
+    return Array.isArray(scanned) ? scanned : [];
   } catch (err) {
     console.warn('getDomainsByUserSafe error; returning empty:', err);
     return [];

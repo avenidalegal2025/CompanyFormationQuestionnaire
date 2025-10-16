@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
+import { getDomainsByUserSafe, TABLE_NAME } from '@/lib/dynamo';
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,7 +12,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'userId is required' }, { status: 400 });
     }
 
-    console.log('Real API - Getting domains for user:', userId);
+    console.log('Real API - Getting domains for user:', userId, {
+      table: process.env.DYNAMO_TABLE,
+      commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0,7)
+    });
     
     const region = process.env.AWS_REGION || 'us-west-1';
     const tableName = process.env.DYNAMO_TABLE || 'Company_Creation_Questionaire_Avenida_Legal';
@@ -23,35 +27,8 @@ export async function GET(request: NextRequest) {
       } : undefined
     }));
 
-    // Try exact key first
-    let domains: any[] = [];
-    try {
-      const getRes = await ddb.send(new GetCommand({
-        TableName: tableName,
-        Key: { id: userId, sk: 'DOMAINS' },
-        ProjectionExpression: 'registeredDomains'
-      }));
-      domains = getRes.Item?.registeredDomains || [];
-      console.log('Domains API path=get', { found: domains.length });
-    } catch (e) {
-      console.warn('Domains API get error; will try scan', e);
-    }
-
-    // Fallback: scan by id if nothing found
-    if (domains.length === 0) {
-      try {
-        const scanRes = await ddb.send(new ScanCommand({
-          TableName: tableName,
-          FilterExpression: 'id = :id',
-          ExpressionAttributeValues: { ':id': userId },
-          ProjectionExpression: 'registeredDomains'
-        }));
-        domains = scanRes.Items?.[0]?.registeredDomains || [];
-        console.log('Domains API path=scan', { items: scanRes.Items?.length || 0, found: domains.length });
-      } catch (e) {
-        console.warn('Domains API scan error', e);
-      }
-    }
+    // Use shared safe getter which performs Get with Scan fallback
+    const domains: any[] = await getDomainsByUserSafe(userId);
 
     return NextResponse.json({
       success: true,
