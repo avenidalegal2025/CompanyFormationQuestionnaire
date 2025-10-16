@@ -6,10 +6,10 @@ export const REGION = process.env.AWS_REGION || "us-west-1";
 export const TABLE_NAME =
   process.env.DYNAMO_TABLE ||
   "Company_Creation_Questionaire_Avenida_Legal"; // fallback for local/dev
-// Force correct key names to match deployed schema
-export const TABLE_PK_NAME = 'id'; // Force correct key name
-export const TABLE_SK_NAME = 'sk'; // Force correct key name  
-export const TABLE_SK_VALUE = 'DOMAINS'; // Force correct value
+// Use environment variables for key names to match Vercel deployment
+export const TABLE_PK_NAME = process.env.DYNAMO_PK_NAME || 'id';
+export const TABLE_SK_NAME = process.env.DYNAMO_SK_NAME || 'sk';
+export const TABLE_SK_VALUE = process.env.DYNAMO_SK_VALUE || 'DOMAINS';
 
 function buildUserKey(userId: string) {
   const key: Record<string, any> = { [TABLE_PK_NAME]: userId };
