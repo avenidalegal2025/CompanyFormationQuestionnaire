@@ -653,12 +653,12 @@ export default function DomainsPage() {
               </div>
             )}
 
-                {/* Purchased Domains */}
-                <div className="bg-white rounded-lg shadow-sm">
-                  <div className="px-6 py-4 border-b border-gray-200">
-                    <h3 className="text-lg font-semibold text-gray-900">Mis Dominios</h3>
-                  </div>
-                  
+            {/* Purchased Domains */}
+            <div className="bg-white rounded-lg shadow-sm">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900">Mis Dominios</h3>
+              </div>
+              
                   {isLoadingDomains ? (
                     <div className="text-center py-12">
                       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
@@ -735,10 +735,10 @@ export default function DomainsPage() {
                              domain.status === 'pending' ? 'Pendiente' : 
                              domain.status === 'failed' ? 'Error' : 'Expirado'}
                           </span>
-                              <div className="flex space-x-2">
-                                <button className="p-2 text-gray-400 hover:text-gray-600" title="Ver detalles">
-                                  <EyeIcon className="h-4 w-4" />
-                                </button>
+                          <div className="flex space-x-2">
+                            <button className="p-2 text-gray-400 hover:text-gray-600" title="Ver detalles">
+                              <EyeIcon className="h-4 w-4" />
+                            </button>
                                 <button 
                                   onClick={() => configureDNS(domain.domain)}
                                   disabled={configuringDNS === domain.domain}
@@ -748,9 +748,9 @@ export default function DomainsPage() {
                                   {configuringDNS === domain.domain ? (
                                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
                                   ) : (
-                                    <Cog6ToothIcon className="h-4 w-4" />
+                              <Cog6ToothIcon className="h-4 w-4" />
                                   )}
-                                </button>
+                            </button>
                                 {/* Google Workspace Admin Console Link */}
                                 {domain.googleWorkspaceStatus !== 'none' && (
                                   <a
@@ -763,7 +763,7 @@ export default function DomainsPage() {
                                     <EnvelopeIcon className="h-4 w-4" />
                                   </a>
                                 )}
-                              </div>
+                          </div>
                         </div>
                       </div>
                     </div>
