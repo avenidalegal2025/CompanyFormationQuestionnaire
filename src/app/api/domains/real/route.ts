@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDomainsByUser } from '@/lib/dynamo';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, GetCommand } from '@aws-sdk/lib-dynamodb';
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,10 +13,30 @@ export async function GET(request: NextRequest) {
 
     console.log('Real API - Getting domains for user:', userId);
     
-    // Use the shared library with correct key schema
-    const domains = await getDomainsByUser(userId);
+    // Direct DynamoDB query with hardcoded values that work
+    const ddbClient = new DynamoDBClient({ 
+      region: 'us-west-1',
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+      }
+    });
+    
+    const ddb = DynamoDBDocumentClient.from(ddbClient);
+    
+    const command = new GetCommand({
+      TableName: 'Company_Creation_Questionaire_Avenida_Legal',
+      Key: {
+        id: userId,
+        sk: 'DOMAINS'
+      }
+    });
+    
+    const result = await ddb.send(command);
+    const domains = result.Item?.registeredDomains || [];
     
     console.log('Real API - Result:', { 
+      itemFound: !!result.Item,
       domainsCount: domains.length,
       firstDomain: domains[0]?.domain 
     });
