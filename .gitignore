@@ -109,3 +109,4 @@ jspm_packages/
 next-env.d.ts
 .vercel
 .env*.local
+.env.vercel

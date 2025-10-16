@@ -27,39 +27,8 @@ export async function GET(request: NextRequest) {
       } : undefined
     }));
 
-    // Use shared safe getter first
-    let domains: any[] = await getDomainsByUserSafe(userId);
-
-    // If still empty, prefer an explicit scan selecting the item whose sk equals 'DOMAINS'
-    if (!Array.isArray(domains) || domains.length === 0) {
-      try {
-        const scanPk = await ddb.send(new ScanCommand({
-          TableName: tableName,
-          FilterExpression: '#pk = :id',
-          ExpressionAttributeNames: { '#pk': 'pk' },
-          ExpressionAttributeValues: { ':id': userId },
-        }));
-        const items = (scanPk.Items || []) as any[];
-        // Prefer exact sk === 'DOMAINS', otherwise any item containing DOMAINS
-        const preferred =
-          items.find((it) => it?.sk === 'DOMAINS') ||
-          items.find((it) => (it?.sk || it?.SK || '').toString().includes('DOMAINS')) ||
-          undefined;
-        const listCandidate = preferred || items[0];
-        const list = Array.isArray(listCandidate?.registeredDomains)
-          ? listCandidate.registeredDomains
-          : Array.isArray(listCandidate?.domains)
-          ? listCandidate.domains
-          : Array.isArray(listCandidate?.domainList)
-          ? listCandidate.domainList
-          : [];
-        if (Array.isArray(list) && list.length > 0) {
-          domains = list;
-        }
-      } catch (e) {
-        console.warn('Domains API explicit scan fallback error', e);
-      }
-    }
+    // With env aligned to pk/sk, use single Get via shared helper
+    const domains: any[] = await getDomainsByUserSafe(userId);
 
     return NextResponse.json({
       success: true,
