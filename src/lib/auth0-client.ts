@@ -3,6 +3,8 @@
 
 // Generate custom Auth0 URL that goes directly to signup
 export function getAuth0SignupUrl(callbackUrl: string): string {
+  console.log('getAuth0SignupUrl called with:', callbackUrl);
+  
   const baseUrl = process.env.NEXT_PUBLIC_AUTH0_ISSUER_BASE_URL || process.env.NEXT_PUBLIC_AUTH0_ISSUER;
   const clientId = process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID;
   const redirectUri = `${process.env.NEXT_PUBLIC_URL || window.location.origin}/api/auth/callback/auth0`;
@@ -11,11 +13,18 @@ export function getAuth0SignupUrl(callbackUrl: string): string {
     baseUrl,
     clientId,
     redirectUri,
-    callbackUrl
+    callbackUrl,
+    allEnvVars: {
+      NEXT_PUBLIC_AUTH0_ISSUER_BASE_URL: process.env.NEXT_PUBLIC_AUTH0_ISSUER_BASE_URL,
+      NEXT_PUBLIC_AUTH0_ISSUER: process.env.NEXT_PUBLIC_AUTH0_ISSUER,
+      NEXT_PUBLIC_AUTH0_CLIENT_ID: process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID,
+      NEXT_PUBLIC_URL: process.env.NEXT_PUBLIC_URL
+    }
   });
   
   if (!baseUrl || !clientId) {
     console.error('Missing Auth0 configuration:', { baseUrl, clientId });
+    console.log('Falling back to /signin');
     return '/signin';
   }
   

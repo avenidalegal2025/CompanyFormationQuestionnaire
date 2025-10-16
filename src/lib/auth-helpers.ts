@@ -30,6 +30,7 @@ export function handleSaveWithAuth(
   form: any,
   onSave: (() => void) | undefined
 ) {
+  console.log('handleSaveWithAuth called, session:', !!session);
   if (!session) {
     // Save anonymous draft and redirect to signup
     const formData = form.getValues();
