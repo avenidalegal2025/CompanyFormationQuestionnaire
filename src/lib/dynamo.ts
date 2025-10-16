@@ -154,7 +154,7 @@ export async function updateDomainDnsApplied(
 ) {
   // Get current list
   const current = await getDomainsByUser(userId);
-  const next = current.map(d =>
+  const next = current.map((d: DomainRegistration) =>
     d.domain === domain
       ? { ...d, dnsApplied: records, googleWorkspaceStatus: 'dns_configured' }
       : d
