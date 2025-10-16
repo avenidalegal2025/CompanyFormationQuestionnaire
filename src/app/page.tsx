@@ -56,7 +56,7 @@ function QuestionnaireContent() {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (!isSignedUp && step > 1) {
         e.preventDefault();
-        e.returnValue = '';
+        e.returnValue = 'Los cambios que realizaste podrían no guardarse.';
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
