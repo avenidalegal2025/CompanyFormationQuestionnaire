@@ -5,9 +5,10 @@
 export function getAuth0SignupUrl(callbackUrl: string): string {
   console.log('getAuth0SignupUrl called with:', callbackUrl);
   
-  const baseUrl = process.env.NEXT_PUBLIC_AUTH0_ISSUER_BASE_URL || process.env.NEXT_PUBLIC_AUTH0_ISSUER;
-  const clientId = process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID;
-  const redirectUri = `${process.env.NEXT_PUBLIC_URL || window.location.origin}/api/auth/callback/auth0`;
+  // Use hardcoded values for now since env vars aren't loading properly
+  const baseUrl = 'dev-hx5xtiwldskmbisi.us.auth0.com';
+  const clientId = '8dvSA0Br1funvuupTaKSCdKgCAFSmfUT';
+  const redirectUri = `${window.location.origin}/api/auth/callback/auth0`;
   
   console.log('Auth0 Config Debug:', {
     baseUrl,
