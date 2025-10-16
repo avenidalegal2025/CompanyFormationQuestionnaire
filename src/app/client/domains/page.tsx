@@ -19,6 +19,7 @@ import {
   EnvelopeIcon,
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
+import { ClipboardIcon, CheckIcon, InformationCircleIcon } from '@heroicons/react/24/solid';
 
 interface DomainResult {
   domain: string;
@@ -67,6 +68,7 @@ export default function DomainsPage() {
   const [isLoadingDomains, setIsLoadingDomains] = useState(false);
   const [domainsError, setDomainsError] = useState<string | null>(null);
   const [configuringDNS, setConfiguringDNS] = useState<string | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   // Build a map of domain -> displayPrice from the latest search results
   const domainPrices: Record<string, number> = useMemo(() => {
@@ -305,6 +307,16 @@ export default function DomainsPage() {
         return 'text-red-600 bg-red-100';
       default:
         return 'text-gray-600 bg-gray-100';
+    }
+  };
+
+  const copyToClipboard = async (label: string, value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedField(label);
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch (e) {
+      console.error('Copy failed', e);
     }
   };
 
@@ -654,9 +666,9 @@ export default function DomainsPage() {
             )}
 
             {/* Purchased Domains */}
-            <div className="bg-white rounded-lg shadow-sm">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">Mis Dominios</h3>
+            <div className="bg-white rounded-xl shadow-md">
+              <div className="px-8 py-6 border-b border-gray-200">
+                <h3 className="text-2xl font-bold text-gray-900">Mis Dominios</h3>
               </div>
               
                   {isLoadingDomains ? (
@@ -680,57 +692,95 @@ export default function DomainsPage() {
                   ) : purchasedDomains.length > 0 ? (
                 <div className="divide-y divide-gray-200">
                   {purchasedDomains.map((domain) => (
-                    <div key={domain.namecheapOrderId} className="px-6 py-4 hover:bg-gray-50">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
+                    <div key={domain.namecheapOrderId} className="px-8 py-8 hover:bg-gray-50 min-h-[140px]">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start">
                           {getStatusIcon(domain.status)}
-                          <div className="ml-3">
-                            <h4 className="text-lg font-medium text-gray-900">{domain.domain}</h4>
-                            <p className="text-sm text-gray-600">
+                          <div className="ml-4">
+                            <div className="flex items-center gap-3">
+                              <h4 className="text-2xl font-semibold text-gray-900">{domain.domain}</h4>
+                              <button
+                                onClick={() => copyToClipboard('domain', domain.domain)}
+                                className="group p-1.5 rounded-md border border-gray-200 hover:bg-gray-100"
+                                title="Copiar dominio"
+                              >
+                                {copiedField === 'domain' ? (
+                                  <CheckIcon className="h-4 w-4 text-green-600" />
+                                ) : (
+                                  <ClipboardIcon className="h-4 w-4 text-gray-500 group-hover:text-gray-700" />
+                                )}
+                              </button>
+                            </div>
+                            <p className="text-sm text-gray-600 mt-1">
                               Registrado: {new Date(domain.registrationDate).toLocaleDateString('es-ES')}
                             </p>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                               {/* Domain Details */}
-                              <div className="space-y-1">
-                                <div className="flex items-center">
-                                  <span className="text-xs font-medium text-gray-500 w-20">Order ID:</span>
-                                  <span className="text-xs text-gray-700 font-mono">{domain.namecheapOrderId}</span>
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium text-gray-600 w-24">Order ID:</span>
+                                  <span className="text-sm text-gray-800 font-mono">{domain.namecheapOrderId}</span>
+                                  <button
+                                    onClick={() => copyToClipboard('orderId', domain.namecheapOrderId)}
+                                    className="group p-1 rounded-md hover:bg-gray-100"
+                                    title="Copiar Order ID"
+                                  >
+                                    {copiedField === 'orderId' ? (
+                                      <CheckIcon className="h-4 w-4 text-green-600" />
+                                    ) : (
+                                      <ClipboardIcon className="h-4 w-4 text-gray-500 group-hover:text-gray-700" />
+                                    )}
+                                  </button>
                                 </div>
-                                <div className="flex items-center">
-                                  <span className="text-xs font-medium text-gray-500 w-20">Precio:</span>
-                                  <span className="text-xs text-gray-700">${domain.price.toFixed(2)}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium text-gray-600 w-24">Precio:</span>
+                                  <span className="text-sm text-gray-800">${domain.price.toFixed(2)}</span>
                                 </div>
-                                <div className="flex items-center">
-                                  <span className="text-xs font-medium text-gray-500 w-20">Expira:</span>
-                                  <span className="text-xs text-gray-700">{new Date(domain.expiryDate).toLocaleDateString('es-ES')}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium text-gray-600 w-24">Expira:</span>
+                                  <span className="text-sm text-gray-800">{new Date(domain.expiryDate).toLocaleDateString('es-ES')}</span>
                                 </div>
                               </div>
                               {/* Status Indicators */}
-                              <div className="space-y-1">
+                              <div className="space-y-2">
                                 <div className="flex items-center">
-                                  <ShieldCheckIcon className={`h-4 w-4 mr-1 ${domain.sslEnabled ? 'text-green-500' : 'text-gray-400'}`} />
-                                  <span className="text-xs text-gray-600">
+                                  <ShieldCheckIcon className={`h-5 w-5 mr-2 ${domain.sslEnabled ? 'text-green-500' : 'text-gray-400'}`} />
+                                  <span className="text-sm text-gray-700">
                                     {domain.sslEnabled ? 'SSL Activo' : 'Sin SSL'}
                                   </span>
                                 </div>
                                 <div className="flex items-center">
                                   {getGoogleWorkspaceStatusIcon(domain.googleWorkspaceStatus)}
-                                  <span className="text-xs text-gray-600 ml-1">
+                                  <span className="text-sm text-gray-700 ml-2">
                                     {getGoogleWorkspaceStatusText(domain.googleWorkspaceStatus)}
                                   </span>
                                 </div>
-                                <div className="flex items-center">
-                                  <span className="text-xs font-medium text-gray-500">Nameservers:</span>
-                                  <span className="text-xs text-gray-700 ml-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium text-gray-600">Nameservers:</span>
+                                  <span className="text-sm text-gray-800 ml-1 font-mono">
                                     {domain.nameservers.length > 0 ? domain.nameservers.join(', ') : 'No configurados'}
                                   </span>
+                                  {domain.nameservers.length > 0 && (
+                                    <button
+                                      onClick={() => copyToClipboard('nameservers', domain.nameservers.join(', '))}
+                                      className="group p-1 rounded-md hover:bg-gray-100"
+                                      title="Copiar Nameservers"
+                                    >
+                                      {copiedField === 'nameservers' ? (
+                                        <CheckIcon className="h-4 w-4 text-green-600" />
+                                      ) : (
+                                        <ClipboardIcon className="h-4 w-4 text-gray-500 group-hover:text-gray-700" />
+                                      )}
+                                    </button>
+                                  )}
+                                  <InformationCircleIcon className="h-4 w-4 text-gray-400" title="Usa estos nameservers en tu proveedor si no es Namecheap" />
                                 </div>
                               </div>
                             </div>
                           </div>
                         </div>
                         <div className="flex items-center space-x-4">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(domain.status)}`}>
+                          <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${getStatusColor(domain.status)}`}>
                             {domain.status === 'active' ? 'Activo' : 
                              domain.status === 'pending' ? 'Pendiente' : 
                              domain.status === 'failed' ? 'Error' : 'Expirado'}
@@ -742,7 +792,7 @@ export default function DomainsPage() {
                                 <button 
                                   onClick={() => configureDNS(domain.domain)}
                                   disabled={configuringDNS === domain.domain}
-                                  className="p-2 text-blue-400 hover:text-blue-600 disabled:opacity-50" 
+                                  className="p-2 text-blue-500 hover:text-blue-700 disabled:opacity-50" 
                                   title="Configurar DNS"
                                 >
                                   {configuringDNS === domain.domain ? (
