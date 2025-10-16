@@ -66,6 +66,15 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
     companyData: formData.company,
     fullFormData: formData
   });
+  
+  console.log('Checkout - entityType check:', {
+    entityType,
+    isLLC: entityType === 'LLC',
+    isCCorp: entityType === 'C-Corp',
+    skipAgreement,
+    shouldAddOperating: !skipAgreement && entityType === 'LLC',
+    shouldAddShareholder: !skipAgreement && entityType === 'C-Corp'
+  });
 
   // Auto-select services based on user's current status
   useEffect(() => {
@@ -208,8 +217,8 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
     console.log(`Showing service ${service.id}`);
     return true;
   });
-
-  console.log('Available services:', availableServices.map(s => s.id));
+  
+  console.log('Available services after filtering:', availableServices.map(s => s.id));
 
   // Get formation price for display
   const formationPrice = FORMATION_PRICES[entityType]?.[state] || (entityType === 'LLC' ? 60000 : 80000);
