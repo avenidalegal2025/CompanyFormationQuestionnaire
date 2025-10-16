@@ -318,7 +318,7 @@ export default function DomainsPage() {
       setDomainsError(null);
       
       console.log('Loading domains for user:', session.user.email);
-      const response = await fetch(`/api/domains/list?userId=${encodeURIComponent(session.user.email)}`);
+      const response = await fetch(`/api/domains/direct?userId=${encodeURIComponent(session.user.email)}`);
       
       if (response.ok) {
         const data = await response.json();
