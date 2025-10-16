@@ -52,6 +52,13 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
   }, []);
 
   const entityType = formData.company?.entityType as 'LLC' | 'C-Corp';
+  
+  // If entityType is undefined, we can't show agreement services
+  if (!entityType) {
+    console.error('Entity type is undefined in Checkout component');
+    console.log('Full form data:', formData);
+    console.log('Company data:', formData.company);
+  }
   const state = formData.company?.formationState || 'Delaware'; // Use formationState, not state
   const hasUsAddress = formData.company?.hasUsaAddress === 'Yes';
   const hasUsPhone = formData.company?.hasUsPhone === 'Yes';
