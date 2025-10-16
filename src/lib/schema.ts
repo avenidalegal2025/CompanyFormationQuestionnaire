@@ -65,6 +65,9 @@ export const OwnersSchema = z.array(OwnerSchema);
 /** ------------ Admin (Step 4) ------------ */
 export const AdminSchema = z
   .object({
+    // Agreement preference
+    wantAgreement: z.enum(["Yes", "No"]).optional(),
+    
     // Directors (C-Corp)
     directorsAllOwners: z.enum(["Yes", "No"]).optional(),
     directorsCount: z.number().int().min(1).optional(),
