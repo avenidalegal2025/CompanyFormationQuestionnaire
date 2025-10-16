@@ -919,7 +919,10 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
               onClick={() => {
                 try {
                   setValue("admin.wantAgreement", "Yes" as never);
-                } catch {}
+                  console.log('Step4Summary - Set admin.wantAgreement to Yes');
+                } catch (e) {
+                  console.error('Error setting admin.wantAgreement to Yes:', e);
+                }
                 setWantsAgreement(true);
                 setShowAgreementModal(false);
                 setStep(5);
@@ -934,6 +937,12 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                 type="button"
                 className="text-sm underline text-gray-600 hover:text-gray-800"
                 onClick={() => {
+                  try {
+                    setValue("admin.wantAgreement", "No" as never);
+                    console.log('Step4Summary - Set admin.wantAgreement to No');
+                  } catch (e) {
+                    console.error('Error setting admin.wantAgreement to No:', e);
+                  }
                   setWantsAgreement(false);
                   setShowAgreementModal(false);
                   setStep(9); // Go directly to checkout when skipping agreement
