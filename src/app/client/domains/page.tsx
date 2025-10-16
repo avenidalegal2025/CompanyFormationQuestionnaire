@@ -64,6 +64,8 @@ export default function DomainsPage() {
   const [purchasedDomains, setPurchasedDomains] = useState<PurchasedDomain[]>([]);
   const [companyData, setCompanyData] = useState<any>(null);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [isLoadingDomains, setIsLoadingDomains] = useState(false);
+  const [domainsError, setDomainsError] = useState<string | null>(null);
 
   // Build a map of domain -> displayPrice from the latest search results
   const domainPrices: Record<string, number> = useMemo(() => {
@@ -83,8 +85,8 @@ export default function DomainsPage() {
     return map;
   }, [searchResults]);
 
+  // Load company data from localStorage (runs once)
   useEffect(() => {
-    // Get company data from localStorage
     const savedData = localStorage.getItem('questionnaireData');
     if (savedData) {
       try {
@@ -94,30 +96,10 @@ export default function DomainsPage() {
         console.error('Error parsing saved data:', error);
       }
     }
+  }, []);
 
-    // Debug session data
-    console.log('Session status:', status);
-    console.log('Session data:', session);
-    if (session) {
-      console.log('User session data:', session);
-      console.log('User email:', session.user?.email);
-      console.log('User name:', session.user?.name);
-    }
-
-    // Load purchased domains from DynamoDB
-    loadPurchasedDomains();
-
-    // Auto-refresh for pending domains
-    const refreshInterval = setInterval(() => {
-      const hasPending = purchasedDomains.some(d => d.status === 'pending');
-      if (hasPending) {
-        loadPurchasedDomains();
-      }
-    }, 10000); // Refresh every 10 seconds if there are pending domains
-
-    return () => clearInterval(refreshInterval);
-
-    // Handle Stripe checkout success/cancel - only show if actually coming from Stripe
+  // Handle Stripe checkout success/cancel (runs once)
+  useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const success = urlParams.get('success');
     const canceled = urlParams.get('canceled');
@@ -136,6 +118,28 @@ export default function DomainsPage() {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
+
+  // Load domains when session is ready
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user?.email) {
+      console.log('Session ready, loading domains for:', session.user.email);
+      loadPurchasedDomains();
+    }
+  }, [status, session]);
+
+  // Auto-refresh for pending domains
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+
+    const refreshInterval = setInterval(() => {
+      const hasPending = purchasedDomains.some(d => d.status === 'pending');
+      if (hasPending) {
+        loadPurchasedDomains();
+      }
+    }, 10000); // Refresh every 10 seconds if there are pending domains
+
+    return () => clearInterval(refreshInterval);
+  }, [status, purchasedDomains]);
 
   const getCompanyDisplayName = () => {
     if (!companyData?.company) return 'Mi Empresa';
@@ -305,17 +309,32 @@ export default function DomainsPage() {
 
   const loadPurchasedDomains = async () => {
     try {
-      if (!session?.user?.email) return;
+      if (!session?.user?.email) {
+        console.log('No session email available');
+        return;
+      }
       
+      setIsLoadingDomains(true);
+      setDomainsError(null);
+      
+      console.log('Loading domains for user:', session.user.email);
       const response = await fetch(`/api/domains/list?userId=${encodeURIComponent(session.user.email)}`);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('Domains loaded successfully:', data);
         setPurchasedDomains(data.domains || []);
+        setDomainsError(null);
       } else {
-        console.error('Failed to load domains:', response.statusText);
+        const errorText = await response.text();
+        console.error('Failed to load domains:', response.status, errorText);
+        setDomainsError(`Failed to load domains: ${response.status} ${response.statusText}`);
       }
     } catch (error) {
       console.error('Error loading domains:', error);
+      setDomainsError(`Error loading domains: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsLoadingDomains(false);
     }
   };
 
@@ -561,13 +580,31 @@ export default function DomainsPage() {
               </div>
             )}
 
-            {/* Purchased Domains */}
-            <div className="bg-white rounded-lg shadow-sm">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">Mis Dominios</h3>
-              </div>
-              
-              {purchasedDomains.length > 0 ? (
+                {/* Purchased Domains */}
+                <div className="bg-white rounded-lg shadow-sm">
+                  <div className="px-6 py-4 border-b border-gray-200">
+                    <h3 className="text-lg font-semibold text-gray-900">Mis Dominios</h3>
+                  </div>
+                  
+                  {isLoadingDomains ? (
+                    <div className="text-center py-12">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Cargando dominios...</h3>
+                      <p className="text-gray-600">Obteniendo información de tus dominios registrados</p>
+                    </div>
+                  ) : domainsError ? (
+                    <div className="text-center py-12">
+                      <ExclamationTriangleIcon className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Error al cargar dominios</h3>
+                      <p className="text-gray-600 mb-4">{domainsError}</p>
+                      <button
+                        onClick={loadPurchasedDomains}
+                        className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                      >
+                        Reintentar
+                      </button>
+                    </div>
+                  ) : purchasedDomains.length > 0 ? (
                 <div className="divide-y divide-gray-200">
                   {purchasedDomains.map((domain) => (
                     <div key={domain.namecheapOrderId} className="px-6 py-4 hover:bg-gray-50">
