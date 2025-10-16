@@ -1,5 +1,29 @@
 // Helper functions for authentication checks in step components
 
+// Generate custom Auth0 URL that goes directly to signup
+function getAuth0SignupUrl(callbackUrl: string): string {
+  const baseUrl = process.env.AUTH0_ISSUER_BASE_URL || process.env.AUTH0_ISSUER;
+  const clientId = process.env.AUTH0_CLIENT_ID;
+  const redirectUri = `${process.env.NEXTAUTH_URL}/api/auth/callback/auth0`;
+  
+  if (!baseUrl || !clientId) {
+    console.error('Missing Auth0 configuration');
+    return '/signin';
+  }
+  
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    scope: 'openid email profile',
+    screen_hint: 'signup',
+    prompt: 'login',
+    state: callbackUrl, // Pass callback URL as state
+  });
+  
+  return `${baseUrl}/authorize?${params.toString()}`;
+}
+
 export function handleSaveWithAuth(
   session: any,
   anonymousId: string,
@@ -14,8 +38,9 @@ export function handleSaveWithAuth(
       localStorage.setItem('anonymousDraftId', anonymousId);
       localStorage.setItem('anonymousDraftData', JSON.stringify(formData));
     }
-    // Redirect to signup with callback
-    window.location.href = `/signin?callbackUrl=${encodeURIComponent(`/?action=save&draftId=${anonymousId}`)}`;
+    // Redirect directly to Auth0 signup
+    const callbackUrl = `/?action=save&draftId=${anonymousId}`;
+    window.location.href = getAuth0SignupUrl(callbackUrl);
   } else {
     void onSave?.();
   }
@@ -35,8 +60,9 @@ export function handleShareWithAuth(
       localStorage.setItem('anonymousDraftId', anonymousId);
       localStorage.setItem('anonymousDraftData', JSON.stringify(formData));
     }
-    // Redirect to signup with callback
-    window.location.href = `/signin?callbackUrl=${encodeURIComponent(`/?action=share&draftId=${anonymousId}`)}`;
+    // Redirect directly to Auth0 signup
+    const callbackUrl = `/?action=share&draftId=${anonymousId}`;
+    window.location.href = getAuth0SignupUrl(callbackUrl);
   } else {
     void onGenerateLink?.();
   }
@@ -56,8 +82,9 @@ export function handleCheckoutWithAuth(
       localStorage.setItem('anonymousDraftId', anonymousId);
       localStorage.setItem('anonymousDraftData', JSON.stringify(formData));
     }
-    // Redirect to signup with callback
-    window.location.href = `/signin?callbackUrl=${encodeURIComponent(`/?action=checkout&draftId=${anonymousId}`)}`;
+    // Redirect directly to Auth0 signup
+    const callbackUrl = `/?action=checkout&draftId=${anonymousId}`;
+    window.location.href = getAuth0SignupUrl(callbackUrl);
   } else {
     void onNext?.();
   }

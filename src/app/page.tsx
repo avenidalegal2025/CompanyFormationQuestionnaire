@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useSession } from "next-auth/react";
+import { getAuth0SignupUrl } from "@/lib/auth0-client";
 
 import Step2Company from "@/components/steps/Step2Company";
 import Step3Owners from "@/components/steps/Step3Owners";
@@ -381,8 +382,9 @@ function QuestionnaireContent() {
           localStorage.setItem('anonymousDraftId', anonymousId);
           localStorage.setItem('anonymousDraftData', JSON.stringify(formData));
         }
-        // Redirect to signup with callback to continue to next step
-        window.location.href = `/signin?callbackUrl=${encodeURIComponent(`/?action=continue&draftId=${anonymousId}&step=${step + 1}`)}`;
+        // Redirect directly to Auth0 signup
+        const callbackUrl = `/?action=continue&draftId=${anonymousId}&step=${step + 1}`;
+        window.location.href = getAuth0SignupUrl(callbackUrl);
         return;
       }
       
