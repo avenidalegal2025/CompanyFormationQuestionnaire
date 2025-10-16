@@ -36,9 +36,9 @@ export async function GET(request: NextRequest) {
     
     const ddb = DynamoDBDocumentClient.from(ddbClient);
     
-    // Use the correct key structure that we know works
+    // Try different key structures to find the correct one
     const key = {
-      id: userId,
+      pk: userId,
       sk: 'DOMAINS'
     };
     
