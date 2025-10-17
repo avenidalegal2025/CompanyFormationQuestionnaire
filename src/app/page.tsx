@@ -63,12 +63,30 @@ function QuestionnaireContent() {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (!isSignedUp && step > 1) {
         e.preventDefault();
-        setShowExitWarning(true);
-        // Don't return anything to avoid browser's default warning
+        e.returnValue = 'Si sales antes de registrarte perderás toda tu información.';
+        return 'Si sales antes de registrarte perderás toda tu información.';
       }
     };
+    
+    // Also show our custom modal when user tries to navigate away
+    const handlePopState = () => {
+      if (!isSignedUp && step > 1) {
+        setShowExitWarning(true);
+        // Push the state back to prevent navigation
+        window.history.pushState(null, '', window.location.href);
+      }
+    };
+    
     window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('popstate', handlePopState);
+    
+    // Push initial state to enable popstate detection
+    window.history.pushState(null, '', window.location.href);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('popstate', handlePopState);
+    };
   }, [isSignedUp, step]);
 
   // Handle post-signup actions
