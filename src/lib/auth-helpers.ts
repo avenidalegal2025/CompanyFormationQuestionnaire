@@ -2,14 +2,17 @@
 
 // Generate custom Auth0 URL that goes directly to signup
 function getAuth0SignupUrl(callbackUrl: string): string {
-  const baseUrl = process.env.AUTH0_ISSUER_BASE_URL || process.env.AUTH0_ISSUER;
-  const clientId = process.env.AUTH0_CLIENT_ID;
-  const redirectUri = `${process.env.NEXTAUTH_URL}/api/auth/callback/auth0`;
+  // Use hardcoded values to ensure correct client ID
+  const baseUrl = 'https://dev-hx5xtiwldskmbisi.us.auth0.com';
+  const clientId = '8dvSA0Br1funvuupTaKSCdKgCaFSmfUT';
+  const redirectUri = `${window.location.origin}/api/auth/callback/auth0`;
   
-  if (!baseUrl || !clientId) {
-    console.error('Missing Auth0 configuration');
-    return '/signin';
-  }
+  console.log('Auth0 Config Debug (auth-helpers):', {
+    baseUrl,
+    clientId,
+    redirectUri,
+    callbackUrl
+  });
   
   const params = new URLSearchParams({
     response_type: 'code',
