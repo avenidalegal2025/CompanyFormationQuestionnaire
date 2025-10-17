@@ -40,10 +40,10 @@ export function handleSaveWithAuth(
     if (typeof window !== 'undefined') {
       localStorage.setItem('anonymousDraftId', anonymousId);
       localStorage.setItem('anonymousDraftData', JSON.stringify(formData));
+      localStorage.setItem('authCallbackUrl', `/?action=save&draftId=${anonymousId}`);
     }
     // Redirect directly to Auth0 signup
-    const callbackUrl = `/?action=save&draftId=${anonymousId}`;
-    window.location.href = getAuth0SignupUrl(callbackUrl);
+    window.location.href = getAuth0SignupUrl('');
   } else {
     void onSave?.();
   }
@@ -62,11 +62,10 @@ export function handleShareWithAuth(
     if (typeof window !== 'undefined') {
       localStorage.setItem('anonymousDraftId', anonymousId);
       localStorage.setItem('anonymousDraftData', JSON.stringify(formData));
+      localStorage.setItem('authCallbackUrl', `/?action=share&draftId=${anonymousId}`);
     }
     // Redirect directly to Auth0 signup
-    const callbackUrl = `/?action=share&draftId=${anonymousId}`;
-    const authUrl = getAuth0SignupUrl(callbackUrl);
-    window.location.href = authUrl;
+    window.location.href = getAuth0SignupUrl('');
   } else {
     void onGenerateLink?.();
   }
@@ -85,10 +84,10 @@ export function handleCheckoutWithAuth(
     if (typeof window !== 'undefined') {
       localStorage.setItem('anonymousDraftId', anonymousId);
       localStorage.setItem('anonymousDraftData', JSON.stringify(formData));
+      localStorage.setItem('authCallbackUrl', `/?action=checkout&draftId=${anonymousId}`);
     }
     // Redirect directly to Auth0 signup
-    const callbackUrl = `/?action=checkout&draftId=${anonymousId}`;
-    window.location.href = getAuth0SignupUrl(callbackUrl);
+    window.location.href = getAuth0SignupUrl('');
   } else {
     void onNext?.();
   }

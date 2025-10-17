@@ -19,7 +19,7 @@ export function getAuth0SignupUrl(callbackUrl: string): string {
     scope: 'openid email profile',
     screen_hint: 'signup',
     prompt: 'login',
-    state: callbackUrl, // Pass callback URL as state
+    // Don't pass state parameter to avoid OAuthCallback error
   });
   
   return `https://${baseUrl}/authorize?${params.toString()}`;

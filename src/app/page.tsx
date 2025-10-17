@@ -73,6 +73,32 @@ function QuestionnaireContent() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
+    // Check for callback URL in localStorage first
+    const storedCallbackUrl = localStorage.getItem('authCallbackUrl');
+    if (isSignedUp && storedCallbackUrl) {
+      // Clear the stored callback URL
+      localStorage.removeItem('authCallbackUrl');
+      
+      // Parse the callback URL
+      const url = new URL(storedCallbackUrl, window.location.origin);
+      const action = url.searchParams.get('action');
+      const draftId = url.searchParams.get('draftId');
+      const step = url.searchParams.get('step');
+      
+      // Handle the action
+      if (action === 'save') {
+        alert('¡Progreso guardado!');
+      } else if (action === 'share') {
+        // Trigger share modal (will be handled by ProgressSidebar)
+        // Note: This will be handled by ProgressSidebar component
+      } else if (action === 'checkout') {
+        setStep(9);
+      } else if (action === 'continue' && step) {
+        setStep(parseInt(step, 10));
+      }
+    }
+    
+    // Also check URL params for backward compatibility
     const urlParams = new URLSearchParams(window.location.search);
     const action = urlParams.get('action');
     const draftId = urlParams.get('draftId');
@@ -386,10 +412,10 @@ function QuestionnaireContent() {
         if (typeof window !== 'undefined') {
           localStorage.setItem('anonymousDraftId', anonymousId);
           localStorage.setItem('anonymousDraftData', JSON.stringify(formData));
+          localStorage.setItem('authCallbackUrl', `/?action=continue&draftId=${anonymousId}&step=${step + 1}`);
         }
         // Redirect directly to Auth0 signup
-        const callbackUrl = `/?action=continue&draftId=${anonymousId}&step=${step + 1}`;
-        window.location.href = getAuth0SignupUrl(callbackUrl);
+        window.location.href = getAuth0SignupUrl('');
         return;
       }
       
