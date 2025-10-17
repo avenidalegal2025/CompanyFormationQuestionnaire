@@ -64,7 +64,7 @@ function QuestionnaireContent() {
       if (!isSignedUp && step > 1) {
         e.preventDefault();
         setShowExitWarning(true);
-        return 'Si sales antes de registrarte perderás toda tu información.';
+        // Don't return anything to avoid browser's default warning
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
