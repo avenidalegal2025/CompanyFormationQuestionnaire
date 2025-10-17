@@ -129,7 +129,7 @@ export default function ProgressSidebar({
           if (!session) {
             console.log('No session, calling handleShareWithAuth');
             // Use our custom Auth0 signup URL
-            handleShareWithAuth(session, anonymousId, form, setShowShareModal);
+            handleShareWithAuth(session, anonymousId, form, () => setShowShareModal(true));
           } else {
             console.log('User is authenticated, showing share modal');
             setShowShareModal(true);
