@@ -126,17 +126,8 @@ export default function ProgressSidebar({
       <button
         onClick={() => {
           if (!session) {
-            // Save anonymous draft and redirect to signup
-            const formData = form?.getValues?.();
-            if (formData) {
-              // Save to localStorage as backup
-              if (typeof window !== 'undefined') {
-                localStorage.setItem('anonymousDraftId', anonymousId);
-                localStorage.setItem('anonymousDraftData', JSON.stringify(formData));
-              }
-              // Redirect to signup with callback
-              window.location.href = `/signin?callbackUrl=${encodeURIComponent(`/?action=share&draftId=${anonymousId}`)}`;
-            }
+            // Use our custom Auth0 signup URL
+            handleShareWithAuth(session, anonymousId, form, setShowShareModal);
           } else {
             setShowShareModal(true);
           }
