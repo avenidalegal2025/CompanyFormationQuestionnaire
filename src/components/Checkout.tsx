@@ -51,7 +51,24 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
   
   // If entityType is undefined, we can't show agreement services
   if (!entityType) {
-    return null;
+    console.error('Checkout: entityType is undefined', {
+      formData: formData,
+      company: formData.company,
+      entityType: formData.company?.entityType
+    });
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <h2 className="text-lg font-semibold text-red-800 mb-2">Error de Configuración</h2>
+          <p className="text-red-700">
+            No se pudo determinar el tipo de entidad. Por favor, regresa a los pasos anteriores y completa la información de la empresa.
+          </p>
+          <p className="text-sm text-red-600 mt-2">
+            Entity Type: {formData.company?.entityType || 'undefined'}
+          </p>
+        </div>
+      </div>
+    );
   }
   const state = formData.company?.formationState || 'Delaware'; // Use formationState, not state
   const hasUsAddress = formData.company?.hasUsaAddress === 'Yes';

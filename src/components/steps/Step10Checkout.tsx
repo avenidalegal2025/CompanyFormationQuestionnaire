@@ -19,6 +19,15 @@ export default function Step10Checkout({ form, setStep, onSave, onNext, session,
   // Get entity type for agreement display
   const entityType = formData.company?.entityType as 'LLC' | 'C-Corp' | undefined;
   
+  // Debug logging
+  console.log('Step10Checkout Debug:', {
+    formData,
+    company: formData.company,
+    entityType,
+    admin: formData.admin,
+    wantsAgreement: formData.admin?.wantAgreement
+  });
+  
   // Check if user wants agreement based on form data
   const wantsAgreement = formData.admin?.wantAgreement === 'Yes';
   
