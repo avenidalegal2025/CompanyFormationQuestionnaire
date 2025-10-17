@@ -379,8 +379,8 @@ function QuestionnaireContent() {
     try {
       await doSave();
       
-      // Check if user needs to sign up after resumen step (step 4)
-      if (step === 4 && !isSignedUp) {
+      // Check if user needs to sign up (for any step after 1)
+      if (step > 1 && !isSignedUp) {
         // Save anonymous draft and redirect to signup
         const formData = form.getValues();
         if (typeof window !== 'undefined') {

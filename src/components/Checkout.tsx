@@ -30,18 +30,14 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
         // Hardcoded publishable key for testing
         const publishableKey = 'pk_test_51SGTFyGoKexkldbNsdNd2lWJGuWB58srkRs8UBWOyQoGLkr6ecvAmr1X0ZiWc6ZITQvUx1aKXn3qOWJH1URddSXq00TVfjU31N';
         
-        console.log('Stripe publishable key available:', !!publishableKey);
         
         if (publishableKey) {
           const stripe = await loadStripe(publishableKey);
           setStripePromise(stripe);
-          console.log('Stripe initialized successfully');
         } else {
-          console.error('Stripe publishable key not found');
           setError('Stripe no está configurado correctamente');
         }
       } catch (err) {
-        console.error('Error initializing Stripe:', err);
         setError('Error al inicializar Stripe');
       } finally {
         setStripeLoading(false);
@@ -55,33 +51,12 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
   
   // If entityType is undefined, we can't show agreement services
   if (!entityType) {
-    console.error('Entity type is undefined in Checkout component');
-    console.log('Full form data:', formData);
-    console.log('Company data:', formData.company);
+    return null;
   }
   const state = formData.company?.formationState || 'Delaware'; // Use formationState, not state
   const hasUsAddress = formData.company?.hasUsaAddress === 'Yes';
   const hasUsPhone = formData.company?.hasUsPhone === 'Yes';
 
-  // Debug form data
-  console.log('Checkout form data:', {
-    entityType,
-    state,
-    hasUsAddress,
-    hasUsPhone,
-    skipAgreement,
-    companyData: formData.company,
-    fullFormData: formData
-  });
-  
-  console.log('Checkout - entityType check:', {
-    entityType,
-    isLLC: entityType === 'LLC',
-    isCCorp: entityType === 'C-Corp',
-    skipAgreement,
-    shouldAddOperating: !skipAgreement && entityType === 'LLC',
-    shouldAddShareholder: !skipAgreement && entityType === 'C-Corp'
-  });
 
   // Auto-select services based on user's current status
   useEffect(() => {
@@ -161,12 +136,10 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
       });
 
       const result = await response.json();
-      console.log('API Response:', result);
       
       const { sessionId, paymentLinkUrl, error: sessionError } = result;
 
       if (sessionError) {
-        console.error('Session creation error:', sessionError);
         throw new Error(sessionError);
       }
       
@@ -188,44 +161,31 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
   };
 
   const availableServices = SERVICES.filter(service => {
-    console.log(`Checking service ${service.id}:`, {
-      hasUsAddress,
-      hasUsPhone,
-      skipAgreement,
-      entityType,
-      serviceCategory: service.category
-    });
     
     // Show address service only if user doesn't have one
     if (service.id === 'business_address' && hasUsAddress) {
-      console.log('Filtering out business_address because user has US address');
       return false;
     }
     
     // Show phone service only if user doesn't have one
     if (service.id === 'business_phone' && hasUsPhone) {
-      console.log('Filtering out business_phone because user has US phone');
       return false;
     }
     
     // Show agreement service only if user didn't skip it AND it matches the entity type
     if (service.id === 'operating_agreement') {
       const shouldShow = !skipAgreement && entityType === 'LLC';
-      console.log(`Operating agreement should show: ${shouldShow} (skipAgreement: ${skipAgreement}, entityType: ${entityType})`);
       return shouldShow;
     }
     if (service.id === 'shareholder_agreement') {
       const shouldShow = !skipAgreement && entityType === 'C-Corp';
-      console.log(`Shareholder agreement should show: ${shouldShow} (skipAgreement: ${skipAgreement}, entityType: ${entityType})`);
       return shouldShow;
     }
     
     // Show all other services (address, phone, agreement)
-    console.log(`Showing service ${service.id}`);
     return true;
   });
   
-  console.log('Available services after filtering:', availableServices.map(s => s.id));
 
   // Get formation price for display
   const formationPrice = FORMATION_PRICES[entityType]?.[state] || (entityType === 'LLC' ? 60000 : 80000);

@@ -36,7 +36,7 @@ export const authOptions = {
           screen_hint: "signup",
         },
       },
-      checks: ["state"],
+      checks: [],
     }),
   ],
   callbacks: {

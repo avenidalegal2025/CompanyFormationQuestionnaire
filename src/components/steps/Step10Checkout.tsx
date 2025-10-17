@@ -22,11 +22,6 @@ export default function Step10Checkout({ form, setStep, onSave, onNext, session,
   // Check if user wants agreement based on form data
   const wantsAgreement = formData.admin?.wantAgreement === 'Yes';
   
-  // Debug logging
-  console.log('Step10Checkout - entityType:', entityType);
-  console.log('Step10Checkout - wantsAgreement:', wantsAgreement);
-  console.log('Step10Checkout - admin.wantAgreement:', formData.admin?.wantAgreement);
-  console.log('Step10Checkout - skipAgreement:', !wantsAgreement);
   
   // Get the formation state for display
   const formationState = formData.company?.formationState || 'Delaware';
@@ -38,7 +33,6 @@ export default function Step10Checkout({ form, setStep, onSave, onNext, session,
 
   const handleCheckoutSuccess = (sessionId: string) => {
     // Here you would typically save the session ID and redirect
-    console.log('Checkout successful:', sessionId);
     // You could redirect to a success page or show a confirmation
   };
 
@@ -49,8 +43,6 @@ export default function Step10Checkout({ form, setStep, onSave, onNext, session,
   if (showCheckout) {
     // Get fresh form data when showing checkout
     const currentFormData = form.getValues();
-    console.log('Step10Checkout - Current form data:', currentFormData);
-    console.log('Step10Checkout - Entity type:', currentFormData.company?.entityType);
     
     return (
       <Checkout
