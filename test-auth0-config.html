@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Auth0 Configuration Test</title>
+</head>
+<body>
+    <h1>Auth0 Configuration Test</h1>
+    <div id="results"></div>
+    
+    <script>
+        async function testAuth0Config() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>Testing Auth0 configuration...</p>';
+            
+            try {
+                // Test 1: Check if we can access the OpenID configuration
+                const configUrl = 'https://dev-hx5xtiwldskmbisi.us.auth0.com/.well-known/openid_configuration';
+                const response = await fetch(configUrl);
+                const config = await response.json();
+                
+                results.innerHTML += `
+                    <h3>OpenID Configuration:</h3>
+                    <pre>${JSON.stringify(config, null, 2)}</pre>
+                `;
+                
+                // Test 2: Try a minimal authorization request
+                const clientId = '8dvSA0Br1funvuupTaKSCdKgCAFSmfUT';
+                const redirectUri = 'https://company-formation-questionnaire.vercel.app/api/auth/callback/auth0';
+                
+                const authUrl = `https://dev-hx5xtiwldskmbisi.us.auth0.com/authorize?` +
+                    `response_type=code&` +
+                    `client_id=${clientId}&` +
+                    `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+                    `scope=openid&` +
+                    `state=test123`;
+                
+                results.innerHTML += `
+                    <h3>Generated Auth URL:</h3>
+                    <p><a href="${authUrl}" target="_blank">${authUrl}</a></p>
+                    <button onclick="window.open('${authUrl}', '_blank')">Test Auth URL</button>
+                `;
+                
+            } catch (error) {
+                results.innerHTML += `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        }
+        
+        // Run test on page load
+        testAuth0Config();
+    </script>
+</body>
+</html>
