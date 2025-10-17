@@ -33,7 +33,6 @@ export function handleSaveWithAuth(
   form: any,
   onSave: (() => void) | undefined
 ) {
-  console.log('handleSaveWithAuth called, session:', !!session);
   if (!session) {
     // Save anonymous draft and redirect to signup
     const formData = form.getValues();
@@ -56,12 +55,9 @@ export function handleShareWithAuth(
   form: any,
   onGenerateLink: (() => void) | undefined
 ) {
-  console.log('handleShareWithAuth called with session:', !!session, 'anonymousId:', anonymousId, 'form:', form);
   if (!session) {
-    console.log('No session, redirecting to Auth0 signup');
     // Save anonymous draft and redirect to signup
     const formData = form?.getValues?.();
-    console.log('Form data retrieved:', formData);
     // Save to localStorage as backup
     if (typeof window !== 'undefined') {
       localStorage.setItem('anonymousDraftId', anonymousId);
@@ -70,11 +66,8 @@ export function handleShareWithAuth(
     // Redirect directly to Auth0 signup
     const callbackUrl = `/?action=share&draftId=${anonymousId}`;
     const authUrl = getAuth0SignupUrl(callbackUrl);
-    console.log('Generated Auth0 URL:', authUrl);
-    console.log('About to redirect to:', authUrl);
     window.location.href = authUrl;
   } else {
-    console.log('User is authenticated, calling onGenerateLink');
     void onGenerateLink?.();
   }
 }
