@@ -7,7 +7,7 @@ export function getAuth0SignupUrl(callbackUrl: string): string {
   
   // Use hardcoded values for now since env vars aren't loading properly
   const baseUrl = 'dev-hx5xtiwldskmbisi.us.auth0.com';
-  const clientId = '8dvSA0Br1funvuupTaKSCdKgCAFSmfUT';
+  const clientId = '8dvSA0Br1funvuupTaKSCdKgCaFSmfUT';
   const redirectUri = `${window.location.origin}/api/auth/callback/auth0`;
   
   console.log('Auth0 Config Debug:', {

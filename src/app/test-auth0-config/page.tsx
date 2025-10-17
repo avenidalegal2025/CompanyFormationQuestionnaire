@@ -18,7 +18,7 @@ export default function TestAuth0Config() {
       setResults(prev => prev + 'Skipping OpenID config test due to CORS restrictions.\n');
       
       // Test 2: Try a minimal authorization request
-      const clientId = '8dvSA0Br1funvuupTaKSCdKgCAFSmfUT';
+      const clientId = '8dvSA0Br1funvuupTaKSCdKgCaFSmfUT';
       const redirectUri = 'https://company-formation-questionnaire.vercel.app/api/auth/callback/auth0';
       
       const authUrl = `https://dev-hx5xtiwldskmbisi.us.auth0.com/authorize?` +
