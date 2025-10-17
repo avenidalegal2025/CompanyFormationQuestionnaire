@@ -28,6 +28,18 @@ export default function TestDirectPage() {
     window.location.href = simpleUrl;
   };
 
+  const handleTestUniversalLogin = () => {
+    // Test using Auth0 Universal Login (recommended approach)
+    const baseUrl = 'dev-hx5xtiwldskmbisi.us.auth0.com';
+    const clientId = '8dvSA0Br1funvuupTaKSCdKgCAFSmfUT';
+    const redirectUri = 'https://company-formation-questionnaire.vercel.app/api/auth/callback/auth0';
+    
+    // Use Universal Login endpoint
+    const universalLoginUrl = `https://${baseUrl}/u/login?client=${clientId}&returnTo=${encodeURIComponent(redirectUri)}`;
+    console.log('Universal Login URL:', universalLoginUrl);
+    window.location.href = universalLoginUrl;
+  };
+
   return (
     <div className="p-8">
       <h1 className="text-2xl font-bold mb-4">Test Direct Auth0 URL</h1>
@@ -43,6 +55,12 @@ export default function TestDirectPage() {
           className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 block"
         >
           Test Auth0 Simple URL (Minimal)
+        </button>
+        <button 
+          onClick={handleTestUniversalLogin}
+          className="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 block"
+        >
+          Test Auth0 Universal Login
         </button>
       </div>
       <div className="mt-4">
