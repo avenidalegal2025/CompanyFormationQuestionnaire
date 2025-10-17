@@ -39,5 +39,5 @@ export function getAuth0SignupUrl(callbackUrl: string): string {
     state: callbackUrl, // Pass callback URL as state
   });
   
-  return `${baseUrl}/authorize?${params.toString()}`;
+  return `https://${baseUrl}/authorize?${params.toString()}`;
 }
