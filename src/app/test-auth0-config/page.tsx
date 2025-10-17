@@ -12,15 +12,10 @@ export default function TestAuth0Config() {
 
   const testAuth0Config = async () => {
     try {
-      // Test 1: Check if we can access the OpenID configuration
-      const configUrl = 'https://dev-hx5xtiwldskmbisi.us.auth0.com/.well-known/openid_configuration';
-      const response = await fetch(configUrl);
-      const config = await response.json();
+      setResults('Testing Auth0 configuration...\n');
       
-      setResults(prev => prev + `
-OpenID Configuration:
-${JSON.stringify(config, null, 2)}
-      `);
+      // Skip the OpenID config test due to CORS issues
+      setResults(prev => prev + 'Skipping OpenID config test due to CORS restrictions.\n');
       
       // Test 2: Try a minimal authorization request
       const clientId = '8dvSA0Br1funvuupTaKSCdKgCAFSmfUT';
@@ -34,6 +29,7 @@ ${JSON.stringify(config, null, 2)}
         `state=test123`;
       
       setAuthUrl(authUrl);
+      setResults(prev => prev + `Generated minimal auth URL:\n${authUrl}\n`);
       
     } catch (error) {
       setResults(prev => prev + `\nError: ${error instanceof Error ? error.message : 'Unknown error'}`);
