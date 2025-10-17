@@ -15,6 +15,7 @@ import Step9Agreement4 from "@/components/steps/Step9Agreement4";
 import Step5Admin from "@/components/steps/Step5Admin";
 import Step10Checkout from "@/components/steps/Step10Checkout";
 import ProgressSidebar, { type ProgressItem } from "@/components/ProgressSidebar";
+import ExitWarningModal from "@/components/ExitWarningModal";
 
 import type { AllSteps } from "@/lib/schema";
 import { saveDraft, loadDraft, type DraftItem } from "@/lib/drafts";
@@ -25,6 +26,9 @@ function QuestionnaireContent() {
   // Session management
   const { data: session, status } = useSession();
   const isSignedUp = status === 'authenticated';
+  
+  // Exit warning modal state
+  const [showExitWarning, setShowExitWarning] = useState(false);
   
   // Initialize form
   const form = useForm<AllSteps>({
@@ -52,12 +56,15 @@ function QuestionnaireContent() {
     return crypto.randomUUID();
   });
 
+  // Custom close warning modal state
+
   // Browser close warning for unsigned users
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (!isSignedUp && step > 1) {
         e.preventDefault();
-        e.returnValue = 'Los cambios que realizaste podrían no guardarse.';
+        setShowExitWarning(true);
+        return 'Si sales antes de registrarte perderás toda tu información.';
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -394,6 +401,26 @@ function QuestionnaireContent() {
     }
   };
 
+  // Exit warning modal handlers
+  const handleRegister = () => {
+    setShowExitWarning(false);
+    // Save anonymous draft and redirect to signup
+    const formData = form.getValues();
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('anonymousDraftId', anonymousId);
+      localStorage.setItem('anonymousDraftData', JSON.stringify(formData));
+    }
+    // Redirect directly to Auth0 signup
+    const callbackUrl = `/?action=continue&draftId=${anonymousId}&step=${step}`;
+    window.location.href = getAuth0SignupUrl(callbackUrl);
+  };
+
+  const handleExit = () => {
+    setShowExitWarning(false);
+    // Allow the page to close
+    window.close();
+  };
+
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
@@ -474,6 +501,13 @@ function QuestionnaireContent() {
           )}
         </form>
       </main>
+      
+      {/* Exit Warning Modal */}
+      <ExitWarningModal
+        isOpen={showExitWarning}
+        onRegister={handleRegister}
+        onExit={handleExit}
+      />
     </div>
   );
 }
