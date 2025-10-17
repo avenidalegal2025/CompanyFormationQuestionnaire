@@ -125,10 +125,13 @@ export default function ProgressSidebar({
       {/* Share Button */}
       <button
         onClick={() => {
+          console.log('Compartir button clicked, session:', !!session, 'session data:', session);
           if (!session) {
+            console.log('No session, calling handleShareWithAuth');
             // Use our custom Auth0 signup URL
             handleShareWithAuth(session, anonymousId, form, setShowShareModal);
           } else {
+            console.log('User is authenticated, showing share modal');
             setShowShareModal(true);
           }
         }}
