@@ -17,6 +17,14 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
   const { register, watch, control, formState: { errors } } = form;
   const isCorp = watch("company.entityType") === "C-Corp";
 
+  // Helper function to check if input should be red
+  const isInputInvalid = (decisionValue: string, majorityValue: number | undefined) => {
+    if (decisionValue === "Mayoría") {
+      return !majorityValue || majorityValue < 50.01 || majorityValue > 99.99;
+    }
+    return false;
+  };
+
   // Custom validation for majority percentages
   const validateMajorityPercentages = () => {
     if (isCorp) {
@@ -138,23 +146,17 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                           min="50.01"
                           max="99.99"
                           step="0.01"
-                          className="input w-full"
+                          className={`input w-full ${
+                            isInputInvalid(
+                              watch("agreement.corp_transferToRelatives") || "", 
+                              watch("agreement.corp_transferToRelativesMajority")
+                            ) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''
+                          }`}
                           {...register("agreement.corp_transferToRelativesMajority", { 
                             valueAsNumber: true,
                             min: 50.01,
                             max: 99.99
                           })}
-                          onBlur={(e) => {
-                            const value = parseFloat(e.target.value);
-                            if (!isNaN(value)) {
-                              if (value < 50.01) {
-                                e.target.value = "50.01";
-                              } else if (value > 99.99) {
-                                e.target.value = "99.99";
-                              }
-                            }
-                            register("agreement.corp_transferToRelativesMajority").onChange(e);
-                          }}
                         />
                       </div>
                       <span className="text-sm text-gray-500">%</span>
@@ -337,23 +339,17 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                           min="50.01"
                           max="99.99"
                           step="0.01"
-                          className="input w-full"
+                          className={`input w-full ${
+                            isInputInvalid(
+                              watch("agreement.llc_newPartnersAdmission") || "", 
+                              watch("agreement.llc_newPartnersMajority")
+                            ) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''
+                          }`}
                           {...register("agreement.llc_newPartnersMajority", {
                             valueAsNumber: true,
                             min: 50.01,
                             max: 99.99,
                           })}
-                          onBlur={(e) => {
-                            const value = parseFloat(e.target.value);
-                            if (!isNaN(value)) {
-                              if (value < 50.01) {
-                                e.target.value = "50.01";
-                              } else if (value > 99.99) {
-                                e.target.value = "99.99";
-                              }
-                            }
-                            register("agreement.llc_newPartnersMajority").onChange(e);
-                          }}
                         />
                       </div>
                       <span className="text-sm text-gray-500">%</span>
@@ -398,23 +394,17 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                           min="50.01"
                           max="99.99"
                           step="0.01"
-                          className="input w-full"
+                          className={`input w-full ${
+                            isInputInvalid(
+                              watch("agreement.llc_dissolutionDecision") || "", 
+                              watch("agreement.llc_dissolutionDecisionMajority")
+                            ) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''
+                          }`}
                           {...register("agreement.llc_dissolutionDecisionMajority", {
                             valueAsNumber: true,
                             min: 50.01,
                             max: 99.99,
                           })}
-                          onBlur={(e) => {
-                            const value = parseFloat(e.target.value);
-                            if (!isNaN(value)) {
-                              if (value < 50.01) {
-                                e.target.value = "50.01";
-                              } else if (value > 99.99) {
-                                e.target.value = "99.99";
-                              }
-                            }
-                            register("agreement.llc_dissolutionDecisionMajority").onChange(e);
-                          }}
                         />
                       </div>
                       <span className="text-sm text-gray-500">%</span>

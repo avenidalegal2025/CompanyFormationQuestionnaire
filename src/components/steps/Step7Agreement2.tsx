@@ -17,6 +17,14 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
   const { register, watch, control, formState: { errors } } = form;
   const isCorp = watch("company.entityType") === "C-Corp";
 
+  // Helper function to check if input should be red
+  const isInputInvalid = (decisionValue: string, majorityValue: number | undefined) => {
+    if (decisionValue === "Mayoría") {
+      return !majorityValue || majorityValue < 50.01 || majorityValue > 99.99;
+    }
+    return false;
+  };
+
   // Custom validation for majority percentages
   const validateMajorityPercentages = () => {
     if (isCorp) {
@@ -114,7 +122,12 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                           min="50.01"
                           max="99.99"
                           step="0.01"
-                          className={`input w-full ${errors.agreement?.corp_newShareholdersMajority ? 'border-red-500 focus:ring-red-500' : ''}`}
+                          className={`input w-full ${
+                            isInputInvalid(
+                              watch("agreement.corp_newShareholdersAdmission") || "", 
+                              watch("agreement.corp_newShareholdersMajority")
+                            ) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''
+                          }`}
                           {...register("agreement.corp_newShareholdersMajority", { 
                             valueAsNumber: true,
                             min: {
@@ -126,17 +139,6 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                               message: "El valor debe ser menor o igual a 99.99"
                             }
                           })}
-                          onBlur={(e) => {
-                            const value = parseFloat(e.target.value);
-                            if (!isNaN(value)) {
-                              if (value < 50.01) {
-                                e.target.value = "50.01";
-                              } else if (value > 99.99) {
-                                e.target.value = "99.99";
-                              }
-                            }
-                            register("agreement.corp_newShareholdersMajority").onChange(e);
-                          }}
                         />
                       </div>
                       <span className="text-sm text-gray-500">%</span>
@@ -213,7 +215,12 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                               min="50.01"
                               max="99.99"
                               step="0.01"
-                              className={`input w-full ${errors.agreement?.corp_moreCapitalMajority ? 'border-red-500 focus:ring-red-500' : ''}`}
+                              className={`input w-full ${
+                                isInputInvalid(
+                                  watch("agreement.corp_moreCapitalDecision") || "", 
+                                  watch("agreement.corp_moreCapitalMajority")
+                                ) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''
+                              }`}
                               {...register("agreement.corp_moreCapitalMajority", { 
                                 valueAsNumber: true,
                                 min: {
@@ -225,17 +232,6 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                                   message: "El valor debe ser menor o igual a 99.99"
                                 }
                               })}
-                              onBlur={(e) => {
-                                const value = parseFloat(e.target.value);
-                                if (!isNaN(value)) {
-                                  if (value < 50.01) {
-                                    e.target.value = "50.01";
-                                  } else if (value > 99.99) {
-                                    e.target.value = "99.99";
-                                  }
-                                }
-                                register("agreement.corp_moreCapitalMajority").onChange(e);
-                              }}
                             />
                           </div>
                           <span className="text-sm text-gray-500">%</span>
@@ -316,29 +312,23 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                           min="50.01"
                           max="99.99"
                           step="0.01"
-                            className={`input w-full ${errors.agreement?.llc_newMembersMajority ? 'border-red-500 focus:ring-red-500' : ''}`}
+                          className={`input w-full ${
+                            isInputInvalid(
+                              watch("agreement.llc_newMembersAdmission") || "", 
+                              watch("agreement.llc_newMembersMajority")
+                            ) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''
+                          }`}
                           {...register("agreement.llc_newMembersMajority", { 
                             valueAsNumber: true,
-                              min: {
-                                value: 50.01,
-                                message: "El valor debe ser mayor o igual a 50.01"
-                              },
-                              max: {
-                                value: 99.99,
-                                message: "El valor debe ser menor o igual a 99.99"
-                              }
-                            })}
-                            onBlur={(e) => {
-                              const value = parseFloat(e.target.value);
-                              if (!isNaN(value)) {
-                                if (value < 50.01) {
-                                  e.target.value = "50.01";
-                                } else if (value > 99.99) {
-                                  e.target.value = "99.99";
-                                }
-                              }
-                              register("agreement.llc_newMembersMajority").onChange(e);
-                            }}
+                            min: {
+                              value: 50.01,
+                              message: "El valor debe ser mayor o igual a 50.01"
+                            },
+                            max: {
+                              value: 99.99,
+                              message: "El valor debe ser menor o igual a 99.99"
+                            }
+                          })}
                         />
                       </div>
                       <span className="text-sm text-gray-500">%</span>
@@ -416,8 +406,13 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                               min="50.01"
                               max="99.99"
                               step="0.01"
-                              className={`input w-full ${errors.agreement?.llc_additionalContributionsMajority ? 'border-red-500 focus:ring-red-500' : ''}`}
-                              {...register("agreement.llc_additionalContributionsMajority", { 
+                              className={`input w-full ${
+                                isInputInvalid(
+                                  watch("agreement.llc_additionalContributionsDecision") || "", 
+                                  watch("agreement.llc_additionalContributionsMajority")
+                                ) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''
+                              }`}
+                              {...register("agreement.llc_additionalContributionsMajority", {
                                 valueAsNumber: true,
                                 min: {
                                   value: 50.01,
@@ -428,17 +423,6 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                                   message: "El valor debe ser menor o igual a 99.99"
                                 }
                               })}
-                              onBlur={(e) => {
-                                const value = parseFloat(e.target.value);
-                                if (!isNaN(value)) {
-                                  if (value < 50.01) {
-                                    e.target.value = "50.01";
-                                  } else if (value > 99.99) {
-                                    e.target.value = "99.99";
-                                  }
-                                }
-                                register("agreement.llc_additionalContributionsMajority").onChange(e);
-                              }}
                             />
                           </div>
                           <span className="text-sm text-gray-500">%</span>
