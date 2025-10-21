@@ -79,6 +79,13 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
     return [];
   }, [entityType]);
 
+  // Set default entity type on mount
+  useEffect(() => {
+    if (!entityType) {
+      setValue("company.entityType", "LLC", { shouldValidate: true });
+    }
+  }, [entityType, setValue]);
+
   // Set default suffix when entity type changes
   useEffect(() => {
     if (entityType === "LLC" && !entitySuffix) {
