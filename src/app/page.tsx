@@ -34,7 +34,10 @@ function QuestionnaireContent() {
       company: {},
       owners: [],
       ownersCount: undefined, // Start empty, will default to 1 for rendering
-      admin: {},
+      admin: {
+        officersAllOwners: "Yes", // Default to "Yes" so role assignment section shows on load
+        directorsAllOwners: "Yes", // Default to "Yes" for consistency
+      },
       banking: {},
       attachments: {},
     },
