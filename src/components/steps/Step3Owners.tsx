@@ -2,6 +2,7 @@
 "use client";
 
 import { Controller } from "react-hook-form";
+import { useState, useEffect } from "react";
 import SegmentedToggle from "@/components/SegmentedToggle";
 import SSNEINInput from "@/components/SSNEINInput";
 import HeroMiami2 from "@/components/HeroMiami2";
@@ -33,7 +34,13 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
 
   // How many blocks to render (stored at root as ownersCount)
   const ownersCount = (watch("ownersCount") as number | undefined) ?? 1;
+  const [inputValue, setInputValue] = useState(ownersCount.toString());
   console.log("Current ownersCount:", ownersCount);
+
+  // Sync input value when form value changes
+  useEffect(() => {
+    setInputValue(ownersCount.toString());
+  }, [ownersCount]);
 
   // Calculate total percentage owned
   const totalPercentage = Array.from({ length: ownersCount }).reduce((total: number, _, i) => {
@@ -62,28 +69,28 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
             min={1}
             max={MAX_OWNERS}
             className="input w-full max-w-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            value={ownersCount || ""}
+            value={inputValue}
             placeholder="Ingrese número (1-6)"
             onChange={(e) => {
               const value = e.target.value;
-              console.log("Input value:", value);
+              setInputValue(value); // Update local state immediately
               
-              // Allow empty string - don't set to 1 automatically
+              // Only update form value if it's a valid number
               if (value === "") {
-                setValue("ownersCount", 1); // Keep 1 as default for rendering
+                // Allow empty field while typing
                 return;
               }
               
               const numValue = Number(value);
-              if (!isNaN(numValue)) {
-                // Only allow values between 1 and MAX_OWNERS
-                if (numValue >= 1 && numValue <= MAX_OWNERS) {
-                  console.log("Setting to:", numValue);
-                  setValue("ownersCount", numValue);
-                } else {
-                  // Don't update for invalid values
-                  console.log("Invalid value, not updating");
-                }
+              if (!isNaN(numValue) && numValue >= 1 && numValue <= MAX_OWNERS) {
+                setValue("ownersCount", numValue);
+              }
+            }}
+            onBlur={() => {
+              // When user leaves the field, ensure we have a valid value
+              if (inputValue === "" || Number(inputValue) < 1 || Number(inputValue) > MAX_OWNERS) {
+                setInputValue("1");
+                setValue("ownersCount", 1);
               }
             }}
             onKeyDown={(e) => {
