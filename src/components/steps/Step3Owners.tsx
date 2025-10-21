@@ -62,7 +62,7 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
             min={1}
             max={MAX_OWNERS}
             className="input w-full max-w-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            value={ownersCount === 1 ? "" : ownersCount || ""}
+            value={ownersCount || ""}
             placeholder="Ingrese número (1-6)"
             onChange={(e) => {
               const value = e.target.value;
