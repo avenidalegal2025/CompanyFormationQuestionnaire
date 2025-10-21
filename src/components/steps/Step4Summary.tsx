@@ -642,6 +642,51 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                   )}
                 </div>
 
+                {/* Officer roles (when all owners are officers) */}
+                {adminData?.officersAllOwners === "Yes" && (
+                  <div className="mt-6 space-y-4">
+                    <h4 className="text-md font-bold text-gray-900">Roles de Oficiales</h4>
+                    <div className="space-y-3">
+                      {Array.from({ length: watch("ownersCount") || 1 }).map((_, idx) => {
+                        const ownerName = watch(`owners.${idx}.fullName`) as string;
+                        const officerRole = watch(`admin.shareholderOfficer${idx + 1}Role`) as string;
+                        const nameStr = ownerName || `Accionista ${idx + 1}`;
+                        const roleStr = officerRole || "Sin asignar";
+                        return (
+                          <div key={idx} className="rounded-lg border border-gray-100 p-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <span className="font-bold text-gray-700">Accionista:</span>
+                                <p className="text-gray-900">{nameStr}</p>
+                              </div>
+                              <div>
+                                <span className="font-bold text-gray-700">Rol:</span>
+                                {editingSection === "admin" ? (
+                                  <Controller
+                                    name={`admin.shareholderOfficer${idx + 1}Role` as never}
+                                    control={control}
+                                    render={({ field }) => (
+                                      <select className="input mt-1" {...field}>
+                                        <option value="">Seleccionar rol</option>
+                                        <option value="President">President</option>
+                                        <option value="Vice-President">Vice-President</option>
+                                        <option value="Treasurer">Treasurer</option>
+                                        <option value="Secretary">Secretary</option>
+                                      </select>
+                                    )}
+                                  />
+                                ) : (
+                                  <p className="text-gray-900">{roleStr}</p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Directors list (when not all owners) */}
                 {adminData?.directorsAllOwners === "No" && (adminData?.directorsCount ?? 0) > 0 && (
                   <div className="mt-6 space-y-4">
