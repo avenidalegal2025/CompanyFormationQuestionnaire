@@ -125,7 +125,25 @@ function QuestionnaireContent() {
         }
       }
     }
-  }, [isSignedUp]);
+    
+    // Additional check: if user is signed up and we have anonymous data, restore it
+    if (isSignedUp) {
+      const anonymousData = localStorage.getItem('anonymousDraftData');
+      if (anonymousData) {
+        console.log('Post-signup: Found anonymous data, restoring...', anonymousData);
+        try {
+          const parsed = JSON.parse(anonymousData) as Partial<AllSteps>;
+          form.reset(parsed);
+          console.log('Post-signup: Form reset with anonymous data. New form values:', form.getValues());
+          // Clear the anonymous data after restoring
+          localStorage.removeItem('anonymousDraftData');
+          localStorage.removeItem('anonymousDraftId');
+        } catch (error) {
+          console.error('Post-signup: Error parsing anonymous data:', error);
+        }
+      }
+    }
+  }, [isSignedUp, form]);
 
   // If arriving from a short link, prefill the form from localStorage
   useEffect(() => {
@@ -167,10 +185,7 @@ function QuestionnaireContent() {
         console.log('Restoring anonymous draft data:', anonymousData);
         const parsed = JSON.parse(anonymousData) as Partial<AllSteps>;
         console.log('Parsed anonymous data:', parsed);
-        form.reset({
-          ...form.getValues(),
-          ...parsed,
-        });
+        form.reset(parsed);
         console.log('Form reset with anonymous data. New form values:', form.getValues());
         // Clear the anonymous data after restoring
         if (typeof window !== 'undefined') {
