@@ -35,6 +35,11 @@ export default function Step10Checkout({ form, setStep, onSave, onNext, session,
     } : 'no window'
   });
   
+  // Also show an alert for debugging
+  if (!entityType) {
+    alert(`DEBUG: entityType is undefined. Form data: ${JSON.stringify(formData, null, 2)}`);
+  }
+  
   
   // Check if user wants agreement based on form data
   const wantsAgreement = formData.admin?.wantAgreement === 'Yes';
