@@ -100,7 +100,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                   />
                 </div>
               </div>
-              <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
+              <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[560px_minmax(500px,auto)] md:gap-10 md:items-start">
                 <label className="label inline-flex items-start gap-5 max-w-prose">
                   ¿Podrán los accionistas libremente transferir sus acciones a sus parientes, o deberá ser esta transferencia sujeta a una decisión unánime o mayoría de los accionistas?
                   <InfoTooltip
@@ -108,13 +108,14 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                     body="Esta cláusula establece si los accionistas pueden transferir sus acciones a familiares sin restricciones, o si requiere aprobación de otros accionistas. Puede ser libre, requerir decisión unánime, o requerir mayoría."
                   />
                 </label>
-                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[500px]">
+                <div className="mt-3 md:mt-0 md:justify-self-end md:w-full">
                   <Controller
                     name="agreement.corp_transferToRelatives"
                     control={control}
                     render={({ field }) => (
                       <select
-                        className="input w-full min-w-0"
+                        className="input w-full min-w-0 text-sm"
+                        style={{ minWidth: '100%' }}
                         {...field}
                       >
                         <option value="">Seleccionar opción</option>
