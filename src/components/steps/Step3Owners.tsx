@@ -60,6 +60,26 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
         <p className="mt-1 text-sm text-gray-600">
           Indique el número de {groupLabel} y complete sus datos.
         </p>
+        
+        {totalPercentage > 100 && (
+          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">
+                  Total de porcentajes excede 100%
+                </h3>
+                <div className="mt-2 text-sm text-red-700">
+                  <p>El total actual es {totalPercentage}%, excediendo por {Math.abs(remainingPercentage)}%. Ajuste los porcentajes para que sumen exactamente 100% antes de continuar.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Número de accionistas/socios */}
         <div className="mt-6">
@@ -128,22 +148,12 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
                     <input
                       type="number"
                       min={0}
-                      max={100}
                       step={1}
-                      className="input"
+                      className={`input ${totalPercentage > 100 ? 'border-red-500 bg-red-50' : ''}`}
                       {...reg(`${base}.ownership`)}
                       onChange={(e) => {
                         const value = Number(e.target.value);
-                        const currentTotal = totalPercentage - (Number(w(`${base}.ownership`)) || 0);
-                        const newTotal = currentTotal + value;
-                        
-                        // Prevent going over 100%
-                        if (newTotal > 100) {
-                          e.target.value = String(100 - currentTotal);
-                          (setValue as (name: string, value: unknown) => void)(`${base}.ownership`, 100 - currentTotal);
-                        } else {
-                          (setValue as (name: string, value: unknown) => void)(`${base}.ownership`, value);
-                        }
+                        (setValue as (name: string, value: unknown) => void)(`${base}.ownership`, value);
                       }}
                     />
                     <div className="mt-1 text-sm">
@@ -152,8 +162,8 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
                           Faltan {remainingPercentage}% para completar 100%
                         </span>
                       ) : remainingPercentage < 0 ? (
-                        <span className="text-red-600">
-                          Excede 100% por {Math.abs(remainingPercentage)}%
+                        <span className="text-red-600 font-semibold">
+                          ⚠️ Excede 100% por {Math.abs(remainingPercentage)}%
                         </span>
                       ) : (
                         <span className="text-green-600">
@@ -267,8 +277,15 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
 
             <button
               type="button"
-              className="btn btn-primary"
-              onClick={() => (onNext ? void onNext() : setStep(3))}
+              className={`btn ${totalPercentage > 100 ? 'btn-disabled opacity-50 cursor-not-allowed' : 'btn-primary'}`}
+              onClick={() => {
+                if (totalPercentage > 100) {
+                  alert(`No puede continuar. El total de porcentajes excede 100% por ${Math.abs(remainingPercentage)}%. Por favor, ajuste los porcentajes para que sumen exactamente 100%.`);
+                  return;
+                }
+                onNext ? void onNext() : setStep(3);
+              }}
+              disabled={totalPercentage > 100}
             >
               Continuar
             </button>
