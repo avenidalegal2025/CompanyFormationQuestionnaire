@@ -1,6 +1,7 @@
 // src/components/steps/Step5Admin.tsx
 "use client";
 
+import { useEffect } from "react";
 import { Controller, type FieldPath } from "react-hook-form";
 import HeroMiami1 from "@/components/HeroMiami1";
 import SegmentedToggle from "@/components/SegmentedToggle";
@@ -69,6 +70,16 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
     }
     return true;
   };
+
+  // Auto-assign President role to sole shareholder
+  useEffect(() => {
+    if (officersAllOwners === "Yes" && (watch("ownersCount") || 1) === 1) {
+      const currentRole = watch(fp("admin.shareholderOfficer1Role")) as string;
+      if (!currentRole) {
+        setValue(fp("admin.shareholderOfficer1Role"), "President");
+      }
+    }
+  }, [officersAllOwners, watch, setValue]);
 
   const handleContinue = async () => {
     if (!validateOfficers()) {

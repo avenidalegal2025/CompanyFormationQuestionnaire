@@ -643,7 +643,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                 </div>
 
                 {/* Officer roles (when all owners are officers) */}
-                {adminData?.officersAllOwners === "Yes" && (
+                {(adminData?.officersAllOwners === "Yes" || watch("admin.officersAllOwners") === "Yes") && (
                   <div className="mt-6 space-y-4">
                     <h4 className="text-md font-bold text-gray-900">Roles de Oficiales</h4>
                     <div className="space-y-3">
