@@ -81,7 +81,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                     body="El derecho de preferencia permite que los accionistas existentes tengan la primera oportunidad de comprar las acciones de un accionista que desea vender, antes de que se ofrezcan a terceros."
                   />
                 </label>
-                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
+                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[500px]">
                   <Controller
                     name="agreement.corp_rofr"
                     control={control}
@@ -108,13 +108,13 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                     body="Esta cláusula establece si los accionistas pueden transferir sus acciones a familiares sin restricciones, o si requiere aprobación de otros accionistas. Puede ser libre, requerir decisión unánime, o requerir mayoría."
                   />
                 </label>
-                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
+                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[500px]">
                   <Controller
                     name="agreement.corp_transferToRelatives"
                     control={control}
                     render={({ field }) => (
                       <select
-                        className="input"
+                        className="input w-full min-w-0"
                         {...field}
                       >
                         <option value="">Seleccionar opción</option>
@@ -132,7 +132,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                   />
                 </div>
                 {watch("agreement.corp_transferToRelatives") === "Sí, podrán transferir sus acciones si la decisión de la mayoría los accionistas." && (
-                  <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[420px]">
+                  <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[500px]">
                     <label className="label flex items-center gap-5">Porcentaje requerido para mayoría
                       <InfoTooltip
                         title="Porcentaje de Mayoría"
@@ -173,7 +173,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                     body="Esta cláusula determina si los herederos de un accionista fallecido o incapacitado deben vender sus acciones a la corporación, evitando que personas no deseadas se conviertan en accionistas."
                   />
                 </label>
-                <div className="mt-3 md:mt-0 md:justify-self-end md:w=[420px] md:w-[420px]">
+                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[500px]">
                   <Controller
                     name="agreement.corp_incapacityHeirsPolicy"
                     control={control}
@@ -200,7 +200,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                     body="Esta cláusula protege a la corporación de disputas matrimoniales al permitir que la empresa compre las acciones de la ex pareja a precio de mercado, evitando que un cónyuge no deseado se convierta en accionista."
                   />
                 </label>
-                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
+                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[500px]">
                   <Controller
                     name="agreement.corp_divorceBuyoutPolicy"
                     control={control}
@@ -227,7 +227,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                     body="Tag Along: Permite que accionistas minoritarios vendan sus acciones cuando un accionista mayoritario vende. Drag Along: Permite que accionistas mayoritarios obliguen a minoritarios a vender cuando ellos venden."
                   />
                 </label>
-                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
+                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[500px]">
                   <Controller
                     name="agreement.corp_tagDragRights"
                     control={control}
@@ -257,7 +257,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                     body="El derecho de preferencia permite que los socios existentes tengan la primera oportunidad de comprar las participaciones de un socio que desea vender, antes de que se ofrezcan a terceros."
                   />
                 </label>
-                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
+                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[500px]">
                   <Controller
                     name="agreement.llc_rofr"
                     control={control}
@@ -284,7 +284,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                     body="Esta cláusula determina si los herederos de un socio fallecido o incapacitado deben vender sus participaciones a la LLC, evitando que personas no deseadas se conviertan en socios."
                   />
                 </label>
-                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
+                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[500px]">
                   <Controller
                     name="agreement.llc_incapacityHeirsPolicy"
                     control={control}
@@ -311,7 +311,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                     body="Esta cláusula establece el proceso para añadir nuevos socios a la LLC. Puede requerir decisión unánime o mayoría con un porcentaje específico."
                   />
                 </label>
-                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
+                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[500px]">
                   <Controller
                     name="agreement.llc_newPartnersAdmission"
                     control={control}
@@ -330,7 +330,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                   />
                 </div>
                 {watch("agreement.llc_newPartnersAdmission") === "Mayoría" && (
-                  <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[420px]">
+                  <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[500px]">
                     <label className="label">Porcentaje requerido para mayoría</label>
                     <div className="flex items-center gap-2">
                       <div className="w-1/6 min-w-[120px]">
@@ -366,7 +366,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                     body="Esta cláusula establece el proceso para cerrar la LLC. Puede requerir decisión unánime o mayoría con un porcentaje específico."
                   />
                 </label>
-                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
+                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[500px]">
                   <Controller
                     name="agreement.llc_dissolutionDecision"
                     control={control}
@@ -385,7 +385,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                   />
                 </div>
                 {watch("agreement.llc_dissolutionDecision") === "Mayoría" && (
-                  <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[420px]">
+                  <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[500px]">
                     <label className="label">Porcentaje requerido para mayoría</label>
                     <div className="flex items-center gap-2">
                       <div className="w-1/6 min-w-[120px]">
