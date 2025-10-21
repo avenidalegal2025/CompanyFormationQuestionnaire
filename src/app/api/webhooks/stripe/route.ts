@@ -53,10 +53,16 @@ export async function POST(request: NextRequest) {
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
   console.log('Checkout session completed:', session.id);
   
-  if (session.metadata?.type !== 'domain_purchase') {
-    console.log('Not a domain purchase, skipping');
-    return;
+  if (session.metadata?.type === 'domain_purchase') {
+    await handleDomainPurchase(session);
+  } else if (session.metadata?.type === 'company_formation') {
+    await handleCompanyFormation(session);
+  } else {
+    console.log('Unknown payment type, skipping:', session.metadata?.type);
   }
+}
+
+async function handleDomainPurchase(session: Stripe.Checkout.Session) {
 
   const domains = JSON.parse(session.metadata.domains || '[]');
   const customerEmail = session.customer_email || '';
@@ -126,6 +132,34 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       // Continue with other domains even if one fails
     }
   }
+}
+
+async function handleCompanyFormation(session: Stripe.Checkout.Session) {
+  console.log('Processing company formation payment:', session.id);
+  
+  const entityType = session.metadata?.entityType || '';
+  const state = session.metadata?.state || '';
+  const hasUsAddress = session.metadata?.hasUsAddress === 'true';
+  const hasUsPhone = session.metadata?.hasUsPhone === 'true';
+  const skipAgreement = session.metadata?.skipAgreement === 'true';
+  const totalAmount = parseFloat(session.metadata?.totalAmount || '0');
+  
+  console.log('Company formation details:', {
+    entityType,
+    state,
+    hasUsAddress,
+    hasUsPhone,
+    skipAgreement,
+    totalAmount
+  });
+  
+  // Here you would typically:
+  // 1. Save the order to your database
+  // 2. Trigger company formation process
+  // 3. Send confirmation emails
+  // 4. Update user's account status
+  
+  console.log('Company formation payment processed successfully');
 }
 
 async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {

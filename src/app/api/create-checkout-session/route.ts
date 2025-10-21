@@ -203,6 +203,7 @@ export async function POST(request: NextRequest) {
       cancel_url: `${baseUrl}/checkout/cancel`,
       customer_email: session.user.email,
       metadata: {
+        type: 'company_formation',
         entityType: entityType,
         state: state,
         hasUsAddress: hasUsAddress.toString(),
