@@ -279,7 +279,7 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
                   </p>
                   
                   {Array.from({ length: watch("ownersCount") || 1 }).map((_, idx) => {
-                    const ownerName = watch(fp(`owners.${idx}.name`)) as string;
+                    const ownerName = watch(fp(`owners.${idx}.fullName`)) as string;
                     return (
                       <div
                         key={idx}
