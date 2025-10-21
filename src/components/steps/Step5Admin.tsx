@@ -42,6 +42,41 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
 
   const availableRoles = ["President", "Vice-President", "Treasurer", "Secretary"];
 
+  // Validation function to check if at least one president is selected
+  const validateOfficers = () => {
+    if (officersAllOwners === "Yes") {
+      // Check if at least one shareholder has the President role
+      const hasPresident = Array.from({ length: watch("ownersCount") || 1 }).some((_, idx) => {
+        const role = watch(fp(`admin.shareholderOfficer${idx + 1}Role`)) as string;
+        return role === "President";
+      });
+      
+      if (!hasPresident) {
+        alert("Al menos uno de los accionistas debe ser presidente para continuar.");
+        return false;
+      }
+    } else if (officersAllOwners === "No") {
+      // Check if at least one officer has the President role
+      const hasPresident = Array.from({ length: officersCount || 0 }).some((_, idx) => {
+        const role = watch(fp(`admin.officer${idx + 1}Role`)) as string;
+        return role === "President";
+      });
+      
+      if (!hasPresident) {
+        alert("Al menos uno de los oficiales debe ser presidente para continuar.");
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleContinue = async () => {
+    if (!validateOfficers()) {
+      return;
+    }
+    await onNext?.();
+  };
+
   return (
     <section className="space-y-6">
       <HeroMiami1 title="Datos Administrativos" />
@@ -235,6 +270,80 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
               />
             </div>
 
+            {officersAllOwners === "Yes" && (
+              <>
+                <div className="mt-6">
+                  <label className="label">Asignar roles a los accionistas</label>
+                  <p className="text-sm text-amber-600 font-medium mb-4">
+                    ⚠️ Al menos uno debe ser presidente
+                  </p>
+                  
+                  {Array.from({ length: watch("ownersCount") || 1 }).map((_, idx) => {
+                    const ownerName = watch(fp(`owners.${idx}.name`)) as string;
+                    return (
+                      <div
+                        key={idx}
+                        className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 rounded-2xl border border-gray-100 p-4"
+                      >
+                        <div>
+                          <label className="label">Accionista {idx + 1}</label>
+                          <div className="text-gray-700 font-medium">
+                            {ownerName || `Accionista ${idx + 1}`}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="label">Rol</label>
+                          <Controller
+                            name={fp(`admin.shareholderOfficer${idx + 1}Role`)}
+                            control={control}
+                            render={({ field }) => {
+                              const currentRole = field.value as string;
+                              const otherSelectedRoles = Array.from({ length: watch("ownersCount") || 1 })
+                                .map((_, roleIdx) => watch(fp(`admin.shareholderOfficer${roleIdx + 1}Role`)) as string)
+                                .filter((role, roleIdx) => role && role !== "" && roleIdx !== idx);
+                              const availableOptions = availableRoles.filter(role => 
+                                !otherSelectedRoles.includes(role)
+                              );
+                              
+                              return (
+                                <select
+                                  className="input"
+                                  value={currentRole || ""}
+                                  onChange={(e) => {
+                                    field.onChange(e);
+                                    // If the new role was previously selected by another shareholder, clear it
+                                    const newRole = e.target.value;
+                                    if (newRole && newRole !== "") {
+                                      Array.from({ length: watch("ownersCount") || 1 }).forEach((_, otherIdx) => {
+                                        if (otherIdx !== idx) {
+                                          const otherRole = watch(fp(`admin.shareholderOfficer${otherIdx + 1}Role`)) as string;
+                                          if (otherRole === newRole) {
+                                            setValue(fp(`admin.shareholderOfficer${otherIdx + 1}Role`), "");
+                                          }
+                                        }
+                                      });
+                                    }
+                                  }}
+                                >
+                                  <option value="">Seleccionar rol</option>
+                                  {availableOptions.map(role => (
+                                    <option key={role} value={role}>
+                                      {role}
+                                      {currentRole === role ? " (Seleccionado)" : ""}
+                                    </option>
+                                  ))}
+                                </select>
+                              );
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+
             {officersAllOwners === "No" && (
               <>
                 <div className="mt-6">
@@ -362,7 +471,7 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
             <button
               type="button"
               className="btn btn-primary"
-              onClick={() => void onNext?.()}
+              onClick={handleContinue}
             >
               Enviar
             </button>
