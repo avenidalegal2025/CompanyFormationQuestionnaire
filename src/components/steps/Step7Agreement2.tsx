@@ -17,6 +17,54 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
   const { register, watch, control, formState: { errors } } = form;
   const isCorp = watch("company.entityType") === "C-Corp";
 
+  // Custom validation for majority percentages
+  const validateMajorityPercentages = () => {
+    if (isCorp) {
+      // Check corp_newShareholdersAdmission
+      if (watch("agreement.corp_newShareholdersAdmission") === "Mayoría") {
+        const majority = watch("agreement.corp_newShareholdersMajority");
+        if (!majority || majority < 50.01 || majority > 99.99) {
+          alert("Por favor ingrese un porcentaje válido para la mayoría de nuevos accionistas (entre 50.01% y 99.99%)");
+          return false;
+        }
+      }
+
+      // Check corp_moreCapitalDecision
+      if (watch("agreement.corp_moreCapitalDecision") === "Mayoría") {
+        const majority = watch("agreement.corp_moreCapitalMajority");
+        if (!majority || majority < 50.01 || majority > 99.99) {
+          alert("Por favor ingrese un porcentaje válido para la mayoría de capital adicional (entre 50.01% y 99.99%)");
+          return false;
+        }
+      }
+    } else {
+      // Check LLC majority percentages
+      if (watch("agreement.llc_newMembersAdmission") === "Mayoría") {
+        const majority = watch("agreement.llc_newMembersMajority");
+        if (!majority || majority < 50.01 || majority > 99.99) {
+          alert("Por favor ingrese un porcentaje válido para la mayoría de nuevos miembros (entre 50.01% y 99.99%)");
+          return false;
+        }
+      }
+
+      if (watch("agreement.llc_additionalContributionsDecision") === "Mayoría") {
+        const majority = watch("agreement.llc_additionalContributionsMajority");
+        if (!majority || majority < 50.01 || majority > 99.99) {
+          alert("Por favor ingrese un porcentaje válido para la mayoría de contribuciones adicionales (entre 50.01% y 99.99%)");
+          return false;
+        }
+      }
+    }
+    return true;
+  };
+
+  const handleContinue = async () => {
+    if (!validateMajorityPercentages()) {
+      return;
+    }
+    await onNext?.();
+  };
+
   return (
     <section className="space-y-6">
       <HeroVideo title="Capital & Préstamos" />
@@ -436,7 +484,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
           <button type="button" className="btn" onClick={() => setStep(5)}>Atrás</button>
           <div className="flex items-center gap-4">
             <button type="button" className="text-base underline text-blue-600" onClick={() => handleSaveWithAuth(session, anonymousId, form, onSave)}>Guardar y continuar más tarde</button>
-            <button type="button" className="btn btn-primary" onClick={() => void onNext?.()}>Continuar</button>
+            <button type="button" className="btn btn-primary" onClick={handleContinue}>Continuar</button>
           </div>
         </div>
       </div>
