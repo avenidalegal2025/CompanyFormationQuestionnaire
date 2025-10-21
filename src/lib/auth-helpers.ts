@@ -7,12 +7,6 @@ function getAuth0SignupUrl(callbackUrl: string): string {
   const clientId = '8dvSA0Br1funvuupTaKSCdKgCaFSmfUT';
   const redirectUri = `${window.location.origin}/api/auth/callback/auth0`;
   
-  console.log('Auth0 Config Debug (auth-helpers):', {
-    baseUrl,
-    clientId,
-    redirectUri,
-    callbackUrl
-  });
   
   const params = new URLSearchParams({
     response_type: 'code',

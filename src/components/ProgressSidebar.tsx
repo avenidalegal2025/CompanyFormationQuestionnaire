@@ -124,14 +124,7 @@ export default function ProgressSidebar({
 
       {/* Share Button */}
       <button
-        onClick={() => {
-          if (!session) {
-            // Use our custom Auth0 signup URL
-            handleShareWithAuth(session, anonymousId, form, () => setShowShareModal(true));
-          } else {
-            setShowShareModal(true);
-          }
-        }}
+        onClick={() => handleShareWithAuth(session, anonymousId, form, () => setShowShareModal(true))}
         className="mt-6 w-full flex items-center justify-center gap-2 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
