@@ -231,8 +231,8 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
         {/* Nombre + sufijo + botón revisar */}
         <div className="mt-12 pt-10 border-t border-gray-100">
           <div className="label-lg mb-2">Nombre de la empresa</div>
-          <div className="grid grid-cols-[1fr_auto_auto] items-center gap-3">
-            <div>
+          <div className="flex items-center gap-[10px]">
+            <div className="w-[25%]">
               <Controller
                 name="company.companyNameBase"
                 control={control}
