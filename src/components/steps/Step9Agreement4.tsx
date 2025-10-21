@@ -167,7 +167,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
                 <label className="label inline-flex items-start gap-5 max-w-prose">
-                  En el caso de incapacidad o de la muerte de algún accionista, ¿querrá que los herederos estén obligados a vender las acciones a la compañía, o que lo hagan solo si así lo decide la compañía?
+                  En el caso de incapacidad o de la muerte de algún accionista, ¿querrá que los herederos estén obligados a vender las acciones a los accionistas compañía?
                   <InfoTooltip
                     title="Política de Herederos"
                     body="Esta cláusula determina si los herederos de un accionista fallecido o incapacitado deben vender sus acciones a la corporación, evitando que personas no deseadas se conviertan en accionistas."
@@ -278,7 +278,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
                 <label className="label inline-flex items-start gap-5 max-w-prose">
-                  En caso de muerte o incapacidad de un miembro: ¿Herederos obligados a vender las participaciones a la LLC?
+                  En caso de muerte o incapacidad de un socio: ¿Los herederos estarán obligados a vender su participación a los otros socios de la LLC?
                   <InfoTooltip
                     title="Política de Herederos"
                     body="Esta cláusula determina si los herederos de un socio fallecido o incapacitado deben vender sus participaciones a la LLC, evitando que personas no deseadas se conviertan en socios."
@@ -305,7 +305,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
                 <label className="label inline-flex items-start gap-5 max-w-prose">
-                  Admisión de nuevos socios/partners: ¿Decisión unánime o por mayoría?
+                  La admisión de nuevos socios: ¿Será por decisión unánime o por mayoría?
                   <InfoTooltip
                     title="Admisión de Nuevos Socios"
                     body="Esta cláusula establece el proceso para añadir nuevos socios a la LLC. Puede requerir decisión unánime o mayoría con un porcentaje específico."
@@ -360,7 +360,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
                 <label className="label inline-flex items-start gap-5 max-w-prose">
-                  Disolución de la LLC: ¿Decisión unánime o por mayoría?
+                  La disolución de la LLC: ¿Será por decisión unánime o por mayoría?
                   <InfoTooltip
                     title="Disolución de la LLC"
                     body="Esta cláusula establece el proceso para cerrar la LLC. Puede requerir decisión unánime o mayoría con un porcentaje específico."

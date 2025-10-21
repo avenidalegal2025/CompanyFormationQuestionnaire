@@ -274,7 +274,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
             <>
               <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
                 <label className="label inline-flex items-start gap-3 max-w-prose">
-                  Adición de nuevos miembros a la LLC: ¿Cómo se añadirán?
+                  Adición de nuevos socios a la LLC: ¿Cómo se añadirán?
                   <InfoTooltip
                     title="Admisión de Nuevos Miembros"
                     body="Esta cláusula establece el proceso para añadir nuevos miembros a la LLC. Puede requerir decisión unánime (todos los miembros deben estar de acuerdo) o mayoría (un porcentaje específico de miembros)."
@@ -320,15 +320,15 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                           }`}
                           {...register("agreement.llc_newMembersMajority", { 
                             valueAsNumber: true,
-                            min: {
-                              value: 50.01,
-                              message: "El valor debe ser mayor o igual a 50.01"
-                            },
-                            max: {
-                              value: 99.99,
-                              message: "El valor debe ser menor o igual a 99.99"
-                            }
-                          })}
+                              min: {
+                                value: 50.01,
+                                message: "El valor debe ser mayor o igual a 50.01"
+                              },
+                              max: {
+                                value: 99.99,
+                                message: "El valor debe ser menor o igual a 99.99"
+                              }
+                            })}
                         />
                       </div>
                       <span className="text-sm text-gray-500">%</span>
@@ -412,7 +412,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                                   watch("agreement.llc_additionalContributionsMajority")
                                 ) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''
                               }`}
-                              {...register("agreement.llc_additionalContributionsMajority", {
+                              {...register("agreement.llc_additionalContributionsMajority", { 
                                 valueAsNumber: true,
                                 min: {
                                   value: 50.01,
@@ -435,7 +435,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
               </div>
               <div className="mt-8 pt-8 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
                 <label className="label inline-flex items-start gap-3 max-w-prose">
-                  ¿Habrá préstamos de miembros a la LLC?
+                  ¿Habrá préstamos de socios a la LLC?
                   <InfoTooltip
                     title="Préstamos de Miembros"
                     body="Los préstamos de miembros a la LLC pueden ser una fuente de financiamiento flexible. Esta cláusula establece si los miembros pueden prestar dinero a la LLC y bajo qué términos."
