@@ -37,7 +37,7 @@ export function handleSaveWithAuth(
       localStorage.setItem('anonymousDraftData', JSON.stringify(formData));
       localStorage.setItem('authCallbackUrl', `/?action=save&draftId=${anonymousId}`);
       console.log('Saved to localStorage:', {
-        anonymousDraftId,
+        anonymousDraftId: anonymousId,
         anonymousDraftData: JSON.stringify(formData),
         authCallbackUrl: `/?action=save&draftId=${anonymousId}`
       });
