@@ -132,6 +132,8 @@ function QuestionnaireContent() {
     try {
       const collab = typeof window !== 'undefined' ? window.localStorage.getItem('collabData') : null;
       const collabDraftId = typeof window !== 'undefined' ? window.localStorage.getItem('collabDraftId') : null;
+      const anonymousData = typeof window !== 'undefined' ? window.localStorage.getItem('anonymousDraftData') : null;
+      
       if (collab) {
         const parsed = JSON.parse(collab) as Partial<AllSteps>;
         form.reset({
@@ -160,6 +162,18 @@ function QuestionnaireContent() {
             // ignore
           }
         })();
+      } else if (anonymousData) {
+        // Restore anonymous draft data after authentication
+        const parsed = JSON.parse(anonymousData) as Partial<AllSteps>;
+        form.reset({
+          ...form.getValues(),
+          ...parsed,
+        });
+        // Clear the anonymous data after restoring
+        if (typeof window !== 'undefined') {
+          window.localStorage.removeItem('anonymousDraftData');
+          window.localStorage.removeItem('anonymousDraftId');
+        }
       }
     } catch {}
   }, [form]);
