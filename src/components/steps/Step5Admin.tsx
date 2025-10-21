@@ -281,7 +281,7 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
               />
             </div>
 
-            {officersAllOwners === "Yes" && (
+            {officersAllOwners === "Yes" && (watch("ownersCount") || 1) > 1 && (
               <>
                 <div className="mt-6">
                   <label className="label">Asignar roles a los accionistas</label>
