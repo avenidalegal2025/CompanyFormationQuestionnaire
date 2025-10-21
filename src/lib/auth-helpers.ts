@@ -30,11 +30,17 @@ export function handleSaveWithAuth(
   if (!session) {
     // Save anonymous draft and redirect to signup
     const formData = form.getValues();
+    console.log('Saving anonymous draft data before auth:', formData);
     // Save to localStorage as backup
     if (typeof window !== 'undefined') {
       localStorage.setItem('anonymousDraftId', anonymousId);
       localStorage.setItem('anonymousDraftData', JSON.stringify(formData));
       localStorage.setItem('authCallbackUrl', `/?action=save&draftId=${anonymousId}`);
+      console.log('Saved to localStorage:', {
+        anonymousDraftId,
+        anonymousDraftData: JSON.stringify(formData),
+        authCallbackUrl: `/?action=save&draftId=${anonymousId}`
+      });
     }
     // Redirect directly to Auth0 signup
     window.location.href = getAuth0SignupUrl('');

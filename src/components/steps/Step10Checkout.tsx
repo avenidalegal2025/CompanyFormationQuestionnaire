@@ -19,6 +19,22 @@ export default function Step10Checkout({ form, setStep, onSave, onNext, session,
   // Get entity type for agreement display
   const entityType = formData.company?.entityType as 'LLC' | 'C-Corp' | undefined;
   
+  // Debug logging to understand what's happening
+  console.log('Step10Checkout Debug:', {
+    formData,
+    company: formData.company,
+    entityType,
+    admin: formData.admin,
+    wantsAgreement: formData.admin?.wantAgreement,
+    allKeys: Object.keys(formData),
+    companyKeys: formData.company ? Object.keys(formData.company) : 'company is undefined',
+    localStorage: typeof window !== 'undefined' ? {
+      anonymousDraftData: localStorage.getItem('anonymousDraftData'),
+      anonymousDraftId: localStorage.getItem('anonymousDraftId'),
+      draftId: localStorage.getItem('draftId')
+    } : 'no window'
+  });
+  
   
   // Check if user wants agreement based on form data
   const wantsAgreement = formData.admin?.wantAgreement === 'Yes';

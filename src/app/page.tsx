@@ -164,11 +164,14 @@ function QuestionnaireContent() {
         })();
       } else if (anonymousData) {
         // Restore anonymous draft data after authentication
+        console.log('Restoring anonymous draft data:', anonymousData);
         const parsed = JSON.parse(anonymousData) as Partial<AllSteps>;
+        console.log('Parsed anonymous data:', parsed);
         form.reset({
           ...form.getValues(),
           ...parsed,
         });
+        console.log('Form reset with anonymous data. New form values:', form.getValues());
         // Clear the anonymous data after restoring
         if (typeof window !== 'undefined') {
           window.localStorage.removeItem('anonymousDraftData');
