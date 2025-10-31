@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import twilio from 'twilio';
 
-const ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID || process.env.TWILIO_TEST_ACCOUNT_SID || '';
-const AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN || process.env.TWILIO_TEST_AUTH_TOKEN || '';
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || '';
+const ACCOUNT_SID = (process.env.TWILIO_ACCOUNT_SID || process.env.TWILIO_TEST_ACCOUNT_SID || '').trim();
+const AUTH_TOKEN = (process.env.TWILIO_AUTH_TOKEN || process.env.TWILIO_TEST_AUTH_TOKEN || '').trim();
+const BASE_URL = (process.env.NEXT_PUBLIC_BASE_URL || '').trim();
 
 // Simple prestigious area code mapping per state
 const STATE_TO_AREACODES: Record<string, number[]> = {

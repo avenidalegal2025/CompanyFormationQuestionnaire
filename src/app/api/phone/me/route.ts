@@ -4,9 +4,9 @@ import { authOptions } from '@/lib/auth';
 import { getBusinessPhone, saveBusinessPhone } from '@/lib/dynamo';
 import twilio from 'twilio';
 
-const ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID || process.env.TWILIO_TEST_ACCOUNT_SID || '';
-const AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN || process.env.TWILIO_TEST_AUTH_TOKEN || '';
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || '';
+const ACCOUNT_SID = (process.env.TWILIO_ACCOUNT_SID || process.env.TWILIO_TEST_ACCOUNT_SID || '').trim();
+const AUTH_TOKEN = (process.env.TWILIO_AUTH_TOKEN || process.env.TWILIO_TEST_AUTH_TOKEN || '').trim();
+const BASE_URL = (process.env.NEXT_PUBLIC_BASE_URL || '').trim();
 
 export async function GET() {
   const session = await getServerSession(authOptions);
