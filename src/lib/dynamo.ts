@@ -52,6 +52,38 @@ export interface DomainRegistration {
   dnsApplied?: Array<{ type: string; name: string; value: string; ttl?: number; priority?: number }>;
 }
 
+// Business phone record
+export interface BusinessPhoneRecord {
+  phoneNumber: string; // E.164 Twilio business number
+  areaCode?: string;
+  sid?: string; // Twilio IncomingPhoneNumber SID
+  forwardToE164: string; // Target forwarding number
+  updatedAt: string;
+}
+
+export async function saveBusinessPhone(userId: string, data: BusinessPhoneRecord) {
+  const command = new UpdateCommand({
+    TableName: TABLE_NAME,
+    Key: buildUserKey(userId),
+    UpdateExpression: 'SET businessPhone = :bp',
+    ExpressionAttributeValues: {
+      ':bp': data,
+    },
+    ReturnValues: 'UPDATED_NEW',
+  });
+  return ddb.send(command);
+}
+
+export async function getBusinessPhone(userId: string): Promise<BusinessPhoneRecord | null> {
+  const command = new GetCommand({
+    TableName: TABLE_NAME,
+    Key: buildUserKey(userId),
+    ProjectionExpression: 'businessPhone',
+  });
+  const res = await ddb.send(command);
+  return (res.Item as any)?.businessPhone ?? null;
+}
+
 // Domain-specific DynamoDB operations
 export async function saveDomainRegistration(userId: string, domainData: DomainRegistration) {
   try {

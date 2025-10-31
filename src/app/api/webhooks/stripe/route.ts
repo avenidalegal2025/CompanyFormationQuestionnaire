@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
-import { saveDomainRegistration, type DomainRegistration } from '@/lib/dynamo';
+import { saveDomainRegistration, type DomainRegistration, saveBusinessPhone } from '@/lib/dynamo';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-09-30.clover',
@@ -182,6 +182,16 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
       if (resp.ok) {
         const data = await resp.json();
         console.log('📞 Phone provisioned:', data);
+        const userKey = session.customer_details?.email || (session.customer_email as string) || '';
+        if (userKey) {
+          await saveBusinessPhone(userKey, {
+            phoneNumber: data.phoneNumber,
+            areaCode: data.areaCode,
+            sid: data.sid,
+            forwardToE164: forwardPhoneE164,
+            updatedAt: new Date().toISOString(),
+          });
+        }
       } else {
         console.error('❌ Failed to provision phone:', await resp.text());
       }

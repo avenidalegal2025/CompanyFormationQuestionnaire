@@ -14,6 +14,10 @@ import {
 export default function ClientPage() {
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [companyData, setCompanyData] = useState<any>(null);
+  const [businessPhone, setBusinessPhone] = useState<{ phoneNumber: string; forwardToE164: string } | null>(null);
+  const [cc, setCc] = useState('+1');
+  const [localNum, setLocalNum] = useState('');
+  const e164 = `${cc}${localNum.replace(/[^\d]/g, '')}`;
 
   useEffect(() => {
     // Get company data from localStorage
@@ -26,6 +30,20 @@ export default function ClientPage() {
         console.error('Error parsing saved data:', error);
       }
     }
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/phone/me', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.phone) {
+            setBusinessPhone({ phoneNumber: data.phone.phoneNumber, forwardToE164: data.phone.forwardToE164 });
+          }
+        }
+      } catch {}
+    })();
   }, []);
 
   const getCompanyDisplayName = () => {
@@ -180,6 +198,46 @@ export default function ClientPage() {
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* Business Phone Card */}
+            <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Número de Teléfono Empresarial</h3>
+              {businessPhone ? (
+                <div>
+                  <p className="text-gray-700">Número asignado: <span className="font-mono font-semibold">{businessPhone.phoneNumber}</span></p>
+                  <p className="text-gray-700 mt-1">Desvío actual a: <span className="font-mono">{businessPhone.forwardToE164}</span></p>
+                  <div className="mt-4 flex gap-2 items-center max-w-md">
+                    <select className="input w-[140px]" value={cc} onChange={(e) => setCc(e.target.value)}>
+                      <option value="+1">+1 (USA/Canadá)</option>
+                      <option value="+52">+52 (México)</option>
+                      <option value="+57">+57 (Colombia)</option>
+                      <option value="+34">+34 (España)</option>
+                      <option value="+51">+51 (Perú)</option>
+                    </select>
+                    <input className="input flex-1" placeholder="Nuevo número de destino" value={localNum} onChange={(e) => setLocalNum(e.target.value)} />
+                    <button
+                      className="btn btn-primary"
+                      onClick={async () => {
+                        try {
+                          const resp = await fetch('/api/phone/me', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ forwardToE164: e164 }) });
+                          if (resp.ok) {
+                            setBusinessPhone({ ...businessPhone, forwardToE164: e164 });
+                            setLocalNum('');
+                          }
+                        } catch {}
+                      }}
+                    >
+                      Actualizar desvío
+                    </button>
+                  </div>
+                  <p className="text-sm text-gray-600 mt-3">
+                    Prueba tu número llamándolo desde cualquier teléfono. También puedes usar el <a className="text-blue-600 underline" href="https://www.twilio.com/console/voice/dev-tools/web-caller" target="_blank" rel="noreferrer">Twilio Web Caller</a> para realizar llamadas salientes desde tu navegador.
+                  </p>
+                </div>
+              ) : (
+                <p className="text-gray-600">Aún no se ha asignado un número. Se asignará automáticamente después del pago.</p>
+              )}
             </div>
 
             {/* Recent Documents */}
