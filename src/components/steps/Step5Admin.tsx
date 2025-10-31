@@ -43,8 +43,11 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
 
   const availableRoles = ["President", "Vice-President", "Treasurer", "Secretary"];
 
-  // Validation function to check if at least one president is selected
+  // Validation function to check if at least one president is selected (C‑Corp only)
   const validateOfficers = () => {
+    if (entityType !== "C-Corp") {
+      return true;
+    }
     if (officersAllOwners === "Yes") {
       // Check if at least one shareholder has the President role
       const hasPresident = Array.from({ length: watch("ownersCount") || 1 }).some((_, idx) => {
