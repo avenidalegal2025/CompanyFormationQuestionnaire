@@ -462,10 +462,10 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
         {hasUsPhone === "No" && (
           <div className="mt-4">
             <label className="label">¿A qué número desea reenviar las llamadas?</label>
-            <div className="max-w-xl">
+            <div className="w-full max-w-2xl">
               <div className="flex items-stretch gap-0 rounded-lg overflow-hidden border border-gray-300 focus-within:ring-2 focus-within:ring-blue-500">
                 <select
-                  className="input w-[220px] border-0 rounded-none"
+                  className="input w-[140px] border-0 rounded-none"
                   value={forwardCountryCode}
                   onChange={(e) => {
                     const v = e.target.value;
@@ -479,7 +479,7 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
                   ))}
                 </select>
                 <input
-                  className="input flex-1 border-l border-gray-300 rounded-none"
+                  className="input flex-1 min-w-0 border-l border-gray-300 rounded-none"
                   placeholder="(ej. 3055550123)"
                   value={forwardLocalNumber}
                   onChange={(e) => {
