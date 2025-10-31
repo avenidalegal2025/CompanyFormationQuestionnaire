@@ -7,6 +7,7 @@ import { Controller } from "react-hook-form";
 
 import SegmentedToggle from "@/components/SegmentedToggle";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
+import InternationalPhoneInput from "@/components/InternationalPhoneInput";
 import InfoTooltip from "@/components/InfoTooltip";
 import type { StepProps } from "./types";
 import { Session } from "next-auth";
@@ -102,53 +103,7 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
   const hasUsaAddress = watch("company.hasUsaAddress");
   const hasUsPhone = watch("company.hasUsPhone");
   const forwardPhoneE164 = watch("company.forwardPhoneE164") as string | undefined;
-  const [forwardCountryCode, setForwardCountryCode] = useState<string>("+1");
-  const [forwardLocalNumber, setForwardLocalNumber] = useState<string>("");
 
-  const LATAM_CODES: Array<{ code: string; label: string }> = [
-    { code: "+1", label: "+1 (USA/Canadá)" },
-    { code: "+52", label: "+52 (México)" },
-    { code: "+57", label: "+57 (Colombia)" },
-    { code: "+58", label: "+58 (Venezuela)" },
-    { code: "+51", label: "+51 (Perú)" },
-    { code: "+56", label: "+56 (Chile)" },
-    { code: "+54", label: "+54 (Argentina)" },
-    { code: "+55", label: "+55 (Brasil)" },
-    { code: "+598", label: "+598 (Uruguay)" },
-    { code: "+595", label: "+595 (Paraguay)" },
-    { code: "+591", label: "+591 (Bolivia)" },
-    { code: "+593", label: "+593 (Ecuador)" },
-    { code: "+506", label: "+506 (Costa Rica)" },
-    { code: "+507", label: "+507 (Panamá)" },
-    { code: "+503", label: "+503 (El Salvador)" },
-    { code: "+502", label: "+502 (Guatemala)" },
-    { code: "+504", label: "+504 (Honduras)" },
-    { code: "+505", label: "+505 (Nicaragua)" },
-    { code: "+53", label: "+53 (Cuba)" },
-    { code: "+1", label: "+1 (Rep. Dominicana)" },
-    { code: "+1", label: "+1 (Puerto Rico)" },
-    { code: "+1", label: "+1 (Jamaica)" },
-    { code: "+1", label: "+1 (Trinidad y Tobago)" },
-    { code: "+1", label: "+1 (Barbados)" },
-    { code: "+1", label: "+1 (Bahamas)" },
-    { code: "+1", label: "+1 (Granada)" },
-    { code: "+1", label: "+1 (Santa Lucía)" },
-    { code: "+1", label: "+1 (San Vicente y las Granadinas)" },
-    { code: "+1", label: "+1 (Antigua y Barbuda)" },
-    { code: "+1", label: "+1 (San Cristóbal y Nieves)" },
-    { code: "+1", label: "+1 (Dominica)" },
-    { code: "+1", label: "+1 (Islas Caimán)" },
-    { code: "+1", label: "+1 (Bermudas)" },
-    { code: "+509", label: "+509 (Haití)" },
-    { code: "+501", label: "+501 (Belice)" },
-    { code: "+592", label: "+592 (Guyana)" },
-    { code: "+597", label: "+597 (Surinam)" },
-    { code: "+297", label: "+297 (Aruba)" },
-    { code: "+599", label: "+599 (Curaçao)" },
-    { code: "+590", label: "+590 (Guadalupe)" },
-    { code: "+596", label: "+596 (Martinica)" },
-    { code: "+594", label: "+594 (Guayana Francesa)" },
-  ];
 
   // ====== Phone helpers (+1 XXX XXX XXXX) ======
   const PHONE_PREFIX = "+1 ";
@@ -469,36 +424,11 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
         {hasUsPhone === "No" && (
           <div className="mt-4">
             <label className="label">¿A qué número desea reenviar las llamadas?</label>
-            <div className="w-full max-w-2xl">
-              <div className="flex items-stretch gap-0 rounded-lg overflow-hidden border border-gray-300 focus-within:ring-2 focus-within:ring-blue-500">
-                <select
-                  className="input w-[140px] border-0 rounded-none"
-                  value={forwardCountryCode}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setForwardCountryCode(v);
-                    const e164 = `${v}${forwardLocalNumber.replace(/[^\\d]/g, "")}`;
-                    setValue("company.forwardPhoneE164", e164, { shouldDirty: true, shouldValidate: true });
-                  }}
-                >
-                  {LATAM_CODES.map(({ code, label }) => (
-                    <option key={`${code}-${label}`} value={code}>{label}</option>
-                  ))}
-                </select>
-                <input
-                  className="input flex-1 min-w-0 border-l border-gray-300 rounded-none"
-                  placeholder="(ej. 3055550123)"
-                  value={forwardLocalNumber}
-                  onChange={(e) => {
-                    const onlyDigits = e.target.value.replace(/[^\\d]/g, "");
-                    setForwardLocalNumber(onlyDigits);
-                    const e164 = `${forwardCountryCode}${onlyDigits}`;
-                    setValue("company.forwardPhoneE164", e164, { shouldDirty: true, shouldValidate: true });
-                  }}
-                />
-              </div>
-            </div>
-            <p className="help mt-1">Guardaremos este número para configurar el desvío automáticamente.</p>
+            <InternationalPhoneInput
+              value={forwardPhoneE164}
+              onChange={(val) => setValue("company.forwardPhoneE164", val || "", { shouldDirty: true, shouldValidate: true })}
+              placeholder="Ingresa número internacional"
+            />
           </div>
         )}
 
