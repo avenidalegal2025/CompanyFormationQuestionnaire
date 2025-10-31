@@ -204,51 +204,94 @@ export default function ClientPage() {
             </div>
 
             {/* Business Phone Card */}
-            <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Número de Teléfono Empresarial</h3>
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-8">
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
+                <h3 className="text-xl font-semibold text-white flex items-center gap-2">
+                  <PhoneIcon className="h-6 w-6" />
+                  Número de Teléfono Empresarial
+                </h3>
+              </div>
+              
               {businessPhone ? (
-                <div>
-                  <p className="text-gray-700">Número asignado: <span className="font-mono font-semibold">{businessPhone.phoneNumber}</span></p>
-                  <p className="text-gray-700 mt-1">Desvío actual a: <span className="font-mono">{businessPhone.forwardToE164}</span></p>
-                  <div className="mt-4 flex gap-2 items-center max-w-md">
-                    <select className="input w-[140px]" value={cc} onChange={(e) => setCc(e.target.value)}>
-                      <option value="+1">+1 (USA/Canadá)</option>
-                      <option value="+52">+52 (México)</option>
-                      <option value="+57">+57 (Colombia)</option>
-                      <option value="+34">+34 (España)</option>
-                      <option value="+51">+51 (Perú)</option>
-                    </select>
-                    <input className="input flex-1" placeholder="Nuevo número de destino" value={localNum} onChange={(e) => setLocalNum(e.target.value)} />
-                    <button
-                      className="btn btn-primary"
-                      onClick={async () => {
-                        try {
-                          const resp = await fetch('/api/phone/me', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ forwardToE164: e164 }) });
-                          if (resp.ok) {
-                            setBusinessPhone({ ...businessPhone, forwardToE164: e164 });
-                            setLocalNum('');
-                          }
-                        } catch {}
-                      }}
-                    >
-                      Actualizar desvío
-                    </button>
+                <div className="p-6">
+                  {/* Phone Number Display */}
+                  <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-medium text-gray-600">Tu número de EE. UU.</span>
+                      <span className="text-2xl font-bold text-gray-900 font-mono">{businessPhone.phoneNumber}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-600">Desvío configurado a</span>
+                      <span className="text-lg font-semibold text-blue-600 font-mono">{businessPhone.forwardToE164}</span>
+                    </div>
                   </div>
-                  <div className="mt-4">
+
+                  {/* Call Button */}
+                  <div className="mb-6">
                     <button
                       onClick={() => setShowCaller(true)}
-                      className="btn btn-primary flex items-center gap-2"
+                      className="w-full btn bg-green-600 hover:bg-green-700 text-white py-4 text-lg font-semibold flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transition-all"
                     >
-                      <PhoneIcon className="h-5 w-5" />
-                      Realizar Llamada
+                      <PhoneIcon className="h-6 w-6" />
+                      Realizar Llamada Saliente
                     </button>
                   </div>
-                  <p className="text-sm text-gray-600 mt-3">
-                    Prueba tu número llamándolo desde cualquier teléfono o usa el botón de arriba para realizar llamadas salientes.
-                  </p>
+
+                  {/* Update Forwarding Section */}
+                  <div className="border-t pt-6">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-3">Actualizar Número de Desvío</h4>
+                    <div className="flex gap-2 items-start">
+                      <select className="input w-[140px]" value={cc} onChange={(e) => setCc(e.target.value)}>
+                        <option value="+1">🇺🇸 +1</option>
+                        <option value="+52">🇲🇽 +52</option>
+                        <option value="+57">🇨🇴 +57</option>
+                        <option value="+34">🇪🇸 +34</option>
+                        <option value="+51">🇵🇪 +51</option>
+                      </select>
+                      <input 
+                        className="input flex-1" 
+                        placeholder="Número de destino" 
+                        value={localNum} 
+                        onChange={(e) => setLocalNum(e.target.value)} 
+                      />
+                      <button
+                        className="btn btn-primary whitespace-nowrap"
+                        onClick={async () => {
+                          try {
+                            const resp = await fetch('/api/phone/me', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ forwardToE164: e164 }) });
+                            if (resp.ok) {
+                              setBusinessPhone({ ...businessPhone, forwardToE164: e164 });
+                              setLocalNum('');
+                            }
+                          } catch {}
+                        }}
+                      >
+                        Actualizar
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Las llamadas entrantes a tu número de EE. UU. se redirigirán automáticamente a este número.
+                    </p>
+                  </div>
+
+                  {/* Info Box */}
+                  <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h5 className="text-sm font-semibold text-blue-900 mb-2">💡 Cómo usar tu número</h5>
+                    <ul className="text-sm text-blue-800 space-y-1">
+                      <li>• <strong>Llamadas entrantes:</strong> Se reenvían automáticamente al número configurado</li>
+                      <li>• <strong>Llamadas salientes:</strong> Usa el botón verde de arriba para llamar desde tu navegador</li>
+                      <li>• <strong>Prueba:</strong> Llama a tu número desde cualquier teléfono para verificar el desvío</li>
+                    </ul>
+                  </div>
                 </div>
               ) : (
-                <p className="text-gray-600">Aún no se ha asignado un número. Se asignará automáticamente después del pago.</p>
+                <div className="p-6">
+                  <div className="text-center py-8">
+                    <div className="text-6xl mb-4">📞</div>
+                    <p className="text-gray-600 text-lg">Aún no se ha asignado un número.</p>
+                    <p className="text-gray-500 text-sm mt-2">Se asignará automáticamente después del pago.</p>
+                  </div>
+                </div>
               )}
             </div>
 
