@@ -47,9 +47,9 @@ function QuestionnaireContent() {
   const [step, setStep] = useState<number>(1);
   const [wantsAgreement, setWantsAgreement] = useState<boolean>(false);
   const totalSteps = wantsAgreement ? 9 : 5;
-  // When true, we intentionally navigate (e.g., to signup) and should not show the beforeunload prompt
-  const suppressBeforeUnloadRef = useRef<boolean>(false);
-  
+  // Store the beforeunload handler so we can remove it before intentional navigation
+  const beforeUnloadHandlerRef = useRef<((e: BeforeUnloadEvent) => void) | null>(null);
+
   // Anonymous draft management
   const [anonymousId, setAnonymousId] = useState<string>(() => {
     if (typeof window !== 'undefined') {
@@ -63,7 +63,7 @@ function QuestionnaireContent() {
   // Browser close warning for unsigned users
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (!isSignedUp && step > 1 && !suppressBeforeUnloadRef.current) {
+      if (!isSignedUp && step > 1) {
         e.preventDefault();
         e.returnValue = 'Si sales antes de registrarte perderás toda tu información.';
         return 'Si sales antes de registrarte perderás toda tu información.';
@@ -71,8 +71,12 @@ function QuestionnaireContent() {
       return undefined;
     };
 
+    beforeUnloadHandlerRef.current = handleBeforeUnload;
     window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      beforeUnloadHandlerRef.current = null;
+    };
   }, [isSignedUp, step]);
 
   // Handle post-signup actions
@@ -451,10 +455,13 @@ function QuestionnaireContent() {
           localStorage.setItem('anonymousDraftId', anonymousId);
           localStorage.setItem('anonymousDraftData', JSON.stringify(formData));
           localStorage.setItem('authCallbackUrl', `/?action=continue&draftId=${anonymousId}&step=${step + 1}`);
+          
+          // Remove beforeunload listener to prevent the "Leave site?" dialog
+          if (beforeUnloadHandlerRef.current) {
+            window.removeEventListener('beforeunload', beforeUnloadHandlerRef.current);
+          }
         }
         // Redirect directly to Auth0 signup
-        // Suppress beforeunload prompt for this intentional navigation
-        suppressBeforeUnloadRef.current = true;
         window.location.href = getAuth0SignupUrl('');
         return;
       }
