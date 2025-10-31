@@ -60,7 +60,6 @@ export default function InternationalPhoneInput({ value, onChange, placeholder }
           inputClassName="w-full !border-0 !outline-none !bg-transparent"
           countrySelectorStyleProps={{
             buttonClassName: "!px-3 !py-2 !rounded-l-lg !border-0",
-            dropdownClassName: "!rounded-lg !shadow-lg !border !border-gray-200",
           }}
           searchPlaceholder="Search for countries"
           placeholder={placeholder || "Buscar país y escribir número"}
