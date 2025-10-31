@@ -106,6 +106,8 @@ export default function VoiceCaller({ onClose }: VoiceCallerProps) {
       setStatus('connecting');
       setErrorMessage('');
 
+      console.log('Attempting to call:', phoneNumber);
+
       const call = await device.connect({
         params: {
           To: phoneNumber,
@@ -115,22 +117,38 @@ export default function VoiceCaller({ onClose }: VoiceCallerProps) {
       setCurrentCall(call);
 
       call.on('accept', () => {
+        console.log('Call accepted');
         setStatus('in-call');
       });
 
+      call.on('ringing', () => {
+        console.log('Call ringing');
+        setStatus('ringing');
+      });
+
       call.on('disconnect', () => {
+        console.log('Call disconnected');
         setStatus('idle');
         setCurrentCall(null);
       });
 
       call.on('cancel', () => {
+        console.log('Call cancelled');
         setStatus('idle');
         setCurrentCall(null);
       });
 
       call.on('reject', () => {
+        console.log('Call rejected');
         setStatus('error');
         setErrorMessage('Llamada rechazada');
+        setCurrentCall(null);
+      });
+
+      call.on('error', (error: any) => {
+        console.error('Call error event:', error);
+        setStatus('error');
+        setErrorMessage(`Error: ${error.message || 'Desconocido'}`);
         setCurrentCall(null);
       });
 
