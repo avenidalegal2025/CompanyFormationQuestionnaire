@@ -154,6 +154,13 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
   const PHONE_PREFIX = "+1 ";
   const phoneRef = useRef<HTMLInputElement | null>(null);
 
+  // Ensure default value so conditional UI shows correctly on first render
+  useEffect(() => {
+    if (!hasUsPhone) {
+      setValue("company.hasUsPhone", "No", { shouldValidate: true });
+    }
+  }, [hasUsPhone, setValue]);
+
   const formatUsPhone = (rawDigits: string) => {
     const d = rawDigits.slice(0, 10);
     const a = d.slice(0, 3);
