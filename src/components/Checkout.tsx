@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { loadStripe } from '@stripe/stripe-js';
 import { SERVICES, PACKAGES, calculateTotalPrice, formatPrice, FORMATION_PRICES } from '@/lib/pricing';
 import type { AllSteps } from '@/lib/schema';
+import { getAuth0SignupUrl } from '@/lib/auth0-client';
 
 // Stripe will be initialized inside the component
 
@@ -123,9 +124,16 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
     }
 
     if (status === 'unauthenticated' || !session?.user?.email) {
-      setError('Debes iniciar sesión para proceder con el pago.');
-      setLoading(false);
-      return;
+      try {
+        if (typeof window !== 'undefined') {
+          // After signup, return users to checkout step
+          window.localStorage.setItem('authCallbackUrl', '/?action=checkout');
+        }
+        window.location.href = getAuth0SignupUrl('');
+        return;
+      } finally {
+        setLoading(false);
+      }
     }
 
     if (!stripePromise) {
