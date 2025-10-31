@@ -13,13 +13,41 @@ import {
   PhoneIcon
 } from '@heroicons/react/24/outline';
 
+const LATAM_COUNTRIES = [
+  { code: '+1', flag: '🇺🇸', name: 'Estados Unidos / Canadá' },
+  { code: '+52', flag: '🇲🇽', name: 'México' },
+  { code: '+54', flag: '🇦🇷', name: 'Argentina' },
+  { code: '+55', flag: '🇧🇷', name: 'Brasil' },
+  { code: '+56', flag: '🇨🇱', name: 'Chile' },
+  { code: '+57', flag: '🇨🇴', name: 'Colombia' },
+  { code: '+506', flag: '🇨🇷', name: 'Costa Rica' },
+  { code: '+53', flag: '🇨🇺', name: 'Cuba' },
+  { code: '+593', flag: '🇪🇨', name: 'Ecuador' },
+  { code: '+503', flag: '🇸🇻', name: 'El Salvador' },
+  { code: '+502', flag: '🇬🇹', name: 'Guatemala' },
+  { code: '+509', flag: '🇭🇹', name: 'Haití' },
+  { code: '+504', flag: '🇭🇳', name: 'Honduras' },
+  { code: '+505', flag: '🇳🇮', name: 'Nicaragua' },
+  { code: '+507', flag: '🇵🇦', name: 'Panamá' },
+  { code: '+595', flag: '🇵🇾', name: 'Paraguay' },
+  { code: '+51', flag: '🇵🇪', name: 'Perú' },
+  { code: '+1', flag: '🇵🇷', name: 'Puerto Rico' },
+  { code: '+1809', flag: '🇩🇴', name: 'República Dominicana' },
+  { code: '+598', flag: '🇺🇾', name: 'Uruguay' },
+  { code: '+58', flag: '🇻🇪', name: 'Venezuela' },
+  { code: '+591', flag: '🇧🇴', name: 'Bolivia' },
+  { code: '+34', flag: '🇪🇸', name: 'España' },
+];
+
 export default function ClientPage() {
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [companyData, setCompanyData] = useState<any>(null);
   const [businessPhone, setBusinessPhone] = useState<{ phoneNumber: string; forwardToE164: string } | null>(null);
-  const [cc, setCc] = useState('+1');
+  const [cc, setCc] = useState('+52');
   const [localNum, setLocalNum] = useState('');
   const [showCaller, setShowCaller] = useState(false);
+  const [searchCountry, setSearchCountry] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
   const e164 = `${cc}${localNum.replace(/[^\d]/g, '')}`;
 
   useEffect(() => {
@@ -240,14 +268,65 @@ export default function ClientPage() {
                   {/* Update Forwarding Section */}
                   <div className="border-t pt-6">
                     <h4 className="text-sm font-semibold text-gray-900 mb-3">Actualizar Número de Desvío</h4>
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-                      <select className="input w-full sm:w-[140px]" value={cc} onChange={(e) => setCc(e.target.value)}>
-                        <option value="+1">🇺🇸 +1</option>
-                        <option value="+52">🇲🇽 +52</option>
-                        <option value="+57">🇨🇴 +57</option>
-                        <option value="+34">🇪🇸 +34</option>
-                        <option value="+51">🇵🇪 +51</option>
-                      </select>
+                    <div className="flex gap-2 items-center">
+                      {/* Custom Country Dropdown */}
+                      <div className="relative w-[200px]">
+                        <button
+                          type="button"
+                          onClick={() => setShowDropdown(!showDropdown)}
+                          className="input w-full text-left flex items-center justify-between"
+                        >
+                          <span>
+                            {LATAM_COUNTRIES.find(c => c.code === cc)?.flag} {cc}
+                          </span>
+                          <span className="text-gray-400">▼</span>
+                        </button>
+                        
+                        {showDropdown && (
+                          <>
+                            <div 
+                              className="fixed inset-0 z-10" 
+                              onClick={() => setShowDropdown(false)}
+                            />
+                            <div className="absolute z-20 mt-1 w-[300px] bg-white border border-gray-300 rounded-lg shadow-lg max-h-[300px] overflow-hidden">
+                              <div className="p-2 border-b sticky top-0 bg-white">
+                                <input
+                                  type="text"
+                                  placeholder="Buscar país..."
+                                  className="input w-full text-sm"
+                                  value={searchCountry}
+                                  onChange={(e) => setSearchCountry(e.target.value)}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </div>
+                              <div className="overflow-y-auto max-h-[240px]">
+                                {LATAM_COUNTRIES
+                                  .filter(country => 
+                                    country.name.toLowerCase().includes(searchCountry.toLowerCase()) ||
+                                    country.code.includes(searchCountry)
+                                  )
+                                  .map((country) => (
+                                    <button
+                                      key={country.code + country.name}
+                                      type="button"
+                                      className="w-full px-3 py-2 text-left hover:bg-gray-100 flex items-center gap-2"
+                                      onClick={() => {
+                                        setCc(country.code);
+                                        setShowDropdown(false);
+                                        setSearchCountry('');
+                                      }}
+                                    >
+                                      <span className="text-xl">{country.flag}</span>
+                                      <span className="text-sm flex-1">{country.name}</span>
+                                      <span className="text-sm text-gray-500">{country.code}</span>
+                                    </button>
+                                  ))}
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+
                       <input 
                         type="tel"
                         className="input flex-1 min-w-0" 
@@ -255,8 +334,9 @@ export default function ClientPage() {
                         value={localNum} 
                         onChange={(e) => setLocalNum(e.target.value)} 
                       />
+                      
                       <button
-                        className="btn btn-primary whitespace-nowrap w-full sm:w-auto"
+                        className="btn btn-primary whitespace-nowrap"
                         disabled={!localNum}
                         onClick={async () => {
                           try {
