@@ -15,19 +15,24 @@ export default function InternationalPhoneInput({ value, onChange, placeholder }
   const [error, setError] = useState<string | null>(null);
 
   const handleChange = (val?: string) => {
+    // Remove all spaces and non-digit characters except + for E.164 format
     const e164 = (val || "").replace(/\s+/g, "");
     const parsed = parsePhoneNumberFromString(e164 || "");
-    let countryCallingCode = parsed?.countryCallingCode || "";
-    let national = parsed?.nationalNumber || e164.replace(/^\+?\d{1,4}/, "").replace(/[^\d]/g, "");
+    
+    // Extract only digits from the national number (no spaces, no formatting)
+    const nationalDigits = (parsed?.nationalNumber || "").replace(/[^\d]/g, "");
 
-    if (national.length > 12) {
-      national = national.slice(0, 12);
-      const rebuilt = countryCallingCode ? `+${countryCallingCode}${national}` : `+${national}`;
-      onChange(rebuilt);
-      setError(national.length < 6 ? "Debe tener al menos 6 dígitos" : null);
-      return;
+    // Allow 6-14 digits in the national number
+    if (nationalDigits.length > 14) {
+      return; // Don't allow more than 14 digits
     }
-    setError(national.length > 0 && national.length < 6 ? "Debe tener entre 6 y 12 dígitos" : null);
+    
+    if (nationalDigits.length > 0 && nationalDigits.length < 6) {
+      setError("Debe tener entre 6 y 14 dígitos");
+    } else {
+      setError(null);
+    }
+    
     onChange(e164 || undefined);
   };
 
