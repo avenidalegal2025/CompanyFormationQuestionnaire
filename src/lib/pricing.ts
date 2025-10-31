@@ -54,7 +54,7 @@ export const SERVICES: ServiceItem[] = [
   {
     id: 'business_phone',
     name: 'Número de Teléfono en EE. UU.',
-    description: 'Número de teléfono virtual para su negocio con desvío de llamadas',
+    description: 'Número de teléfono en EEUU con desvío de llamadas por un año',
     price: 18000, // $180
     required: false,
     category: 'phone'
