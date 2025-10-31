@@ -56,7 +56,15 @@ export default function InternationalPhoneInput({ value, onChange, placeholder }
             required: false,
           }}
           // full width and integrate with our input styles
-          className="w-full [&_.react-international-phone-input]:w-full [&_.react-international-phone-input]:border-0 [&_.react-international-phone-input]:outline-none [&_.react-international-phone-input]:bg-transparent"
+          className="w-full"
+          inputClassName="w-full !border-0 !outline-none !bg-transparent"
+          countrySelectorStyleProps={{
+            buttonClassName: "!px-3 !py-2 !rounded-l-lg !border-0",
+            dropdownItemClassName: "!py-2 !px-3",
+            dropdownClassName: "!rounded-lg !shadow-lg !border !border-gray-200",
+            searchInputClassName: "!w-full !px-3 !py-2 !rounded-md !border !border-gray-300 focus:!ring-2 focus:!ring-blue-500",
+          }}
+          searchPlaceholder="Search for countries"
           placeholder={placeholder || "Buscar país y escribir número"}
           hideDropdown={false}
           showDisabledDialCode={true}
