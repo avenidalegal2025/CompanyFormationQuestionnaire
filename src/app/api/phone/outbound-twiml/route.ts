@@ -6,22 +6,31 @@ const VoiceResponse = twilio.twiml.VoiceResponse;
 
 export async function POST(req: NextRequest) {
   try {
-    // Try to get parameters from both URL params and form data
-    const { searchParams } = new URL(req.url);
-    let to = searchParams.get('To');
+    // Parse the request body as form data
+    const formData = await req.formData();
     
-    // If not in URL params, try form data
+    // Log ALL parameters Twilio sends
+    const allParams: Record<string, any> = {};
+    formData.forEach((value, key) => {
+      allParams[key] = value;
+    });
+    console.log('All Twilio parameters:', JSON.stringify(allParams, null, 2));
+    
+    // Try different possible parameter names
+    let to = formData.get('To') as string || 
+             formData.get('to') as string ||
+             formData.get('Called') as string;
+    
+    // Also check URL params
+    const { searchParams } = new URL(req.url);
     if (!to) {
-      const formData = await req.formData();
-      to = formData.get('To') as string;
-      console.log('All form params:', Object.fromEntries(formData.entries()));
+      to = searchParams.get('To') || searchParams.get('to') || '';
     }
     
-    console.log('Outbound call request - To:', to);
-    console.log('URL:', req.url);
+    console.log('Extracted To parameter:', to);
 
     if (!to) {
-      console.error('Missing To parameter in both URL and form data');
+      console.error('Missing To parameter. Available params:', Object.keys(allParams));
       const twiml = new VoiceResponse();
       twiml.say({ language: 'es-MX' }, 'Error: número de destino no especificado.');
       return new NextResponse(twiml.toString(), {
@@ -40,7 +49,7 @@ export async function POST(req: NextRequest) {
     
     dial.number(to);
 
-    console.log('Generated TwiML:', twiml.toString());
+    console.log('Generated TwiML for number:', to);
 
     return new NextResponse(twiml.toString(), {
       headers: {
