@@ -49,6 +49,8 @@ export const CompanySchema = z.object({
   // Phone
   hasUsPhone: z.enum(["Yes", "No"]).optional(),
   usPhoneNumber: z.string().optional(),
+  // Forwarding target for provided business phone (E.164, any country)
+  forwardPhoneE164: z.string().optional(),
 });
 
 /** ------------ Owners (Step 3) ------------ */

@@ -101,6 +101,9 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
   // ====== Toggles ======
   const hasUsaAddress = watch("company.hasUsaAddress");
   const hasUsPhone = watch("company.hasUsPhone");
+  const forwardPhoneE164 = watch("company.forwardPhoneE164") as string | undefined;
+  const [forwardCountryCode, setForwardCountryCode] = useState<string>("+1");
+  const [forwardLocalNumber, setForwardLocalNumber] = useState<string>("");
 
   // ====== Phone helpers (+1 XXX XXX XXXX) ======
   const PHONE_PREFIX = "+1 ";
@@ -408,6 +411,42 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
               onKeyDown={preventDeletePrefix}
             />
             <p className="help">Formato: +1 305 555 0123</p>
+          </div>
+        )}
+
+        {hasUsPhone === "No" && (
+          <div className="mt-4">
+            <label className="label">¿A qué número desea reenviar las llamadas?</label>
+            <div className="flex gap-2 items-center max-w-xl">
+              <select
+                className="input w-[140px]"
+                value={forwardCountryCode}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setForwardCountryCode(v);
+                  const e164 = `${v}${forwardLocalNumber.replace(/[^\d]/g, "")}`;
+                  setValue("company.forwardPhoneE164", e164, { shouldDirty: true, shouldValidate: true });
+                }}
+              >
+                <option value="+1">+1 (USA/Canadá)</option>
+                <option value="+52">+52 (México)</option>
+                <option value="+57">+57 (Colombia)</option>
+                <option value="+34">+34 (España)</option>
+                <option value="+51">+51 (Perú)</option>
+              </select>
+              <input
+                className="input flex-1"
+                placeholder="Número de teléfono"
+                value={forwardLocalNumber}
+                onChange={(e) => {
+                  const onlyDigits = e.target.value.replace(/[^\d]/g, "");
+                  setForwardLocalNumber(onlyDigits);
+                  const e164 = `${forwardCountryCode}${onlyDigits}`;
+                  setValue("company.forwardPhoneE164", e164, { shouldDirty: true, shouldValidate: true });
+                }}
+              />
+            </div>
+            <p className="help">Guardaremos este número para configurar el desvío automáticamente.</p>
           </div>
         )}
 

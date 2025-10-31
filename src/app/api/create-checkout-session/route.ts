@@ -209,7 +209,9 @@ export async function POST(request: NextRequest) {
         hasUsAddress: hasUsAddress.toString(),
         hasUsPhone: hasUsPhone.toString(),
         skipAgreement: skipAgreement.toString(),
-        totalAmount: totalPrice.toString()
+        totalAmount: totalPrice.toString(),
+        selectedServices: JSON.stringify(normalizedSelected),
+        forwardPhoneE164: formData?.company?.forwardPhoneE164 || ''
       }
     });
 

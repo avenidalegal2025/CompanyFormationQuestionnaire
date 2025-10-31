@@ -142,6 +142,8 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
   const hasUsPhone = session.metadata?.hasUsPhone === 'true';
   const skipAgreement = session.metadata?.skipAgreement === 'true';
   const totalAmount = parseFloat(session.metadata?.totalAmount || '0');
+  const selectedServices = safeParseArray(session.metadata?.selectedServices);
+  const forwardPhoneE164 = session.metadata?.forwardPhoneE164 || '';
   
   console.log('Company formation details:', {
     entityType,
@@ -149,7 +151,9 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
     hasUsAddress,
     hasUsPhone,
     skipAgreement,
-    totalAmount
+    totalAmount,
+    selectedServices,
+    forwardPhoneE164
   });
   
   // Here you would typically:
@@ -159,6 +163,42 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
   // 4. Update user's account status
   
   console.log('Company formation payment processed successfully');
+
+  // Auto-provision phone if the package includes it (or user lacks US phone)
+  try {
+    const needsPhone = (selectedServices || []).includes('business_phone') || !hasUsPhone;
+    if (needsPhone && state) {
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+      if (!baseUrl) throw new Error('Missing NEXT_PUBLIC_BASE_URL');
+      if (!forwardPhoneE164) {
+        console.warn('No forwardPhoneE164 provided; skipping phone provisioning');
+        return;
+      }
+      const resp = await fetch(`${baseUrl}/api/phone/provision`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ formationState: state, forwardToE164: forwardPhoneE164 })
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        console.log('📞 Phone provisioned:', data);
+      } else {
+        console.error('❌ Failed to provision phone:', await resp.text());
+      }
+    }
+  } catch (err) {
+    console.error('Auto-provision phone error:', err);
+  }
+}
+
+function safeParseArray(input: string | undefined): string[] {
+  if (!input) return [];
+  try {
+    const parsed = JSON.parse(input);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
