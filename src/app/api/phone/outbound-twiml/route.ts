@@ -6,16 +6,24 @@ const VoiceResponse = twilio.twiml.VoiceResponse;
 
 export async function POST(req: NextRequest) {
   try {
-    // Get parameters from URL search params (sent by Voice SDK)
+    // Try to get parameters from both URL params and form data
     const { searchParams } = new URL(req.url);
-    const to = searchParams.get('To');
+    let to = searchParams.get('To');
+    
+    // If not in URL params, try form data
+    if (!to) {
+      const formData = await req.formData();
+      to = formData.get('To') as string;
+      console.log('All form params:', Object.fromEntries(formData.entries()));
+    }
     
     console.log('Outbound call request - To:', to);
+    console.log('URL:', req.url);
 
     if (!to) {
-      console.error('Missing To parameter');
+      console.error('Missing To parameter in both URL and form data');
       const twiml = new VoiceResponse();
-      twiml.say('Error: número de destino no especificado.');
+      twiml.say({ language: 'es-MX' }, 'Error: número de destino no especificado.');
       return new NextResponse(twiml.toString(), {
         headers: { 'Content-Type': 'text/xml' },
       });
@@ -42,7 +50,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error('Outbound TwiML error:', err);
     const twiml = new VoiceResponse();
-    twiml.say('Lo sentimos, hubo un error al realizar la llamada.');
+    twiml.say({ language: 'es-MX' }, 'Lo sentimos, hubo un error al realizar la llamada.');
     return new NextResponse(twiml.toString(), {
       headers: {
         'Content-Type': 'text/xml',
