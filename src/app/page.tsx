@@ -47,6 +47,8 @@ function QuestionnaireContent() {
   const [step, setStep] = useState<number>(1);
   const [wantsAgreement, setWantsAgreement] = useState<boolean>(false);
   const totalSteps = wantsAgreement ? 9 : 5;
+  // When true, we intentionally navigate (e.g., to signup) and should not show the beforeunload prompt
+  const suppressBeforeUnloadRef = useRef<boolean>(false);
   
   // Anonymous draft management
   const [anonymousId, setAnonymousId] = useState<string>(() => {
@@ -61,13 +63,14 @@ function QuestionnaireContent() {
   // Browser close warning for unsigned users
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (!isSignedUp && step > 1) {
+      if (!isSignedUp && step > 1 && !suppressBeforeUnloadRef.current) {
         e.preventDefault();
         e.returnValue = 'Si sales antes de registrarte perderás toda tu información.';
         return 'Si sales antes de registrarte perderás toda tu información.';
       }
+      return undefined;
     };
-    
+
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isSignedUp, step]);
@@ -450,6 +453,8 @@ function QuestionnaireContent() {
           localStorage.setItem('authCallbackUrl', `/?action=continue&draftId=${anonymousId}&step=${step + 1}`);
         }
         // Redirect directly to Auth0 signup
+        // Suppress beforeunload prompt for this intentional navigation
+        suppressBeforeUnloadRef.current = true;
         window.location.href = getAuth0SignupUrl('');
         return;
       }
