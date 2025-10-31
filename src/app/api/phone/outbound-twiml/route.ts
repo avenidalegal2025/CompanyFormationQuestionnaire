@@ -41,10 +41,10 @@ export async function POST(req: NextRequest) {
     // Create TwiML response to dial the number
     const twiml = new VoiceResponse();
     
-    // Use answerOnBridge to only connect when the call is answered
+    // Simple dial without answerOnBridge for trial account compatibility
     const dial = twiml.dial({
-      answerOnBridge: true,
       timeout: 30,
+      callerId: '+17866400626', // Use business number as caller ID if available
     });
     
     dial.number(to);
