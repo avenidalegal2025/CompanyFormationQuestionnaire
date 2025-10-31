@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { PhoneInput } from "react-international-phone";
 import "react-international-phone/style.css";
-import { getCountryCallingCode } from "libphonenumber-js";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
 
 interface Props {
   value?: string;
@@ -12,29 +12,17 @@ interface Props {
 }
 
 export default function InternationalPhoneInput({ value, onChange, placeholder }: Props) {
-  const [country, setCountry] = useState<string>("US");
   const [error, setError] = useState<string | null>(null);
-
-  const callingCode = useMemo(() => {
-    try {
-      return getCountryCallingCode(country as any);
-    } catch {
-      return "1";
-    }
-  }, [country]);
 
   const handleChange = (val?: string) => {
     const e164 = (val || "").replace(/\s+/g, "");
-    // Extract national digits (strip + and country calling code)
-    const digits = e164.replace(/[^\d]/g, "");
-    let national = digits;
-    if (digits.startsWith(callingCode)) {
-      national = digits.slice(callingCode.length);
-    }
-    // Enforce 0-12 by trimming; then validate min 6
+    const parsed = parsePhoneNumberFromString(e164 || "");
+    let countryCallingCode = parsed?.countryCallingCode || "";
+    let national = parsed?.nationalNumber || e164.replace(/^\+?\d{1,4}/, "").replace(/[^\d]/g, "");
+
     if (national.length > 12) {
       national = national.slice(0, 12);
-      const rebuilt = `+${callingCode}${national}`;
+      const rebuilt = countryCallingCode ? `+${countryCallingCode}${national}` : `+${national}`;
       onChange(rebuilt);
       setError(national.length < 6 ? "Debe tener al menos 6 dígitos" : null);
       return;
@@ -50,7 +38,6 @@ export default function InternationalPhoneInput({ value, onChange, placeholder }
           defaultCountry="us"
           value={value}
           onChange={handleChange}
-          onCountryChange={(c: string) => setCountry(c)}
           inputProps={{
             name: "forwardPhone",
             required: false,
