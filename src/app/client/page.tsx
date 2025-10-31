@@ -240,8 +240,8 @@ export default function ClientPage() {
                   {/* Update Forwarding Section */}
                   <div className="border-t pt-6">
                     <h4 className="text-sm font-semibold text-gray-900 mb-3">Actualizar Número de Desvío</h4>
-                    <div className="flex gap-2 items-start">
-                      <select className="input w-[140px]" value={cc} onChange={(e) => setCc(e.target.value)}>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                      <select className="input w-full sm:w-[140px]" value={cc} onChange={(e) => setCc(e.target.value)}>
                         <option value="+1">🇺🇸 +1</option>
                         <option value="+52">🇲🇽 +52</option>
                         <option value="+57">🇨🇴 +57</option>
@@ -249,21 +249,28 @@ export default function ClientPage() {
                         <option value="+51">🇵🇪 +51</option>
                       </select>
                       <input 
-                        className="input flex-1" 
-                        placeholder="Número de destino" 
+                        type="tel"
+                        className="input flex-1 min-w-0" 
+                        placeholder="558 918 5576" 
                         value={localNum} 
                         onChange={(e) => setLocalNum(e.target.value)} 
                       />
                       <button
-                        className="btn btn-primary whitespace-nowrap"
+                        className="btn btn-primary whitespace-nowrap w-full sm:w-auto"
+                        disabled={!localNum}
                         onClick={async () => {
                           try {
                             const resp = await fetch('/api/phone/me', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ forwardToE164: e164 }) });
                             if (resp.ok) {
                               setBusinessPhone({ ...businessPhone, forwardToE164: e164 });
                               setLocalNum('');
+                              alert('✅ Número de desvío actualizado correctamente');
+                            } else {
+                              alert('❌ Error al actualizar. Intenta de nuevo.');
                             }
-                          } catch {}
+                          } catch {
+                            alert('❌ Error al actualizar. Intenta de nuevo.');
+                          }
                         }}
                       >
                         Actualizar
