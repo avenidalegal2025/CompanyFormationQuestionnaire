@@ -295,9 +295,8 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
                     field.onChange(v);
                     if (v === "Yes") {
                       setValue("company.country", "Estados Unidos de América", { shouldDirty: true });
-                      setValue("company.state", getValues("company.formationState"), {
-                        shouldDirty: true,
-                      });
+                      // Do not autofill state from formationState; leave blank for Google Autocomplete to set
+                      setValue("company.state", "", { shouldDirty: true });
                     }
                   }}
                   options={[
