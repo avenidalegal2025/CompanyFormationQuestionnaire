@@ -50,7 +50,7 @@ export default function InternationalPhoneInput({ value, onChange, placeholder }
           defaultCountry="us"
           value={value}
           onChange={handleChange}
-          onCountryChange={(c) => setCountry(c)}
+          onCountryChange={(c: string) => setCountry(c)}
           inputProps={{
             name: "forwardPhone",
             required: false,
