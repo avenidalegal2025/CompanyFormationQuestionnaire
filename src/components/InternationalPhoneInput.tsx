@@ -50,9 +50,7 @@ export default function InternationalPhoneInput({ value, onChange, placeholder }
           }}
           placeholder={placeholder || "Buscar país y escribir número"}
           hideDropdown={false}
-          showDisabledDialCode={true}
           forceDialCode={true}
-          autoComplete="tel"
         />
       </div>
       <p className={`help mt-1 ${error ? "text-red-600" : ""}`}>{error ?? "Guardaremos este número para configurar el desvío automáticamente."}</p>
