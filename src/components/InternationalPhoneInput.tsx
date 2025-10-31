@@ -48,7 +48,6 @@ export default function InternationalPhoneInput({ value, onChange, placeholder }
           countrySelectorStyleProps={{
             buttonClassName: "!px-3 !py-2 !rounded-l-lg !border-0",
           }}
-          searchPlaceholder="Search for countries"
           placeholder={placeholder || "Buscar país y escribir número"}
           hideDropdown={false}
           showDisabledDialCode={true}
