@@ -2,13 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import ClientNavigation from '@/components/ClientNavigation';
+import VoiceCaller from '@/components/VoiceCaller';
 import Link from 'next/link';
 import {
   CheckCircleIcon,
   ClockIcon,
   DocumentTextIcon,
   ShoppingBagIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  PhoneIcon
 } from '@heroicons/react/24/outline';
 
 export default function ClientPage() {
@@ -17,6 +19,7 @@ export default function ClientPage() {
   const [businessPhone, setBusinessPhone] = useState<{ phoneNumber: string; forwardToE164: string } | null>(null);
   const [cc, setCc] = useState('+1');
   const [localNum, setLocalNum] = useState('');
+  const [showCaller, setShowCaller] = useState(false);
   const e164 = `${cc}${localNum.replace(/[^\d]/g, '')}`;
 
   useEffect(() => {
@@ -231,14 +234,30 @@ export default function ClientPage() {
                       Actualizar desvío
                     </button>
                   </div>
+                  <div className="mt-4">
+                    <button
+                      onClick={() => setShowCaller(true)}
+                      className="btn btn-primary flex items-center gap-2"
+                    >
+                      <PhoneIcon className="h-5 w-5" />
+                      Realizar Llamada
+                    </button>
+                  </div>
                   <p className="text-sm text-gray-600 mt-3">
-                    Prueba tu número llamándolo desde cualquier teléfono. También puedes usar el <a className="text-blue-600 underline" href="https://www.twilio.com/console/voice/dev-tools/web-caller" target="_blank" rel="noreferrer">Twilio Web Caller</a> para realizar llamadas salientes desde tu navegador.
+                    Prueba tu número llamándolo desde cualquier teléfono o usa el botón de arriba para realizar llamadas salientes.
                   </p>
                 </div>
               ) : (
                 <p className="text-gray-600">Aún no se ha asignado un número. Se asignará automáticamente después del pago.</p>
               )}
             </div>
+
+            {/* Voice Caller Modal */}
+            {showCaller && businessPhone && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <VoiceCaller onClose={() => setShowCaller(false)} />
+              </div>
+            )}
 
             {/* Recent Documents */}
             <div className="bg-white rounded-lg shadow-sm">
