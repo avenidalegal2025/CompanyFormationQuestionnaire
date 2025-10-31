@@ -61,12 +61,7 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
       return [
         "LLC",
         "L.L.C.",
-        "Limited Liability Company",
-        "Ltd Liability Co",
-        "Limited Company",
-        "LC",
-        "Limited",
-        "Ltd"
+        "Limited Liability Company"
       ];
     } else if (entityType === "C-Corp") {
       return [
