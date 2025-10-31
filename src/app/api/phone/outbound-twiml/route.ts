@@ -6,35 +6,33 @@ const VoiceResponse = twilio.twiml.VoiceResponse;
 
 export async function POST(req: NextRequest) {
   try {
-    const formData = await req.formData();
-    const to = formData.get('To') as string;
-    const from = formData.get('From') as string;
+    // Get parameters from URL search params (sent by Voice SDK)
+    const { searchParams } = new URL(req.url);
+    const to = searchParams.get('To');
     
-    // Get the user's identity from the call (passed by Twilio)
-    const identity = formData.get('identity') as string;
+    console.log('Outbound call request - To:', to);
 
     if (!to) {
-      return new NextResponse('Missing To parameter', { status: 400 });
-    }
-
-    // Get the user's business phone number to use as caller ID
-    let callerId = from;
-    if (identity) {
-      const businessPhone = await getBusinessPhone(identity);
-      if (businessPhone?.phoneNumber) {
-        callerId = businessPhone.phoneNumber;
-      }
+      console.error('Missing To parameter');
+      const twiml = new VoiceResponse();
+      twiml.say('Error: número de destino no especificado.');
+      return new NextResponse(twiml.toString(), {
+        headers: { 'Content-Type': 'text/xml' },
+      });
     }
 
     // Create TwiML response to dial the number
     const twiml = new VoiceResponse();
     
+    // Use answerOnBridge to only connect when the call is answered
     const dial = twiml.dial({
-      callerId: callerId,
       answerOnBridge: true,
+      timeout: 30,
     });
     
     dial.number(to);
+
+    console.log('Generated TwiML:', twiml.toString());
 
     return new NextResponse(twiml.toString(), {
       headers: {
