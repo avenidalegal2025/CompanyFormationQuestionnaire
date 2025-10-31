@@ -32,7 +32,8 @@
     "sharp": "0.33.5",
     "stripe": "^19.1.0",
     "twilio": "4.23.0",
-    "react-phone-number-input": "^3.3.0",
+    "react-international-phone": "^4.3.0",
+    "libphonenumber-js": "^1.10.55",
     "tailwind-merge": "2.5.4",
     "zod": "3.23.8"
   },
