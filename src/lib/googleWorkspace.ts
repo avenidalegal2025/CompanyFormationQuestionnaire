@@ -75,18 +75,19 @@ export async function createWorkspaceAccount(
     const customerId = customerResponse.data.customerId as string;
     console.log(`Created customer with ID: ${customerId}`);
 
-    // Step 2: Create subscription for Google Workspace
+    // Step 2: Create subscription for Google Workspace Business Starter (Flexible Plan)
     const subscriptionResponse = await reseller.subscriptions.insert({
       customerId: customerId!,
       requestBody: {
-        skuId: 'Google-Apps-For-Business', // Basic plan
+        skuId: 'Google-Apps-Unlimited', // Business Starter plan
         plan: {
-          planName: 'ANNUAL_MONTHLY_PAY',
+          planName: 'FLEXIBLE', // Pay monthly, cancel anytime (~$7.20/month)
           isCommitmentPlan: false,
         },
         purchaseOrderId: `PO-${Date.now()}`,
         seats: {
-          numberOfSeats: 1,
+          numberOfSeats: 1, // 1 user
+          maximumNumberOfSeats: 1,
         },
       },
     });

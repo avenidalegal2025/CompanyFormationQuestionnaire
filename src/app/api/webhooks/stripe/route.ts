@@ -207,7 +207,38 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
   try {
     const needsWorkspace = (selectedServices || []).includes('google_workspace');
     if (needsWorkspace) {
-      console.log('🚀 Starting Google Workspace provisioning...');
+      // Check if this is a test payment (Stripe test mode)
+      const isTestMode = session.id.startsWith('cs_test_');
+      
+      if (isTestMode) {
+        console.log('⚠️ TEST MODE: Skipping real Google Workspace provisioning');
+        console.log('💡 In production, this would create a real Google Workspace account');
+        
+        // Save mock data for testing
+        const customerEmail = session.customer_details?.email || (session.customer_email as string) || '';
+        const mockWorkspaceRecord: GoogleWorkspaceRecord = {
+          domain: 'test-company.com',
+          customerId: 'mock-customer-id',
+          adminEmail: 'admin@test-company.com',
+          adminPassword: 'MockPassword123!',
+          status: 'pending',
+          setupDate: new Date().toISOString(),
+          expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+          gmailEnabled: true,
+          dnsConfigured: false,
+          domainVerified: false,
+          stripePaymentId: session.id,
+          price: 15000,
+        };
+        
+        if (customerEmail) {
+          await saveGoogleWorkspace(customerEmail, mockWorkspaceRecord);
+          console.log('✅ Mock Google Workspace data saved for testing');
+        }
+        return;
+      }
+      
+      console.log('🚀 PRODUCTION MODE: Starting real Google Workspace provisioning...');
       
       const customerEmail = session.customer_details?.email || (session.customer_email as string) || '';
       const customerName = session.customer_details?.name || session.metadata?.customer_name || 'Customer';
@@ -279,8 +310,36 @@ async function handleGoogleWorkspacePurchase(session: Stripe.Checkout.Session) {
     return;
   }
 
+  // Check if this is a test payment (Stripe test mode)
+  const isTestMode = session.id.startsWith('cs_test_');
+  
+  if (isTestMode) {
+    console.log('⚠️ TEST MODE: Skipping real Google Workspace provisioning');
+    console.log('💡 In production, this would create a real Google Workspace account for:', domain);
+    
+    // Save mock data for testing
+    const mockWorkspaceRecord: GoogleWorkspaceRecord = {
+      domain: domain,
+      customerId: 'mock-customer-id',
+      adminEmail: `admin@${domain}`,
+      adminPassword: 'MockPassword123!',
+      status: 'pending',
+      setupDate: new Date().toISOString(),
+      expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+      gmailEnabled: true,
+      dnsConfigured: false,
+      domainVerified: false,
+      stripePaymentId: session.id,
+      price: 15000,
+    };
+    
+    await saveGoogleWorkspace(customerEmail, mockWorkspaceRecord);
+    console.log('✅ Mock Google Workspace data saved for testing');
+    return;
+  }
+
   try {
-    console.log('🚀 Starting Google Workspace provisioning...');
+    console.log('🚀 PRODUCTION MODE: Starting real Google Workspace provisioning for:', domain);
     
     const workspaceAccount = await createWorkspaceAccount(domain, customerEmail, customerName);
     console.log('✅ Google Workspace account created:', workspaceAccount.adminEmail);
@@ -298,7 +357,8 @@ async function handleGoogleWorkspacePurchase(session: Stripe.Checkout.Session) {
       dnsConfigured: workspaceAccount.dnsConfigured,
       domainVerified: workspaceAccount.domainVerified,
       stripePaymentId: session.id,
-      price: 15000, // $150
+      price: 15000, // $150 (cost to customer)
+      // Note: Google charges us $72/year for Business Starter plan
     };
 
     await saveGoogleWorkspace(customerEmail, workspaceRecord);

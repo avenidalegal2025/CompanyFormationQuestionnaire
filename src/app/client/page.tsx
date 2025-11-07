@@ -479,7 +479,7 @@ export default function ClientPage() {
                   </div>
 
                   {/* Info Box */}
-                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-6">
                     <h5 className="text-sm font-semibold text-purple-900 mb-2">📧 Servicios Incluidos</h5>
                     <ul className="text-sm text-purple-800 space-y-1">
                       <li>• <strong>Gmail Profesional:</strong> Correo con tu dominio empresarial</li>
@@ -487,6 +487,98 @@ export default function ClientPage() {
                       <li>• <strong>Google Meet:</strong> Videoconferencias profesionales</li>
                       <li>• <strong>Docs, Sheets, Slides:</strong> Suite completa de productividad</li>
                     </ul>
+                  </div>
+
+                  {/* Management Actions */}
+                  <div className="border-t pt-6">
+                    <h5 className="text-sm font-semibold text-gray-900 mb-3">Gestionar Suscripción</h5>
+                    <div className="flex gap-3">
+                      {googleWorkspace.status === 'active' || googleWorkspace.status === 'pending' ? (
+                        <>
+                          <button
+                            onClick={async () => {
+                              if (!confirm('¿Estás seguro de que quieres suspender temporalmente este servicio?')) return;
+                              try {
+                                const res = await fetch('/api/workspace/manage', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ action: 'suspend' }),
+                                });
+                                if (res.ok) {
+                                  const data = await res.json();
+                                  setGoogleWorkspace(data.workspace);
+                                  alert('✅ Suscripción suspendida correctamente');
+                                } else {
+                                  alert('❌ Error al suspender la suscripción');
+                                }
+                              } catch {
+                                alert('❌ Error al procesar la solicitud');
+                              }
+                            }}
+                            className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors text-sm"
+                          >
+                            ⏸️ Suspender
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!confirm('⚠️ ¿Estás seguro de que quieres cancelar permanentemente este servicio? Esta acción no se puede deshacer.')) return;
+                              try {
+                                const res = await fetch('/api/workspace/manage', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ action: 'cancel' }),
+                                });
+                                if (res.ok) {
+                                  const data = await res.json();
+                                  setGoogleWorkspace(data.workspace);
+                                  alert('✅ Suscripción cancelada correctamente');
+                                } else {
+                                  alert('❌ Error al cancelar la suscripción');
+                                }
+                              } catch {
+                                alert('❌ Error al procesar la solicitud');
+                              }
+                            }}
+                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+                          >
+                            ❌ Cancelar
+                          </button>
+                        </>
+                      ) : googleWorkspace.status === 'suspended' ? (
+                        <button
+                          onClick={async () => {
+                            try {
+                              const res = await fetch('/api/workspace/manage', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ action: 'reactivate' }),
+                              });
+                              if (res.ok) {
+                                const data = await res.json();
+                                setGoogleWorkspace(data.workspace);
+                                alert('✅ Suscripción reactivada correctamente');
+                              } else {
+                                alert('❌ Error al reactivar la suscripción');
+                              }
+                            } catch {
+                              alert('❌ Error al procesar la solicitud');
+                            }
+                          }}
+                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+                        >
+                          ▶️ Reactivar
+                        </button>
+                      ) : (
+                        <p className="text-sm text-gray-500">Servicio cancelado - No se puede reactivar</p>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      {googleWorkspace.status === 'active' || googleWorkspace.status === 'pending' 
+                        ? '💡 Suspender pausará el servicio temporalmente. Cancelar lo eliminará permanentemente.'
+                        : googleWorkspace.status === 'suspended'
+                        ? '💡 Puedes reactivar el servicio en cualquier momento.'
+                        : '💡 Este servicio ha sido cancelado permanentemente.'}
+                    </p>
                   </div>
                 </div>
               ) : (
