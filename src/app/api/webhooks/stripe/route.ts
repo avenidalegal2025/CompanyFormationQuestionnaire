@@ -296,11 +296,13 @@ async function handleGoogleWorkspacePurchase(session: Stripe.Checkout.Session) {
   console.log('Processing standalone Google Workspace purchase:', session.id);
   
   const domain = session.metadata?.domain || '';
+  const primaryEmail = session.metadata?.primary_email || '';
   const customerEmail = session.customer_details?.email || (session.customer_email as string) || session.metadata?.user_email || '';
   const customerName = session.customer_details?.name || session.metadata?.user_name || 'Customer';
   
   console.log('Google Workspace purchase details:', {
     domain,
+    primaryEmail,
     customerEmail,
     customerName,
   });
@@ -321,7 +323,7 @@ async function handleGoogleWorkspacePurchase(session: Stripe.Checkout.Session) {
     const mockWorkspaceRecord: GoogleWorkspaceRecord = {
       domain: domain,
       customerId: 'mock-customer-id',
-      adminEmail: `admin@${domain}`,
+      adminEmail: primaryEmail || `admin@${domain}`,
       adminPassword: 'MockPassword123!',
       status: 'pending',
       setupDate: new Date().toISOString(),
@@ -330,7 +332,7 @@ async function handleGoogleWorkspacePurchase(session: Stripe.Checkout.Session) {
       dnsConfigured: false,
       domainVerified: false,
       stripePaymentId: session.id,
-      price: 15000,
+      price: 720, // $7.20
     };
     
     await saveGoogleWorkspace(customerEmail, mockWorkspaceRecord);
@@ -340,8 +342,9 @@ async function handleGoogleWorkspacePurchase(session: Stripe.Checkout.Session) {
 
   try {
     console.log('🚀 PRODUCTION MODE: Starting real Google Workspace provisioning for:', domain);
+    console.log('Primary email requested:', primaryEmail);
     
-    const workspaceAccount = await createWorkspaceAccount(domain, customerEmail, customerName);
+    const workspaceAccount = await createWorkspaceAccount(domain, customerEmail, customerName, primaryEmail);
     console.log('✅ Google Workspace account created:', workspaceAccount.adminEmail);
 
     // Save to DynamoDB

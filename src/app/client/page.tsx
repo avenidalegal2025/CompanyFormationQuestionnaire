@@ -45,6 +45,7 @@ export default function ClientPage() {
   const [businessPhone, setBusinessPhone] = useState<{ phoneNumber: string; forwardToE164: string } | null>(null);
   const [googleWorkspace, setGoogleWorkspace] = useState<any>(null);
   const [workspaceDomain, setWorkspaceDomain] = useState('');
+  const [workspaceEmail, setWorkspaceEmail] = useState('');
   const [workspaceLoading, setWorkspaceLoading] = useState(false);
   const [cc, setCc] = useState('+52');
   const [localNum, setLocalNum] = useState('');
@@ -587,23 +588,46 @@ export default function ClientPage() {
                     <div className="text-6xl mb-4">📧</div>
                     <p className="text-gray-600 text-lg mb-4">¿Necesitas correo profesional?</p>
                     <p className="text-gray-500 text-sm mb-6">
-                      Obtén Gmail, Drive, Meet y más con tu dominio empresarial por solo $150/año
+                      Prueba Gmail, Drive, Meet y más con tu dominio empresarial por 1 mes - Solo $7.20
                     </p>
                     
-                    <div className="max-w-md mx-auto mb-6">
-                      <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
-                        Ingresa tu dominio empresarial
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="ejemplo.com"
-                        value={workspaceDomain}
-                        onChange={(e) => setWorkspaceDomain(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      />
-                      <p className="text-xs text-gray-500 mt-1 text-left">
-                        El dominio donde quieres configurar tu correo profesional
-                      </p>
+                    <div className="max-w-md mx-auto mb-6 space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
+                          Ingresa tu dominio empresarial
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="ejemplo.com"
+                          value={workspaceDomain}
+                          onChange={(e) => setWorkspaceDomain(e.target.value)}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        />
+                        <p className="text-xs text-gray-500 mt-1 text-left">
+                          El dominio donde quieres configurar tu correo profesional
+                        </p>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
+                          Elige tu dirección de correo
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="nombre"
+                            value={workspaceEmail}
+                            onChange={(e) => setWorkspaceEmail(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ''))}
+                            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          />
+                          <span className="flex items-center px-3 bg-gray-100 border border-gray-300 rounded-lg text-gray-600">
+                            @{workspaceDomain || 'ejemplo.com'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1 text-left">
+                          Tu correo será: <strong>{workspaceEmail || 'nombre'}@{workspaceDomain || 'ejemplo.com'}</strong>
+                        </p>
+                      </div>
                     </div>
                     
                     <button
@@ -613,12 +637,22 @@ export default function ClientPage() {
                           return;
                         }
                         
+                        if (!workspaceEmail || workspaceEmail.length < 2) {
+                          alert('Por favor ingresa un nombre de correo válido');
+                          return;
+                        }
+                        
+                        const fullEmail = `${workspaceEmail}@${workspaceDomain}`;
+                        
                         setWorkspaceLoading(true);
                         try {
                           const response = await fetch('/api/workspace/create-checkout-session', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ domain: workspaceDomain }),
+                            body: JSON.stringify({ 
+                              domain: workspaceDomain,
+                              primaryEmail: fullEmail
+                            }),
                           });
                           
                           if (response.ok) {
@@ -635,10 +669,10 @@ export default function ClientPage() {
                           setWorkspaceLoading(false);
                         }
                       }}
-                      disabled={workspaceLoading || !workspaceDomain}
+                      disabled={workspaceLoading || !workspaceDomain || !workspaceEmail}
                       className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {workspaceLoading ? 'Procesando...' : 'Adquirir Google Workspace - $150/año'}
+                      {workspaceLoading ? 'Procesando...' : 'Probar Google Workspace - $7.20/mes'}
                     </button>
                   </div>
                 </div>

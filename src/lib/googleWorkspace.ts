@@ -57,7 +57,8 @@ export interface DNSRecord {
 export async function createWorkspaceAccount(
   domain: string,
   customerEmail: string,
-  customerName: string
+  customerName: string,
+  primaryEmail?: string
 ): Promise<GoogleWorkspaceAccount> {
   try {
     console.log(`Creating Google Workspace account for domain: ${domain}`);
@@ -95,8 +96,10 @@ export async function createWorkspaceAccount(
     console.log(`Created subscription: ${subscriptionResponse.data.subscriptionId}`);
 
     // Step 3: Generate admin credentials
-    const adminEmail = `admin@${domain}`;
+    const adminEmail = primaryEmail || `admin@${domain}`;
     const adminPassword = generateSecurePassword();
+    
+    console.log(`Creating admin user with email: ${adminEmail}`);
 
     // Step 4: Create admin user
     const userResponse = await admin.users.insert({

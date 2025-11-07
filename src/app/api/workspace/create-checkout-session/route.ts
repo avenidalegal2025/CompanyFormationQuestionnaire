@@ -19,11 +19,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { domain } = await request.json();
+    const { domain, primaryEmail } = await request.json();
 
     if (!domain) {
       return NextResponse.json(
         { error: 'Domain is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!primaryEmail || !primaryEmail.includes('@')) {
+      return NextResponse.json(
+        { error: 'Valid email is required' },
         { status: 400 }
       );
     }
@@ -39,14 +46,14 @@ export async function POST(request: NextRequest) {
         price_data: {
           currency: 'usd',
           product_data: {
-            name: 'Google Workspace',
-            description: 'Correo profesional con Gmail, Google Drive, Meet y más por 1 año',
+            name: 'Google Workspace - Prueba 1 Mes',
+            description: 'Correo profesional con Gmail, Google Drive, Meet y más por 1 mes',
             metadata: {
               serviceId: 'google_workspace',
               category: 'workspace',
             },
           },
-          unit_amount: 15000, // $150
+          unit_amount: 720, // $7.20 - matches 1 month Google cost
         },
         quantity: 1,
       }],
@@ -57,6 +64,7 @@ export async function POST(request: NextRequest) {
       metadata: {
         type: 'google_workspace_purchase',
         domain: domain,
+        primary_email: primaryEmail,
         user_email: session.user.email,
         user_name: session.user.name || '',
       }
