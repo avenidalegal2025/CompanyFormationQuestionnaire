@@ -61,6 +61,22 @@ export interface BusinessPhoneRecord {
   updatedAt: string;
 }
 
+// Google Workspace record
+export interface GoogleWorkspaceRecord {
+  domain: string;
+  customerId: string;
+  adminEmail: string;
+  adminPassword: string;
+  status: 'pending' | 'active' | 'suspended' | 'failed';
+  setupDate: string;
+  expiryDate: string;
+  gmailEnabled: boolean;
+  dnsConfigured: boolean;
+  domainVerified: boolean;
+  stripePaymentId: string;
+  price: number;
+}
+
 export async function saveBusinessPhone(userId: string, data: BusinessPhoneRecord) {
   const command = new UpdateCommand({
     TableName: TABLE_NAME,
@@ -82,6 +98,30 @@ export async function getBusinessPhone(userId: string): Promise<BusinessPhoneRec
   });
   const res = await ddb.send(command);
   return (res.Item as any)?.businessPhone ?? null;
+}
+
+// Google Workspace operations
+export async function saveGoogleWorkspace(userId: string, data: GoogleWorkspaceRecord) {
+  const command = new UpdateCommand({
+    TableName: TABLE_NAME,
+    Key: buildUserKey(userId),
+    UpdateExpression: 'SET googleWorkspace = :gw',
+    ExpressionAttributeValues: {
+      ':gw': data,
+    },
+    ReturnValues: 'UPDATED_NEW',
+  });
+  return ddb.send(command);
+}
+
+export async function getGoogleWorkspace(userId: string): Promise<GoogleWorkspaceRecord | null> {
+  const command = new GetCommand({
+    TableName: TABLE_NAME,
+    Key: buildUserKey(userId),
+    ProjectionExpression: 'googleWorkspace',
+  });
+  const res = await ddb.send(command);
+  return (res.Item as any)?.googleWorkspace ?? null;
 }
 
 // Domain-specific DynamoDB operations

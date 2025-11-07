@@ -207,7 +207,7 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
       return shouldShow;
     }
     
-    // Show all other services (address, phone, agreement)
+    // Show all other services (address, phone, workspace, etc.)
     return true;
   });
   

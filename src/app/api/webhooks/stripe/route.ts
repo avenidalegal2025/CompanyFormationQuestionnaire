@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
-import { saveDomainRegistration, type DomainRegistration, saveBusinessPhone } from '@/lib/dynamo';
+import { saveDomainRegistration, type DomainRegistration, saveBusinessPhone, saveGoogleWorkspace, type GoogleWorkspaceRecord } from '@/lib/dynamo';
+import { createWorkspaceAccount } from '@/lib/googleWorkspace';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-09-30.clover',
@@ -198,6 +199,53 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
     }
   } catch (err) {
     console.error('Auto-provision phone error:', err);
+  }
+
+  // Auto-provision Google Workspace if the package includes it
+  try {
+    const needsWorkspace = (selectedServices || []).includes('google_workspace');
+    if (needsWorkspace) {
+      console.log('🚀 Starting Google Workspace provisioning...');
+      
+      const customerEmail = session.customer_details?.email || (session.customer_email as string) || '';
+      const customerName = session.customer_details?.name || session.metadata?.customer_name || 'Customer';
+      
+      // Get the company name from metadata to create the domain
+      // For now, we'll use a placeholder - in production, you'd get the actual domain from the user
+      const companyName = session.metadata?.companyName || 'example';
+      const domain = `${companyName.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`;
+      
+      if (!customerEmail) {
+        console.warn('No customer email provided; skipping Google Workspace provisioning');
+        return;
+      }
+
+      const workspaceAccount = await createWorkspaceAccount(domain, customerEmail, customerName);
+      console.log('✅ Google Workspace account created:', workspaceAccount.adminEmail);
+
+      // Save to DynamoDB
+      const userKey = customerEmail;
+      const workspaceRecord: GoogleWorkspaceRecord = {
+        domain: workspaceAccount.domain,
+        customerId: workspaceAccount.customerId,
+        adminEmail: workspaceAccount.adminEmail,
+        adminPassword: workspaceAccount.adminPassword,
+        status: workspaceAccount.status,
+        setupDate: workspaceAccount.setupDate,
+        expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year from now
+        gmailEnabled: workspaceAccount.gmailEnabled,
+        dnsConfigured: workspaceAccount.dnsConfigured,
+        domainVerified: workspaceAccount.domainVerified,
+        stripePaymentId: session.id,
+        price: 15000, // $150
+      };
+
+      await saveGoogleWorkspace(userKey, workspaceRecord);
+      console.log('✅ Google Workspace saved to DynamoDB');
+    }
+  } catch (err) {
+    console.error('❌ Auto-provision Google Workspace error:', err);
+    // Don't fail the entire process if Workspace provisioning fails
   }
 }
 

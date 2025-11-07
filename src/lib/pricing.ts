@@ -4,7 +4,7 @@ export interface ServiceItem {
   description: string;
   price: number; // in cents
   required: boolean;
-  category: 'formation' | 'address' | 'phone' | 'agreement';
+  category: 'formation' | 'address' | 'phone' | 'agreement' | 'workspace';
 }
 
 export interface PricingPackage {
@@ -74,6 +74,14 @@ export const SERVICES: ServiceItem[] = [
     price: 60000, // $600
     required: false,
     category: 'agreement'
+  },
+  {
+    id: 'google_workspace',
+    name: 'Google Workspace',
+    description: 'Correo profesional con Gmail, Google Drive, Meet y más por 1 año',
+    price: 15000, // $150
+    required: false,
+    category: 'workspace'
   }
 ];
 

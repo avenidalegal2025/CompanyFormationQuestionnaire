@@ -43,6 +43,7 @@ export default function ClientPage() {
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [companyData, setCompanyData] = useState<any>(null);
   const [businessPhone, setBusinessPhone] = useState<{ phoneNumber: string; forwardToE164: string } | null>(null);
+  const [googleWorkspace, setGoogleWorkspace] = useState<any>(null);
   const [cc, setCc] = useState('+52');
   const [localNum, setLocalNum] = useState('');
   const [showCaller, setShowCaller] = useState(false);
@@ -71,6 +72,20 @@ export default function ClientPage() {
           const data = await res.json();
           if (data.phone) {
             setBusinessPhone({ phoneNumber: data.phone.phoneNumber, forwardToE164: data.phone.forwardToE164 });
+          }
+        }
+      } catch {}
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/workspace/me', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.workspace) {
+            setGoogleWorkspace(data.workspace);
           }
         }
       } catch {}
@@ -377,6 +392,118 @@ export default function ClientPage() {
                     <div className="text-6xl mb-4">📞</div>
                     <p className="text-gray-600 text-lg">Aún no se ha asignado un número.</p>
                     <p className="text-gray-500 text-sm mt-2">Se asignará automáticamente después del pago.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Google Workspace Card */}
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-8">
+              <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-4">
+                <h3 className="text-xl font-semibold text-white flex items-center gap-2">
+                  <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                  </svg>
+                  Google Workspace
+                </h3>
+              </div>
+              
+              {googleWorkspace ? (
+                <div className="p-6">
+                  {/* Workspace Status */}
+                  <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-medium text-gray-600">Estado</span>
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        googleWorkspace.status === 'active' ? 'bg-green-100 text-green-800' :
+                        googleWorkspace.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {googleWorkspace.status === 'active' ? '✅ Activo' :
+                         googleWorkspace.status === 'pending' ? '⏳ Configurando' :
+                         '❌ Error'}
+                      </span>
+                    </div>
+                    
+                    <div className="space-y-2 mt-4">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Dominio:</span>
+                        <span className="font-mono font-medium text-gray-900">{googleWorkspace.domain}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Email Admin:</span>
+                        <span className="font-mono font-medium text-gray-900">{googleWorkspace.adminEmail}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Contraseña:</span>
+                        <span className="font-mono font-medium text-gray-900">{googleWorkspace.adminPassword}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Fecha de Expiración:</span>
+                        <span className="font-medium text-gray-900">
+                          {new Date(googleWorkspace.expiryDate).toLocaleDateString('es-MX')}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quick Links */}
+                  <div className="grid grid-cols-2 gap-4 mb-6">
+                    <a
+                      href={`https://mail.google.com/a/${googleWorkspace.domain}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+                      </svg>
+                      Abrir Gmail
+                    </a>
+                    <a
+                      href={`https://admin.google.com/ac/overview?domain=${googleWorkspace.domain}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                      </svg>
+                      Admin Console
+                    </a>
+                  </div>
+
+                  {/* Info Box */}
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                    <h5 className="text-sm font-semibold text-purple-900 mb-2">📧 Servicios Incluidos</h5>
+                    <ul className="text-sm text-purple-800 space-y-1">
+                      <li>• <strong>Gmail Profesional:</strong> Correo con tu dominio empresarial</li>
+                      <li>• <strong>Google Drive:</strong> 30 GB de almacenamiento en la nube</li>
+                      <li>• <strong>Google Meet:</strong> Videoconferencias profesionales</li>
+                      <li>• <strong>Docs, Sheets, Slides:</strong> Suite completa de productividad</li>
+                    </ul>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-6">
+                  <div className="text-center py-8">
+                    <div className="text-6xl mb-4">📧</div>
+                    <p className="text-gray-600 text-lg mb-4">¿Necesitas correo profesional?</p>
+                    <p className="text-gray-500 text-sm mb-6">
+                      Obtén Gmail, Drive, Meet y más con tu dominio empresarial por solo $150/año
+                    </p>
+                    <button
+                      onClick={() => {
+                        // TODO: Implement purchase flow
+                        alert('Próximamente: Compra de Google Workspace');
+                      }}
+                      className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+                    >
+                      Adquirir Google Workspace
+                    </button>
                   </div>
                 </div>
               )}
