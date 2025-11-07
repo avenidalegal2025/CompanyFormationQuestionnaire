@@ -44,6 +44,8 @@ export default function ClientPage() {
   const [companyData, setCompanyData] = useState<any>(null);
   const [businessPhone, setBusinessPhone] = useState<{ phoneNumber: string; forwardToE164: string } | null>(null);
   const [googleWorkspace, setGoogleWorkspace] = useState<any>(null);
+  const [workspaceDomain, setWorkspaceDomain] = useState('');
+  const [workspaceLoading, setWorkspaceLoading] = useState(false);
   const [cc, setCc] = useState('+52');
   const [localNum, setLocalNum] = useState('');
   const [showCaller, setShowCaller] = useState(false);
@@ -495,14 +497,56 @@ export default function ClientPage() {
                     <p className="text-gray-500 text-sm mb-6">
                       Obtén Gmail, Drive, Meet y más con tu dominio empresarial por solo $150/año
                     </p>
+                    
+                    <div className="max-w-md mx-auto mb-6">
+                      <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
+                        Ingresa tu dominio empresarial
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="ejemplo.com"
+                        value={workspaceDomain}
+                        onChange={(e) => setWorkspaceDomain(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                      <p className="text-xs text-gray-500 mt-1 text-left">
+                        El dominio donde quieres configurar tu correo profesional
+                      </p>
+                    </div>
+                    
                     <button
-                      onClick={() => {
-                        // TODO: Implement purchase flow
-                        alert('Próximamente: Compra de Google Workspace');
+                      onClick={async () => {
+                        if (!workspaceDomain || !workspaceDomain.includes('.')) {
+                          alert('Por favor ingresa un dominio válido (ejemplo: tuempresa.com)');
+                          return;
+                        }
+                        
+                        setWorkspaceLoading(true);
+                        try {
+                          const response = await fetch('/api/workspace/create-checkout-session', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ domain: workspaceDomain }),
+                          });
+                          
+                          if (response.ok) {
+                            const data = await response.json();
+                            if (data.url) {
+                              window.location.href = data.url;
+                            }
+                          } else {
+                            alert('Error al crear la sesión de pago. Intenta de nuevo.');
+                          }
+                        } catch (error) {
+                          alert('Error al procesar la solicitud. Intenta de nuevo.');
+                        } finally {
+                          setWorkspaceLoading(false);
+                        }
                       }}
-                      className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+                      disabled={workspaceLoading || !workspaceDomain}
+                      className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Adquirir Google Workspace
+                      {workspaceLoading ? 'Procesando...' : 'Adquirir Google Workspace - $150/año'}
                     </button>
                   </div>
                 </div>
