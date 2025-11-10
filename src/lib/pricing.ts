@@ -74,14 +74,6 @@ export const SERVICES: ServiceItem[] = [
     price: 60000, // $600
     required: false,
     category: 'agreement'
-  },
-  {
-    id: 'google_workspace',
-    name: 'Google Workspace',
-    description: 'Correo profesional con Gmail, Google Drive, Meet y más por 1 mes (prueba)',
-    price: 720, // $7.20 - matches 1 month Google cost
-    required: false,
-    category: 'workspace'
   }
 ];
 

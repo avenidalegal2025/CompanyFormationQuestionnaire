@@ -77,6 +77,17 @@ export interface GoogleWorkspaceRecord {
   price: number;
 }
 
+// Document record
+export interface DocumentRecord {
+  id: string;
+  name: string;
+  type: 'formation' | 'agreement' | 'tax' | 'banking' | 'other';
+  s3Key: string;
+  status: 'template' | 'generated' | 'pending_signature' | 'signed';
+  createdAt: string;
+  size?: number;
+}
+
 export async function saveBusinessPhone(userId: string, data: BusinessPhoneRecord) {
   const command = new UpdateCommand({
     TableName: TABLE_NAME,
@@ -295,4 +306,38 @@ export async function updateGoogleWorkspaceStatus(userId: string, domainId: stri
     console.error('Error updating Google Workspace status:', error);
     throw error;
   }
+}
+
+// Document operations
+export async function saveUserDocuments(userId: string, documents: DocumentRecord[]) {
+  const command = new UpdateCommand({
+    TableName: TABLE_NAME,
+    Key: buildUserKey(userId),
+    UpdateExpression: 'SET documents = :docs',
+    ExpressionAttributeValues: {
+      ':docs': documents,
+    },
+    ReturnValues: 'UPDATED_NEW',
+  });
+  return ddb.send(command);
+}
+
+export async function getUserDocuments(userId: string): Promise<DocumentRecord[]> {
+  const command = new GetCommand({
+    TableName: TABLE_NAME,
+    Key: buildUserKey(userId),
+    ProjectionExpression: 'documents',
+  });
+  const res = await ddb.send(command);
+  return (res.Item as any)?.documents ?? [];
+}
+
+export async function addUserDocument(userId: string, document: DocumentRecord) {
+  // Get existing documents
+  const existingDocs = await getUserDocuments(userId);
+  
+  // Add new document
+  const updatedDocs = [...existingDocs, document];
+  
+  return saveUserDocuments(userId, updatedDocs);
 }

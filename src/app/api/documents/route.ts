@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { getGoogleWorkspace } from '@/lib/dynamo';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { getUserDocuments } from '@/lib/dynamo';
 
 export async function GET(request: NextRequest) {
   try {
+    // Get authenticated user
     const session = await getServerSession(authOptions);
     
     if (!session?.user?.email) {
@@ -14,16 +15,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const workspace = await getGoogleWorkspace(session.user.email);
-    
+    const userId = session.user.email;
+
+    // Fetch documents from DynamoDB
+    const documents = await getUserDocuments(userId);
+
     return NextResponse.json({
       success: true,
-      workspace: workspace || null,
+      documents,
     });
   } catch (error) {
-    console.error('Error fetching Google Workspace:', error);
+    console.error('Error fetching documents:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch Google Workspace data' },
+      { error: 'Failed to fetch documents' },
       { status: 500 }
     );
   }

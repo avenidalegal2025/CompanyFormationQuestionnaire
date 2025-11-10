@@ -19,6 +19,8 @@ export default function DocumentsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [companyData, setCompanyData] = useState<any>(null);
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Get company data from localStorage
@@ -31,7 +33,27 @@ export default function DocumentsPage() {
         console.error('Error parsing saved data:', error);
       }
     }
+
+    // Fetch documents from API
+    fetchDocuments();
   }, []);
+
+  const fetchDocuments = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/documents');
+      if (response.ok) {
+        const data = await response.json();
+        setDocuments(data.documents || []);
+      } else {
+        console.error('Failed to fetch documents');
+      }
+    } catch (error) {
+      console.error('Error fetching documents:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getCompanyDisplayName = () => {
     if (!companyData?.company) return 'Mi Empresa';
@@ -44,76 +66,31 @@ export default function DocumentsPage() {
     return `${name} ${type} ${state}`.trim();
   };
 
-  const documents = [
-    {
-      id: 'articles-of-incorporation',
-      name: 'Artículos de Incorporación',
-      description: 'Documento legal que establece tu empresa como entidad legal',
-      status: 'completed',
-      date: '2024-01-15',
-      type: 'Legal',
-      size: '2.3 MB',
-      pages: 12
-    },
-    {
-      id: 'ein-certificate',
-      name: 'Certificado EIN',
-      description: 'Número de identificación fiscal federal de tu empresa',
-      status: 'processing',
-      date: '2024-01-16',
-      type: 'Fiscal',
-      size: '156 KB',
-      pages: 1
-    },
-    {
-      id: 'operating-agreement',
-      name: 'Acuerdo Operativo',
-      description: 'Gobierno interno y estructura de tu empresa',
-      status: 'pending',
-      date: '2024-01-20',
-      type: 'Legal',
-      size: '1.8 MB',
-      pages: 8
-    },
-    {
-      id: 'business-license',
-      name: 'Licencia Comercial',
-      description: 'Permiso para operar en el estado de formación',
-      status: 'pending',
-      date: '2024-01-22',
-      type: 'Comercial',
-      size: '890 KB',
-      pages: 3
-    },
-    {
-      id: 'bank-resolution',
-      name: 'Resolución Bancaria',
-      description: 'Autorización para abrir cuentas bancarias empresariales',
-      status: 'completed',
-      date: '2024-01-18',
-      type: 'Bancario',
-      size: '445 KB',
-      pages: 2
-    },
-    {
-      id: 'minutes-meeting',
-      name: 'Acta de Reunión Inicial',
-      description: 'Registro de la primera reunión de directores',
-      status: 'completed',
-      date: '2024-01-17',
-      type: 'Legal',
-      size: '1.2 MB',
-      pages: 5
+  const handleDownload = async (documentId: string) => {
+    try {
+      const response = await fetch(`/api/documents/${documentId}/download`);
+      if (response.ok) {
+        const data = await response.json();
+        // Open the presigned URL in a new tab to download
+        window.open(data.url, '_blank');
+      } else {
+        console.error('Failed to generate download URL');
+        alert('Error al descargar el documento. Por favor, intenta de nuevo.');
+      }
+    } catch (error) {
+      console.error('Error downloading document:', error);
+      alert('Error al descargar el documento. Por favor, intenta de nuevo.');
     }
-  ];
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'completed':
+      case 'signed':
+      case 'generated':
         return <CheckCircleIcon className="h-5 w-5 text-green-500" />;
-      case 'processing':
+      case 'pending_signature':
         return <ClockIcon className="h-5 w-5 text-blue-500" />;
-      case 'pending':
+      case 'template':
         return <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500" />;
       default:
         return <ClockIcon className="h-5 w-5 text-gray-400" />;
@@ -122,12 +99,14 @@ export default function DocumentsPage() {
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'completed':
-        return 'Completado';
-      case 'processing':
-        return 'En Proceso';
-      case 'pending':
-        return 'Pendiente';
+      case 'signed':
+        return 'Firmado';
+      case 'generated':
+        return 'Generado';
+      case 'pending_signature':
+        return 'Pendiente de Firma';
+      case 'template':
+        return 'Plantilla';
       default:
         return 'Desconocido';
     }
@@ -135,11 +114,12 @@ export default function DocumentsPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed':
+      case 'signed':
+      case 'generated':
         return 'text-green-600 bg-green-100';
-      case 'processing':
+      case 'pending_signature':
         return 'text-blue-600 bg-blue-100';
-      case 'pending':
+      case 'template':
         return 'text-yellow-600 bg-yellow-100';
       default:
         return 'text-gray-600 bg-gray-100';
@@ -285,24 +265,23 @@ export default function DocumentsPage() {
                       </span>
                     </div>
 
-                    <p className="text-gray-600 text-sm mb-4">{doc.description}</p>
-
                     <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-                      <span>{doc.pages} páginas</span>
-                      <span>{doc.size}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-500">{doc.date}</span>
+                      <span className="text-sm text-gray-500">
+                        {new Date(doc.createdAt).toLocaleDateString('es-ES', { 
+                          year: 'numeric', 
+                          month: 'long', 
+                          day: 'numeric' 
+                        })}
+                      </span>
                       <div className="flex space-x-2">
-                        <button className="p-2 text-gray-400 hover:text-gray-600" title="Ver">
-                          <EyeIcon className="h-4 w-4" />
+                        <button 
+                          onClick={() => handleDownload(doc.id)}
+                          className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                          title="Descargar"
+                        >
+                          <ArrowDownTrayIcon className="h-4 w-4 mr-1" />
+                          Descargar
                         </button>
-                        {doc.status === 'completed' && (
-                          <button className="p-2 text-gray-400 hover:text-gray-600" title="Descargar">
-                            <ArrowDownTrayIcon className="h-4 w-4" />
-                          </button>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -310,12 +289,25 @@ export default function DocumentsPage() {
               ))}
             </div>
 
+            {/* Loading State */}
+            {loading && (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Cargando documentos...</p>
+              </div>
+            )}
+
             {/* Empty State */}
-            {filteredDocuments.length === 0 && (
+            {!loading && filteredDocuments.length === 0 && (
               <div className="text-center py-12">
                 <DocumentTextIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No se encontraron documentos</h3>
-                <p className="text-gray-600">Intenta ajustar los filtros de búsqueda</p>
+                <p className="text-gray-600">
+                  {documents.length === 0 
+                    ? 'Aún no tienes documentos. Se generarán automáticamente después de tu pago.'
+                    : 'Intenta ajustar los filtros de búsqueda'
+                  }
+                </p>
               </div>
             )}
           </main>

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
-import { saveDomainRegistration, type DomainRegistration, saveBusinessPhone, saveGoogleWorkspace, type GoogleWorkspaceRecord } from '@/lib/dynamo';
-import { createWorkspaceAccount } from '@/lib/googleWorkspace';
+import { saveDomainRegistration, type DomainRegistration, saveBusinessPhone, saveGoogleWorkspace, type GoogleWorkspaceRecord, saveUserDocuments, type DocumentRecord } from '@/lib/dynamo';
+import { createVaultStructure, copyTemplateToVault } from '@/lib/s3-vault';
+// import { createWorkspaceAccount } from '@/lib/googleWorkspace'; // Temporarily disabled
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-09-30.clover',
@@ -159,11 +160,94 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
     forwardPhoneE164
   });
   
-  // Here you would typically:
-  // 1. Save the order to your database
-  // 2. Trigger company formation process
-  // 3. Send confirmation emails
-  // 4. Update user's account status
+  // Get user ID (email) for vault creation
+  const userId = session.customer_details?.email || (session.customer_email as string) || '';
+  
+  if (!userId) {
+    console.error('❌ No user email found, cannot create vault');
+    return;
+  }
+
+  // Create S3 vault and copy template documents
+  try {
+    console.log('📁 Creating document vault for user:', userId);
+    
+    // Step 1: Create vault structure
+    await createVaultStructure(userId);
+    
+    // Step 2: Copy template documents
+    const documents: DocumentRecord[] = [];
+    
+    // Always copy Membership Registry
+    console.log('📄 Copying Membership Registry template...');
+    const membershipResult = await copyTemplateToVault(
+      userId,
+      'membership-registry-template.docx',
+      'formation/membership-registry.docx'
+    );
+    documents.push({
+      id: 'membership-registry',
+      name: 'Membership Registry',
+      type: 'formation',
+      s3Key: membershipResult.s3Key,
+      status: 'template',
+      createdAt: new Date().toISOString(),
+    });
+    
+    // Always copy Organizational Resolution
+    console.log('📄 Copying Organizational Resolution template...');
+    const resolutionResult = await copyTemplateToVault(
+      userId,
+      'organizational-resolution-template.docx',
+      'formation/organizational-resolution.docx'
+    );
+    documents.push({
+      id: 'organizational-resolution',
+      name: 'Organizational Resolution',
+      type: 'formation',
+      s3Key: resolutionResult.s3Key,
+      status: 'template',
+      createdAt: new Date().toISOString(),
+    });
+    
+    // Copy Operating Agreement if purchased (and it's an LLC)
+    const hasAgreement = (selectedServices || []).includes('operating_agreement') || 
+                         (selectedServices || []).includes('shareholder_agreement');
+    
+    if (hasAgreement) {
+      console.log(`📄 Copying ${entityType === 'LLC' ? 'Operating' : 'Shareholder'} Agreement template...`);
+      const agreementTemplate = entityType === 'LLC' 
+        ? 'operating-agreement-llc-template.docx'
+        : 'shareholder-agreement-corp-template.docx';
+      
+      const agreementFileName = entityType === 'LLC'
+        ? 'operating-agreement.docx'
+        : 'shareholder-agreement.docx';
+      
+      const agreementResult = await copyTemplateToVault(
+        userId,
+        agreementTemplate,
+        `agreements/${agreementFileName}`
+      );
+      
+      documents.push({
+        id: entityType === 'LLC' ? 'operating-agreement' : 'shareholder-agreement',
+        name: entityType === 'LLC' ? 'Operating Agreement' : 'Shareholder Agreement',
+        type: 'agreement',
+        s3Key: agreementResult.s3Key,
+        status: 'template',
+        createdAt: new Date().toISOString(),
+      });
+    }
+    
+    // Step 3: Save document metadata to DynamoDB
+    await saveUserDocuments(userId, documents);
+    console.log(`✅ Document vault created with ${documents.length} documents`);
+    
+  } catch (vaultError) {
+    console.error('❌ Failed to create document vault:', vaultError);
+    // Don't fail the entire process if vault creation fails
+  }
   
   console.log('Company formation payment processed successfully');
 
@@ -253,28 +337,32 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
         return;
       }
 
-      const workspaceAccount = await createWorkspaceAccount(domain, customerEmail, customerName);
-      console.log('✅ Google Workspace account created:', workspaceAccount.adminEmail);
+      // Temporarily disabled - Google Workspace integration
+      console.warn('⚠️ Google Workspace provisioning temporarily disabled');
+      return;
 
-      // Save to DynamoDB
-      const userKey = customerEmail;
-      const workspaceRecord: GoogleWorkspaceRecord = {
-        domain: workspaceAccount.domain,
-        customerId: workspaceAccount.customerId,
-        adminEmail: workspaceAccount.adminEmail,
-        adminPassword: workspaceAccount.adminPassword,
-        status: workspaceAccount.status,
-        setupDate: workspaceAccount.setupDate,
-        expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year from now
-        gmailEnabled: workspaceAccount.gmailEnabled,
-        dnsConfigured: workspaceAccount.dnsConfigured,
-        domainVerified: workspaceAccount.domainVerified,
-        stripePaymentId: session.id,
-        price: 15000, // $150
-      };
+      // const workspaceAccount = await createWorkspaceAccount(domain, customerEmail, customerName);
+      // console.log('✅ Google Workspace account created:', workspaceAccount.adminEmail);
 
-      await saveGoogleWorkspace(userKey, workspaceRecord);
-      console.log('✅ Google Workspace saved to DynamoDB');
+      // // Save to DynamoDB
+      // const userKey = customerEmail;
+      // const workspaceRecord: GoogleWorkspaceRecord = {
+      //   domain: workspaceAccount.domain,
+      //   customerId: workspaceAccount.customerId,
+      //   adminEmail: workspaceAccount.adminEmail,
+      //   adminPassword: workspaceAccount.adminPassword,
+      //   status: workspaceAccount.status,
+      //   setupDate: workspaceAccount.setupDate,
+      //   expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year from now
+      //   gmailEnabled: workspaceAccount.gmailEnabled,
+      //   dnsConfigured: workspaceAccount.dnsConfigured,
+      //   domainVerified: workspaceAccount.domainVerified,
+      //   stripePaymentId: session.id,
+      //   price: 15000, // $150
+      // };
+
+      // await saveGoogleWorkspace(userKey, workspaceRecord);
+      // console.log('✅ Google Workspace saved to DynamoDB');
     }
   } catch (err) {
     console.error('❌ Auto-provision Google Workspace error:', err);
