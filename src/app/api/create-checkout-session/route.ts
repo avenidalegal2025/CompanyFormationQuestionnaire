@@ -206,6 +206,7 @@ export async function POST(request: NextRequest) {
         type: 'company_formation',
         entityType: entityType,
         state: state,
+        companyName: formData?.company?.companyName || 'Company',
         hasUsAddress: hasUsAddress.toString(),
         hasUsPhone: hasUsPhone.toString(),
         skipAgreement: skipAgreement.toString(),
