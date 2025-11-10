@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
-import { saveDomainRegistration, type DomainRegistration, saveBusinessPhone, saveGoogleWorkspace, type GoogleWorkspaceRecord, saveUserDocuments, type DocumentRecord } from '@/lib/dynamo';
+import { saveDomainRegistration, type DomainRegistration, saveBusinessPhone, saveGoogleWorkspace, type GoogleWorkspaceRecord, saveUserDocuments, type DocumentRecord, saveVaultMetadata, type VaultMetadata } from '@/lib/dynamo';
 import { createVaultStructure, copyTemplateToVault } from '@/lib/s3-vault';
 // import { createWorkspaceAccount } from '@/lib/googleWorkspace'; // Temporarily disabled
 
@@ -162,6 +162,7 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
   
   // Get user ID (email) for vault creation
   const userId = session.customer_details?.email || (session.customer_email as string) || '';
+  const companyName = session.metadata?.companyName || 'Company';
   
   if (!userId) {
     console.error('❌ No user email found, cannot create vault');
@@ -170,18 +171,26 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
 
   // Create S3 vault and copy template documents
   try {
-    console.log('📁 Creating document vault for user:', userId);
+    console.log('📁 Creating document vault for:', companyName);
     
-    // Step 1: Create vault structure
-    await createVaultStructure(userId);
+    // Step 1: Create vault structure (returns vaultPath like "trimaran-llc-abc123de")
+    const vaultPath = await createVaultStructure(userId, companyName);
     
-    // Step 2: Copy template documents
+    // Step 2: Save vault metadata
+    const vaultMetadata: VaultMetadata = {
+      vaultPath,
+      companyName,
+      createdAt: new Date().toISOString(),
+    };
+    await saveVaultMetadata(userId, vaultMetadata);
+    
+    // Step 3: Copy template documents
     const documents: DocumentRecord[] = [];
     
     // Always copy Membership Registry
     console.log('📄 Copying Membership Registry template...');
     const membershipResult = await copyTemplateToVault(
-      userId,
+      vaultPath,
       'membership-registry-template.docx',
       'formation/membership-registry.docx'
     );
@@ -197,7 +206,7 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
     // Always copy Organizational Resolution
     console.log('📄 Copying Organizational Resolution template...');
     const resolutionResult = await copyTemplateToVault(
-      userId,
+      vaultPath,
       'organizational-resolution-template.docx',
       'formation/organizational-resolution.docx'
     );
@@ -225,7 +234,7 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
         : 'shareholder-agreement.docx';
       
       const agreementResult = await copyTemplateToVault(
-        userId,
+        vaultPath,
         agreementTemplate,
         `agreements/${agreementFileName}`
       );
@@ -240,9 +249,9 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
       });
     }
     
-    // Step 3: Save document metadata to DynamoDB
+    // Step 4: Save document metadata to DynamoDB
     await saveUserDocuments(userId, documents);
-    console.log(`✅ Document vault created with ${documents.length} documents`);
+    console.log(`✅ Document vault created at: ${vaultPath} with ${documents.length} documents`);
     
   } catch (vaultError) {
     console.error('❌ Failed to create document vault:', vaultError);

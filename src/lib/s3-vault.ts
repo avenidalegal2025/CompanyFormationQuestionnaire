@@ -28,16 +28,37 @@ export interface DocumentMetadata {
 }
 
 /**
- * Creates a vault folder structure in S3 for a user
+ * Generates a vault path from company name and user ID
+ * Format: {company-name-slug}-{userId-hash}
+ */
+function generateVaultPath(companyName: string, userId: string): string {
+  // Sanitize company name: lowercase, remove special chars, replace spaces with hyphens
+  const slug = companyName
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .trim();
+  
+  // Create a short hash of the userId (first 8 chars)
+  const hash = Buffer.from(userId).toString('base64').replace(/[^a-zA-Z0-9]/g, '').substring(0, 8).toLowerCase();
+  
+  return `${slug}-${hash}`;
+}
+
+/**
+ * Creates a vault folder structure in S3 for a company
  * Structure:
- * /{userId}/
+ * /{company-name-slug}-{hash}/
  *   /formation/
  *   /agreements/
  *   /tax/
  *   /banking/
  *   /other/
  */
-export async function createVaultStructure(userId: string): Promise<void> {
+export async function createVaultStructure(userId: string, companyName: string): Promise<string> {
+  const vaultPath = generateVaultPath(companyName, userId);
+  
   const folders = [
     'formation',
     'agreements',
@@ -46,11 +67,11 @@ export async function createVaultStructure(userId: string): Promise<void> {
     'other',
   ];
 
-  console.log(`📁 Creating vault structure for user: ${userId}`);
+  console.log(`📁 Creating vault structure for: ${companyName} (${vaultPath})`);
 
   // Create placeholder files to establish folder structure
   const promises = folders.map(async (folder) => {
-    const key = `${userId}/${folder}/.keep`;
+    const key = `${vaultPath}/${folder}/.keep`;
     await s3Client.send(
       new PutObjectCommand({
         Bucket: BUCKET_NAME,
@@ -63,19 +84,21 @@ export async function createVaultStructure(userId: string): Promise<void> {
   });
 
   await Promise.all(promises);
-  console.log(`✅ Vault structure created for user: ${userId}`);
+  console.log(`✅ Vault structure created: ${vaultPath}`);
+  
+  return vaultPath;
 }
 
 /**
- * Copies a template from /templates/ folder to user's vault
+ * Copies a template from /templates/ folder to company's vault
  */
 export async function copyTemplateToVault(
-  userId: string,
+  vaultPath: string,
   templateName: string,
   destinationPath: string
 ): Promise<{ s3Key: string }> {
   const sourceKey = `templates/${templateName}`;
-  const destinationKey = `${userId}/${destinationPath}`;
+  const destinationKey = `${vaultPath}/${destinationPath}`;
 
   console.log(`📄 Copying template: ${templateName} → ${destinationPath}`);
 
@@ -93,16 +116,16 @@ export async function copyTemplateToVault(
 }
 
 /**
- * Uploads a document to the user's vault
+ * Uploads a document to the company's vault
  */
 export async function uploadDocument(
-  userId: string,
+  vaultPath: string,
   folder: string,
   fileName: string,
   content: Buffer | string,
   mimeType: string = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 ): Promise<{ s3Key: string; size: number }> {
-  const key = `${userId}/${folder}/${fileName}`;
+  const key = `${vaultPath}/${folder}/${fileName}`;
   
   const body = typeof content === 'string' ? Buffer.from(content) : content;
   
@@ -115,7 +138,7 @@ export async function uploadDocument(
       Body: body,
       ContentType: mimeType,
       Metadata: {
-        userId,
+        vaultPath,
         uploadedAt: new Date().toISOString(),
       },
     })
@@ -148,14 +171,14 @@ export async function getDocumentDownloadUrl(
 }
 
 /**
- * Lists all documents in a user's vault
+ * Lists all documents in a company's vault
  */
 export async function listUserDocuments(
-  userId: string
+  vaultPath: string
 ): Promise<Array<{ key: string; size: number; lastModified: Date }>> {
   const command = new ListObjectsV2Command({
     Bucket: BUCKET_NAME,
-    Prefix: `${userId}/`,
+    Prefix: `${vaultPath}/`,
   });
 
   const response = await s3Client.send(command);

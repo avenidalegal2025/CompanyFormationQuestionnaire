@@ -88,6 +88,13 @@ export interface DocumentRecord {
   size?: number;
 }
 
+// Vault metadata
+export interface VaultMetadata {
+  vaultPath: string; // e.g., "trimaran-llc-abc123de"
+  companyName: string;
+  createdAt: string;
+}
+
 export async function saveBusinessPhone(userId: string, data: BusinessPhoneRecord) {
   const command = new UpdateCommand({
     TableName: TABLE_NAME,
@@ -306,6 +313,30 @@ export async function updateGoogleWorkspaceStatus(userId: string, domainId: stri
     console.error('Error updating Google Workspace status:', error);
     throw error;
   }
+}
+
+// Vault operations
+export async function saveVaultMetadata(userId: string, vault: VaultMetadata) {
+  const command = new UpdateCommand({
+    TableName: TABLE_NAME,
+    Key: buildUserKey(userId),
+    UpdateExpression: 'SET vault = :vault',
+    ExpressionAttributeValues: {
+      ':vault': vault,
+    },
+    ReturnValues: 'UPDATED_NEW',
+  });
+  return ddb.send(command);
+}
+
+export async function getVaultMetadata(userId: string): Promise<VaultMetadata | null> {
+  const command = new GetCommand({
+    TableName: TABLE_NAME,
+    Key: buildUserKey(userId),
+    ProjectionExpression: 'vault',
+  });
+  const res = await ddb.send(command);
+  return (res.Item as any)?.vault ?? null;
 }
 
 // Document operations
