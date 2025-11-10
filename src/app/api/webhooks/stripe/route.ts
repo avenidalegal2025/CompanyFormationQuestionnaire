@@ -381,83 +381,87 @@ function safeParseArray(input: string | undefined): string[] {
 }
 
 async function handleGoogleWorkspacePurchase(session: Stripe.Checkout.Session) {
+  console.log('⚠️ Google Workspace provisioning temporarily disabled');
   console.log('Processing standalone Google Workspace purchase:', session.id);
   
-  const domain = session.metadata?.domain || '';
-  const primaryEmail = session.metadata?.primary_email || '';
-  const customerEmail = session.customer_details?.email || (session.customer_email as string) || session.metadata?.user_email || '';
-  const customerName = session.customer_details?.name || session.metadata?.user_name || 'Customer';
+  // Temporarily disabled - Google Workspace integration
+  return;
   
-  console.log('Google Workspace purchase details:', {
-    domain,
-    primaryEmail,
-    customerEmail,
-    customerName,
-  });
+  // const domain = session.metadata?.domain || '';
+  // const primaryEmail = session.metadata?.primary_email || '';
+  // const customerEmail = session.customer_details?.email || (session.customer_email as string) || session.metadata?.user_email || '';
+  // const customerName = session.customer_details?.name || session.metadata?.user_name || 'Customer';
   
-  if (!domain || !customerEmail) {
-    console.error('Missing domain or customer email for Google Workspace purchase');
-    return;
-  }
-
-  // Check if this is a test payment (Stripe test mode)
-  const isTestMode = session.id.startsWith('cs_test_');
+  // console.log('Google Workspace purchase details:', {
+  //   domain,
+  //   primaryEmail,
+  //   customerEmail,
+  //   customerName,
+  // });
   
-  if (isTestMode) {
-    console.log('⚠️ TEST MODE: Skipping real Google Workspace provisioning');
-    console.log('💡 In production, this would create a real Google Workspace account for:', domain);
-    
-    // Save mock data for testing
-    const mockWorkspaceRecord: GoogleWorkspaceRecord = {
-      domain: domain,
-      customerId: 'mock-customer-id',
-      adminEmail: primaryEmail || `admin@${domain}`,
-      adminPassword: 'MockPassword123!',
-      status: 'pending',
-      setupDate: new Date().toISOString(),
-      expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-      gmailEnabled: true,
-      dnsConfigured: false,
-      domainVerified: false,
-      stripePaymentId: session.id,
-      price: 720, // $7.20
-    };
-    
-    await saveGoogleWorkspace(customerEmail, mockWorkspaceRecord);
-    console.log('✅ Mock Google Workspace data saved for testing');
-    return;
-  }
+  // if (!domain || !customerEmail) {
+  //   console.error('Missing domain or customer email for Google Workspace purchase');
+  //   return;
+  // }
 
-  try {
-    console.log('🚀 PRODUCTION MODE: Starting real Google Workspace provisioning for:', domain);
-    console.log('Primary email requested:', primaryEmail);
+  // // Check if this is a test payment (Stripe test mode)
+  // const isTestMode = session.id.startsWith('cs_test_');
+  
+  // if (isTestMode) {
+  //   console.log('⚠️ TEST MODE: Skipping real Google Workspace provisioning');
+  //   console.log('💡 In production, this would create a real Google Workspace account for:', domain);
     
-    const workspaceAccount = await createWorkspaceAccount(domain, customerEmail, customerName, primaryEmail);
-    console.log('✅ Google Workspace account created:', workspaceAccount.adminEmail);
+  //   // Save mock data for testing
+  //   const mockWorkspaceRecord: GoogleWorkspaceRecord = {
+  //     domain: domain,
+  //     customerId: 'mock-customer-id',
+  //     adminEmail: primaryEmail || `admin@${domain}`,
+  //     adminPassword: 'MockPassword123!',
+  //     status: 'pending',
+  //     setupDate: new Date().toISOString(),
+  //     expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+  //     gmailEnabled: true,
+  //     dnsConfigured: false,
+  //     domainVerified: false,
+  //     stripePaymentId: session.id,
+  //     price: 720, // $7.20
+  //   };
+    
+  //   await saveGoogleWorkspace(customerEmail, mockWorkspaceRecord);
+  //   console.log('✅ Mock Google Workspace data saved for testing');
+  //   return;
+  // }
 
-    // Save to DynamoDB
-    const workspaceRecord: GoogleWorkspaceRecord = {
-      domain: workspaceAccount.domain,
-      customerId: workspaceAccount.customerId,
-      adminEmail: workspaceAccount.adminEmail,
-      adminPassword: workspaceAccount.adminPassword,
-      status: workspaceAccount.status,
-      setupDate: workspaceAccount.setupDate,
-      expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year from now
-      gmailEnabled: workspaceAccount.gmailEnabled,
-      dnsConfigured: workspaceAccount.dnsConfigured,
-      domainVerified: workspaceAccount.domainVerified,
-      stripePaymentId: session.id,
-      price: 15000, // $150 (cost to customer)
-      // Note: Google charges us $72/year for Business Starter plan
-    };
+  // try {
+  //   console.log('🚀 PRODUCTION MODE: Starting real Google Workspace provisioning for:', domain);
+  //   console.log('Primary email requested:', primaryEmail);
+    
+  //   const workspaceAccount = await createWorkspaceAccount(domain, customerEmail, customerName, primaryEmail);
+  //   console.log('✅ Google Workspace account created:', workspaceAccount.adminEmail);
 
-    await saveGoogleWorkspace(customerEmail, workspaceRecord);
-    console.log('✅ Google Workspace saved to DynamoDB');
-  } catch (err) {
-    console.error('❌ Failed to provision Google Workspace:', err);
-    throw err;
-  }
+  //   // Save to DynamoDB
+  //   const workspaceRecord: GoogleWorkspaceRecord = {
+  //     domain: workspaceAccount.domain,
+  //     customerId: workspaceAccount.customerId,
+  //     adminEmail: workspaceAccount.adminEmail,
+  //     adminPassword: workspaceAccount.adminPassword,
+  //     status: workspaceAccount.status,
+  //     setupDate: workspaceAccount.setupDate,
+  //     expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year from now
+  //     gmailEnabled: workspaceAccount.gmailEnabled,
+  //     dnsConfigured: workspaceAccount.dnsConfigured,
+  //     domainVerified: workspaceAccount.domainVerified,
+  //     stripePaymentId: session.id,
+  //     price: 15000, // $150 (cost to customer)
+  //     // Note: Google charges us $72/year for Business Starter plan
+  //   };
+
+  //   await saveGoogleWorkspace(customerEmail, workspaceRecord);
+  //   console.log('✅ Google Workspace saved to DynamoDB');
+  // } catch (err) {
+  //   console.error('❌ Failed to provision Google Workspace:', err);
+  //   throw err;
+  // }
 }
 
 async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
