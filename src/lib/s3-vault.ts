@@ -47,44 +47,21 @@ function generateVaultPath(companyName: string, userId: string): string {
 }
 
 /**
- * Creates a vault folder structure in S3 for a company
+ * Creates a vault path for a company
+ * Folders are created on-demand when documents are added
  * Structure:
  * /{company-name-slug}-{hash}/
- *   /formation/
- *   /agreements/
- *   /tax/
- *   /banking/
- *   /other/
+ *   /formation/        (created when formation docs added)
+ *   /agreements/       (created when agreements added)
  */
 export async function createVaultStructure(userId: string, companyName: string): Promise<string> {
   const vaultPath = generateVaultPath(companyName, userId);
   
-  const folders = [
-    'formation',
-    'agreements',
-    'tax',
-    'banking',
-    'other',
-  ];
-
-  console.log(`📁 Creating vault structure for: ${companyName} (${vaultPath})`);
-
-  // Create placeholder files to establish folder structure
-  const promises = folders.map(async (folder) => {
-    const key = `${vaultPath}/${folder}/.keep`;
-    await s3Client.send(
-      new PutObjectCommand({
-        Bucket: BUCKET_NAME,
-        Key: key,
-        Body: '',
-        ContentType: 'text/plain',
-      })
-    );
-    console.log(`  ✓ Created folder: ${folder}/`);
-  });
-
-  await Promise.all(promises);
-  console.log(`✅ Vault structure created: ${vaultPath}`);
+  console.log(`📁 Creating vault for: ${companyName} (${vaultPath})`);
+  console.log(`✅ Vault path created: ${vaultPath}`);
+  
+  // Folders will be created automatically when documents are uploaded
+  // No need to create empty placeholder folders
   
   return vaultPath;
 }
