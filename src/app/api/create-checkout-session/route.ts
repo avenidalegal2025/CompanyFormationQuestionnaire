@@ -212,7 +212,8 @@ export async function POST(request: NextRequest) {
         skipAgreement: skipAgreement.toString(),
         totalAmount: totalPrice.toString(),
         selectedServices: JSON.stringify(normalizedSelected),
-        forwardPhoneE164: formData?.company?.forwardPhoneE164 || ''
+        forwardPhoneE164: formData?.company?.forwardPhoneE164 || '',
+        formData: JSON.stringify(formData) // Full form data for Airtable sync
       }
     });
 

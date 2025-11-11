@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import { saveDomainRegistration, type DomainRegistration, saveBusinessPhone, saveGoogleWorkspace, type GoogleWorkspaceRecord, saveUserDocuments, type DocumentRecord, saveVaultMetadata, type VaultMetadata } from '@/lib/dynamo';
 import { createVaultStructure, copyTemplateToVault } from '@/lib/s3-vault';
+import { createFormationRecord, mapQuestionnaireToAirtable } from '@/lib/airtable';
 // import { createWorkspaceAccount } from '@/lib/googleWorkspace'; // Temporarily disabled
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -252,6 +253,37 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
     // Step 4: Save document metadata to DynamoDB
     await saveUserDocuments(userId, documents);
     console.log(`✅ Document vault created at: ${vaultPath} with ${documents.length} documents`);
+    
+    // Step 5: Sync to Airtable CRM
+    try {
+      console.log('📊 Syncing formation data to Airtable...');
+      
+      // Get the full form data from session metadata
+      const formDataStr = session.metadata?.formData;
+      const formData = formDataStr ? JSON.parse(formDataStr) : {};
+      
+      // Build document URLs (presigned URLs will be generated on-demand)
+      const documentUrls = {
+        membershipRegistry: documents.find(d => d.id === 'membership-registry')?.s3Key,
+        organizationalResolution: documents.find(d => d.id === 'organizational-resolution')?.s3Key,
+        operatingAgreement: documents.find(d => d.id === 'operating-agreement' || d.id === 'shareholder-agreement')?.s3Key,
+      };
+      
+      // Map and create Airtable record
+      const airtableRecord = mapQuestionnaireToAirtable(
+        formData,
+        session,
+        vaultPath,
+        documentUrls
+      );
+      
+      const airtableRecordId = await createFormationRecord(airtableRecord);
+      console.log(`✅ Airtable record created: ${airtableRecordId}`);
+      
+    } catch (airtableError: any) {
+      console.error('❌ Failed to sync to Airtable:', airtableError.message);
+      // Don't fail the entire process if Airtable sync fails
+    }
     
   } catch (vaultError) {
     console.error('❌ Failed to create document vault:', vaultError);
