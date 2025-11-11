@@ -117,6 +117,16 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
     }
   }, [officersAllOwners, watch, setValue]);
 
+  // Auto-assign and lock President role when there's only 1 officer
+  useEffect(() => {
+    if (entityType === "C-Corp" && officersAllOwners === "No" && officersCount === 1) {
+      const currentRole = watch(fp("admin.officer1Role")) as string;
+      if (currentRole !== "President") {
+        setValue(fp("admin.officer1Role"), "President");
+      }
+    }
+  }, [entityType, officersAllOwners, officersCount, watch, setValue]);
+
   const handleContinue = async () => {
     if (!validateOfficers()) {
       return;
@@ -475,11 +485,16 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
                               !otherSelectedRoles.includes(role)
                             );
                             
+                            // Lock to President if there's only 1 officer
+                            const isLocked = officersCount === 1 && idx === 0;
+                            
                             return (
                               <select
-                                className="input"
-                                value={currentRole || ""}
+                                className={`input ${isLocked ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                value={isLocked ? "President" : (currentRole || "")}
+                                disabled={isLocked}
                                 onChange={(e) => {
+                                  if (isLocked) return; // Prevent changes when locked
                                   field.onChange(e);
                                   // If the new role was previously selected by another officer, clear it
                                   const newRole = e.target.value;
@@ -506,6 +521,11 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
                             );
                           }}
                         />
+                        {officersCount === 1 && idx === 0 && (
+                          <p className="help text-gray-600 mt-1">
+                            El rol de Presidente es obligatorio cuando hay solo un oficial.
+                          </p>
+                        )}
                       </div>
                     </div>
 
