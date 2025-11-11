@@ -318,8 +318,8 @@ export function mapQuestionnaireToAirtable(
 ): AirtableFormationRecord {
   const company = formData?.company || {};
   const owners = formData?.owners || [];
-  const management = formData?.management || {};
-  const agreements = formData?.agreements || {};
+  const admin = formData?.admin || {}; // Admin contains wantAgreement, managersCount, and dynamic manager/director/officer fields
+  const agreement = formData?.agreement || {}; // Agreement contains LLC/Corp agreement terms
   
   const entityType = company.entityType || 'LLC';
   const isLLC = entityType === 'LLC';
@@ -342,9 +342,9 @@ export function mapQuestionnaireToAirtable(
     
     // Company Details
     // If user doesn't have US address, assign Avenida Legal's address
-    'Company Address': company.hasUsAddress === 'No' 
+    'Company Address': company.hasUsaAddress === 'No' 
       ? '12550 Biscayne Blvd Ste 110, North Miami, FL 33181'
-      : (company.address || ''),
+      : (company.address || company.addressLine1 || ''),
     'Business Purpose': company.businessPurpose || '',
     'Number of Shares': isCorp ? (company.numberOfShares || 0) : undefined,
     'Vault Path': vaultPath,
@@ -363,7 +363,7 @@ export function mapQuestionnaireToAirtable(
     'Operating Agreement URL': documentUrls?.operatingAgreement,
     
     // Agreement
-    'Want Agreement': agreements.wantAgreement === 'Yes' ? 'Yes' : 'No',
+    'Want Agreement': admin.wantAgreement === 'Yes' ? 'Yes' : 'No',
     
     // Admin
     'Internal Status': 'New',
@@ -384,57 +384,57 @@ export function mapQuestionnaireToAirtable(
   
   // Map Directors (C-Corp)
   if (isCorp) {
-    const directorsCount = management.directorsCount || 0;
+    const directorsCount = admin.directorsCount || 0;
     record['Directors Count'] = directorsCount;
     
     // Directors are stored as dynamic keys: director1Name, director1Address, etc.
     for (let i = 1; i <= Math.min(directorsCount, 6); i++) {
-      (record as any)[`Director ${i} Name`] = management[`director${i}Name`];
-      (record as any)[`Director ${i} Address`] = management[`director${i}Address`];
+      (record as any)[`Director ${i} Name`] = admin[`director${i}Name`];
+      (record as any)[`Director ${i} Address`] = admin[`director${i}Address`];
     }
   }
   
   // Map Officers (C-Corp)
   if (isCorp) {
-    const officersCount = management.officersCount || 0;
+    const officersCount = admin.officersCount || 0;
     record['Officers Count'] = officersCount;
     
     // Officers are stored as dynamic keys: officer1Name, officer1Address, officer1Role, etc.
     for (let i = 1; i <= Math.min(officersCount, 6); i++) {
-      (record as any)[`Officer ${i} Name`] = management[`officer${i}Name`];
-      (record as any)[`Officer ${i} Address`] = management[`officer${i}Address`];
-      (record as any)[`Officer ${i} Role`] = management[`officer${i}Role`];
+      (record as any)[`Officer ${i} Name`] = admin[`officer${i}Name`];
+      (record as any)[`Officer ${i} Address`] = admin[`officer${i}Address`];
+      (record as any)[`Officer ${i} Role`] = admin[`officer${i}Role`];
     }
   }
   
   // Map Managers (LLC)
   if (isLLC) {
-    const managersCount = management.managersCount || 0;
+    const managersCount = admin.managersCount || 0;
     record['Managers Count'] = managersCount;
     
     // Managers are stored as dynamic keys: manager1Name, manager1Address, etc.
     for (let i = 1; i <= Math.min(managersCount, 6); i++) {
-      (record as any)[`Manager ${i} Name`] = management[`manager${i}Name`];
-      (record as any)[`Manager ${i} Address`] = management[`manager${i}Address`];
+      (record as any)[`Manager ${i} Name`] = admin[`manager${i}Name`];
+      (record as any)[`Manager ${i} Address`] = admin[`manager${i}Address`];
     }
   }
   
   // Map LLC Agreement Terms
-  if (isLLC && agreements) {
+  if (isLLC && agreement) {
     // Capital contributions per owner (stored as llc_capitalContributions_0, llc_capitalContributions_1, etc.)
     for (let i = 0; i < Math.min(owners.length, 6); i++) {
-      const contribution = agreements[`llc_capitalContributions_${i}`];
+      const contribution = agreement[`llc_capitalContributions_${i}`];
       if (contribution) {
         (record as any)[`LLC Capital Contributions ${i + 1}`] = contribution;
       }
     }
     
     // Managing members
-    record['LLC Managing Members'] = agreements.llc_managingMembers === 'Yes' ? 'Yes' : 'No';
+    record['LLC Managing Members'] = agreement.llc_managingMembers === 'Yes' ? 'Yes' : 'No';
     
     // Managing member flags (stored as llc_managingMember_0, llc_managingMember_1, etc.)
     for (let i = 0; i < Math.min(owners.length, 6); i++) {
-      const isMM = agreements[`llc_managingMember_${i}`];
+      const isMM = agreement[`llc_managingMember_${i}`];
       if (isMM !== undefined) {
         (record as any)[`LLC Managing Member ${i + 1}`] = isMM ? 'Yes' : 'No';
       }
@@ -442,45 +442,45 @@ export function mapQuestionnaireToAirtable(
     
     // Specific roles per owner (stored as llc_specificRoles_0, llc_specificRoles_1, etc.)
     for (let i = 0; i < Math.min(owners.length, 6); i++) {
-      const role = agreements[`llc_specificRoles_${i}`];
+      const role = agreement[`llc_specificRoles_${i}`];
       if (role) {
         (record as any)[`LLC Specific Roles ${i + 1}`] = role;
       }
     }
     
     // Decision thresholds (convert percentages to decimals)
-    record['LLC New Members Admission'] = agreements.llc_newMembersAdmission;
-    record['LLC New Members Majority %'] = agreements.llc_newMembersMajority ? agreements.llc_newMembersMajority / 100 : undefined;
-    record['LLC Additional Contributions'] = agreements.llc_additionalContributions;
-    record['LLC Additional Contributions Decision'] = agreements.llc_additionalContributionsDecision;
-    record['LLC Additional Contributions Majority %'] = agreements.llc_additionalContributionsMajority ? agreements.llc_additionalContributionsMajority / 100 : undefined;
-    record['LLC Withdraw Contributions'] = agreements.llc_withdrawContributions;
-    record['LLC Member Loans'] = agreements.llc_memberLoans === 'Yes' ? 'Yes' : 'No';
-    record['LLC Company Sale Decision'] = agreements.llc_companySaleDecision;
-    record['LLC Company Sale Decision Majority %'] = agreements.llc_companySaleDecisionMajority ? agreements.llc_companySaleDecisionMajority / 100 : undefined;
-    record['LLC Tax Partner'] = agreements.llc_taxPartner;
-    record['LLC Non Compete'] = agreements.llc_nonCompete === 'Yes' ? 'Yes' : 'No';
-    record['LLC Bank Signers'] = agreements.llc_bankSigners;
-    record['LLC Major Decisions'] = agreements.llc_majorDecisions;
-    record['LLC Minor Decisions'] = agreements.llc_minorDecisions;
-    record['LLC Manager Restrictions'] = agreements.llc_managerRestrictions;
-    record['LLC Deadlock Resolution'] = agreements.llc_deadlockResolution;
-    record['LLC Key Man Insurance'] = agreements.llc_keyManInsurance;
-    record['LLC Dispute Resolution'] = agreements.llc_disputeResolution;
-    record['LLC ROFR'] = agreements.llc_rofr === 'Yes' ? 'Yes' : 'No';
-    record['LLC Incapacity Heirs Policy'] = agreements.llc_incapacityHeirsPolicy === 'Yes' ? 'Yes' : 'No';
-    record['LLC New Partners Admission'] = agreements.llc_newPartnersAdmission;
-    record['LLC New Partners Majority %'] = agreements.llc_newPartnersMajority ? agreements.llc_newPartnersMajority / 100 : undefined;
-    record['LLC Dissolution Decision'] = agreements.llc_dissolutionDecision;
-    record['LLC Dissolution Decision Majority %'] = agreements.llc_dissolutionDecisionMajority ? agreements.llc_dissolutionDecisionMajority / 100 : undefined;
-    record['LLC Specific Terms'] = agreements.llc_specificTerms;
+    record['LLC New Members Admission'] = agreement.llc_newMembersAdmission;
+    record['LLC New Members Majority %'] = agreement.llc_newMembersMajority ? agreement.llc_newMembersMajority / 100 : undefined;
+    record['LLC Additional Contributions'] = agreement.llc_additionalContributions;
+    record['LLC Additional Contributions Decision'] = agreement.llc_additionalContributionsDecision;
+    record['LLC Additional Contributions Majority %'] = agreement.llc_additionalContributionsMajority ? agreement.llc_additionalContributionsMajority / 100 : undefined;
+    record['LLC Withdraw Contributions'] = agreement.llc_withdrawContributions;
+    record['LLC Member Loans'] = agreement.llc_memberLoans === 'Yes' ? 'Yes' : 'No';
+    record['LLC Company Sale Decision'] = agreement.llc_companySaleDecision;
+    record['LLC Company Sale Decision Majority %'] = agreement.llc_companySaleDecisionMajority ? agreement.llc_companySaleDecisionMajority / 100 : undefined;
+    record['LLC Tax Partner'] = agreement.llc_taxPartner;
+    record['LLC Non Compete'] = agreement.llc_nonCompete === 'Yes' ? 'Yes' : 'No';
+    record['LLC Bank Signers'] = agreement.llc_bankSigners;
+    record['LLC Major Decisions'] = agreement.llc_majorDecisions;
+    record['LLC Minor Decisions'] = agreement.llc_minorDecisions;
+    record['LLC Manager Restrictions'] = agreement.llc_managerRestrictions;
+    record['LLC Deadlock Resolution'] = agreement.llc_deadlockResolution;
+    record['LLC Key Man Insurance'] = agreement.llc_keyManInsurance;
+    record['LLC Dispute Resolution'] = agreement.llc_disputeResolution;
+    record['LLC ROFR'] = agreement.llc_rofr === 'Yes' ? 'Yes' : 'No';
+    record['LLC Incapacity Heirs Policy'] = agreement.llc_incapacityHeirsPolicy === 'Yes' ? 'Yes' : 'No';
+    record['LLC New Partners Admission'] = agreement.llc_newPartnersAdmission;
+    record['LLC New Partners Majority %'] = agreement.llc_newPartnersMajority ? agreement.llc_newPartnersMajority / 100 : undefined;
+    record['LLC Dissolution Decision'] = agreement.llc_dissolutionDecision;
+    record['LLC Dissolution Decision Majority %'] = agreement.llc_dissolutionDecisionMajority ? agreement.llc_dissolutionDecisionMajority / 100 : undefined;
+    record['LLC Specific Terms'] = agreement.llc_specificTerms;
   }
   
   // Map C-Corp Agreement Terms
-  if (isCorp && agreements) {
+  if (isCorp && agreement) {
     // Capital per owner (stored as corp_capitalPerOwner_0, corp_capitalPerOwner_1, etc.)
     for (let i = 0; i < Math.min(owners.length, 6); i++) {
-      const capital = agreements[`corp_capitalPerOwner_${i}`];
+      const capital = agreement[`corp_capitalPerOwner_${i}`];
       if (capital) {
         (record as any)[`Corp Capital Per Owner ${i + 1}`] = capital;
       }
@@ -488,34 +488,34 @@ export function mapQuestionnaireToAirtable(
     
     // Specific responsibilities per owner (stored as corp_specificResponsibilities_0, etc.)
     for (let i = 0; i < Math.min(owners.length, 6); i++) {
-      const responsibility = agreements[`corp_specificResponsibilities_${i}`];
+      const responsibility = agreement[`corp_specificResponsibilities_${i}`];
       if (responsibility) {
         (record as any)[`Corp Specific Responsibilities ${i + 1}`] = responsibility;
       }
     }
     
     // Decision thresholds (convert percentages to decimals)
-    record['Corp Hours Commitment'] = agreements.corp_hoursCommitment;
-    record['Corp New Shareholders Admission'] = agreements.corp_newShareholdersAdmission;
-    record['Corp New Shareholders Majority %'] = agreements.corp_newShareholdersMajority ? agreements.corp_newShareholdersMajority / 100 : undefined;
-    record['Corp More Capital Process'] = agreements.corp_moreCapitalProcess;
-    record['Corp More Capital Decision'] = agreements.corp_moreCapitalDecision;
-    record['Corp More Capital Majority %'] = agreements.corp_moreCapitalMajority ? agreements.corp_moreCapitalMajority / 100 : undefined;
-    record['Corp Withdraw Funds Policy'] = agreements.corp_withdrawFundsPolicy;
-    record['Corp Sale Decision Threshold'] = agreements.corp_saleDecisionThreshold;
-    record['Corp Sale Decision Majority %'] = agreements.corp_saleDecisionMajority ? agreements.corp_saleDecisionMajority / 100 : undefined;
-    record['Corp Bank Signers'] = agreements.corp_bankSigners;
-    record['Corp Major Decision Threshold'] = agreements.corp_majorDecisionThreshold;
-    record['Corp Major Decision Majority %'] = agreements.corp_majorDecisionMajority ? agreements.corp_majorDecisionMajority / 100 : undefined;
-    record['Corp Shareholder Loans'] = agreements.corp_shareholderLoans === 'Yes' ? 'Yes' : 'No';
-    record['Corp Non Compete'] = agreements.corp_nonCompete === 'Yes' ? 'Yes' : 'No';
-    record['Corp ROFR'] = agreements.corp_rofr === 'Yes' ? 'Yes' : 'No';
-    record['Corp Transfer To Relatives'] = agreements.corp_transferToRelatives;
-    record['Corp Transfer To Relatives Majority %'] = agreements.corp_transferToRelativesMajority ? agreements.corp_transferToRelativesMajority / 100 : undefined;
-    record['Corp Incapacity Heirs Policy'] = agreements.corp_incapacityHeirsPolicy === 'Yes' ? 'Yes' : 'No';
-    record['Corp Divorce Buyout Policy'] = agreements.corp_divorceBuyoutPolicy === 'Yes' ? 'Yes' : 'No';
-    record['Corp Tag Drag Rights'] = agreements.corp_tagDragRights === 'Yes' ? 'Yes' : 'No';
-    record['Corp Additional Clauses'] = agreements.corp_additionalClauses;
+    record['Corp Hours Commitment'] = agreement.corp_hoursCommitment;
+    record['Corp New Shareholders Admission'] = agreement.corp_newShareholdersAdmission;
+    record['Corp New Shareholders Majority %'] = agreement.corp_newShareholdersMajority ? agreement.corp_newShareholdersMajority / 100 : undefined;
+    record['Corp More Capital Process'] = agreement.corp_moreCapitalProcess;
+    record['Corp More Capital Decision'] = agreement.corp_moreCapitalDecision;
+    record['Corp More Capital Majority %'] = agreement.corp_moreCapitalMajority ? agreement.corp_moreCapitalMajority / 100 : undefined;
+    record['Corp Withdraw Funds Policy'] = agreement.corp_withdrawFundsPolicy;
+    record['Corp Sale Decision Threshold'] = agreement.corp_saleDecisionThreshold;
+    record['Corp Sale Decision Majority %'] = agreement.corp_saleDecisionMajority ? agreement.corp_saleDecisionMajority / 100 : undefined;
+    record['Corp Bank Signers'] = agreement.corp_bankSigners;
+    record['Corp Major Decision Threshold'] = agreement.corp_majorDecisionThreshold;
+    record['Corp Major Decision Majority %'] = agreement.corp_majorDecisionMajority ? agreement.corp_majorDecisionMajority / 100 : undefined;
+    record['Corp Shareholder Loans'] = agreement.corp_shareholderLoans === 'Yes' ? 'Yes' : 'No';
+    record['Corp Non Compete'] = agreement.corp_nonCompete === 'Yes' ? 'Yes' : 'No';
+    record['Corp ROFR'] = agreement.corp_rofr === 'Yes' ? 'Yes' : 'No';
+    record['Corp Transfer To Relatives'] = agreement.corp_transferToRelatives;
+    record['Corp Transfer To Relatives Majority %'] = agreement.corp_transferToRelativesMajority ? agreement.corp_transferToRelativesMajority / 100 : undefined;
+    record['Corp Incapacity Heirs Policy'] = agreement.corp_incapacityHeirsPolicy === 'Yes' ? 'Yes' : 'No';
+    record['Corp Divorce Buyout Policy'] = agreement.corp_divorceBuyoutPolicy === 'Yes' ? 'Yes' : 'No';
+    record['Corp Tag Drag Rights'] = agreement.corp_tagDragRights === 'Yes' ? 'Yes' : 'No';
+    record['Corp Additional Clauses'] = agreement.corp_additionalClauses;
   }
   
   return record;
