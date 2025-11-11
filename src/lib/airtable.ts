@@ -382,7 +382,8 @@ export function mapQuestionnaireToAirtable(
     const num = index + 1;
     if (num <= 6) {
       (record as any)[`Owner ${num} Name`] = owner.name;
-      (record as any)[`Owner ${num} Ownership %`] = owner.ownership;
+      // Convert ownership from whole number (50) to decimal (0.5) for Airtable percent field
+      (record as any)[`Owner ${num} Ownership %`] = owner.ownership ? owner.ownership / 100 : undefined;
       (record as any)[`Owner ${num} Email`] = owner.email;
       (record as any)[`Owner ${num} Phone`] = owner.phone;
       (record as any)[`Owner ${num} Address`] = owner.address;
@@ -462,16 +463,16 @@ export function mapQuestionnaireToAirtable(
       }
     });
     
-    // Decision thresholds
+    // Decision thresholds (convert percentages to decimals)
     record['LLC New Members Admission'] = llc.newMembersAdmission;
-    record['LLC New Members Majority %'] = llc.newMembersMajorityPercent;
+    record['LLC New Members Majority %'] = llc.newMembersMajorityPercent ? llc.newMembersMajorityPercent / 100 : undefined;
     record['LLC Additional Contributions'] = llc.additionalContributions;
     record['LLC Additional Contributions Decision'] = llc.additionalContributionsDecision;
-    record['LLC Additional Contributions Majority %'] = llc.additionalContributionsMajorityPercent;
+    record['LLC Additional Contributions Majority %'] = llc.additionalContributionsMajorityPercent ? llc.additionalContributionsMajorityPercent / 100 : undefined;
     record['LLC Withdraw Contributions'] = llc.withdrawContributions;
     record['LLC Member Loans'] = llc.memberLoans === 'Yes' ? 'Yes' : 'No';
     record['LLC Company Sale Decision'] = llc.companySaleDecision;
-    record['LLC Company Sale Decision Majority %'] = llc.companySaleDecisionMajorityPercent;
+    record['LLC Company Sale Decision Majority %'] = llc.companySaleDecisionMajorityPercent ? llc.companySaleDecisionMajorityPercent / 100 : undefined;
     record['LLC Tax Partner'] = llc.taxPartner;
     record['LLC Non Compete'] = llc.nonCompete === 'Yes' ? 'Yes' : 'No';
     record['LLC Bank Signers'] = llc.bankSigners;
@@ -484,9 +485,9 @@ export function mapQuestionnaireToAirtable(
     record['LLC ROFR'] = llc.rofr === 'Yes' ? 'Yes' : 'No';
     record['LLC Incapacity Heirs Policy'] = llc.incapacityHeirsPolicy === 'Yes' ? 'Yes' : 'No';
     record['LLC New Partners Admission'] = llc.newPartnersAdmission;
-    record['LLC New Partners Majority %'] = llc.newPartnersMajorityPercent;
+    record['LLC New Partners Majority %'] = llc.newPartnersMajorityPercent ? llc.newPartnersMajorityPercent / 100 : undefined;
     record['LLC Dissolution Decision'] = llc.dissolutionDecision;
-    record['LLC Dissolution Decision Majority %'] = llc.dissolutionDecisionMajorityPercent;
+    record['LLC Dissolution Decision Majority %'] = llc.dissolutionDecisionMajorityPercent ? llc.dissolutionDecisionMajorityPercent / 100 : undefined;
     record['LLC Specific Terms'] = llc.specificTerms;
   }
   
@@ -510,24 +511,24 @@ export function mapQuestionnaireToAirtable(
       }
     });
     
-    // Decision thresholds
+    // Decision thresholds (convert percentages to decimals)
     record['Corp Hours Commitment'] = corp.hoursCommitment;
     record['Corp New Shareholders Admission'] = corp.newShareholdersAdmission;
-    record['Corp New Shareholders Majority %'] = corp.newShareholdersMajorityPercent;
+    record['Corp New Shareholders Majority %'] = corp.newShareholdersMajorityPercent ? corp.newShareholdersMajorityPercent / 100 : undefined;
     record['Corp More Capital Process'] = corp.moreCapitalProcess;
     record['Corp More Capital Decision'] = corp.moreCapitalDecision;
-    record['Corp More Capital Majority %'] = corp.moreCapitalMajorityPercent;
+    record['Corp More Capital Majority %'] = corp.moreCapitalMajorityPercent ? corp.moreCapitalMajorityPercent / 100 : undefined;
     record['Corp Withdraw Funds Policy'] = corp.withdrawFundsPolicy;
     record['Corp Sale Decision Threshold'] = corp.saleDecisionThreshold;
-    record['Corp Sale Decision Majority %'] = corp.saleDecisionMajorityPercent;
+    record['Corp Sale Decision Majority %'] = corp.saleDecisionMajorityPercent ? corp.saleDecisionMajorityPercent / 100 : undefined;
     record['Corp Bank Signers'] = corp.bankSigners;
     record['Corp Major Decision Threshold'] = corp.majorDecisionThreshold;
-    record['Corp Major Decision Majority %'] = corp.majorDecisionMajorityPercent;
+    record['Corp Major Decision Majority %'] = corp.majorDecisionMajorityPercent ? corp.majorDecisionMajorityPercent / 100 : undefined;
     record['Corp Shareholder Loans'] = corp.shareholderLoans === 'Yes' ? 'Yes' : 'No';
     record['Corp Non Compete'] = corp.nonCompete === 'Yes' ? 'Yes' : 'No';
     record['Corp ROFR'] = corp.rofr === 'Yes' ? 'Yes' : 'No';
     record['Corp Transfer To Relatives'] = corp.transferToRelatives;
-    record['Corp Transfer To Relatives Majority %'] = corp.transferToRelativesMajorityPercent;
+    record['Corp Transfer To Relatives Majority %'] = corp.transferToRelativesMajorityPercent ? corp.transferToRelativesMajorityPercent / 100 : undefined;
     record['Corp Incapacity Heirs Policy'] = corp.incapacityHeirsPolicy === 'Yes' ? 'Yes' : 'No';
     record['Corp Divorce Buyout Policy'] = corp.divorceBuyoutPolicy === 'Yes' ? 'Yes' : 'No';
     record['Corp Tag Drag Rights'] = corp.tagDragRights === 'Yes' ? 'Yes' : 'No';
