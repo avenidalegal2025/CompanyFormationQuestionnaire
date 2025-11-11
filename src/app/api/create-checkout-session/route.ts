@@ -188,10 +188,19 @@ export async function POST(request: NextRequest) {
 
     // Save form data to DynamoDB for later retrieval in webhook
     try {
+      console.log('💾 Attempting to save formData to DynamoDB for user:', session.user.email);
+      console.log('📋 FormData structure:', {
+        hasCompany: !!formData?.company,
+        hasOwners: !!formData?.owners,
+        hasAdmin: !!formData?.admin,
+        hasAgreement: !!formData?.agreement,
+      });
+      
       await saveFormData(session.user.email, formData);
-      console.log('Form data saved to DynamoDB for user:', session.user.email);
+      console.log('✅ Form data saved to DynamoDB for user:', session.user.email);
     } catch (dynamoError) {
-      console.error('Failed to save form data to DynamoDB:', dynamoError);
+      console.error('❌ Failed to save form data to DynamoDB:', dynamoError);
+      console.error('❌ DynamoDB error details:', JSON.stringify(dynamoError, null, 2));
       // Continue anyway - we can still process the payment without Airtable sync
     }
 
