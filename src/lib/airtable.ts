@@ -200,6 +200,7 @@ export interface AirtableFormationRecord {
   'Corp Major Decision Threshold'?: string;
   'Corp Major Decision Majority %'?: number;
   'Corp Shareholder Loans'?: 'Yes' | 'No';
+  'Corp Tax Owner'?: string;
   'Corp Non Compete'?: 'Yes' | 'No';
   'Corp ROFR'?: 'Yes' | 'No';
   'Corp Transfer To Relatives'?: string;
@@ -544,6 +545,7 @@ export function mapQuestionnaireToAirtable(
     record['Corp Major Decision Threshold'] = agreement.corp_majorDecisionThreshold;
     record['Corp Major Decision Majority %'] = agreement.corp_majorDecisionMajority ? agreement.corp_majorDecisionMajority / 100 : undefined;
     record['Corp Shareholder Loans'] = agreement.corp_shareholderLoans === 'Yes' ? 'Yes' : 'No';
+    record['Corp Tax Owner'] = agreement.corp_taxOwner;
     record['Corp Non Compete'] = agreement.corp_nonCompete === 'Yes' ? 'Yes' : 'No';
     record['Corp ROFR'] = agreement.corp_rofr === 'Yes' ? 'Yes' : 'No';
     record['Corp Transfer To Relatives'] = agreement.corp_transferToRelatives;

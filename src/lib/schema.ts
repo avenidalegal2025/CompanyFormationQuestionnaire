@@ -134,6 +134,7 @@ export const AgreementSchema = z
     corp_majorDecisionMajority: z.number().min(50.01).max(99.99).optional(),
     corp_shareholderLoans: z.enum(["Yes", "No"]).optional(),
     corp_nonCompete: z.enum(["Yes", "No"]).optional(),
+    corp_taxOwner: z.string().optional(),
     // C-Corp shares & succession
     corp_rofr: z.enum(["Yes", "No"]).optional(),
     corp_transferToRelatives: z.string().optional(),

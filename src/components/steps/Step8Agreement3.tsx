@@ -225,6 +225,35 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
               <div>
+                  <label className="label flex items-center gap-2">¿Quién será el accionista responsable de impuestos (Tax Owner)?
+                  <InfoTooltip
+                    title="Tax Owner"
+                    body="El accionista responsable de impuestos es quien se encarga de presentar las declaraciones de impuestos de la corporación y mantener los registros fiscales. Debe ser un accionista de la corporación."
+                  />
+                </label>
+                </div>
+                <div className="md:col-start-2 md:justify-self-end">
+                <Controller
+                  name="agreement.corp_taxOwner"
+                  control={control}
+                  render={({ field }) => (
+                    <select className="input mt-1" {...field}>
+                      <option value="">Seleccionar accionista</option>
+                      {Array.from({ length: watch("ownersCount") || 1 }).map((_, idx) => {
+                        const ownerName = watch(`owners.${idx}.fullName`) || `Accionista ${idx + 1}`;
+                        return (
+                          <option key={idx} value={ownerName}>
+                            {ownerName}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  )}
+                />
+              </div>
+              </div>
+              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
+              <div>
                   <label className="label flex items-center gap-2">¿Quieren una cláusula de no competencia? Para impedir competencia por alguien involucrado en la compañía.
                   <InfoTooltip
                     title="Cláusula de No Competencia"
