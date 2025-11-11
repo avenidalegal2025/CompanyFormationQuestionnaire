@@ -72,33 +72,53 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext, session
                     body="Funciones o cargos de cada dueño (por ejemplo, CEO, CTO, finanzas). Ayuda a aclarar expectativas y autoridad."
                   />
                 </label>
-                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px] space-y-3">
-                  {Array.from({ length: ownersCount }).map((_, idx) => {
-                    const ownerName = ownersData[idx]?.fullName || `Accionista ${idx + 1}`;
-                    return (
-                      <div key={idx} className="grid grid-cols-2 gap-4 items-center">
-                        <div className="text-sm font-medium text-gray-700">
-                          {ownerName}:
-                        </div>
-                        <div>
-                          <Controller
-                            name={`agreement.corp_specificResponsibilities_${idx}` as never}
-                            control={control}
-                            render={({ field }) => (
-                              <input
-                                type="text"
-                                className="input w-full"
-                                placeholder="CEO, CTO, CFO, etc."
-                                value={field.value || ""}
-                                onChange={field.onChange}
-                              />
-                            )}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
+                  <Controller
+                    name="agreement.corp_hasSpecificResponsibilities"
+                    control={control}
+                    render={({ field }) => (
+                      <SegmentedToggle
+                        value={field.value || "No"}
+                        onChange={field.onChange}
+                        options={[
+                          { value: "Yes", label: "Sí" },
+                          { value: "No", label: "No" },
+                        ]}
+                        ariaLabel="Has specific responsibilities"
+                        name={field.name}
+                      />
+                    )}
+                  />
                 </div>
+                {watch("agreement.corp_hasSpecificResponsibilities") === "Yes" && (
+                  <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[420px] space-y-3">
+                    {Array.from({ length: ownersCount }).map((_, idx) => {
+                      const ownerName = ownersData[idx]?.fullName || `Accionista ${idx + 1}`;
+                      return (
+                        <div key={idx} className="grid grid-cols-2 gap-4 items-center">
+                          <div className="text-sm font-medium text-gray-700">
+                            {ownerName}:
+                          </div>
+                          <div>
+                            <Controller
+                              name={`agreement.corp_specificResponsibilities_${idx}` as never}
+                              control={control}
+                              render={({ field }) => (
+                                <input
+                                  type="text"
+                                  className="input w-full"
+                                  placeholder="CEO, CTO, CFO, etc."
+                                  value={field.value || ""}
+                                  onChange={field.onChange}
+                                />
+                              )}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </>
           ) : (
@@ -191,33 +211,53 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext, session
                     body="Funciones o áreas de responsabilidad asignadas a cada socio para organizar la operación del negocio."
                   />
                 </label>
-                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px] space-y-3">
-                  {Array.from({ length: ownersCount }).map((_, idx) => {
-                    const ownerName = ownersData[idx]?.fullName || `Socio ${idx + 1}`;
-                    return (
-                      <div key={idx} className="grid grid-cols-2 gap-4 items-center">
-                        <div className="text-sm font-medium text-gray-700">
-                          {ownerName}:
-                        </div>
-                        <div>
-                          <Controller
-                            name={`agreement.llc_specificRoles_${idx}` as never}
-                            control={control}
-                            render={({ field }) => (
-                              <input
-                                type="text"
-                                className="input w-full"
-                                placeholder="CEO, CTO, CFO, etc."
-                                value={field.value || ""}
-                                onChange={field.onChange}
-                              />
-                            )}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
+                  <Controller
+                    name="agreement.llc_hasSpecificRoles"
+                    control={control}
+                    render={({ field }) => (
+                      <SegmentedToggle
+                        value={field.value || "No"}
+                        onChange={field.onChange}
+                        options={[
+                          { value: "Yes", label: "Sí" },
+                          { value: "No", label: "No" },
+                        ]}
+                        ariaLabel="Has specific roles"
+                        name={field.name}
+                      />
+                    )}
+                  />
                 </div>
+                {watch("agreement.llc_hasSpecificRoles") === "Yes" && (
+                  <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[420px] space-y-3">
+                    {Array.from({ length: ownersCount }).map((_, idx) => {
+                      const ownerName = ownersData[idx]?.fullName || `Socio ${idx + 1}`;
+                      return (
+                        <div key={idx} className="grid grid-cols-2 gap-4 items-center">
+                          <div className="text-sm font-medium text-gray-700">
+                            {ownerName}:
+                          </div>
+                          <div>
+                            <Controller
+                              name={`agreement.llc_specificRoles_${idx}` as never}
+                              control={control}
+                              render={({ field }) => (
+                                <input
+                                  type="text"
+                                  className="input w-full"
+                                  placeholder="CEO, CTO, CFO, etc."
+                                  value={field.value || ""}
+                                  onChange={field.onChange}
+                                />
+                              )}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </>
           )}

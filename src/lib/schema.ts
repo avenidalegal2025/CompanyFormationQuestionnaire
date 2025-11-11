@@ -118,6 +118,7 @@ export const AgreementSchema = z
     corp_specificResponsibilities_3: z.string().optional(),
     corp_specificResponsibilities_4: z.string().optional(),
     corp_specificResponsibilities_5: z.string().optional(),
+    corp_hasSpecificResponsibilities: z.enum(["Yes", "No"]).optional(),
     corp_hoursCommitment: z.string().optional(),
     // C-Corp capital & loans
     corp_newShareholdersAdmission: z.enum(["Decisión Unánime", "Mayoría"]).optional(),
@@ -160,6 +161,7 @@ export const AgreementSchema = z
     llc_managingMember_4: z.boolean().optional(),
     llc_managingMember_5: z.boolean().optional(),
     llc_specificRoles: z.string().optional(),
+    llc_hasSpecificRoles: z.enum(["Yes", "No"]).optional(),
     llc_specificRoles_0: z.string().optional(),
     llc_specificRoles_1: z.string().optional(),
     llc_specificRoles_2: z.string().optional(),
