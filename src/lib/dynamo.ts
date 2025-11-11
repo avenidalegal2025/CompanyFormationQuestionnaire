@@ -7,7 +7,7 @@ export const TABLE_NAME =
   process.env.DYNAMO_TABLE ||
   "Company_Creation_Questionaire_Avenida_Legal"; // fallback for local/dev
 // Use environment variables for key names to match Vercel deployment
-export const TABLE_PK_NAME = process.env.DYNAMO_PK_NAME || 'id';
+export const TABLE_PK_NAME = process.env.DYNAMO_PK_NAME || 'pk'; // Changed from 'id' to 'pk' to match actual table schema
 export const TABLE_SK_NAME = process.env.DYNAMO_SK_NAME || 'sk';
 export const TABLE_SK_VALUE = process.env.DYNAMO_SK_VALUE || 'DOMAINS';
 
