@@ -34,7 +34,11 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
 
   // LLC: managers
   const managersAllOwners = watch("admin.managersAllOwners");
-  const managersCount = watch("admin.managersCount") || 1;
+  const managersCountRaw = watch("admin.managersCount");
+  // Only use valid numbers > 0, otherwise treat as empty/undefined
+  const managersCount = (typeof managersCountRaw === 'number' && managersCountRaw > 0 && !isNaN(managersCountRaw)) 
+    ? managersCountRaw 
+    : undefined;
 
   // Track selected officer roles to prevent duplicates
   const selectedRoles = Array.from({ length: officersCount || 0 }).map((_, idx) => 
@@ -74,6 +78,35 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
     return true;
   };
 
+  // Validation function to check managers (LLC only)
+  const validateManagers = () => {
+    if (entityType !== "LLC") {
+      return true;
+    }
+    if (managersAllOwners === "Yes") {
+      return true; // All owners are managers, no validation needed
+    }
+    
+    // Check if managersCount is valid
+    if (!managersCount || managersCount < 1) {
+      alert("Por favor ingrese un número válido de gerentes (entre 1 y 6).");
+      return false;
+    }
+    
+    // Check if all managers have names filled
+    const missingManagers = Array.from({ length: managersCount }).some((_, idx) => {
+      const managerName = watch(fp(`admin.manager${idx + 1}Name`)) as string;
+      return !managerName || managerName.trim() === "";
+    });
+    
+    if (missingManagers) {
+      alert("Por favor complete el nombre de todos los gerentes antes de continuar.");
+      return false;
+    }
+    
+    return true;
+  };
+
   // Auto-assign President role to sole shareholder
   useEffect(() => {
     if (officersAllOwners === "Yes" && (watch("ownersCount") || 1) === 1) {
@@ -86,6 +119,9 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
 
   const handleContinue = async () => {
     if (!validateOfficers()) {
+      return;
+    }
+    if (!validateManagers()) {
       return;
     }
     await onNext?.();
@@ -142,13 +178,32 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
                     type="number"
                     min={1}
                     max={6}
-                    className="input w-full max-w-xs"
-                    placeholder="1"
-                    {...register("admin.managersCount", { valueAsNumber: true })}
+                    className={`input w-full max-w-xs ${
+                      managersCountRaw !== undefined && 
+                      (typeof managersCountRaw !== 'number' || managersCountRaw < 1 || isNaN(managersCountRaw))
+                        ? 'border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500' 
+                        : ''
+                    }`}
+                    {...register("admin.managersCount", { 
+                      valueAsNumber: true,
+                      validate: (value) => {
+                        if (value === undefined || value === null) {
+                          return true; // Allow empty initially
+                        }
+                        const num = typeof value === 'number' ? value : Number(value);
+                        return (!isNaN(num) && num >= 1 && num <= 6) || "Ingrese un número entre 1 y 6";
+                      }
+                    })}
                   />
+                  {managersCountRaw !== undefined && 
+                   (typeof managersCountRaw !== 'number' || managersCountRaw < 1 || isNaN(managersCountRaw)) && (
+                    <p className="mt-1 text-sm text-red-600">
+                      Por favor ingrese un número válido de gerentes (entre 1 y 6).
+                    </p>
+                  )}
                 </div>
 
-                {Array.from({ length: managersCount || 0 }).map((_, idx) => (
+                {managersCount && managersCount > 0 && Array.from({ length: managersCount }).map((_, idx) => (
                   <div
                     key={idx}
                     className="mt-6 grid grid-cols-1 gap-4 rounded-2xl border border-gray-100 p-4"
