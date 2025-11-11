@@ -377,10 +377,18 @@ export function mapQuestionnaireToAirtable(
     // Owners
     'Owner Count': owners.length,
     
-    // Documents
-    'Membership Registry URL': documentUrls?.membershipRegistry,
-    'Organizational Resolution URL': documentUrls?.organizationalResolution,
-    'Operating Agreement URL': documentUrls?.operatingAgreement,
+    // Documents - Use secure authenticated endpoint
+    // Format: https://yourapp.com/api/documents/view?key={s3Key}
+    // Only authorized lawyers can access these links
+    'Membership Registry URL': documentUrls?.membershipRegistry 
+      ? `${process.env.NEXT_PUBLIC_BASE_URL || 'https://company-formation-questionnaire.vercel.app'}/api/documents/view?key=${encodeURIComponent(documentUrls.membershipRegistry)}`
+      : '',
+    'Organizational Resolution URL': documentUrls?.organizationalResolution
+      ? `${process.env.NEXT_PUBLIC_BASE_URL || 'https://company-formation-questionnaire.vercel.app'}/api/documents/view?key=${encodeURIComponent(documentUrls.organizationalResolution)}`
+      : '',
+    'Operating Agreement URL': documentUrls?.operatingAgreement
+      ? `${process.env.NEXT_PUBLIC_BASE_URL || 'https://company-formation-questionnaire.vercel.app'}/api/documents/view?key=${encodeURIComponent(documentUrls.operatingAgreement)}`
+      : '',
     
     // Agreement
     'Want Agreement': admin.wantAgreement === 'Yes' ? 'Yes' : 'No',

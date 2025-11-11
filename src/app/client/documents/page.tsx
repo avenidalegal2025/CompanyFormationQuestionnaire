@@ -68,15 +68,10 @@ export default function DocumentsPage() {
 
   const handleDownload = async (documentId: string) => {
     try {
-      const response = await fetch(`/api/documents/${documentId}/download`);
-      if (response.ok) {
-        const data = await response.json();
-        // Open the presigned URL in a new tab to download
-        window.open(data.url, '_blank');
-      } else {
-        console.error('Failed to generate download URL');
-        alert('Error al descargar el documento. Por favor, intenta de nuevo.');
-      }
+      // Use the new secure authenticated endpoint
+      // This will stream the document through our server with auth checks
+      const viewUrl = `/api/documents/view?id=${encodeURIComponent(documentId)}`;
+      window.open(viewUrl, '_blank');
     } catch (error) {
       console.error('Error downloading document:', error);
       alert('Error al descargar el documento. Por favor, intenta de nuevo.');
