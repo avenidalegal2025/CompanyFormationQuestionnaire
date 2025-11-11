@@ -213,6 +213,7 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
               <InfoTooltip
                 title="Estado"
                 body={`¿No sabes cual es el mejor estado para tu nueva empresa?\nLee nuestro artículo:`}
+                linkUrl="https://avenidalegal.com/todo-lo-que-debes-saber-para-elegir-el-mejor-estado-para-abrir-tu-llc/"
               />
             </div>
             <select className="input" {...register("company.formationState", { required: true })}>
@@ -233,6 +234,7 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
               <InfoTooltip
                 title="LLC o C-Corp"
                 body={`¿ No sabes si crear una LLC o C-Corp?\nLee nuestro artículo:`}
+                linkUrl="https://avenidalegal.com/llc-vs-c-corp-cual-te-conviene-mas-y-por-que/"
               />
             </div>
             <Controller
