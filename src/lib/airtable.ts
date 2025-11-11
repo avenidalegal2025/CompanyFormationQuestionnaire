@@ -235,7 +235,7 @@ export async function createFormationRecord(data: AirtableFormationRecord): Prom
     
     const records = await base(AIRTABLE_TABLE_NAME).create([
       {
-        fields: data,
+        fields: data as any,
       },
     ]);
     
@@ -265,7 +265,7 @@ export async function updateFormationRecord(
     await base(AIRTABLE_TABLE_NAME).update([
       {
         id: recordId,
-        fields: data,
+        fields: data as any,
       },
     ]);
     
