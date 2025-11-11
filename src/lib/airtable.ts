@@ -332,6 +332,16 @@ export function mapQuestionnaireToAirtable(
   const isLLC = entityType === 'LLC';
   const isCorp = entityType === 'C-Corp';
   
+  // Debug: Log address-related fields
+  console.log('🏠 Address debug:', {
+    hasUsaAddress: company.hasUsaAddress,
+    hasUsAddress: company.hasUsAddress,
+    stripeHasUsAddress: stripeSession.metadata?.hasUsAddress,
+    address: company.address,
+    addressLine1: company.addressLine1,
+    fullAddress: company.fullAddress,
+  });
+  
   // Build the record
   const record: AirtableFormationRecord = {
     // Core Information - prioritize formData (DynamoDB) over Stripe metadata for consistency
@@ -349,9 +359,12 @@ export function mapQuestionnaireToAirtable(
     
     // Company Details
     // If user doesn't have US address, assign Avenida Legal's address
-    'Company Address': company.hasUsaAddress === 'No' 
+    // Check both hasUsaAddress and hasUsAddress for backward compatibility
+    'Company Address': (company.hasUsaAddress === 'No' || company.hasUsAddress === 'No' || 
+                        company.hasUsaAddress === false || company.hasUsAddress === false ||
+                        stripeSession.metadata?.hasUsAddress === 'false')
       ? '12550 Biscayne Blvd Ste 110, North Miami, FL 33181'
-      : (company.address || company.addressLine1 || ''),
+      : (company.address || company.addressLine1 || company.fullAddress || ''),
     'Business Purpose': company.businessPurpose || '',
     'Number of Shares': isCorp ? (company.numberOfShares || 0) : undefined,
     'Vault Path': vaultPath,
