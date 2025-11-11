@@ -39,6 +39,12 @@ const LATAM_COUNTRIES = [
   { code: '+34', flag: '🇪🇸', name: 'España' },
 ];
 
+// Helper function to check if any owner has SSN
+function hasOwnerWithSSN(owners: any[] | undefined): boolean {
+  if (!owners || !Array.isArray(owners)) return false;
+  return owners.some(owner => owner?.tin && owner.tin.trim() !== '');
+}
+
 export default function ClientPage() {
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [companyData, setCompanyData] = useState<any>(null);
@@ -48,6 +54,7 @@ export default function ClientPage() {
   const [showCaller, setShowCaller] = useState(false);
   const [searchCountry, setSearchCountry] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
+  const [processingTime, setProcessingTime] = useState<string>('5-7 días');
   const e164 = `${cc}${localNum.replace(/[^\d]/g, '')}`;
 
   useEffect(() => {
@@ -57,6 +64,11 @@ export default function ClientPage() {
       try {
         const data = JSON.parse(savedData);
         setCompanyData(data);
+        
+        // Determine processing time based on owners' SSN
+        const owners = data?.owners || [];
+        const hasSSN = hasOwnerWithSSN(owners);
+        setProcessingTime(hasSSN ? '5-7 días' : '1 mes para tramitar el ITIN con el IRS');
       } catch (error) {
         console.error('Error parsing saved data:', error);
       }
@@ -224,7 +236,7 @@ export default function ClientPage() {
                 <div className="flex items-center">
                   <div className="text-purple-600 text-2xl mr-3">🚀</div>
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Listo en 5-7 días</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">Tiempo de procesamiento: {processingTime}</h3>
                     <p className="text-gray-600">Recibirás todo por email</p>
                   </div>
                 </div>

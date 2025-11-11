@@ -4,11 +4,18 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
+// Helper function to check if any owner has SSN
+function hasOwnerWithSSN(owners: any[] | undefined): boolean {
+  if (!owners || !Array.isArray(owners)) return false;
+  return owners.some(owner => owner?.tin && owner.tin.trim() !== '');
+}
+
 function CheckoutSuccessContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [processingTime, setProcessingTime] = useState<string>('5-7 días');
 
   useEffect(() => {
     if (sessionId) {
@@ -19,6 +26,19 @@ function CheckoutSuccessContent() {
       if (typeof window !== 'undefined') {
         localStorage.setItem('paymentCompleted', 'true');
         localStorage.setItem('paymentSessionId', sessionId);
+        
+        // Check formData from localStorage to determine processing time
+        const savedData = localStorage.getItem('questionnaireData');
+        if (savedData) {
+          try {
+            const formData = JSON.parse(savedData);
+            const owners = formData?.owners || [];
+            const hasSSN = hasOwnerWithSSN(owners);
+            setProcessingTime(hasSSN ? '5-7 días' : '1 mes para tramitar el ITIN con el IRS');
+          } catch (error) {
+            console.error('Error parsing saved data:', error);
+          }
+        }
       }
       
       setLoading(false);
@@ -73,7 +93,7 @@ function CheckoutSuccessContent() {
             <li>• Archivaremos los documentos de formación de tu empresa</li>
             <li>• Configuraremos tu dirección comercial y teléfono</li>
             <li>• Prepararemos tu acuerdo operativo/de accionistas</li>
-            <li>• Te enviaremos toda la documentación en 5-7 días hábiles</li>
+            <li>• Te enviaremos toda la documentación en {processingTime}</li>
           </ul>
         </div>
 
