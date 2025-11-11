@@ -353,7 +353,10 @@ export function mapQuestionnaireToAirtable(
     'Stripe Payment ID': stripeSession.id,
     
     // Company Details
-    'Company Address': company.address || '',
+    // If user doesn't have US address, assign Avenida Legal's address
+    'Company Address': company.hasUsAddress === 'No' 
+      ? '12550 Biscayne Blvd Ste 110, North Miami, FL 33181'
+      : (company.address || ''),
     'Business Purpose': company.businessPurpose || '',
     'Number of Shares': isCorp ? (company.numberOfShares || 0) : undefined,
     'Vault Path': vaultPath,
