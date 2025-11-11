@@ -7,8 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "setup-airtable": "ts-node scripts/setup-airtable.ts",
-    "create-airtable-table": "ts-node scripts/create-airtable-table.ts"
+    "setup-airtable": "ts-node --project tsconfig.scripts.json scripts/setup-airtable.ts",
+    "create-airtable-table": "ts-node --project tsconfig.scripts.json scripts/create-airtable-table.ts"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.700.0",
