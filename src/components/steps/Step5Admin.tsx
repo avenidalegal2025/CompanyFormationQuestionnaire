@@ -88,7 +88,7 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
     }
     
     // Check if managersCount is valid
-    if (!managersCount || managersCount < 1) {
+    if (!managersCount || managersCount < 1 || managersCount > 6) {
       alert("Por favor ingrese un número válido de gerentes (entre 1 y 6).");
       return false;
     }
@@ -180,10 +180,19 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
                     max={6}
                     className={`input w-full max-w-xs ${
                       managersCountRaw !== undefined && 
-                      (typeof managersCountRaw !== 'number' || managersCountRaw < 1 || isNaN(managersCountRaw))
+                      (typeof managersCountRaw !== 'number' || managersCountRaw < 1 || managersCountRaw > 6 || isNaN(managersCountRaw))
                         ? 'border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500' 
                         : ''
                     }`}
+                    onInput={(e) => {
+                      const input = e.target as HTMLInputElement;
+                      const value = Number(input.value);
+                      // Prevent values greater than 6
+                      if (value > 6) {
+                        input.value = '6';
+                        setValue("admin.managersCount", 6, { shouldValidate: true });
+                      }
+                    }}
                     {...register("admin.managersCount", { 
                       valueAsNumber: true,
                       validate: (value) => {
@@ -191,14 +200,25 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
                           return true; // Allow empty initially
                         }
                         const num = typeof value === 'number' ? value : Number(value);
-                        return (!isNaN(num) && num >= 1 && num <= 6) || "Ingrese un número entre 1 y 6";
+                        if (isNaN(num)) {
+                          return "Ingrese un número válido";
+                        }
+                        if (num < 1) {
+                          return "El número mínimo es 1";
+                        }
+                        if (num > 6) {
+                          return "El número máximo es 6";
+                        }
+                        return true;
                       }
                     })}
                   />
                   {managersCountRaw !== undefined && 
-                   (typeof managersCountRaw !== 'number' || managersCountRaw < 1 || isNaN(managersCountRaw)) && (
+                   (typeof managersCountRaw !== 'number' || managersCountRaw < 1 || managersCountRaw > 6 || isNaN(managersCountRaw)) && (
                     <p className="mt-1 text-sm text-red-600">
-                      Por favor ingrese un número válido de gerentes (entre 1 y 6).
+                      {managersCountRaw !== undefined && typeof managersCountRaw === 'number' && managersCountRaw > 6
+                        ? "El número máximo de gerentes es 6."
+                        : "Por favor ingrese un número válido de gerentes (entre 1 y 6)."}
                     </p>
                   )}
                 </div>
