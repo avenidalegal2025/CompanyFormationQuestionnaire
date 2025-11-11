@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || 'us-west-1',
@@ -23,10 +22,17 @@ const AUTHORIZED_EMAILS = [
 
 export async function GET(request: NextRequest) {
   try {
-    // Authenticate user
+    // Authenticate user - CRITICAL: This must happen on every request
     const session = await getServerSession(authOptions);
     
+    console.log('🔐 Auth check:', {
+      hasSession: !!session,
+      email: session?.user?.email,
+      url: request.url,
+    });
+    
     if (!session?.user?.email) {
+      console.warn('⚠️ Unauthenticated access attempt to passport');
       // User not logged in - redirect to login with callback
       const callbackUrl = encodeURIComponent(request.url);
       const loginUrl = `/api/auth/signin?callbackUrl=${callbackUrl}`;
@@ -99,24 +105,44 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Generate presigned URL (expires in 1 hour)
+    // SECURITY FIX: Stream the image through our server instead of redirecting to presigned URL
+    // This ensures authentication is checked on EVERY access, not just once
     const command = new GetObjectCommand({
       Bucket: BUCKET_NAME,
       Key: s3Key,
     });
 
-    const presignedUrl = await getSignedUrl(s3Client, command, {
-      expiresIn: 3600, // 1 hour
-    });
+    const s3Response = await s3Client.send(command);
+    
+    if (!s3Response.Body) {
+      throw new Error('No file content received from S3');
+    }
 
     // Log access for audit trail
     console.log(`✅ Passport accessed: ${s3Key} by ${session.user.email} at ${new Date().toISOString()}`);
 
-    // Redirect to the presigned URL so the image opens directly
-    return NextResponse.redirect(presignedUrl);
+    // Convert S3 stream to buffer
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of s3Response.Body as any) {
+      chunks.push(chunk);
+    }
+    const buffer = Buffer.concat(chunks);
+
+    // Return the image directly with proper headers
+    return new NextResponse(buffer, {
+      status: 200,
+      headers: {
+        'Content-Type': s3Response.ContentType || 'image/png',
+        'Content-Length': buffer.length.toString(),
+        'Cache-Control': 'private, no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        // Prevent caching to ensure auth is checked every time
+      },
+    });
 
   } catch (error: any) {
-    console.error('❌ Failed to generate presigned URL:', error);
+    console.error('❌ Failed to retrieve passport:', error);
     return NextResponse.json(
       { error: 'Failed to access document', details: error.message },
       { status: 500 }
