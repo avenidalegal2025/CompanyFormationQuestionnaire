@@ -225,29 +225,37 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
                          (selectedServices || []).includes('shareholder_agreement');
     
     if (hasAgreement) {
-      console.log(`📄 Copying ${entityType === 'LLC' ? 'Operating' : 'Shareholder'} Agreement template...`);
-      const agreementTemplate = entityType === 'LLC' 
-        ? 'operating-agreement-llc-template.docx'
-        : 'shareholder-agreement-corp-template.docx';
-      
-      const agreementFileName = entityType === 'LLC'
-        ? 'operating-agreement.docx'
-        : 'shareholder-agreement.docx';
-      
-      const agreementResult = await copyTemplateToVault(
-        vaultPath,
-        agreementTemplate,
-        `agreements/${agreementFileName}`
-      );
-      
-      documents.push({
-        id: entityType === 'LLC' ? 'operating-agreement' : 'shareholder-agreement',
-        name: entityType === 'LLC' ? 'Operating Agreement' : 'Shareholder Agreement',
-        type: 'agreement',
-        s3Key: agreementResult.s3Key,
-        status: 'template',
-        createdAt: new Date().toISOString(),
-      });
+      try {
+        console.log(`📄 Copying ${entityType === 'LLC' ? 'Operating' : 'Shareholder'} Agreement template...`);
+        const agreementTemplate = entityType === 'LLC' 
+          ? 'operating-agreement-llc-template.docx'
+          : 'shareholder-agreement-corp-template.docx';
+        
+        const agreementFileName = entityType === 'LLC'
+          ? 'operating-agreement.docx'
+          : 'shareholder-agreement.docx';
+        
+        const agreementResult = await copyTemplateToVault(
+          vaultPath,
+          agreementTemplate,
+          `agreements/${agreementFileName}`
+        );
+        
+        documents.push({
+          id: entityType === 'LLC' ? 'operating-agreement' : 'shareholder-agreement',
+          name: entityType === 'LLC' ? 'Operating Agreement' : 'Shareholder Agreement',
+          type: 'agreement',
+          s3Key: agreementResult.s3Key,
+          status: 'template',
+          createdAt: new Date().toISOString(),
+        });
+        console.log(`✅ ${entityType === 'LLC' ? 'Operating' : 'Shareholder'} Agreement template copied`);
+      } catch (agreementError: any) {
+        console.error(`⚠️ Failed to copy ${entityType === 'LLC' ? 'Operating' : 'Shareholder'} Agreement template:`, agreementError.message);
+        console.error(`⚠️ Template file may not exist: ${entityType === 'LLC' ? 'operating-agreement-llc-template.docx' : 'shareholder-agreement-corp-template.docx'}`);
+        console.log('⚠️ Continuing without agreement template - it can be uploaded manually later');
+        // Don't fail the entire process - continue without the agreement template
+      }
     }
     
     // Step 4: Save document metadata to DynamoDB
