@@ -22,6 +22,10 @@ const AUTHORIZED_EMAILS = [
 
 export async function GET(request: NextRequest) {
   try {
+    // Log all cookies for debugging
+    const cookies = request.cookies.getAll();
+    console.log('🍪 Cookies received:', cookies.map(c => c.name));
+    
     // Authenticate user - CRITICAL: This must happen on every request
     const session = await getServerSession(authOptions);
     
@@ -29,10 +33,13 @@ export async function GET(request: NextRequest) {
       hasSession: !!session,
       email: session?.user?.email,
       url: request.url,
+      userAgent: request.headers.get('user-agent'),
+      referer: request.headers.get('referer'),
     });
     
     if (!session?.user?.email) {
       console.warn('⚠️ Unauthenticated access attempt to passport');
+      console.warn('⚠️ Session data:', JSON.stringify(session, null, 2));
       // User not logged in - redirect to login with callback
       const callbackUrl = encodeURIComponent(request.url);
       const loginUrl = `/api/auth/signin?callbackUrl=${callbackUrl}`;
