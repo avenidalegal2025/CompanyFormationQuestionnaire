@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import Stripe from 'stripe';
 import { SERVICES, FORMATION_PRICES } from '@/lib/pricing';
 import { authOptions } from '@/lib/auth';
+import { saveFormData } from '@/lib/dynamo';
 
 // Initialize Stripe with fallback key to bypass environment variable issues
 const encodedKey = 'c2tfdGVzdF81MUdHRlZ5R29LZXhrbGRiTlZTaFQ3R25vSGU3blR2bDJDaTdzUTJrMW1UQlN2VlowWnBGRDg3QlZpN3pvSHMyOVBLWEdJZ2RpbmIzdWlFV3dZcjJkcm0yMDAyMjlGczN5';
@@ -185,6 +186,15 @@ export async function POST(request: NextRequest) {
           }
         });
 
+    // Save form data to DynamoDB for later retrieval in webhook
+    try {
+      await saveFormData(session.user.email, formData);
+      console.log('Form data saved to DynamoDB for user:', session.user.email);
+    } catch (dynamoError) {
+      console.error('Failed to save form data to DynamoDB:', dynamoError);
+      // Continue anyway - we can still process the payment without Airtable sync
+    }
+
     // Test Stripe connection
     try {
       const account = await stripe.accounts.retrieve();
@@ -213,7 +223,7 @@ export async function POST(request: NextRequest) {
         totalAmount: totalPrice.toString(),
         selectedServices: JSON.stringify(normalizedSelected),
         forwardPhoneE164: formData?.company?.forwardPhoneE164 || '',
-        formData: JSON.stringify(formData) // Full form data for Airtable sync
+        userId: session.user.email // Store user ID to retrieve form data from DynamoDB
       }
     });
 

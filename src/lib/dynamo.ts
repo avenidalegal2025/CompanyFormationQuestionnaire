@@ -372,3 +372,28 @@ export async function addUserDocument(userId: string, document: DocumentRecord) 
   
   return saveUserDocuments(userId, updatedDocs);
 }
+
+// Form data storage (for Airtable sync)
+export async function saveFormData(userId: string, formData: any) {
+  const command = new UpdateCommand({
+    TableName: TABLE_NAME,
+    Key: buildUserKey(userId),
+    UpdateExpression: 'SET formData = :formData, formDataUpdatedAt = :updatedAt',
+    ExpressionAttributeValues: {
+      ':formData': formData,
+      ':updatedAt': new Date().toISOString(),
+    },
+    ReturnValues: 'UPDATED_NEW',
+  });
+  return ddb.send(command);
+}
+
+export async function getFormData(userId: string): Promise<any | null> {
+  const command = new GetCommand({
+    TableName: TABLE_NAME,
+    Key: buildUserKey(userId),
+    ProjectionExpression: 'formData',
+  });
+  const res = await ddb.send(command);
+  return (res.Item as any)?.formData ?? null;
+}

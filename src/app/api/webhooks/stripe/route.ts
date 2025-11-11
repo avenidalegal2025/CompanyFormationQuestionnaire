@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
-import { saveDomainRegistration, type DomainRegistration, saveBusinessPhone, saveGoogleWorkspace, type GoogleWorkspaceRecord, saveUserDocuments, type DocumentRecord, saveVaultMetadata, type VaultMetadata } from '@/lib/dynamo';
+import { saveDomainRegistration, type DomainRegistration, saveBusinessPhone, saveGoogleWorkspace, type GoogleWorkspaceRecord, saveUserDocuments, type DocumentRecord, saveVaultMetadata, type VaultMetadata, getFormData } from '@/lib/dynamo';
 import { createVaultStructure, copyTemplateToVault } from '@/lib/s3-vault';
 import { createFormationRecord, mapQuestionnaireToAirtable } from '@/lib/airtable';
 // import { createWorkspaceAccount } from '@/lib/googleWorkspace'; // Temporarily disabled
@@ -258,9 +258,15 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
     try {
       console.log('📊 Syncing formation data to Airtable...');
       
-      // Get the full form data from session metadata
-      const formDataStr = session.metadata?.formData;
-      const formData = formDataStr ? JSON.parse(formDataStr) : {};
+      // Get the full form data from DynamoDB
+      const userId = session.metadata?.userId || session.customer_details?.email || (session.customer_email as string) || '';
+      const formData = userId ? await getFormData(userId) : null;
+      
+      if (!formData) {
+        console.warn('⚠️ No form data found in DynamoDB for user:', userId);
+        console.log('Skipping Airtable sync');
+        return;
+      }
       
       // Build document URLs (presigned URLs will be generated on-demand)
       const documentUrls = {
