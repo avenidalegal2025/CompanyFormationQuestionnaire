@@ -342,7 +342,8 @@ export function mapQuestionnaireToAirtable(
     // Core Information
     'Company Name': company.companyName || 'Unknown Company',
     'Entity Type': entityType,
-    'Formation State': company.state || 'Unknown',
+    // Use state from Stripe metadata first (what was paid for), then fall back to form data
+    'Formation State': stripeSession.metadata?.state || company.state || 'Unknown',
     'Formation Status': 'Pending',
     'Customer Email': stripeSession.customer_details?.email || '',
     'Customer Name': stripeSession.customer_details?.name || '',
