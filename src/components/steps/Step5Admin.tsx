@@ -223,7 +223,7 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
                   )}
                 </div>
 
-                {managersCount && managersCount > 0 && Array.from({ length: managersCount }).map((_, idx) => (
+                {managersCount && managersCount > 0 && Array.from({ length: Math.min(managersCount, 6) }).map((_, idx) => (
                   <div
                     key={idx}
                     className="mt-6 grid grid-cols-1 gap-4 rounded-2xl border border-gray-100 p-4"
