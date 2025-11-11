@@ -307,28 +307,83 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                       </label>
                     <div className="flex items-center gap-2">
                       <div className="w-1/6 min-w-[120px]">
-                        <input
-                          type="number"
-                          min="50.01"
-                          max="99.99"
-                          step="0.01"
-                          className={`input w-full ${
-                            isInputInvalid(
-                              watch("agreement.llc_newMembersAdmission") || "", 
-                              watch("agreement.llc_newMembersMajority")
-                            ) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''
-                          }`}
-                          {...register("agreement.llc_newMembersMajority", { 
-                            valueAsNumber: true,
-                              min: {
-                                value: 50.01,
-                                message: "El valor debe ser mayor o igual a 50.01"
-                              },
-                              max: {
-                                value: 99.99,
-                                message: "El valor debe ser menor o igual a 99.99"
+                        <Controller
+                          name="agreement.llc_newMembersMajority"
+                          control={control}
+                          render={({ field }) => {
+                            const currentValue = field.value;
+                            const displayValue = currentValue !== undefined && currentValue !== null 
+                              ? String(currentValue) 
+                              : '';
+                            
+                            return (
+                              <input
+                                type="number"
+                                min="50.01"
+                                max="99.99"
+                                step="0.01"
+                                className={`input w-full ${
+                                  isInputInvalid(
+                                    watch("agreement.llc_newMembersAdmission") || "", 
+                                    currentValue
+                                  ) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''
+                                }`}
+                                value={displayValue}
+                                onChange={(e) => {
+                                  const inputValue = e.target.value;
+                                  // Allow empty input
+                                  if (inputValue === '') {
+                                    field.onChange(undefined);
+                                    return;
+                                  }
+                                  // Parse as number but preserve precision
+                                  const numValue = parseFloat(inputValue);
+                                  if (!isNaN(numValue)) {
+                                    // Round to 2 decimal places to prevent precision issues
+                                    const rounded = Math.round(numValue * 100) / 100;
+                                    field.onChange(rounded);
+                                  }
+                                }}
+                                onBlur={(e) => {
+                                  const inputValue = e.target.value;
+                                  if (inputValue === '') {
+                                    return;
+                                  }
+                                  const numValue = parseFloat(inputValue);
+                                  if (!isNaN(numValue)) {
+                                    // Ensure value is rounded to 2 decimal places on blur
+                                    const rounded = Math.round(numValue * 100) / 100;
+                                    if (rounded !== numValue) {
+                                      field.onChange(rounded);
+                                    }
+                                  }
+                                }}
+                              />
+                            );
+                          }}
+                          rules={{
+                            min: {
+                              value: 50.01,
+                              message: "El valor debe ser mayor o igual a 50.01"
+                            },
+                            max: {
+                              value: 99.99,
+                              message: "El valor debe ser menor o igual a 99.99"
+                            },
+                            validate: (value) => {
+                              if (value === undefined || value === null) {
+                                return "Por favor ingrese un porcentaje";
                               }
-                            })}
+                              const num = typeof value === 'number' ? value : parseFloat(String(value));
+                              if (isNaN(num)) {
+                                return "Por favor ingrese un número válido";
+                              }
+                              if (num < 50.01 || num > 99.99) {
+                                return "El valor debe estar entre 50.01 y 99.99";
+                              }
+                              return true;
+                            }
+                          }}
                         />
                       </div>
                       <span className="text-sm text-gray-500">%</span>
