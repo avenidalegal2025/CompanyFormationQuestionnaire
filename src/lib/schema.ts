@@ -57,9 +57,10 @@ export const CompanySchema = z.object({
 export const OwnerSchema = z.object({
   fullName: z.string().optional(),
   ownership: z.union([z.number(), z.string()]).optional(),
-  email: z.string().email().optional(),
-  phone: z.string().optional(),
   address: z.string().optional(),
+  tin: z.string().optional(), // Tax Identification Number (SSN/EIN)
+  isUsCitizen: z.enum(["Yes", "No"]).optional(),
+  passportImage: z.string().optional(), // For non-US citizens
 });
 
 export const OwnersSchema = z.array(OwnerSchema);
