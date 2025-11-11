@@ -398,7 +398,15 @@ export function mapQuestionnaireToAirtable(
       (record as any)[`Owner ${num} Ownership %`] = owner.ownership ? Number(owner.ownership) / 100 : undefined;
       (record as any)[`Owner ${num} Address`] = owner.address;
       (record as any)[`Owner ${num} SSN`] = owner.tin; // TIN = Tax Identification Number (SSN/EIN)
-      // ID Document URL will be added later when uploaded
+      
+      // Store S3 key for passport document
+      // Airtable will display this as a clickable link using a formula field
+      // Format: https://yourapp.com/admin/passport/view?key={s3Key}
+      if (owner.passportS3Key) {
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://company-formation-questionnaire.vercel.app';
+        const viewUrl = `${baseUrl}/api/admin/passport/view?key=${encodeURIComponent(owner.passportS3Key)}`;
+        (record as any)[`Owner ${num} ID Document URL`] = viewUrl;
+      }
     }
   });
   

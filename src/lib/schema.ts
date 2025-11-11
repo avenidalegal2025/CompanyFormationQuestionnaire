@@ -60,7 +60,8 @@ export const OwnerSchema = z.object({
   address: z.string().optional(),
   tin: z.string().optional(), // Tax Identification Number (SSN/EIN)
   isUsCitizen: z.enum(["Yes", "No"]).optional(),
-  passportImage: z.string().optional(), // For non-US citizens
+  passportImage: z.string().optional(), // For non-US citizens (filename only)
+  passportS3Key: z.string().optional(), // S3 key for uploaded passport (e.g., "tech-corp-abc/documents/ids/john-doe-passport-123.png")
 });
 
 export const OwnersSchema = z.array(OwnerSchema);

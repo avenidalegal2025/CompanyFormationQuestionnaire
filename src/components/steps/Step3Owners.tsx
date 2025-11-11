@@ -35,6 +35,11 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
   // How many blocks to render (stored at root as ownersCount)
   const ownersCount = (watch("ownersCount") as number | undefined) ?? 1;
   const [inputValue, setInputValue] = useState(ownersCount.toString());
+  
+  // State for passport uploads
+  const [uploadingPassport, setUploadingPassport] = useState<Record<number, boolean>>({});
+  const [uploadError, setUploadError] = useState<Record<number, string>>({});
+  
   console.log("Current ownersCount:", ownersCount);
 
   // Sync input value when form value changes
@@ -49,6 +54,55 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
   }, 0);
 
   const remainingPercentage = 100 - totalPercentage;
+
+  // Handle passport file upload
+  const handlePassportUpload = async (ownerIndex: number, file: File) => {
+    try {
+      setUploadingPassport(prev => ({ ...prev, [ownerIndex]: true }));
+      setUploadError(prev => ({ ...prev, [ownerIndex]: '' }));
+
+      // Get owner name and company name for the S3 path
+      const ownerName = w(`owners.${ownerIndex}.fullName`) as string || `Owner-${ownerIndex + 1}`;
+      const companyName = w('company.companyName') as string || 'Company';
+      
+      // Generate a temporary vault path (will be replaced with actual vault path after payment)
+      // Format: company-name-slug
+      const companySlug = companyName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const vaultPath = `temp-${companySlug}-${Date.now()}`;
+
+      // Create form data
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('ownerIndex', ownerIndex.toString());
+      formData.append('ownerName', ownerName);
+      formData.append('vaultPath', vaultPath);
+
+      // Upload to S3
+      const response = await fetch('/api/upload/passport', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Upload failed');
+      }
+
+      const result = await response.json();
+      
+      // Save S3 key to form data
+      setValue(`owners.${ownerIndex}.passportS3Key` as never, result.s3Key as never);
+      setValue(`owners.${ownerIndex}.passportImage` as never, result.fileName as never);
+      
+      console.log(`✅ Passport uploaded for owner ${ownerIndex}:`, result.s3Key);
+      
+    } catch (error: any) {
+      console.error('❌ Passport upload failed:', error);
+      setUploadError(prev => ({ ...prev, [ownerIndex]: error.message }));
+    } finally {
+      setUploadingPassport(prev => ({ ...prev, [ownerIndex]: false }));
+    }
+  };
 
   return (
     <section className="space-y-6">
@@ -236,10 +290,31 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
                     </label>
                     <input
                       type="file"
-                      accept=".png,.jpg,.jpeg"
+                      accept=".png,.jpg,.jpeg,.PNG,.JPG,.JPEG"
                       className="block w-full rounded-xl border border-dashed p-6 text-sm text-gray-600"
-                      {...reg(`${base}.passportImage`)}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          handlePassportUpload(i, file);
+                        }
+                      }}
+                      disabled={uploadingPassport[i]}
                     />
+                    {uploadingPassport[i] && (
+                      <p className="mt-2 text-sm text-blue-600">
+                        ⏳ Subiendo pasaporte...
+                      </p>
+                    )}
+                    {uploadError[i] && (
+                      <p className="mt-2 text-sm text-red-600">
+                        ❌ Error: {uploadError[i]}
+                      </p>
+                    )}
+                    {w(`${base}.passportS3Key`) && !uploadingPassport[i] && !uploadError[i] && (
+                      <p className="mt-2 text-sm text-green-600">
+                        ✅ Pasaporte subido correctamente
+                      </p>
+                    )}
                     <p className="help">Arrastrar y soltar o buscar archivo.</p>
                   </div>
                 )}
