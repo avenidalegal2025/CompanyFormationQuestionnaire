@@ -260,13 +260,27 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
       
       // Get the full form data from DynamoDB
       const userId = session.metadata?.userId || session.customer_details?.email || (session.customer_email as string) || '';
+      console.log('🔍 Looking up formData for userId:', userId);
+      
       const formData = userId ? await getFormData(userId) : null;
       
       if (!formData) {
-        console.warn('⚠️ No form data found in DynamoDB for user:', userId);
+        console.error('❌ No form data found in DynamoDB for user:', userId);
+        console.error('❌ Cannot sync to Airtable without form data');
         console.log('Skipping Airtable sync');
         return;
       }
+      
+      console.log('✅ FormData retrieved from DynamoDB');
+      console.log('📋 FormData structure:', {
+        hasCompany: !!formData.company,
+        hasOwners: !!formData.owners,
+        hasAdmin: !!formData.admin,
+        hasAgreement: !!formData.agreement,
+        entityType: formData.company?.entityType,
+        ownersCount: formData.owners?.length,
+        managersCount: formData.admin?.managersCount,
+      });
       
       // Build document URLs (presigned URLs will be generated on-demand)
       const documentUrls = {
@@ -288,6 +302,8 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
       
     } catch (airtableError: any) {
       console.error('❌ Failed to sync to Airtable:', airtableError.message);
+      console.error('❌ Airtable error stack:', airtableError.stack);
+      console.error('❌ Airtable error details:', JSON.stringify(airtableError, null, 2));
       // Don't fail the entire process if Airtable sync fails
     }
     
