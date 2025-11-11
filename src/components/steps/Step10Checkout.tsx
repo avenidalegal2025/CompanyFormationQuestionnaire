@@ -1,11 +1,17 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Checkout from '@/components/Checkout';
 import HeroVideo from '@/components/HeroVideo';
 import type { StepProps } from './types';
 import { Session } from "next-auth";
 import { handleCheckoutWithAuth } from "@/lib/auth-helpers";
+
+// Helper function to check if any owner has SSN
+function hasOwnerWithSSN(owners: any[] | undefined): boolean {
+  if (!owners || !Array.isArray(owners)) return false;
+  return owners.some(owner => owner?.tin && owner.tin.trim() !== '');
+}
 
 interface Step10CheckoutProps extends StepProps {
   session: Session | null;
@@ -40,6 +46,12 @@ export default function Step10Checkout({ form, setStep, onSave, onNext, session,
   // Check if user wants agreement based on form data
   const wantsAgreement = formData.admin?.wantAgreement === 'Yes';
   
+  // Calculate processing time based on owners' SSN
+  const processingTime = useMemo(() => {
+    const owners = formData.owners || [];
+    const hasSSN = hasOwnerWithSSN(owners);
+    return hasSSN ? '5-7 días hábiles' : '1 mes para tramitar el ITIN con el IRS';
+  }, [formData.owners]);
   
   // Get the formation state for display
   const formationState = formData.company?.formationState || 'Delaware';
@@ -107,7 +119,7 @@ export default function Step10Checkout({ form, setStep, onSave, onNext, session,
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
             <h3 className="font-semibold text-gray-900 mb-2">Tiempo de Procesamiento</h3>
             <ul className="text-sm text-gray-700 space-y-1">
-              <li>• Formación de empresa: 5-7 días hábiles</li>
+              <li>• Formación de empresa: {processingTime}</li>
               {formData.company?.hasUsaAddress !== 'Yes' && (
                 <li>• Configuración de dirección: 1-2 días hábiles</li>
               )}
