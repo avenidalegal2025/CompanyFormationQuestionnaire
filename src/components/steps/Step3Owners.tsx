@@ -310,7 +310,7 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
                         ❌ Error: {uploadError[i]}
                       </p>
                     )}
-                    {w(`${base}.passportS3Key`) && !uploadingPassport[i] && !uploadError[i] && (
+                    {!!w(`${base}.passportS3Key`) && !uploadingPassport[i] && !uploadError[i] && (
                       <p className="mt-2 text-sm text-green-600">
                         ✅ Pasaporte subido correctamente
                       </p>
