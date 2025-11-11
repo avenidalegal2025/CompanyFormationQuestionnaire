@@ -99,6 +99,26 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
     setValue("company.companyName", full, { shouldValidate: true });
   }, [companyNameBase, entitySuffix, setValue]);
 
+  // ====== Company Name Validation ======
+  // Check if company name contains reserved suffixes
+  const RESERVED_SUFFIXES = [
+    'LLC', 'L.L.C.', 'Limited Liability Company',
+    'Corp', 'Corporation', 'Inc', 'Incorporated',
+    'Co', 'Company', 'Ltd', 'Limited'
+  ];
+  
+  const hasReservedSuffix = useMemo(() => {
+    const name = companyNameBase.trim().toUpperCase();
+    if (!name) return false;
+    
+    return RESERVED_SUFFIXES.some(suffix => {
+      const upperSuffix = suffix.toUpperCase();
+      // Check if name ends with the suffix (with optional period and spaces)
+      const pattern = new RegExp(`\\b${upperSuffix.replace(/\./g, '\\.?')}\\s*$`, 'i');
+      return pattern.test(name);
+    });
+  }, [companyNameBase]);
+
   // ====== Toggles ======
   const hasUsaAddress = watch("company.hasUsaAddress");
   const hasUsPhone = watch("company.hasUsPhone");
@@ -242,13 +262,20 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
                 name="company.companyNameBase"
                 control={control}
                 render={({ field }) => (
-                  <input
-                    ref={nameInputRef}
-                    className="input uppercase w-full"
-                    placeholder="Nombre de la empresa"
-                    value={field.value?.toString().toUpperCase() ?? ""}
-                    onChange={(e) => field.onChange(e.target.value.toUpperCase())}
-                  />
+                  <div>
+                    <input
+                      ref={nameInputRef}
+                      className={`input uppercase w-full ${hasReservedSuffix ? 'border-2 border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                      placeholder="Nombre de la empresa"
+                      value={field.value?.toString().toUpperCase() ?? ""}
+                      onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                    />
+                    {hasReservedSuffix && (
+                      <p className="mt-1 text-sm text-red-600">
+                        Agrega la terminación de la empresa en el siguiente menú a la derecha
+                      </p>
+                    )}
+                  </div>
                 )}
               />
             </div>
@@ -484,6 +511,8 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
               type="button"
               className="btn btn-primary"
               onClick={() => (onNext ? void onNext() : setStep(3))}
+              disabled={hasReservedSuffix}
+              title={hasReservedSuffix ? 'Elimina la terminación del nombre de la empresa' : ''}
             >
               Continuar
             </button>
