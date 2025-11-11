@@ -132,7 +132,7 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
         window.location.href = getAuth0SignupUrl('');
         return;
       } finally {
-        setLoading(false);
+      setLoading(false);
       }
     }
 

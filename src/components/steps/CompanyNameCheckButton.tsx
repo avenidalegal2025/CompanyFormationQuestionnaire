@@ -151,7 +151,7 @@ export default function CompanyNameCheckButton({
     if (url) {
       window.open(url, "_blank", "noopener,noreferrer");
       setResult({ status: "ok", message: "Abriendo el buscador oficial en una nueva pestaña…" });
-    } else {
+      } else {
       setResult({ status: "warn", message: "Selecciona un estado compatible para abrir el buscador." });
     }
   };

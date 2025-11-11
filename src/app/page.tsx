@@ -49,7 +49,7 @@ function QuestionnaireContent() {
   const totalSteps = wantsAgreement ? 9 : 5;
   // Store the beforeunload handler so we can remove it before intentional navigation
   const beforeUnloadHandlerRef = useRef<((e: BeforeUnloadEvent) => void) | null>(null);
-
+  
   // Anonymous draft management
   const [anonymousId, setAnonymousId] = useState<string>(() => {
     if (typeof window !== 'undefined') {
@@ -70,7 +70,7 @@ function QuestionnaireContent() {
       }
       return undefined;
     };
-
+    
     beforeUnloadHandlerRef.current = handleBeforeUnload;
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
