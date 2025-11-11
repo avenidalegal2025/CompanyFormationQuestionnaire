@@ -449,13 +449,22 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
         )}
 
         {hasUsPhone === "No" && (
-          <div className="mt-4">
-            <label className="label">¿A qué número desea reenviar las llamadas?</label>
+          <div className="mt-4 p-6 bg-blue-50 rounded-xl border border-blue-100">
+            <div className="mb-4">
+              <p className="text-sm text-gray-700 leading-relaxed mb-3">
+                <strong>Nosotros le brindaremos un número telefónico en USA de la ciudad de Miami</strong> desde donde podrá recibir y hacer llamadas.
+              </p>
+              <p className="text-sm text-gray-700 leading-relaxed">
+                Cuando le lleguen llamadas a su nuevo número, nuestro servicio va a <strong>re-dirigir automáticamente las llamadas entrantes</strong> a otro número telefónico que nos especifique.
+              </p>
+            </div>
+            <label className="label text-base font-semibold">Ingresar número para re-dirigir automáticamente las llamadas entrantes:</label>
             <InternationalPhoneInput
               value={forwardPhoneE164}
               onChange={(val) => setValue("company.forwardPhoneE164", val || "", { shouldDirty: true, shouldValidate: true })}
               placeholder="Ingresa número internacional"
             />
+            <p className="help mt-2">Este número puede ser de cualquier país (México, España, etc.)</p>
           </div>
         )}
 
