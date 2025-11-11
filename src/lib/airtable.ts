@@ -384,8 +384,6 @@ export function mapQuestionnaireToAirtable(
       (record as any)[`Owner ${num} Name`] = owner.name;
       // Convert ownership from whole number (50) to decimal (0.5) for Airtable percent field
       (record as any)[`Owner ${num} Ownership %`] = owner.ownership ? owner.ownership / 100 : undefined;
-      (record as any)[`Owner ${num} Email`] = owner.email;
-      (record as any)[`Owner ${num} Phone`] = owner.phone;
       (record as any)[`Owner ${num} Address`] = owner.address;
       (record as any)[`Owner ${num} SSN`] = owner.ssn;
       // ID Document URL will be added later when uploaded
