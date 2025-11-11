@@ -381,12 +381,12 @@ export function mapQuestionnaireToAirtable(
   owners.forEach((owner: any, index: number) => {
     const num = index + 1;
     if (num <= 6) {
-      record[`Owner ${num} Name` as keyof AirtableFormationRecord] = owner.name;
-      record[`Owner ${num} Ownership %` as keyof AirtableFormationRecord] = owner.ownership;
-      record[`Owner ${num} Email` as keyof AirtableFormationRecord] = owner.email;
-      record[`Owner ${num} Phone` as keyof AirtableFormationRecord] = owner.phone;
-      record[`Owner ${num} Address` as keyof AirtableFormationRecord] = owner.address;
-      record[`Owner ${num} SSN` as keyof AirtableFormationRecord] = owner.ssn;
+      (record as any)[`Owner ${num} Name`] = owner.name;
+      (record as any)[`Owner ${num} Ownership %`] = owner.ownership;
+      (record as any)[`Owner ${num} Email`] = owner.email;
+      (record as any)[`Owner ${num} Phone`] = owner.phone;
+      (record as any)[`Owner ${num} Address`] = owner.address;
+      (record as any)[`Owner ${num} SSN`] = owner.ssn;
       // ID Document URL will be added later when uploaded
     }
   });
@@ -398,8 +398,8 @@ export function mapQuestionnaireToAirtable(
     directors.forEach((director: any, index: number) => {
       const num = index + 1;
       if (num <= 6) {
-        record[`Director ${num} Name` as keyof AirtableFormationRecord] = director.name;
-        record[`Director ${num} Address` as keyof AirtableFormationRecord] = director.address;
+        (record as any)[`Director ${num} Name`] = director.name;
+        (record as any)[`Director ${num} Address`] = director.address;
       }
     });
   }
@@ -411,9 +411,9 @@ export function mapQuestionnaireToAirtable(
     officers.forEach((officer: any, index: number) => {
       const num = index + 1;
       if (num <= 6) {
-        record[`Officer ${num} Name` as keyof AirtableFormationRecord] = officer.name;
-        record[`Officer ${num} Address` as keyof AirtableFormationRecord] = officer.address;
-        record[`Officer ${num} Role` as keyof AirtableFormationRecord] = officer.role;
+        (record as any)[`Officer ${num} Name`] = officer.name;
+        (record as any)[`Officer ${num} Address`] = officer.address;
+        (record as any)[`Officer ${num} Role`] = officer.role;
       }
     });
   }
@@ -425,8 +425,8 @@ export function mapQuestionnaireToAirtable(
     managers.forEach((manager: any, index: number) => {
       const num = index + 1;
       if (num <= 6) {
-        record[`Manager ${num} Name` as keyof AirtableFormationRecord] = manager.name;
-        record[`Manager ${num} Address` as keyof AirtableFormationRecord] = manager.address;
+        (record as any)[`Manager ${num} Name`] = manager.name;
+        (record as any)[`Manager ${num} Address`] = manager.address;
       }
     });
   }
@@ -439,8 +439,7 @@ export function mapQuestionnaireToAirtable(
     owners.forEach((owner: any, index: number) => {
       const num = index + 1;
       if (num <= 6 && llc.capitalContributions?.[index]) {
-        record[`LLC Capital Contributions ${num}` as keyof AirtableFormationRecord] = 
-          llc.capitalContributions[index];
+        (record as any)[`LLC Capital Contributions ${num}`] = llc.capitalContributions[index];
       }
     });
     
@@ -450,7 +449,7 @@ export function mapQuestionnaireToAirtable(
       llc.managingMembersList.forEach((isMM: boolean, index: number) => {
         const num = index + 1;
         if (num <= 6) {
-          record[`LLC Managing Member ${num}` as keyof AirtableFormationRecord] = isMM ? 'Yes' : 'No';
+          (record as any)[`LLC Managing Member ${num}`] = isMM ? 'Yes' : 'No';
         }
       });
     }
@@ -459,8 +458,7 @@ export function mapQuestionnaireToAirtable(
     owners.forEach((owner: any, index: number) => {
       const num = index + 1;
       if (num <= 6 && llc.specificRoles?.[index]) {
-        record[`LLC Specific Roles ${num}` as keyof AirtableFormationRecord] = 
-          llc.specificRoles[index];
+        (record as any)[`LLC Specific Roles ${num}`] = llc.specificRoles[index];
       }
     });
     
@@ -500,8 +498,7 @@ export function mapQuestionnaireToAirtable(
     owners.forEach((owner: any, index: number) => {
       const num = index + 1;
       if (num <= 6 && corp.capitalPerOwner?.[index]) {
-        record[`Corp Capital Per Owner ${num}` as keyof AirtableFormationRecord] = 
-          corp.capitalPerOwner[index];
+        (record as any)[`Corp Capital Per Owner ${num}`] = corp.capitalPerOwner[index];
       }
     });
     
@@ -509,8 +506,7 @@ export function mapQuestionnaireToAirtable(
     owners.forEach((owner: any, index: number) => {
       const num = index + 1;
       if (num <= 6 && corp.specificResponsibilities?.[index]) {
-        record[`Corp Specific Responsibilities ${num}` as keyof AirtableFormationRecord] = 
-          corp.specificResponsibilities[index];
+        (record as any)[`Corp Specific Responsibilities ${num}`] = corp.specificResponsibilities[index];
       }
     });
     
