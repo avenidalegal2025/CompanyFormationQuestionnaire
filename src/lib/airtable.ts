@@ -346,7 +346,6 @@ export function mapQuestionnaireToAirtable(
     'Products Purchased': stripeSession.metadata?.selectedServices || '',
     'Payment Date': new Date().toISOString().split('T')[0],
     'Stripe Payment ID': stripeSession.id,
-    'Created Date': new Date().toISOString(),
     
     // Company Details
     // If user doesn't have US address, assign Avenida Legal's address
