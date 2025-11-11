@@ -305,6 +305,13 @@ export async function findFormationByEmail(email: string): Promise<any | null> {
 
 /**
  * Map questionnaire data to Airtable format
+ * 
+ * DATA SOURCE PRIORITY:
+ * 1. formData (from DynamoDB) - PRIMARY source of truth for all questionnaire data
+ * 2. stripeSession - Used only for payment metadata (amount, payment ID, customer details)
+ * 3. Function parameters - Used for vault path and document URLs
+ * 
+ * This ensures consistency and avoids Stripe metadata size limits (500 chars per key)
  */
 export function mapQuestionnaireToAirtable(
   formData: any,
@@ -327,18 +334,19 @@ export function mapQuestionnaireToAirtable(
   
   // Build the record
   const record: AirtableFormationRecord = {
-    // Core Information
-    'Company Name': company.companyName || 'Unknown Company',
+    // Core Information - prioritize formData (DynamoDB) over Stripe metadata for consistency
+    'Company Name': company.companyName || stripeSession.metadata?.companyName || 'Unknown Company',
     'Entity Type': entityType,
-    // Use state from Stripe metadata first (what was paid for), then fall back to form data
-    'Formation State': stripeSession.metadata?.state || company.state || 'Unknown',
+    // Use formData state first (source of truth), then Stripe metadata as fallback
+    'Formation State': company.formationState || company.state || stripeSession.metadata?.state || 'Unknown',
     'Formation Status': 'Pending',
     'Customer Email': stripeSession.customer_details?.email || '',
-    'Customer Name': stripeSession.customer_details?.name || '',
+    'Customer Name': stripeSession.customer_details?.name || formData.profile?.fullName || '',
     'Total Payment Amount': (stripeSession.amount_total || 0) / 100, // Convert cents to dollars
     'Products Purchased': stripeSession.metadata?.selectedServices || '',
     'Payment Date': new Date().toISOString().split('T')[0],
     'Stripe Payment ID': stripeSession.id,
+    'Created Date': new Date().toISOString(),
     
     // Company Details
     // If user doesn't have US address, assign Avenida Legal's address
