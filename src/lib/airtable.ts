@@ -164,7 +164,9 @@ export interface AirtableFormationRecord {
   'LLC Non Compete'?: 'Yes' | 'No';
   'LLC Bank Signers'?: string;
   'LLC Major Decisions'?: string;
+  'LLC Major Decisions Majority %'?: number;
   'LLC Minor Decisions'?: string;
+  'LLC Minor Decisions Majority %'?: number;
   'LLC Manager Restrictions'?: string;
   'LLC Deadlock Resolution'?: string;
   'LLC Key Man Insurance'?: string;
@@ -515,7 +517,9 @@ export function mapQuestionnaireToAirtable(
     record['LLC Non Compete'] = agreement.llc_nonCompete === 'Yes' ? 'Yes' : 'No';
     record['LLC Bank Signers'] = agreement.llc_bankSigners;
     record['LLC Major Decisions'] = agreement.llc_majorDecisions;
+    record['LLC Major Decisions Majority %'] = agreement.llc_majorDecisionsMajority ? agreement.llc_majorDecisionsMajority / 100 : undefined;
     record['LLC Minor Decisions'] = agreement.llc_minorDecisions;
+    record['LLC Minor Decisions Majority %'] = agreement.llc_minorDecisionsMajority ? agreement.llc_minorDecisionsMajority / 100 : undefined;
     record['LLC Manager Restrictions'] = agreement.llc_managerRestrictions;
     record['LLC Deadlock Resolution'] = agreement.llc_deadlockResolution;
     record['LLC Key Man Insurance'] = agreement.llc_keyManInsurance;
