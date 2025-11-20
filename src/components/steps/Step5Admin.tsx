@@ -139,19 +139,37 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
       Array.from({ length: Math.min(ownersCount, 6) }).forEach((_, idx) => {
         const ownerName = watch(fp(`owners.${idx}.fullName`)) as string;
         const ownerAddress = watch(fp(`owners.${idx}.address`)) as string;
+        const ownerCity = watch(fp(`owners.${idx}.city`)) as string;
+        const ownerState = watch(fp(`owners.${idx}.state`)) as string;
+        const ownerZipCode = watch(fp(`owners.${idx}.zipCode`)) as string;
         
-        // Set manager name from owner name
-        if (ownerName) {
-          setValue(fp(`admin.manager${idx + 1}Name`), ownerName, { shouldValidate: false });
-        }
+        // Set manager name from owner name (always update, even if empty)
+        setValue(fp(`admin.manager${idx + 1}Name`), ownerName || "", { shouldValidate: false });
         
-        // Set manager address from owner address
-        if (ownerAddress) {
-          setValue(fp(`admin.manager${idx + 1}Address`), ownerAddress, { shouldValidate: false });
-        }
+        // Set manager address from owner address (always update, even if empty)
+        // Use full address if available, otherwise construct from components
+        const fullOwnerAddress = ownerAddress || 
+          (ownerCity || ownerState || ownerZipCode 
+            ? [ownerAddress, ownerCity, ownerState, ownerZipCode].filter(Boolean).join(", ")
+            : "");
+        setValue(fp(`admin.manager${idx + 1}Address`), fullOwnerAddress, { shouldValidate: false });
       });
     }
-  }, [entityType, managersAllOwners, watch("ownersCount"), watch, setValue]);
+  }, [
+    entityType, 
+    managersAllOwners, 
+    watch("ownersCount"),
+    // Watch all owner fields to update managers when owners change
+    ...Array.from({ length: 6 }).flatMap((_, idx) => [
+      watch(fp(`owners.${idx}.fullName`)),
+      watch(fp(`owners.${idx}.address`)),
+      watch(fp(`owners.${idx}.city`)),
+      watch(fp(`owners.${idx}.state`)),
+      watch(fp(`owners.${idx}.zipCode`)),
+    ]),
+    watch,
+    setValue
+  ]);
 
   const handleContinue = async () => {
     if (!validateOfficers()) {
