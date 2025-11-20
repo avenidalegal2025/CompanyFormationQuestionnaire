@@ -177,17 +177,31 @@ export default function DocumentsPage() {
   };
 
   const filteredDocuments = documents.filter(doc => {
-    const matchesSearch = doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         doc.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || doc.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesSearch = doc.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (doc.description && doc.description.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    // Map document statuses to filter categories
+    if (statusFilter === 'all') {
+      return matchesSearch;
+    }
+    
+    // Map statuses to filter categories
+    const isCompleted = doc.status === 'signed' || doc.status === 'completed';
+    const isProcessing = doc.status === 'generated' || doc.status === 'processing';
+    const isPending = doc.status === 'pending' || doc.status === 'pending_signature' || doc.status === 'template';
+    
+    if (statusFilter === 'completed' && isCompleted) return matchesSearch;
+    if (statusFilter === 'processing' && isProcessing) return matchesSearch;
+    if (statusFilter === 'pending' && isPending) return matchesSearch;
+    
+    return false;
   });
 
   const statusCounts = {
     all: documents.length,
-    completed: documents.filter(doc => doc.status === 'completed').length,
-    processing: documents.filter(doc => doc.status === 'processing').length,
-    pending: documents.filter(doc => doc.status === 'pending').length
+    completed: documents.filter(doc => doc.status === 'signed' || doc.status === 'completed').length,
+    processing: documents.filter(doc => doc.status === 'generated' || doc.status === 'processing').length,
+    pending: documents.filter(doc => doc.status === 'pending' || doc.status === 'pending_signature' || doc.status === 'template').length
   };
 
   return (

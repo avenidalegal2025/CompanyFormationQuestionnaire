@@ -49,6 +49,7 @@ export default function ClientPage() {
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [companyData, setCompanyData] = useState<any>(null);
   const [businessPhone, setBusinessPhone] = useState<{ phoneNumber: string; forwardToE164: string } | null>(null);
+  const [hasUsPhone, setHasUsPhone] = useState<boolean>(false);
   const [cc, setCc] = useState('+52');
   const [localNum, setLocalNum] = useState('');
   const [showCaller, setShowCaller] = useState(false);
@@ -64,6 +65,10 @@ export default function ClientPage() {
       try {
         const data = JSON.parse(savedData);
         setCompanyData(data);
+        
+        // Check if user has US phone (if yes, phone section should be hidden)
+        const userHasUsPhone = data?.company?.hasUsPhone === 'Yes';
+        setHasUsPhone(userHasUsPhone);
         
         // Determine processing time based on owners' SSN
         const owners = data?.owners || [];
@@ -243,7 +248,8 @@ export default function ClientPage() {
               </div>
             </div>
 
-            {/* Business Phone Card */}
+            {/* Business Phone Card - Only show if user doesn't have US phone */}
+            {!hasUsPhone && (
             <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-8">
               <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
                 <h3 className="text-xl font-semibold text-white flex items-center gap-2">
@@ -393,6 +399,7 @@ export default function ClientPage() {
                 </div>
               )}
             </div>
+            )}
 
             {/* Voice Caller Modal */}
             {showCaller && businessPhone && (
