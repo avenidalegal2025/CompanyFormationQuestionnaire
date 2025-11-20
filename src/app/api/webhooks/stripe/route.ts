@@ -271,15 +271,22 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
       formData = await getFormDataSnapshot(session.id);
       if (formData) {
         console.log('✅ Loaded form data snapshot from S3');
-      } else {
-        console.error('❌ No form data snapshot found for session:', session.id);
-        console.error('❌ Cannot generate PDFs or sync to Airtable without form data');
-        console.log('⚠️ Continuing without PDF generation and Airtable sync');
+    } else {
+      console.error('❌ No form data snapshot found for session:', session.id);
+      console.error('❌ Cannot generate PDFs or sync to Airtable without form data');
+      console.log('⚠️ Continuing without PDF generation and Airtable sync');
       }
     }
 
+    // Log formData status before PDF generation
+    if (!formData) {
+      console.error('🚨 CRITICAL: formData is null/undefined - PDF generation will be SKIPPED');
+      console.error('🚨 This means no tax forms (SS-4, 2848, 8821) will be generated');
+      console.error('🚨 Check logs above for formData retrieval errors');
+    }
+
     if (formData) {
-      console.log('✅ FormData retrieved from DynamoDB');
+      console.log('✅ FormData retrieved successfully');
       console.log('📋 FormData structure:', {
         hasCompany: !!formData.company,
         hasOwners: !!formData.owners,
