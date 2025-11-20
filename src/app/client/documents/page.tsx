@@ -11,7 +11,8 @@ import {
   ClockIcon,
   ExclamationTriangleIcon,
   MagnifyingGlassIcon,
-  FunnelIcon
+  FunnelIcon,
+  ArrowUpTrayIcon
 } from '@heroicons/react/24/outline';
 
 export default function DocumentsPage() {
@@ -21,6 +22,7 @@ export default function DocumentsPage() {
   const [companyData, setCompanyData] = useState<any>(null);
   const [documents, setDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
     // Get company data from localStorage
@@ -76,6 +78,59 @@ export default function DocumentsPage() {
       console.error('Error downloading document:', error);
       alert('Error al descargar el documento. Por favor, intenta de nuevo.');
     }
+  };
+
+  const handleUploadSigned = async (documentId: string, file: File) => {
+    try {
+      setUploading(prev => ({ ...prev, [documentId]: true }));
+
+      const formData = new FormData();
+      formData.append('documentId', documentId);
+      formData.append('file', file);
+
+      const response = await fetch('/api/documents/upload-signed', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to upload signed document');
+      }
+
+      const result = await response.json();
+      
+      // Update local documents state
+      setDocuments(prev => prev.map(doc => 
+        doc.id === documentId 
+          ? { ...doc, ...result.document }
+          : doc
+      ));
+
+      alert('Documento firmado subido exitosamente. Se actualizará en Airtable automáticamente.');
+      
+      // Refresh documents to get latest from server
+      await fetchDocuments();
+    } catch (error: any) {
+      console.error('Error uploading signed document:', error);
+      alert(`Error al subir el documento firmado: ${error.message}`);
+    } finally {
+      setUploading(prev => ({ ...prev, [documentId]: false }));
+    }
+  };
+
+  const handleFileSelect = (documentId: string, event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type (PDF only for tax forms)
+      if (!file.type.includes('pdf') && !file.name.toLowerCase().endsWith('.pdf')) {
+        alert('Por favor, sube un archivo PDF.');
+        return;
+      }
+      handleUploadSigned(documentId, file);
+    }
+    // Reset input so same file can be selected again
+    event.target.value = '';
   };
 
   const getStatusIcon = (status: string) => {
@@ -277,6 +332,29 @@ export default function DocumentsPage() {
                           <ArrowDownTrayIcon className="h-4 w-4 mr-1" />
                           Descargar
                         </button>
+                        {/* Show upload button for tax forms that are generated but not signed */}
+                        {doc.type === 'tax' && doc.status === 'generated' && (
+                          <label className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 cursor-pointer">
+                            <input
+                              type="file"
+                              accept=".pdf,application/pdf"
+                              onChange={(e) => handleFileSelect(doc.id, e)}
+                              className="hidden"
+                              disabled={uploading[doc.id]}
+                            />
+                            {uploading[doc.id] ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
+                                Subiendo...
+                              </>
+                            ) : (
+                              <>
+                                <ArrowUpTrayIcon className="h-4 w-4 mr-1" />
+                                Subir Firmado
+                              </>
+                            )}
+                          </label>
+                        )}
                       </div>
                     </div>
                   </div>

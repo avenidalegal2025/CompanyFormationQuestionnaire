@@ -124,6 +124,9 @@ export interface AirtableFormationRecord {
   'Membership Registry URL'?: string;
   'Organizational Resolution URL'?: string;
   'Operating Agreement URL'?: string;
+  'SS-4 EIN Application URL'?: string;
+  'Form 2848 Power of Attorney URL'?: string;
+  'Form 8821 Tax Authorization URL'?: string;
   
   // Agreement Terms
   'Want Agreement'?: 'Yes' | 'No';
@@ -322,6 +325,9 @@ export function mapQuestionnaireToAirtable(
     membershipRegistry?: string;
     organizationalResolution?: string;
     operatingAgreement?: string;
+    ss4?: string;
+    form2848?: string;
+    form8821?: string;
   }
 ): AirtableFormationRecord {
   const company = formData?.company || {};
@@ -381,6 +387,7 @@ export function mapQuestionnaireToAirtable(
     // Documents - Use secure authenticated endpoint
     // Format: https://yourapp.com/api/documents/view?key={s3Key}
     // Only authorized lawyers can access these links
+    // Prefer signed versions when available
     'Membership Registry URL': documentUrls?.membershipRegistry 
       ? `${process.env.NEXT_PUBLIC_BASE_URL || 'https://company-formation-questionnaire.vercel.app'}/api/documents/view?key=${encodeURIComponent(documentUrls.membershipRegistry)}`
       : '',
@@ -389,6 +396,15 @@ export function mapQuestionnaireToAirtable(
       : '',
     'Operating Agreement URL': documentUrls?.operatingAgreement
       ? `${process.env.NEXT_PUBLIC_BASE_URL || 'https://company-formation-questionnaire.vercel.app'}/api/documents/view?key=${encodeURIComponent(documentUrls.operatingAgreement)}`
+      : '',
+    'SS-4 EIN Application URL': documentUrls?.ss4
+      ? `${process.env.NEXT_PUBLIC_BASE_URL || 'https://company-formation-questionnaire.vercel.app'}/api/documents/view?key=${encodeURIComponent(documentUrls.ss4)}`
+      : '',
+    'Form 2848 Power of Attorney URL': documentUrls?.form2848
+      ? `${process.env.NEXT_PUBLIC_BASE_URL || 'https://company-formation-questionnaire.vercel.app'}/api/documents/view?key=${encodeURIComponent(documentUrls.form2848)}`
+      : '',
+    'Form 8821 Tax Authorization URL': documentUrls?.form8821
+      ? `${process.env.NEXT_PUBLIC_BASE_URL || 'https://company-formation-questionnaire.vercel.app'}/api/documents/view?key=${encodeURIComponent(documentUrls.form8821)}`
       : '',
     
     // Agreement

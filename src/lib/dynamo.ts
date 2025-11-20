@@ -83,8 +83,10 @@ export interface DocumentRecord {
   name: string;
   type: 'formation' | 'agreement' | 'tax' | 'banking' | 'other';
   s3Key: string;
+  signedS3Key?: string; // S3 key for signed version (if uploaded)
   status: 'template' | 'generated' | 'pending_signature' | 'signed';
   createdAt: string;
+  signedAt?: string; // When the signed version was uploaded
   size?: number;
 }
 

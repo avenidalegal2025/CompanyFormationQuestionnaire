@@ -62,6 +62,7 @@ export async function GET(request: NextRequest) {
     let finalS3Key = s3Key;
 
     // If accessing by document ID (client dashboard), verify ownership
+    // Prefer signed version if available, otherwise use original
     if (documentId && !s3Key) {
       const userDocuments = await getUserDocuments(userEmail);
       const document = userDocuments.find(doc => doc.id === documentId);
@@ -74,14 +75,18 @@ export async function GET(request: NextRequest) {
         );
       }
       
-      finalS3Key = document.s3Key;
+      // Prefer signed version if available, otherwise use original
+      finalS3Key = document.signedS3Key || document.s3Key;
     }
 
     // If accessing by S3 key (Airtable link), verify authorization
     if (s3Key && !isLawyer) {
       // Non-lawyer trying to access via S3 key - verify they own this document
+      // Check both original and signed versions
       const userDocuments = await getUserDocuments(userEmail);
-      const ownsDocument = userDocuments.some(doc => doc.s3Key === s3Key);
+      const ownsDocument = userDocuments.some(doc => 
+        doc.s3Key === s3Key || doc.signedS3Key === s3Key
+      );
       
       if (!ownsDocument) {
         console.warn(`⚠️ Unauthorized document access attempt by: ${userEmail} for key: ${s3Key}`);

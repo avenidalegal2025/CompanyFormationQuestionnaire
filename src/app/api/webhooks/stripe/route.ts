@@ -354,14 +354,20 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
       try {
         console.log('📊 Syncing formation data to Airtable...');
       
-      // Build document URLs (presigned URLs will be generated on-demand)
+      // Build document URLs (use signed versions when available, otherwise use original)
+      // Prefer signedS3Key if it exists, otherwise fall back to s3Key
+      const getDocumentKey = (docId: string) => {
+        const doc = documents.find(d => d.id === docId);
+        return doc?.signedS3Key || doc?.s3Key;
+      };
+      
       const documentUrls = {
-        membershipRegistry: documents.find(d => d.id === 'membership-registry')?.s3Key,
-        organizationalResolution: documents.find(d => d.id === 'organizational-resolution')?.s3Key,
-        operatingAgreement: documents.find(d => d.id === 'operating-agreement' || d.id === 'shareholder-agreement')?.s3Key,
-        ss4: documents.find(d => d.id === 'ss4-ein-application')?.s3Key,
-        form2848: documents.find(d => d.id === 'form-2848-power-of-attorney')?.s3Key,
-        form8821: documents.find(d => d.id === 'form-8821-tax-authorization')?.s3Key,
+        membershipRegistry: getDocumentKey('membership-registry'),
+        organizationalResolution: getDocumentKey('organizational-resolution'),
+        operatingAgreement: getDocumentKey('operating-agreement') || getDocumentKey('shareholder-agreement'),
+        ss4: getDocumentKey('ss4-ein-application'),
+        form2848: getDocumentKey('form-2848-power-of-attorney'),
+        form8821: getDocumentKey('form-8821-tax-authorization'),
       };
       
       // Map and create Airtable record
