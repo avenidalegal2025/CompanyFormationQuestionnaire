@@ -314,7 +314,8 @@ export async function generateSS4PDF(
       s3Key
     );
     
-    // Also upload to S3 ourselves (in case Lambda upload fails, we have a backup)
+    // Lambda already uploaded to S3, but we upload again as backup/verification
+    // Use the s3Key that Lambda was told to use (it should match)
     const result = await uploadDocument(
       vaultPath,
       'formation',
@@ -324,10 +325,11 @@ export async function generateSS4PDF(
     );
     
     console.log(`✅ SS-4 PDF generated and saved: ${result.s3Key}`);
+    console.log(`📋 SS-4 s3Key for DynamoDB: ${s3Key}`);
     
     return {
       success: true,
-      s3Key: result.s3Key,
+      s3Key: s3Key, // Use the original s3Key that Lambda uploaded to
       fileName: fileName,
       size: result.size,
     };
@@ -372,7 +374,8 @@ export async function generate2848PDF(
       s3Key
     );
     
-    // Also upload to S3 ourselves (in case Lambda upload fails, we have a backup)
+    // Lambda already uploaded to S3, but we upload again as backup/verification
+    // Use the s3Key that Lambda was told to use (it should match)
     const result = await uploadDocument(
       vaultPath,
       'formation',
@@ -382,10 +385,11 @@ export async function generate2848PDF(
     );
     
     console.log(`✅ Form 2848 PDF generated and saved: ${result.s3Key}`);
+    console.log(`📋 2848 s3Key for DynamoDB: ${s3Key}`);
     
     return {
       success: true,
-      s3Key: result.s3Key,
+      s3Key: s3Key, // Use the original s3Key that Lambda uploaded to
       fileName: fileName,
       size: result.size,
     };
@@ -430,7 +434,8 @@ export async function generate8821PDF(
       s3Key
     );
     
-    // Also upload to S3 ourselves (in case Lambda upload fails, we have a backup)
+    // Lambda already uploaded to S3, but we upload again as backup/verification
+    // Use the s3Key that Lambda was told to use (it should match)
     const result = await uploadDocument(
       vaultPath,
       'formation',
@@ -440,10 +445,11 @@ export async function generate8821PDF(
     );
     
     console.log(`✅ Form 8821 PDF generated and saved: ${result.s3Key}`);
+    console.log(`📋 8821 s3Key for DynamoDB: ${s3Key}`);
     
     return {
       success: true,
-      s3Key: result.s3Key,
+      s3Key: s3Key, // Use the original s3Key that Lambda uploaded to
       fileName: fileName,
       size: result.size,
     };

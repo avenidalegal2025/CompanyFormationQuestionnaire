@@ -330,48 +330,51 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
         
         // Add successfully generated PDFs to documents array
         if (taxForms.ss4.success && taxForms.ss4.s3Key) {
-          documents.push({
+          const doc = {
             id: 'ss4-ein-application',
             name: 'SS-4 EIN Application',
-            type: 'tax',
+            type: 'tax' as const,
             s3Key: taxForms.ss4.s3Key,
-            status: 'generated',
+            status: 'generated' as const,
             createdAt: new Date().toISOString(),
             size: taxForms.ss4.size,
-          });
-          console.log('✅ SS-4 PDF added to documents:', taxForms.ss4.s3Key);
+          };
+          documents.push(doc);
+          console.log('✅ SS-4 PDF added to documents array:', JSON.stringify(doc, null, 2));
         } else {
           console.error('❌ SS-4 generation failed:', taxForms.ss4.error);
           console.error('❌ SS-4 failure details:', JSON.stringify(taxForms.ss4, null, 2));
         }
         
         if (taxForms.form2848.success && taxForms.form2848.s3Key) {
-          documents.push({
+          const doc = {
             id: 'form-2848-power-of-attorney',
             name: 'Form 2848 Power of Attorney',
-            type: 'tax',
+            type: 'tax' as const,
             s3Key: taxForms.form2848.s3Key,
-            status: 'generated',
+            status: 'generated' as const,
             createdAt: new Date().toISOString(),
             size: taxForms.form2848.size,
-          });
-          console.log('✅ Form 2848 PDF added to documents:', taxForms.form2848.s3Key);
+          };
+          documents.push(doc);
+          console.log('✅ Form 2848 PDF added to documents array:', JSON.stringify(doc, null, 2));
         } else {
           console.error('❌ Form 2848 generation failed:', taxForms.form2848.error);
           console.error('❌ Form 2848 failure details:', JSON.stringify(taxForms.form2848, null, 2));
         }
         
         if (taxForms.form8821.success && taxForms.form8821.s3Key) {
-          documents.push({
+          const doc = {
             id: 'form-8821-tax-authorization',
             name: 'Form 8821 Tax Information Authorization',
-            type: 'tax',
+            type: 'tax' as const,
             s3Key: taxForms.form8821.s3Key,
-            status: 'generated',
+            status: 'generated' as const,
             createdAt: new Date().toISOString(),
             size: taxForms.form8821.size,
-          });
-          console.log('✅ Form 8821 PDF added to documents:', taxForms.form8821.s3Key);
+          };
+          documents.push(doc);
+          console.log('✅ Form 8821 PDF added to documents array:', JSON.stringify(doc, null, 2));
         } else {
           console.error('❌ Form 8821 generation failed:', taxForms.form8821.error);
           console.error('❌ Form 8821 failure details:', JSON.stringify(taxForms.form8821, null, 2));
