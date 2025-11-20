@@ -364,7 +364,7 @@ export default function DocumentsPage() {
                             ) : (
                               <>
                                 <ArrowUpTrayIcon className="h-4 w-4 mr-1" />
-                                Subir Firmado
+                                Subir Documento Firmado
                               </>
                             )}
                           </label>
