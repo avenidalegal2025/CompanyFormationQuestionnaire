@@ -59,10 +59,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate filename: owner-name-passport-timestamp.ext
-    const fileExtension = file.name.split('.').pop();
+    const fileExt = file.name.split('.').pop() || 'png';
     const timestamp = Date.now();
     const sanitizedOwnerName = ownerName.toLowerCase().replace(/[^a-z0-9]/g, '-');
-    const fileName = `${sanitizedOwnerName}-passport-${timestamp}.${fileExtension}`;
+    const fileName = `${sanitizedOwnerName}-passport-${timestamp}.${fileExt}`;
 
     // Create S3 key: {vault-path}/documents/ids/{filename}
     const s3Key = `${vaultPath}/documents/ids/${fileName}`;

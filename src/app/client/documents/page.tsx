@@ -371,29 +371,27 @@ export default function DocumentsPage() {
                         <ArrowDownTrayIcon className="h-4 w-4 mr-1" />
                         Descargar
                       </button>
-                      {/* Show upload button for all documents that have been downloaded or are generated */}
-                      {(doc.status === 'generated' || downloadedDocs.has(doc.id)) && (
-                        <label className="btn bg-green-600 hover:bg-green-700 text-white border-transparent flex-1 flex items-center justify-center cursor-pointer">
-                          <input
-                            type="file"
-                            accept=".pdf,application/pdf"
-                            onChange={(e) => handleFileSelect(doc.id, e)}
-                            className="hidden"
-                            disabled={uploading[doc.id]}
-                          />
-                          {uploading[doc.id] ? (
-                            <>
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
-                              Subiendo...
-                            </>
-                          ) : (
-                            <>
-                              <ArrowUpTrayIcon className="h-4 w-4 mr-1" />
-                              Subir
-                            </>
-                          )}
-                        </label>
-                      )}
+                      {/* Show upload button for all documents */}
+                      <label className="btn bg-green-600 hover:bg-green-700 text-white border-transparent flex-1 flex items-center justify-center cursor-pointer">
+                        <input
+                          type="file"
+                          accept=".pdf,application/pdf"
+                          onChange={(e) => handleFileSelect(doc.id, e)}
+                          className="hidden"
+                          disabled={uploading[doc.id]}
+                        />
+                        {uploading[doc.id] ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
+                            Subiendo...
+                          </>
+                        ) : (
+                          <>
+                            <ArrowUpTrayIcon className="h-4 w-4 mr-1" />
+                            Subir
+                          </>
+                        )}
+                      </label>
                     </div>
                   </div>
                 </div>
