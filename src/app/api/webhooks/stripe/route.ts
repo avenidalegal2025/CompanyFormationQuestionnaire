@@ -401,6 +401,17 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
         form8821: getDocumentKey('form-8821-tax-authorization'),
       };
       
+      console.log('📋 Document URLs for Airtable:', {
+        membershipRegistry: documentUrls.membershipRegistry || 'NOT FOUND',
+        organizationalResolution: documentUrls.organizationalResolution || 'NOT FOUND',
+        operatingAgreement: documentUrls.operatingAgreement || 'NOT FOUND',
+        ss4: documentUrls.ss4 || 'NOT FOUND',
+        form2848: documentUrls.form2848 || 'NOT FOUND',
+        form8821: documentUrls.form8821 || 'NOT FOUND',
+      });
+      
+      console.log('📋 All documents in array:', documents.map(d => ({ id: d.id, name: d.name, s3Key: d.s3Key })));
+      
       // Map and create Airtable record
       const airtableRecord = mapQuestionnaireToAirtable(
         formData,
@@ -408,6 +419,12 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
         vaultPath,
         documentUrls
       );
+      
+      console.log('📊 Airtable record tax form URLs:', {
+        'SS-4 URL': airtableRecord['SS-4 URL'] || 'EMPTY',
+        '2848 URL': airtableRecord['2848 URL'] || 'EMPTY',
+        '8821 URL': airtableRecord['8821 URL'] || 'EMPTY',
+      });
       
       const airtableRecordId = await createFormationRecord(airtableRecord);
       console.log(`✅ Airtable record created: ${airtableRecordId}`);
