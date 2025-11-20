@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
-import { saveDomainRegistration, type DomainRegistration, saveBusinessPhone, saveGoogleWorkspace, type GoogleWorkspaceRecord, saveUserDocuments, type DocumentRecord, saveVaultMetadata, type VaultMetadata, getFormData } from '@/lib/dynamo';
+import { saveDomainRegistration, type DomainRegistration, saveBusinessPhone, saveGoogleWorkspace, type GoogleWorkspaceRecord, saveUserDocuments, type DocumentRecord, saveVaultMetadata, type VaultMetadata, getFormData, addUserDocument } from '@/lib/dynamo';
 import { createVaultStructure, copyTemplateToVault } from '@/lib/s3-vault';
 import { createFormationRecord, mapQuestionnaireToAirtable } from '@/lib/airtable';
+import { generateAllTaxForms } from '@/lib/pdf-filler';
 // import { createWorkspaceAccount } from '@/lib/googleWorkspace'; // Temporarily disabled
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -258,27 +259,17 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
       }
     }
     
-    // Step 4: Save document metadata to DynamoDB
-    await saveUserDocuments(userId, documents);
-    console.log(`✅ Document vault created at: ${vaultPath} with ${documents.length} documents`);
+    // Step 4: Get form data from DynamoDB (needed for PDF generation and Airtable sync)
+    const formDataUserId = session.metadata?.userId || session.customer_details?.email || (session.customer_email as string) || '';
+    console.log('🔍 Looking up formData for userId:', formDataUserId);
     
-    // Step 5: Sync to Airtable CRM
-    try {
-      console.log('📊 Syncing formation data to Airtable...');
-      
-      // Get the full form data from DynamoDB
-      const userId = session.metadata?.userId || session.customer_details?.email || (session.customer_email as string) || '';
-      console.log('🔍 Looking up formData for userId:', userId);
-      
-      const formData = userId ? await getFormData(userId) : null;
-      
-      if (!formData) {
-        console.error('❌ No form data found in DynamoDB for user:', userId);
-        console.error('❌ Cannot sync to Airtable without form data');
-        console.log('Skipping Airtable sync');
-        return;
-      }
-      
+    const formData = formDataUserId ? await getFormData(formDataUserId) : null;
+    
+    if (!formData) {
+      console.error('❌ No form data found in DynamoDB for user:', formDataUserId);
+      console.error('❌ Cannot generate PDFs or sync to Airtable without form data');
+      console.log('⚠️ Continuing without PDF generation and Airtable sync');
+    } else {
       console.log('✅ FormData retrieved from DynamoDB');
       console.log('📋 FormData structure:', {
         hasCompany: !!formData.company,
@@ -290,11 +281,87 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
         managersCount: formData.admin?.managersCount,
       });
       
+      // Step 5: Generate tax forms (SS-4, 2848, 8821)
+      try {
+        console.log('📄 Generating tax forms (SS-4, 2848, 8821)...');
+        
+        const taxForms = await generateAllTaxForms(
+          vaultPath,
+          companyName,
+          formData
+        );
+        
+        // Add successfully generated PDFs to documents array
+        if (taxForms.ss4.success && taxForms.ss4.s3Key) {
+          documents.push({
+            id: 'ss4-ein-application',
+            name: 'SS-4 EIN Application',
+            type: 'tax',
+            s3Key: taxForms.ss4.s3Key,
+            status: 'generated',
+            createdAt: new Date().toISOString(),
+            size: taxForms.ss4.size,
+          });
+          console.log('✅ SS-4 PDF added to documents');
+        } else {
+          console.error('❌ SS-4 generation failed:', taxForms.ss4.error);
+        }
+        
+        if (taxForms.form2848.success && taxForms.form2848.s3Key) {
+          documents.push({
+            id: 'form-2848-power-of-attorney',
+            name: 'Form 2848 Power of Attorney',
+            type: 'tax',
+            s3Key: taxForms.form2848.s3Key,
+            status: 'generated',
+            createdAt: new Date().toISOString(),
+            size: taxForms.form2848.size,
+          });
+          console.log('✅ Form 2848 PDF added to documents');
+        } else {
+          console.error('❌ Form 2848 generation failed:', taxForms.form2848.error);
+        }
+        
+        if (taxForms.form8821.success && taxForms.form8821.s3Key) {
+          documents.push({
+            id: 'form-8821-tax-authorization',
+            name: 'Form 8821 Tax Information Authorization',
+            type: 'tax',
+            s3Key: taxForms.form8821.s3Key,
+            status: 'generated',
+            createdAt: new Date().toISOString(),
+            size: taxForms.form8821.size,
+          });
+          console.log('✅ Form 8821 PDF added to documents');
+        } else {
+          console.error('❌ Form 8821 generation failed:', taxForms.form8821.error);
+        }
+        
+        console.log(`✅ Tax forms generation completed: ${[taxForms.ss4, taxForms.form2848, taxForms.form8821].filter(r => r.success).length}/3 successful`);
+      } catch (pdfError: any) {
+        console.error('❌ Failed to generate tax forms:', pdfError.message);
+        console.error('❌ PDF generation error stack:', pdfError.stack);
+        // Don't fail the entire process if PDF generation fails
+      }
+    }
+    
+    // Step 6: Save all document metadata to DynamoDB (including generated PDFs)
+    await saveUserDocuments(userId, documents);
+    console.log(`✅ Document vault created at: ${vaultPath} with ${documents.length} documents`);
+    
+    // Step 7: Sync to Airtable CRM
+    if (formData) {
+      try {
+        console.log('📊 Syncing formation data to Airtable...');
+      
       // Build document URLs (presigned URLs will be generated on-demand)
       const documentUrls = {
         membershipRegistry: documents.find(d => d.id === 'membership-registry')?.s3Key,
         organizationalResolution: documents.find(d => d.id === 'organizational-resolution')?.s3Key,
         operatingAgreement: documents.find(d => d.id === 'operating-agreement' || d.id === 'shareholder-agreement')?.s3Key,
+        ss4: documents.find(d => d.id === 'ss4-ein-application')?.s3Key,
+        form2848: documents.find(d => d.id === 'form-2848-power-of-attorney')?.s3Key,
+        form8821: documents.find(d => d.id === 'form-8821-tax-authorization')?.s3Key,
       };
       
       // Map and create Airtable record
@@ -308,11 +375,12 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
       const airtableRecordId = await createFormationRecord(airtableRecord);
       console.log(`✅ Airtable record created: ${airtableRecordId}`);
       
-    } catch (airtableError: any) {
-      console.error('❌ Failed to sync to Airtable:', airtableError.message);
-      console.error('❌ Airtable error stack:', airtableError.stack);
-      console.error('❌ Airtable error details:', JSON.stringify(airtableError, null, 2));
-      // Don't fail the entire process if Airtable sync fails
+      } catch (airtableError: any) {
+        console.error('❌ Failed to sync to Airtable:', airtableError.message);
+        console.error('❌ Airtable error stack:', airtableError.stack);
+        console.error('❌ Airtable error details:', JSON.stringify(airtableError, null, 2));
+        // Don't fail the entire process if Airtable sync fails
+      }
     }
     
   } catch (vaultError) {

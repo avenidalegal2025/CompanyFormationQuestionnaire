@@ -108,7 +108,7 @@ export default function InfoTooltip({
               <div className="text-sm font-semibold text-gray-900 pr-6">{title}</div>
               {renderBody()}
             </div>
-          </div>
+        </div>
         )}
       </div>
     </div>

@@ -317,17 +317,17 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                               : '';
                             
                             return (
-                              <input
-                                type="number"
-                                min="50.01"
-                                max="99.99"
-                                step="0.01"
-                                className={`input w-full ${
-                                  isInputInvalid(
-                                    watch("agreement.llc_newMembersAdmission") || "", 
+                        <input
+                          type="number"
+                          min="50.01"
+                          max="99.99"
+                          step="0.01"
+                          className={`input w-full ${
+                            isInputInvalid(
+                              watch("agreement.llc_newMembersAdmission") || "", 
                                     currentValue
-                                  ) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''
-                                }`}
+                            ) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''
+                          }`}
                                 value={displayValue}
                                 onChange={(e) => {
                                   const inputValue = e.target.value;
@@ -362,13 +362,13 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                             );
                           }}
                           rules={{
-                            min: {
-                              value: 50.01,
-                              message: "El valor debe ser mayor o igual a 50.01"
-                            },
-                            max: {
-                              value: 99.99,
-                              message: "El valor debe ser menor o igual a 99.99"
+                              min: {
+                                value: 50.01,
+                                message: "El valor debe ser mayor o igual a 50.01"
+                              },
+                              max: {
+                                value: 99.99,
+                                message: "El valor debe ser menor o igual a 99.99"
                             },
                             validate: (value) => {
                               if (value === undefined || value === null) {
@@ -382,7 +382,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                                 return "El valor debe estar entre 50.01 y 99.99";
                               }
                               return true;
-                            }
+                              }
                           }}
                         />
                       </div>
