@@ -84,7 +84,7 @@ function transformDataForSS4(formData: QuestionnaireData): any {
     companyName: company.companyName || '',
     companyNameBase: companyNameBase,
     entityType: company.entityType || 'LLC',
-    formationState: company.formationState || company.state || '',
+    formationState: company.formationState || '',
     businessPurpose: company.businessPurpose || '',
     
     // Company Address
