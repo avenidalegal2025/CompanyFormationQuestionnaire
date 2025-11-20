@@ -587,10 +587,13 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                       const managerAddress = (adminData as any)?.[`manager${i + 1}Address`] as string | undefined;
                       // Get owner data directly from watch to ensure we have the latest data
                       // Watch the specific owner fields to get real-time updates
-                      const ownerFullName = watch(`owners.${i}.fullName` as never) as string | undefined;
-                      const ownerAddress = watch(`owners.${i}.address` as never) as string | undefined;
+                      const ownerFullName = (watch(`owners.${i}.fullName` as never) as unknown) as string | undefined;
+                      const ownerAddress = (watch(`owners.${i}.address` as never) as unknown) as string | undefined;
                       // Fallback to ownersData if watch doesn't return a value
-                      const currentOwners = watch("owners") || ownersData || [];
+                      const currentOwners = (watch("owners") || ownersData || []) as Array<{
+                        fullName?: string;
+                        address?: string;
+                      }>;
                       const ownerFromData = (currentOwners[i] || {}) as {
                         fullName?: string;
                         address?: string;
