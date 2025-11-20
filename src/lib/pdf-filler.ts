@@ -17,6 +17,9 @@ const TEMPLATE_SS4_URL = process.env.TEMPLATE_SS4_URL || 'https://ss4-template-b
 const TEMPLATE_2848_URL = process.env.TEMPLATE_2848_URL || 'https://ss4-template-bucket-043206426879.s3.us-west-1.amazonaws.com/f2848.pdf';
 const TEMPLATE_8821_URL = process.env.TEMPLATE_8821_URL || 'https://ss4-template-bucket-043206426879.s3.us-west-1.amazonaws.com/f8821.pdf';
 
+// S3 bucket for storing generated PDFs
+const S3_BUCKET = process.env.S3_DOCUMENTS_BUCKET || 'avenida-legal-documents';
+
 export interface PDFGenerationResult {
   success: boolean;
   s3Key?: string;
@@ -206,22 +209,27 @@ function transformDataFor8821(formData: QuestionnaireData): any {
 async function callLambdaFunction(
   lambdaUrl: string,
   templateUrl: string,
-  data: any
+  data: any,
+  s3Bucket: string,
+  s3Key: string
 ): Promise<Buffer> {
   console.log(`📞 Calling Lambda: ${lambdaUrl}`);
   console.log(`📄 Template: ${templateUrl}`);
   console.log(`📋 Data keys: ${Object.keys(data).join(', ')}`);
   console.log(`📋 Data sample:`, JSON.stringify(data, null, 2).substring(0, 500));
+  console.log(`📦 S3 Destination: s3://${s3Bucket}/${s3Key}`);
   
   try {
-    // Lambda functions expect 'form_data' instead of 'data'
-    // They also accept 'drive_folder_url' as an alternative, but we're using templateUrl
-    const payload = {
+    // Lambda functions now expect 'form_data', 's3_bucket', and 's3_key' instead of 'drive_folder_url'
+    const payload: any = {
       form_data: data,
-      templateUrl: templateUrl, // Include templateUrl in case Lambda needs it
+      s3_bucket: s3Bucket,
+      s3_key: s3Key,
+      return_pdf: true, // Also return PDF as binary so we can save it
     };
     
     console.log(`📤 Sending payload with form_data (${Object.keys(data).length} keys)`);
+    console.log(`📤 Payload keys: ${Object.keys(payload).join(', ')}`);
     
     const response = await fetch(lambdaUrl, {
       method: 'POST',
@@ -285,13 +293,6 @@ export async function generateSS4PDF(
     // Transform data for SS-4
     const data = transformDataForSS4(formData);
     
-    // Call Lambda function
-    const pdfBuffer = await callLambdaFunction(
-      LAMBDA_SS4_URL,
-      TEMPLATE_SS4_URL,
-      data
-    );
-    
     // Sanitize company name for filename
     const sanitizedName = companyName
       .replace(/[^a-zA-Z0-9\s-]/g, '')
@@ -299,8 +300,18 @@ export async function generateSS4PDF(
       .substring(0, 50);
     
     const fileName = `SS-4_${sanitizedName}.pdf`;
+    const s3Key = `${vaultPath}/formation/${fileName}`;
     
-    // Upload to S3
+    // Call Lambda function (Lambda will upload to S3 and return PDF)
+    const pdfBuffer = await callLambdaFunction(
+      LAMBDA_SS4_URL,
+      TEMPLATE_SS4_URL,
+      data,
+      S3_BUCKET,
+      s3Key
+    );
+    
+    // Also upload to S3 ourselves (in case Lambda upload fails, we have a backup)
     const result = await uploadDocument(
       vaultPath,
       'formation',
@@ -340,13 +351,6 @@ export async function generate2848PDF(
     // Transform data for 2848
     const data = transformDataFor2848(formData);
     
-    // Call Lambda function
-    const pdfBuffer = await callLambdaFunction(
-      LAMBDA_2848_URL,
-      TEMPLATE_2848_URL,
-      data
-    );
-    
     // Sanitize company name for filename
     const sanitizedName = companyName
       .replace(/[^a-zA-Z0-9\s-]/g, '')
@@ -354,8 +358,18 @@ export async function generate2848PDF(
       .substring(0, 50);
     
     const fileName = `2848_${sanitizedName}.pdf`;
+    const s3Key = `${vaultPath}/formation/${fileName}`;
     
-    // Upload to S3
+    // Call Lambda function (Lambda will upload to S3 and return PDF)
+    const pdfBuffer = await callLambdaFunction(
+      LAMBDA_2848_URL,
+      TEMPLATE_2848_URL,
+      data,
+      S3_BUCKET,
+      s3Key
+    );
+    
+    // Also upload to S3 ourselves (in case Lambda upload fails, we have a backup)
     const result = await uploadDocument(
       vaultPath,
       'formation',
@@ -395,13 +409,6 @@ export async function generate8821PDF(
     // Transform data for 8821
     const data = transformDataFor8821(formData);
     
-    // Call Lambda function
-    const pdfBuffer = await callLambdaFunction(
-      LAMBDA_8821_URL,
-      TEMPLATE_8821_URL,
-      data
-    );
-    
     // Sanitize company name for filename
     const sanitizedName = companyName
       .replace(/[^a-zA-Z0-9\s-]/g, '')
@@ -409,8 +416,18 @@ export async function generate8821PDF(
       .substring(0, 50);
     
     const fileName = `8821_${sanitizedName}.pdf`;
+    const s3Key = `${vaultPath}/formation/${fileName}`;
     
-    // Upload to S3
+    // Call Lambda function (Lambda will upload to S3 and return PDF)
+    const pdfBuffer = await callLambdaFunction(
+      LAMBDA_8821_URL,
+      TEMPLATE_8821_URL,
+      data,
+      S3_BUCKET,
+      s3Key
+    );
+    
+    // Also upload to S3 ourselves (in case Lambda upload fails, we have a backup)
     const result = await uploadDocument(
       vaultPath,
       'formation',
