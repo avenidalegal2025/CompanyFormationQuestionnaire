@@ -606,7 +606,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                                 name={`admin.manager${i + 1}Name` as never}
                                 control={control}
                                 render={({ field }) => (
-                                  <input className="input mt-1" {...field} value={field.value || displayName || ""} />
+                                  <input className="input mt-1" {...field} />
                                 )}
                               />
                             ) : (
@@ -620,7 +620,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                                 name={`admin.manager${i + 1}Address` as never}
                                 control={control}
                                 render={({ field }) => (
-                                  <input className="input mt-1" {...field} value={field.value || displayAddress || ""} />
+                                  <input className="input mt-1" {...field} />
                                 )}
                               />
                             ) : (
