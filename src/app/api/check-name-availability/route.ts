@@ -81,58 +81,128 @@ export async function POST(request: NextRequest) {
 
     console.log(`✅ Parsed result:`, JSON.stringify(result, null, 2));
 
-    // Trust Lambda's result completely - it handles:
-    // 1. Sunbiz search for the input name
-    // 2. Checking INACT entities' detail pages to see if inactive >1 year from Event Date Filed
-    // 3. Similarity rules: singular/plural/possessive are the same; punctuation/spaces don't matter
-    // 4. ACTIVE entities = not available
-    // 5. INACT entities inactive >1 year = available (if no conflicts)
+    // Lambda returns Sunbiz search results with entities
+    // We need to apply three-tier matching logic:
+    // 1. Exact match
+    // 2. Normalized match (remove punctuation/spaces/roman numerals)
+    // 3. More aggressive normalized match
     
-    const finalAvailable = result?.available ?? false;
-    let finalMessage = result?.message || 'No se pudo determinar la disponibilidad';
-
-    // Enhance message with entity details if available
-    if (result?.existing_entities && Array.isArray(result.existing_entities) && result.existing_entities.length > 0) {
-      const activeEntities = result.existing_entities.filter((e: any) => 
-        e.status && (e.status.toUpperCase().includes('ACTIVE') || e.status === 'Active')
-      );
-
-      const inactiveEntities = result.existing_entities.filter((e: any) => 
-        e.status && (e.status.toUpperCase().includes('INACT') || e.status === 'Inactive')
-      );
-
-      if (activeEntities.length > 0) {
-        // Active entities found - name is not available
-        const entityNames = activeEntities.map((e: any) => `${e.name} (${e.status})`).join(', ');
-        finalMessage = `❌ Nombre no disponible. Entidades activas encontradas: ${entityNames}`;
-      } else if (inactiveEntities.length > 0 && finalAvailable) {
-        // Inactive entities found but Lambda determined they're available (inactive >1 year)
-        const entityNames = inactiveEntities.map((e: any) => `${e.name} (${e.status})`).join(', ');
-        finalMessage = `✅ Nombre disponible. Entidades inactivas encontradas (inactivas >1 año): ${entityNames}`;
-      } else if (result.existing_entities.length > 0 && !finalAvailable) {
-        // Similar names found but not available for other reasons
-        const entityNames = result.existing_entities.map((e: any) => `${e.name} (${e.status || 'N/A'})`).join(', ');
-        finalMessage = `❌ Nombre no disponible. Entidades encontradas: ${entityNames}`;
+    const inputName = companyName.trim();
+    const entities = result?.existing_entities || [];
+    
+    // Helper: Check if entity is blocking (Active or INACT <1 year)
+    const isBlockingEntity = (entity: any): boolean => {
+      const status = entity?.status?.toUpperCase() || '';
+      
+      // Active entities always block
+      if (status.includes('ACTIVE') || status === 'ACTIVE') {
+        return true;
+      }
+      
+      // INACT entities: check if inactive <1 year from Event Date Filed
+      if (status.includes('INACT') || status === 'INACTIVE') {
+        const eventDateFiled = entity?.eventDateFiled || entity?.event_date_filed || entity?.lastEventDate;
+        if (eventDateFiled) {
+          try {
+            // Parse date (format: MM/DD/YYYY)
+            const [month, day, year] = eventDateFiled.split('/').map(Number);
+            const eventDate = new Date(year, month - 1, day);
+            const oneYearAgo = new Date();
+            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+            
+            // If inactive <1 year, it blocks
+            if (eventDate > oneYearAgo) {
+              return true;
+            }
+          } catch (error) {
+            console.warn(`⚠️ Could not parse event date: ${eventDateFiled}`, error);
+            // If we can't parse the date, assume it blocks to be safe
+            return true;
+          }
+        } else {
+          // No event date - assume it blocks to be safe
+          return true;
+        }
+      }
+      
+      return false;
+    };
+    
+    // Helper: Normalize name (remove punctuation, spaces, roman numerals)
+    const normalizeName = (name: string): string => {
+      let normalized = name.toUpperCase().trim();
+      
+      // Remove common entity suffixes
+      normalized = normalized.replace(/\b(LLC|L\.L\.C\.|LIMITEDLIABILITYCOMPANY|CORP|CORPORATION|INC|INCORPORATED|LTD|LIMITED)\b/gi, '');
+      
+      // Remove roman numerals (standalone: I, II, III, IV, V, VI, VII, VIII, IX, X, XI, XII, etc.)
+      // Pattern matches standalone roman numerals (bounded by word boundaries)
+      normalized = normalized.replace(/\b[IVXLCDM]+\b/gi, '');
+      
+      // Remove all punctuation and spaces
+      normalized = normalized.replace(/[^A-Z0-9]/g, ''); // Remove all non-alphanumeric
+      
+      return normalized;
+    };
+    
+    // Tier 1: Exact match
+    let blockingEntities: any[] = [];
+    for (const entity of entities) {
+      const entityName = entity?.name || '';
+      if (entityName.toUpperCase().trim() === inputName.toUpperCase().trim()) {
+        if (isBlockingEntity(entity)) {
+          blockingEntities.push({ ...entity, matchType: 'exact' });
+        }
       }
     }
-
+    
+    // Tier 2: Normalized match (remove punctuation/spaces/roman numerals from both input and results)
+    if (blockingEntities.length === 0) {
+      const normalizedInput = normalizeName(inputName);
+      for (const entity of entities) {
+        const entityName = entity?.name || '';
+        const normalizedEntity = normalizeName(entityName);
+        if (normalizedEntity === normalizedInput && normalizedInput.length > 0) {
+          if (isBlockingEntity(entity)) {
+            blockingEntities.push({ ...entity, matchType: 'normalized' });
+          }
+        }
+      }
+    }
+    
+    // Determine availability
+    const finalAvailable = blockingEntities.length === 0;
+    let finalMessage: string;
+    
+    if (blockingEntities.length > 0) {
+      const entityNames = blockingEntities.map((e: any) => `${e.name} (${e.status})`).join(', ');
+      const matchType = blockingEntities[0].matchType;
+      const matchTypeText = matchType === 'exact' ? 'coincidencia exacta' : 
+                           matchType === 'normalized' ? 'coincidencia normalizada' : 
+                           'coincidencia similar';
+      finalMessage = `❌ Nombre no disponible. ${matchTypeText}: ${entityNames}`;
+    } else if (entities.length > 0) {
+      // Entities found but none are blocking (all INACT >1 year)
+      finalMessage = `✅ Nombre disponible. Entidades similares encontradas pero inactivas >1 año.`;
+    } else {
+      finalMessage = `✅ Nombre disponible. No se encontraron entidades similares.`;
+    }
+    
     console.log(`✅ Final availability result:`, {
       available: finalAvailable,
       message: finalMessage,
-      entitiesFound: result?.existing_entities?.length || 0,
+      entitiesFound: entities.length,
+      blockingEntities: blockingEntities.length,
+      matchType: blockingEntities[0]?.matchType || 'none',
     });
 
-    // Lambda returns: { success: boolean, available: boolean, message: string, method?: string, existing_entities?: array }
-    // The Lambda should handle all the logic:
-    // - ACTIVE = not available
-    // - INACT with Event Date Filed >1 year ago = available
-    // - Similarity checks (singular/plural/possessive, punctuation/spaces)
     return NextResponse.json({
       success: result?.success ?? true,
       available: finalAvailable,
       message: finalMessage,
       method: result?.method,
-      existingEntities: result?.existing_entities,
+      existingEntities: entities,
+      blockingEntities: blockingEntities,
     });
 
   } catch (error: any) {
