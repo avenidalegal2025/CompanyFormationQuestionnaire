@@ -43,11 +43,22 @@ export default function ClientNavigation({ currentTab, onTabChange }: ClientNavi
       try {
         const data = JSON.parse(savedData);
         const { companyName, entityType, formationState } = data.company || {};
-        const name = companyName || 'Mi Empresa';
+        
+        if (!companyName) return 'Mi Empresa';
+        
+        // Format: "CompanyName EntityType a State company"
+        // Example: "Trimaran LLC a Florida company"
+        const name = companyName;
         const type = entityType || '';
         const state = formationState || '';
         
-        return `${name} ${type} ${state}`.trim();
+        if (state) {
+          return `${name} ${type} a ${state} company`.trim();
+        } else if (type) {
+          return `${name} ${type}`.trim();
+        } else {
+          return name;
+        }
       } catch (error) {
         console.error('Error parsing saved data:', error);
       }

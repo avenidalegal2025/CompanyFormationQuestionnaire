@@ -148,11 +148,22 @@ export default function DomainsPage() {
     if (!companyData?.company) return 'Mi Empresa';
     
     const { companyName, entityType, formationState } = companyData.company;
-    const name = companyName || 'Mi Empresa';
+    
+    if (!companyName) return 'Mi Empresa';
+    
+    // Format: "CompanyName EntityType a State company"
+    // Example: "Trimaran LLC a Florida company"
+    const name = companyName;
     const type = entityType || '';
     const state = formationState || '';
     
-    return `${name} ${type} ${state}`.trim();
+    if (state) {
+      return `${name} ${type} a ${state} company`.trim();
+    } else if (type) {
+      return `${name} ${type}`.trim();
+    } else {
+      return name;
+    }
   };
 
   const handleDomainSearch = async () => {
