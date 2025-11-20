@@ -211,33 +211,58 @@ async function callLambdaFunction(
   console.log(`📞 Calling Lambda: ${lambdaUrl}`);
   console.log(`📄 Template: ${templateUrl}`);
   console.log(`📋 Data keys: ${Object.keys(data).join(', ')}`);
+  console.log(`📋 Data sample:`, JSON.stringify(data, null, 2).substring(0, 500));
   
-  const response = await fetch(lambdaUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      templateUrl: templateUrl,
-      data: data,
-    }),
-  });
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Lambda function failed: ${response.status} ${response.statusText} - ${errorText}`);
+  try {
+    const response = await fetch(lambdaUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        templateUrl: templateUrl,
+        data: data,
+      }),
+    });
+    
+    console.log(`📡 Lambda response status: ${response.status} ${response.statusText}`);
+    console.log(`📡 Lambda response headers:`, Object.fromEntries(response.headers.entries()));
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`❌ Lambda error response:`, errorText);
+      throw new Error(`Lambda function failed: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+    
+    // Check content type
+    const contentType = response.headers.get('content-type');
+    console.log(`📄 Response content-type: ${contentType}`);
+    
+    // Lambda should return the filled PDF as binary data
+    const arrayBuffer = await response.arrayBuffer();
+    const pdfBuffer = Buffer.from(arrayBuffer);
+    
+    console.log(`📦 Received ${pdfBuffer.length} bytes from Lambda`);
+    
+    if (pdfBuffer.length === 0) {
+      throw new Error('Lambda returned empty PDF');
+    }
+    
+    // Validate it's actually a PDF (starts with %PDF)
+    if (pdfBuffer.length < 4 || pdfBuffer.subarray(0, 4).toString() !== '%PDF') {
+      console.error(`❌ Response doesn't appear to be a PDF. First 100 bytes:`, pdfBuffer.subarray(0, 100).toString());
+      throw new Error('Lambda response is not a valid PDF file');
+    }
+    
+    console.log(`✅ Lambda returned valid PDF (${pdfBuffer.length} bytes)`);
+    
+    return pdfBuffer;
+  } catch (error: any) {
+    console.error(`❌ Lambda call failed:`, error.message);
+    console.error(`❌ Lambda URL: ${lambdaUrl}`);
+    console.error(`❌ Template URL: ${templateUrl}`);
+    throw error;
   }
-  
-  // Lambda should return the filled PDF as binary data
-  const pdfBuffer = Buffer.from(await response.arrayBuffer());
-  
-  if (pdfBuffer.length === 0) {
-    throw new Error('Lambda returned empty PDF');
-  }
-  
-  console.log(`✅ Lambda returned PDF (${pdfBuffer.length} bytes)`);
-  
-  return pdfBuffer;
 }
 
 /**

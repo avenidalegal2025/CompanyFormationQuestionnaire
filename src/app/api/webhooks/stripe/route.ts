@@ -293,12 +293,24 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
       // Step 5: Generate tax forms (SS-4, 2848, 8821)
       try {
         console.log('📄 Generating tax forms (SS-4, 2848, 8821)...');
+        console.log('📋 FormData for PDF generation:', {
+          companyName: formData.company?.companyName,
+          entityType: formData.company?.entityType,
+          ownersCount: formData.owners?.length,
+          hasAgreement: !!formData.agreement,
+        });
         
         const taxForms = await generateAllTaxForms(
           vaultPath,
           companyName,
           formData
         );
+        
+        console.log('📊 Tax forms generation results:', {
+          ss4: { success: taxForms.ss4.success, error: taxForms.ss4.error, s3Key: taxForms.ss4.s3Key },
+          form2848: { success: taxForms.form2848.success, error: taxForms.form2848.error, s3Key: taxForms.form2848.s3Key },
+          form8821: { success: taxForms.form8821.success, error: taxForms.form8821.error, s3Key: taxForms.form8821.s3Key },
+        });
         
         // Add successfully generated PDFs to documents array
         if (taxForms.ss4.success && taxForms.ss4.s3Key) {
@@ -311,9 +323,10 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
             createdAt: new Date().toISOString(),
             size: taxForms.ss4.size,
           });
-          console.log('✅ SS-4 PDF added to documents');
+          console.log('✅ SS-4 PDF added to documents:', taxForms.ss4.s3Key);
         } else {
           console.error('❌ SS-4 generation failed:', taxForms.ss4.error);
+          console.error('❌ SS-4 failure details:', JSON.stringify(taxForms.ss4, null, 2));
         }
         
         if (taxForms.form2848.success && taxForms.form2848.s3Key) {
@@ -326,9 +339,10 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
             createdAt: new Date().toISOString(),
             size: taxForms.form2848.size,
           });
-          console.log('✅ Form 2848 PDF added to documents');
+          console.log('✅ Form 2848 PDF added to documents:', taxForms.form2848.s3Key);
         } else {
           console.error('❌ Form 2848 generation failed:', taxForms.form2848.error);
+          console.error('❌ Form 2848 failure details:', JSON.stringify(taxForms.form2848, null, 2));
         }
         
         if (taxForms.form8821.success && taxForms.form8821.s3Key) {
@@ -341,15 +355,23 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
             createdAt: new Date().toISOString(),
             size: taxForms.form8821.size,
           });
-          console.log('✅ Form 8821 PDF added to documents');
+          console.log('✅ Form 8821 PDF added to documents:', taxForms.form8821.s3Key);
         } else {
           console.error('❌ Form 8821 generation failed:', taxForms.form8821.error);
+          console.error('❌ Form 8821 failure details:', JSON.stringify(taxForms.form8821, null, 2));
         }
         
-        console.log(`✅ Tax forms generation completed: ${[taxForms.ss4, taxForms.form2848, taxForms.form8821].filter(r => r.success).length}/3 successful`);
+        const successCount = [taxForms.ss4, taxForms.form2848, taxForms.form8821].filter(r => r.success).length;
+        console.log(`✅ Tax forms generation completed: ${successCount}/3 successful`);
+        
+        if (successCount === 0) {
+          console.error('⚠️ WARNING: No tax forms were generated successfully!');
+          console.error('⚠️ This may indicate Lambda function issues or data transformation problems');
+        }
       } catch (pdfError: any) {
         console.error('❌ Failed to generate tax forms:', pdfError.message);
         console.error('❌ PDF generation error stack:', pdfError.stack);
+        console.error('❌ PDF generation error details:', JSON.stringify(pdfError, Object.getOwnPropertyNames(pdfError), 2));
         // Don't fail the entire process if PDF generation fails
       }
     }
