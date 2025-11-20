@@ -127,6 +127,32 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
     }
   }, [entityType, officersAllOwners, officersCount, watch, setValue]);
 
+  // Auto-populate managers from owners when "Todos los socios son gerentes" is Yes
+  useEffect(() => {
+    if (entityType === "LLC" && managersAllOwners === "Yes") {
+      const ownersCount = watch("ownersCount") || 1;
+      
+      // Set managers count to match owners count
+      setValue("admin.managersCount", ownersCount, { shouldValidate: false });
+      
+      // Auto-populate each manager's name and address from corresponding owner
+      Array.from({ length: Math.min(ownersCount, 6) }).forEach((_, idx) => {
+        const ownerName = watch(fp(`owners.${idx}.fullName`)) as string;
+        const ownerAddress = watch(fp(`owners.${idx}.address`)) as string;
+        
+        // Set manager name from owner name
+        if (ownerName) {
+          setValue(fp(`admin.manager${idx + 1}Name`), ownerName, { shouldValidate: false });
+        }
+        
+        // Set manager address from owner address
+        if (ownerAddress) {
+          setValue(fp(`admin.manager${idx + 1}Address`), ownerAddress, { shouldValidate: false });
+        }
+      });
+    }
+  }, [entityType, managersAllOwners, watch("ownersCount"), watch, setValue]);
+
   const handleContinue = async () => {
     if (!validateOfficers()) {
       return;
@@ -179,6 +205,17 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
                 />
               </div>
             </div>
+
+            {managersAllOwners === "Yes" && (
+              <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  ✅ Los gerentes se configurarán automáticamente con los mismos datos de los socios.
+                </p>
+                <p className="text-sm text-blue-700 mt-2">
+                  Número de gerentes: <strong>{watch("ownersCount") || 1}</strong>
+                </p>
+              </div>
+            )}
 
             {managersAllOwners === "No" && (
               <>
