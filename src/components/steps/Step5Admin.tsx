@@ -84,8 +84,11 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
       return true;
     }
     
+    // Read the current value directly (not from the variable which might be stale)
+    const currentManagersAllOwners = watch("admin.managersAllOwners");
+    
     // If all owners are managers, ensure managersCount is set and managers are populated
-    if (managersAllOwners === "Yes") {
+    if (currentManagersAllOwners === "Yes") {
       const ownersCount = watch("ownersCount") || 1;
       const currentManagersCount = watch("admin.managersCount");
       
@@ -114,13 +117,15 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
     }
     
     // If not all owners are managers, check if managersCount is valid
-    if (!managersCount || managersCount < 1 || managersCount > 6) {
+    // Read managersCount directly from form state
+    const currentManagersCount = watch("admin.managersCount");
+    if (!currentManagersCount || currentManagersCount < 1 || currentManagersCount > 6) {
       alert("Por favor ingrese un número válido de gerentes (entre 1 y 6).");
       return false;
     }
     
     // Check if all managers have names filled
-    const missingManagers = Array.from({ length: managersCount }).some((_, idx) => {
+    const missingManagers = Array.from({ length: currentManagersCount }).some((_, idx) => {
       const managerName = watch(fp(`admin.manager${idx + 1}Name`)) as string;
       return !managerName || managerName.trim() === "";
     });
@@ -155,36 +160,51 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
 
   // Auto-populate managers from owners when "Todos los socios son gerentes" is Yes
   useEffect(() => {
-    if (entityType === "LLC" && managersAllOwners === "Yes") {
-      const ownersCount = watch("ownersCount") || 1;
+    if (entityType === "LLC") {
+      const currentManagersAllOwners = watch("admin.managersAllOwners");
+      // Default to "Yes" if not set
+      const isAllOwnersManagers = currentManagersAllOwners === "Yes" || currentManagersAllOwners === undefined;
       
-      // Set managers count to match owners count
-      setValue("admin.managersCount", ownersCount, { shouldValidate: false });
-      
-      // Auto-populate each manager's name and address from corresponding owner
-      Array.from({ length: Math.min(ownersCount, 6) }).forEach((_, idx) => {
-        const ownerName = watch(fp(`owners.${idx}.fullName`)) as string;
-        const ownerAddress = watch(fp(`owners.${idx}.address`)) as string;
-        const ownerCity = watch(fp(`owners.${idx}.city`)) as string;
-        const ownerState = watch(fp(`owners.${idx}.state`)) as string;
-        const ownerZipCode = watch(fp(`owners.${idx}.zipCode`)) as string;
+      if (isAllOwnersManagers) {
+        // If undefined, set it to "Yes"
+        if (currentManagersAllOwners === undefined) {
+          setValue("admin.managersAllOwners", "Yes", { shouldValidate: false });
+        }
         
-        // Set manager name from owner name (always update, even if empty)
-        setValue(fp(`admin.manager${idx + 1}Name`), ownerName || "", { shouldValidate: false });
+        const ownersCount = watch("ownersCount") || 1;
+        const currentManagersCount = watch("admin.managersCount");
         
-        // Set manager address from owner address (always update, even if empty)
-        // Use full address if available, otherwise construct from components
-        const fullOwnerAddress = ownerAddress || 
-          (ownerCity || ownerState || ownerZipCode 
-            ? [ownerAddress, ownerCity, ownerState, ownerZipCode].filter(Boolean).join(", ")
-            : "");
-        setValue(fp(`admin.manager${idx + 1}Address`), fullOwnerAddress, { shouldValidate: false });
-      });
+        // Set managers count to match owners count if not already set
+        if (currentManagersCount !== ownersCount) {
+          setValue("admin.managersCount", ownersCount, { shouldValidate: false });
+        }
+        
+        // Auto-populate each manager's name and address from corresponding owner
+        Array.from({ length: Math.min(ownersCount, 6) }).forEach((_, idx) => {
+          const ownerName = watch(fp(`owners.${idx}.fullName`)) as string;
+          const ownerAddress = watch(fp(`owners.${idx}.address`)) as string;
+          const ownerCity = watch(fp(`owners.${idx}.city`)) as string;
+          const ownerState = watch(fp(`owners.${idx}.state`)) as string;
+          const ownerZipCode = watch(fp(`owners.${idx}.zipCode`)) as string;
+          
+          // Set manager name from owner name (always update, even if empty)
+          setValue(fp(`admin.manager${idx + 1}Name`), ownerName || "", { shouldValidate: false });
+          
+          // Set manager address from owner address (always update, even if empty)
+          // Use full address if available, otherwise construct from components
+          const fullOwnerAddress = ownerAddress || 
+            (ownerCity || ownerState || ownerZipCode 
+              ? [ownerAddress, ownerCity, ownerState, ownerZipCode].filter(Boolean).join(", ")
+              : "");
+          setValue(fp(`admin.manager${idx + 1}Address`), fullOwnerAddress, { shouldValidate: false });
+        });
+      }
     }
   }, [
     entityType, 
     managersAllOwners, 
     watch("ownersCount"),
+    watch("admin.managersAllOwners"),
     // Watch all owner fields to update managers when owners change
     ...Array.from({ length: 6 }).flatMap((_, idx) => [
       watch(fp(`owners.${idx}.fullName`)),
@@ -198,6 +218,22 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
   ]);
 
   const handleContinue = async () => {
+    // Ensure managersCount is set if managersAllOwners is "Yes" before validation
+    if (entityType === "LLC") {
+      const currentManagersAllOwners = watch("admin.managersAllOwners");
+      if (currentManagersAllOwners === "Yes" || currentManagersAllOwners === undefined) {
+        const ownersCount = watch("ownersCount") || 1;
+        const currentManagersCount = watch("admin.managersCount");
+        if (currentManagersCount !== ownersCount) {
+          setValue("admin.managersCount", ownersCount, { shouldValidate: false });
+          // Also ensure managersAllOwners is set to "Yes" if undefined
+          if (currentManagersAllOwners === undefined) {
+            setValue("admin.managersAllOwners", "Yes", { shouldValidate: false });
+          }
+        }
+      }
+    }
+    
     if (!validateOfficers()) {
       return;
     }
