@@ -81,26 +81,33 @@ export async function POST(request: NextRequest) {
 
     console.log(`✅ Parsed result:`, JSON.stringify(result, null, 2));
 
-    // Normalize company name for comparison (remove spaces, special chars, entity suffixes)
-    const normalizeName = (name: string) => {
-      return name
-        .toUpperCase()
-        .replace(/\s+/g, '') // Remove all spaces
-        .replace(/[^A-Z0-9]/g, '') // Remove special characters
-        .replace(/\b(LLC|L\.L\.C\.|LIMITEDLIABILITYCOMPANY|CORP|CORPORATION|INC|INCORPORATED|LTD|LIMITED)\b/gi, ''); // Remove entity suffixes
-    };
-
-    const normalizedInputName = normalizeName(companyName);
+    // Trust Lambda's result first - it does the actual Sunbiz search
     let finalAvailable = result?.available ?? false;
     let finalMessage = result?.message || 'No se pudo determinar la disponibilidad';
 
-    // Additional validation: Check existing entities for similar normalized names
-    // This catches cases where Lambda might miss conflicts due to spacing differences
-    if (result?.existing_entities && Array.isArray(result.existing_entities) && result.existing_entities.length > 0) {
+    // Additional validation: Only if Lambda says available, do a conservative double-check
+    // Normalize company name for comparison (remove entity suffixes, normalize spacing, special chars)
+    const normalizeName = (name: string) => {
+      return name
+        .toUpperCase()
+        .replace(/\s+/g, ' ') // Normalize multiple spaces to single space
+        .trim()
+        .replace(/[^A-Z0-9\s]/g, '') // Remove special characters but keep spaces
+        .replace(/\s+/g, '') // THEN remove spaces for comparison (spaces don't matter for entity names)
+        .replace(/\b(LLC|L\.L\.C\.|LIMITEDLIABILITYCOMPANY|CORP|CORPORATION|INC|INCORPORATED|LTD|LIMITED)\b/gi, ''); // Remove entity suffixes
+    };
+
+    // Only do additional checking if Lambda says available (to catch cases Lambda might miss)
+    // OR if Lambda found entities but marked as available (shouldn't happen, but safety check)
+    if (finalAvailable && result?.existing_entities && Array.isArray(result.existing_entities) && result.existing_entities.length > 0) {
+      const normalizedInputName = normalizeName(companyName);
+      
+      // Check existing entities for similar normalized names
       const conflictingEntities = result.existing_entities.filter((entity: any) => {
         if (!entity.name) return false;
         const normalizedEntityName = normalizeName(entity.name);
         // Check if normalized names match (handles "AVENIDALEGAL" vs "AVENIDA LEGAL, LLC")
+        // Spaces are removed in normalization because they don't matter for entity name conflicts
         return normalizedEntityName === normalizedInputName;
       });
 
@@ -110,11 +117,11 @@ export async function POST(request: NextRequest) {
         );
 
         if (activeConflicts.length > 0) {
-          // Found active conflicts with normalized name match - definitely not available
+          // Found active conflicts with normalized name match - override Lambda's result
           finalAvailable = false;
           const conflictNames = activeConflicts.map((e: any) => `${e.name} (${e.status})`).join(', ');
           finalMessage = `❌ Nombre no disponible. Entidades activas encontradas: ${conflictNames}`;
-          console.log(`🚨 Found active conflict after normalization:`, {
+          console.log(`🚨 Found active conflict after normalization (Lambda said available but conflict found):`, {
             input: companyName,
             normalizedInput: normalizedInputName,
             conflicts: activeConflicts,
