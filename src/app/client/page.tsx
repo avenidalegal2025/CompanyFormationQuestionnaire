@@ -10,7 +10,8 @@ import {
   DocumentTextIcon,
   ShoppingBagIcon,
   ExclamationTriangleIcon,
-  PhoneIcon
+  PhoneIcon,
+  GlobeAltIcon
 } from '@heroicons/react/24/outline';
 
 const LATAM_COUNTRIES = [
@@ -227,17 +228,17 @@ export default function ClientPage() {
         {/* Main Content */}
         <div className="flex-1 lg:ml-64">
           {/* Header */}
-          <header className="bg-white shadow-sm border-b">
-            <div className="px-4 sm:px-6 lg:px-8">
-              <div className="flex justify-between items-center h-16">
+          <header className="bg-white border-b border-gray-200">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex justify-between items-center h-20">
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-                  <p className="text-sm text-gray-600">{getCompanyDisplayName()}</p>
+                  <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+                  <p className="text-sm text-gray-600 mt-1">{getCompanyDisplayName()}</p>
                 </div>
                 <div className="flex items-center space-x-4">
                   <Link
                     href="/"
-                    className="text-gray-600 hover:text-gray-900 text-sm"
+                    className="text-sm text-gray-600 hover:text-brand-600 transition-colors"
                   >
                     Volver al Cuestionario
                   </Link>
@@ -247,45 +248,51 @@ export default function ClientPage() {
           </header>
 
           {/* Main Content */}
-          <main className="px-4 sm:px-6 lg:px-8 py-8">
+          <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
             {/* Welcome Section */}
-            <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            <div className="card">
+              <h2 className="text-2xl font-semibold text-gray-900 mb-2">
                 ¡Bienvenido a tu Hub Empresarial!
               </h2>
-              <p className="text-gray-600">
+              <p className="text-gray-600 text-base">
                 Aquí puedes gestionar todos los documentos de tu empresa y acceder a servicios adicionales.
               </p>
             </div>
 
             {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <div className="flex items-center">
-                  <div className="text-green-600 text-2xl mr-3">✅</div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Pago Completado</h3>
-                    <p className="text-gray-600">Tu pago ha sido procesado exitosamente</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="card">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <CheckCircleIcon className="h-8 w-8 text-green-500" />
+                  </div>
+                  <div className="ml-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-1">Pago Completado</h3>
+                    <p className="text-sm text-gray-600">Tu pago ha sido procesado exitosamente</p>
                   </div>
                 </div>
               </div>
               
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <div className="flex items-center">
-                  <div className="text-blue-600 text-2xl mr-3">📋</div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Documentos en Proceso</h3>
-                    <p className="text-gray-600">Preparando tu documentación</p>
+              <div className="card">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <DocumentTextIcon className="h-8 w-8 text-brand-600" />
+                  </div>
+                  <div className="ml-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-1">Documentos en Proceso</h3>
+                    <p className="text-sm text-gray-600">Preparando tu documentación</p>
                   </div>
                 </div>
               </div>
               
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <div className="flex items-center">
-                  <div className="text-purple-600 text-2xl mr-3">🚀</div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Tiempo de procesamiento: {processingTime}</h3>
-                    <p className="text-gray-600">Recibirás todo por email</p>
+              <div className="card">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <ClockIcon className="h-8 w-8 text-brand-500" />
+                  </div>
+                  <div className="ml-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-1">Tiempo de procesamiento</h3>
+                    <p className="text-sm text-gray-600">{processingTime}</p>
                   </div>
                 </div>
               </div>
@@ -293,8 +300,8 @@ export default function ClientPage() {
 
             {/* Business Phone Card - Only show if user doesn't have US phone */}
             {!hasUsPhone && (
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-8">
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
+            <div className="card overflow-hidden">
+              <div className="bg-gradient-to-r from-brand-600 to-brand-700 px-6 py-5">
                 <h3 className="text-xl font-semibold text-white flex items-center gap-2">
                   <PhoneIcon className="h-6 w-6" />
                   Número de Teléfono Empresarial
@@ -319,7 +326,7 @@ export default function ClientPage() {
                   <div className="mb-6">
                     <button
                       onClick={() => setShowCaller(true)}
-                      className="w-full btn bg-green-600 hover:bg-green-700 text-white py-4 text-lg font-semibold flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transition-all"
+                      className="w-full btn btn-primary py-4 text-lg font-semibold flex items-center justify-center gap-3"
                     >
                       <PhoneIcon className="h-6 w-6" />
                       Realizar Llamada Saliente
@@ -423,11 +430,11 @@ export default function ClientPage() {
                   </div>
 
                   {/* Info Box */}
-                  <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h5 className="text-sm font-semibold text-blue-900 mb-2">💡 Cómo usar tu número</h5>
-                    <ul className="text-sm text-blue-800 space-y-1">
+                  <div className="mt-6 bg-brand-50 border border-brand-200 rounded-xl2 p-4">
+                    <h5 className="text-sm font-semibold text-brand-900 mb-2">💡 Cómo usar tu número</h5>
+                    <ul className="text-sm text-brand-800 space-y-1">
                       <li>• <strong>Llamadas entrantes:</strong> Se reenvían automáticamente al número configurado</li>
-                      <li>• <strong>Llamadas salientes:</strong> Usa el botón verde de arriba para llamar desde tu navegador</li>
+                      <li>• <strong>Llamadas salientes:</strong> Usa el botón de arriba para llamar desde tu navegador</li>
                       <li>• <strong>Prueba:</strong> Llama a tu número desde cualquier teléfono para verificar el desvío</li>
                     </ul>
                   </div>
@@ -452,28 +459,30 @@ export default function ClientPage() {
             )}
 
             {/* Recent Documents */}
-            <div className="bg-white rounded-lg shadow-sm">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">Documentos Recientes</h3>
+            <div className="card">
+              <div className="px-6 py-5 border-b border-gray-200">
+                <h3 className="text-xl font-semibold text-gray-900">Documentos Recientes</h3>
               </div>
               {loadingDocuments ? (
-                <div className="px-6 py-8 text-center text-gray-500">
-                  Cargando documentos...
+                <div className="px-6 py-12 text-center text-gray-500">
+                  <ClockIcon className="h-8 w-8 mx-auto mb-2 animate-spin text-brand-500" />
+                  <p className="text-sm">Cargando documentos...</p>
                 </div>
               ) : documents.length === 0 ? (
-                <div className="px-6 py-8 text-center text-gray-500">
-                  No hay documentos disponibles aún.
+                <div className="px-6 py-12 text-center text-gray-500">
+                  <DocumentTextIcon className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                  <p className="text-sm">No hay documentos disponibles aún.</p>
                 </div>
               ) : (
                 <div className="divide-y divide-gray-200">
                   {documents.slice(0, 5).map((doc) => (
-                    <div key={doc.id} className="px-6 py-4 hover:bg-gray-50">
+                    <div key={doc.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center">
                           {getStatusIcon(doc.status)}
                           <div className="ml-3">
-                            <h4 className="text-sm font-medium text-gray-900">{doc.name}</h4>
-                            <p className="text-sm text-gray-600">{getDocumentDescription(doc)}</p>
+                            <h4 className="text-base font-medium text-gray-900">{doc.name}</h4>
+                            <p className="text-sm text-gray-600 mt-0.5">{getDocumentDescription(doc)}</p>
                           </div>
                         </div>
                         <div className="flex items-center space-x-3">
@@ -490,42 +499,54 @@ export default function ClientPage() {
             </div>
 
             {/* Quick Actions */}
-            <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Link
                 href="/client/documents"
-                className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
+                className="card hover:shadow-lg transition-shadow"
               >
                 <div className="flex items-center mb-4">
-                  <DocumentTextIcon className="h-8 w-8 text-blue-600 mr-3" />
-                  <h3 className="text-lg font-semibold text-gray-900">Gestionar Documentos</h3>
+                  <div className="flex-shrink-0">
+                    <DocumentTextIcon className="h-8 w-8 text-brand-600" />
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-lg font-semibold text-gray-900">Gestionar Documentos</h3>
+                  </div>
                 </div>
-                <p className="text-gray-600">
+                <p className="text-gray-600 text-sm">
                   Revisa, descarga y gestiona todos los documentos de tu empresa.
                 </p>
               </Link>
 
               <Link
                 href="/client/domains"
-                className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
+                className="card hover:shadow-lg transition-shadow"
               >
                 <div className="flex items-center mb-4">
-                  <div className="text-2xl mr-3">🌐</div>
-                  <h3 className="text-lg font-semibold text-gray-900">Gestionar Dominios</h3>
+                  <div className="flex-shrink-0">
+                    <GlobeAltIcon className="h-8 w-8 text-brand-600" />
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-lg font-semibold text-gray-900">Gestionar Dominios</h3>
+                  </div>
                 </div>
-                <p className="text-gray-600">
+                <p className="text-gray-600 text-sm">
                   Busca, compra y gestiona dominios para tu empresa.
                 </p>
               </Link>
 
               <Link
                 href="/client/services"
-                className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
+                className="card hover:shadow-lg transition-shadow"
               >
                 <div className="flex items-center mb-4">
-                  <ShoppingBagIcon className="h-8 w-8 text-green-600 mr-3" />
-                  <h3 className="text-lg font-semibold text-gray-900">Servicios Adicionales</h3>
+                  <div className="flex-shrink-0">
+                    <ShoppingBagIcon className="h-8 w-8 text-brand-600" />
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-lg font-semibold text-gray-900">Servicios Adicionales</h3>
+                  </div>
                 </div>
-                <p className="text-gray-600">
+                <p className="text-gray-600 text-sm">
                   Descubre servicios complementarios para hacer crecer tu negocio.
                 </p>
               </Link>

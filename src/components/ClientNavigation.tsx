@@ -93,15 +93,15 @@ export default function ClientNavigation({ currentTab, onTabChange }: ClientNavi
       </div>
 
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform ${
+      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-soft transform ${
         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
       } transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}>
         <div className="flex flex-col h-full">
           {/* Logo/Header */}
-          <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
-            <h1 className="text-xl font-bold text-gray-900">Mi Hub</h1>
+          <div className="flex items-center justify-between h-20 px-6 border-b border-gray-200">
+            <h1 className="text-2xl font-bold text-gray-900">Mi Hub</h1>
             <button
-              className="lg:hidden"
+              className="lg:hidden text-gray-400 hover:text-gray-600"
               onClick={() => setIsMobileMenuOpen(false)}
             >
               <XMarkIcon className="h-6 w-6" />
@@ -109,13 +109,13 @@ export default function ClientNavigation({ currentTab, onTabChange }: ClientNavi
           </div>
 
           {/* Company Info */}
-          <div className="px-4 py-4 border-b border-gray-200">
-            <h2 className="text-sm font-medium text-gray-500">Empresa</h2>
-            <p className="text-sm text-gray-900 truncate">{getCompanyDisplayName()}</p>
+          <div className="px-6 py-5 border-b border-gray-200 bg-gray-50">
+            <h2 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Empresa</h2>
+            <p className="text-sm font-medium text-gray-900 truncate">{getCompanyDisplayName()}</p>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-4 space-y-1">
+          <nav className="flex-1 px-4 py-6 space-y-1">
             {navigation.map((item) => {
               const isActive = currentTab === item.id;
               return (
@@ -126,15 +126,15 @@ export default function ClientNavigation({ currentTab, onTabChange }: ClientNavi
                     onTabChange(item.id);
                     setIsMobileMenuOpen(false);
                   }}
-                  className={`group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                  className={`group flex items-center px-4 py-3 text-sm font-medium rounded-xl2 transition-all ${
                     isActive
-                      ? 'bg-blue-100 text-blue-700'
+                      ? 'bg-brand-50 text-brand-700 shadow-sm'
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   }`}
                 >
                   <item.icon
                     className={`mr-3 h-5 w-5 ${
-                      isActive ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'
+                      isActive ? 'text-brand-600' : 'text-gray-400 group-hover:text-gray-500'
                     }`}
                   />
                   {item.name}
@@ -144,10 +144,10 @@ export default function ClientNavigation({ currentTab, onTabChange }: ClientNavi
           </nav>
 
           {/* Logout */}
-          <div className="px-4 py-4 border-t border-gray-200">
+          <div className="px-4 py-6 border-t border-gray-200">
             <button
               onClick={handleLogout}
-              className="group flex items-center w-full px-3 py-2 text-sm font-medium text-gray-600 rounded-md hover:bg-gray-50 hover:text-gray-900"
+              className="group flex items-center w-full px-4 py-3 text-sm font-medium text-gray-600 rounded-xl2 hover:bg-gray-50 hover:text-gray-900 transition-all"
             >
               <ArrowRightOnRectangleIcon className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500" />
               Cerrar Sesión
