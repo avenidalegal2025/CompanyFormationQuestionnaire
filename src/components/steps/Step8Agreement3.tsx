@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Controller } from "react-hook-form";
 import HeroMiami3 from "@/components/HeroMiami3";
 import SegmentedToggle from "@/components/SegmentedToggle";
@@ -17,10 +16,6 @@ interface Step8Agreement3Props extends StepProps {
 export default function Step8Agreement3({ form, setStep, onSave, onNext, session, anonymousId }: Step8Agreement3Props) {
   const { register, watch, control, formState: { errors } } = form;
   const isCorp = watch("company.entityType") === "C-Corp";
-  
-  // Local state to track input values for majority percentages (allows free typing)
-  const [majorDecisionsInput, setMajorDecisionsInput] = useState<string>('');
-  const [minorDecisionsInput, setMinorDecisionsInput] = useState<string>('');
 
   // Helper function to check if input should be red
   const isInputInvalid = (decisionValue: string, majorityValue: number | undefined) => {
@@ -476,74 +471,25 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                 </div>
                 {watch("agreement.llc_majorDecisions") === "Mayoría" && (
                   <div className="mt-3 md:col-start-2 md:justify-self-end">
-                    <label className="label flex items-center gap-5">Porcentaje requerido para mayoría
-                      <InfoTooltip
-                        title="Porcentaje de Mayoría"
-                        body="Porcentaje mínimo necesario para aprobar decisiones mayores por mayoría (por ejemplo, 60% o 75%)."
-                      />
-                    </label>
+                    <label className="label">Porcentaje requerido para mayoría</label>
                     <div className="flex items-center gap-2">
                       <div className="w-1/6 min-w-[120px]">
-                        <Controller
-                          name="agreement.llc_majorDecisionsMajority"
-                          control={control}
-                          render={({ field }) => {
-                            const currentValue = field.value;
-                            // Use local state if available, otherwise use field value
-                            const displayValue = majorDecisionsInput !== '' 
-                              ? majorDecisionsInput 
-                              : (currentValue !== undefined && currentValue !== null 
-                                  ? String(currentValue) 
-                                  : '');
-                            
-                            return (
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                pattern="[0-9]*\.?[0-9]*"
-                                className={`input w-full ${
-                                  isInputInvalid(
-                                    watch("agreement.llc_majorDecisions") || "", 
-                                    currentValue
-                                  ) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''
-                                }`}
-                                value={displayValue}
-                                onChange={(e) => {
-                                  const inputValue = e.target.value;
-                                  // Only allow numbers and decimal point
-                                  if (inputValue === '' || /^\d*\.?\d*$/.test(inputValue)) {
-                                    // Update local state to allow free typing
-                                    setMajorDecisionsInput(inputValue);
-                                  }
-                                  // Don't update form value while typing - only update on blur
-                                  // This allows users to type "50.0" and then "1" to make "50.01"
-                                }}
-                                onBlur={(e) => {
-                                  const inputValue = e.target.value;
-                                  // Clear local state
-                                  setMajorDecisionsInput('');
-                                  
-                                  if (inputValue === '') {
-                                    field.onChange(undefined);
-                                    return;
-                                  }
-                                  
-                                  const numValue = parseFloat(inputValue);
-                                  if (!isNaN(numValue)) {
-                                    // Round to 2 decimal places on blur
-                                    const rounded = Math.round(numValue * 100) / 100;
-                                    field.onChange(rounded);
-                                  }
-                                }}
-                                onFocus={(e) => {
-                                  // Initialize local state with current value when focused
-                                  if (currentValue !== undefined && currentValue !== null) {
-                                    setMajorDecisionsInput(String(currentValue));
-                                  }
-                                }}
-                              />
-                            );
-                          }}
+                        <input
+                          type="number"
+                          min="50.01"
+                          max="99.99"
+                          step="0.01"
+                          className={`input w-full ${
+                            isInputInvalid(
+                              watch("agreement.llc_majorDecisions") || "", 
+                              watch("agreement.llc_majorDecisionsMajority")
+                            ) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''
+                          }`}
+                          {...register("agreement.llc_majorDecisionsMajority", {
+                            valueAsNumber: true,
+                            min: 50.01,
+                            max: 99.99,
+                          })}
                         />
                       </div>
                       <span className="text-sm text-gray-500">%</span>
@@ -581,74 +527,25 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                 </div>
                 {watch("agreement.llc_minorDecisions") === "Mayoría" && (
                   <div className="mt-3 md:col-start-2 md:justify-self-end">
-                    <label className="label flex items-center gap-5">Porcentaje requerido para mayoría
-                      <InfoTooltip
-                        title="Porcentaje de Mayoría"
-                        body="Porcentaje mínimo necesario para aprobar decisiones menores por mayoría (por ejemplo, 60% o 75%)."
-                      />
-                    </label>
+                    <label className="label">Porcentaje requerido para mayoría</label>
                     <div className="flex items-center gap-2">
                       <div className="w-1/6 min-w-[120px]">
-                        <Controller
-                          name="agreement.llc_minorDecisionsMajority"
-                          control={control}
-                          render={({ field }) => {
-                            const currentValue = field.value;
-                            // Use local state if available, otherwise use field value
-                            const displayValue = minorDecisionsInput !== '' 
-                              ? minorDecisionsInput 
-                              : (currentValue !== undefined && currentValue !== null 
-                                  ? String(currentValue) 
-                                  : '');
-                            
-                            return (
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                pattern="[0-9]*\.?[0-9]*"
-                                className={`input w-full ${
-                                  isInputInvalid(
-                                    watch("agreement.llc_minorDecisions") || "", 
-                                    currentValue
-                                  ) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''
-                                }`}
-                                value={displayValue}
-                                onChange={(e) => {
-                                  const inputValue = e.target.value;
-                                  // Only allow numbers and decimal point
-                                  if (inputValue === '' || /^\d*\.?\d*$/.test(inputValue)) {
-                                    // Update local state to allow free typing
-                                    setMinorDecisionsInput(inputValue);
-                                  }
-                                  // Don't update form value while typing - only update on blur
-                                  // This allows users to type "50.0" and then "1" to make "50.01"
-                                }}
-                                onBlur={(e) => {
-                                  const inputValue = e.target.value;
-                                  // Clear local state
-                                  setMinorDecisionsInput('');
-                                  
-                                  if (inputValue === '') {
-                                    field.onChange(undefined);
-                                    return;
-                                  }
-                                  
-                                  const numValue = parseFloat(inputValue);
-                                  if (!isNaN(numValue)) {
-                                    // Round to 2 decimal places on blur
-                                    const rounded = Math.round(numValue * 100) / 100;
-                                    field.onChange(rounded);
-                                  }
-                                }}
-                                onFocus={(e) => {
-                                  // Initialize local state with current value when focused
-                                  if (currentValue !== undefined && currentValue !== null) {
-                                    setMinorDecisionsInput(String(currentValue));
-                                  }
-                                }}
-                              />
-                            );
-                          }}
+                        <input
+                          type="number"
+                          min="50.01"
+                          max="99.99"
+                          step="0.01"
+                          className={`input w-full ${
+                            isInputInvalid(
+                              watch("agreement.llc_minorDecisions") || "", 
+                              watch("agreement.llc_minorDecisionsMajority")
+                            ) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''
+                          }`}
+                          {...register("agreement.llc_minorDecisionsMajority", {
+                            valueAsNumber: true,
+                            min: 50.01,
+                            max: 99.99,
+                          })}
                         />
                       </div>
                       <span className="text-sm text-gray-500">%</span>

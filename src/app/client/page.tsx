@@ -56,6 +56,8 @@ export default function ClientPage() {
   const [searchCountry, setSearchCountry] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [processingTime, setProcessingTime] = useState<string>('5-7 días');
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [loadingDocuments, setLoadingDocuments] = useState(true);
   const e164 = `${cc}${localNum.replace(/[^\d]/g, '')}`;
 
   useEffect(() => {
@@ -78,7 +80,27 @@ export default function ClientPage() {
         console.error('Error parsing saved data:', error);
       }
     }
+
+    // Fetch real documents from API
+    fetchDocuments();
   }, []);
+
+  const fetchDocuments = async () => {
+    try {
+      setLoadingDocuments(true);
+      const response = await fetch('/api/documents');
+      if (response.ok) {
+        const data = await response.json();
+        setDocuments(data.documents || []);
+      } else {
+        console.error('Failed to fetch documents');
+      }
+    } catch (error) {
+      console.error('Error fetching documents:', error);
+    } finally {
+      setLoadingDocuments(false);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -116,42 +138,48 @@ export default function ClientPage() {
     }
   };
 
-  const documents = [
-    {
-      id: 'articles-of-incorporation',
-      name: 'Artículos de Incorporación',
-      status: 'completed',
-      description: 'Documento legal que establece tu empresa',
-      date: '2024-01-15'
-    },
-    {
-      id: 'ein-certificate',
-      name: 'Certificado EIN',
-      status: 'processing',
-      description: 'Número de identificación fiscal federal',
-      date: '2024-01-16'
-    },
-    {
-      id: 'operating-agreement',
-      name: 'Acuerdo Operativo',
-      status: 'pending',
-      description: 'Gobierno interno de la empresa',
-      date: '2024-01-20'
-    },
-    {
-      id: 'business-license',
-      name: 'Licencia Comercial',
-      status: 'pending',
-      description: 'Permiso para operar en el estado',
-      date: '2024-01-22'
+  // Helper function to format document date
+  const formatDocumentDate = (dateString: string | undefined) => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    } catch {
+      return dateString;
     }
-  ];
+  };
+
+  // Helper function to get document description
+  const getDocumentDescription = (doc: any) => {
+    const name = doc.name?.toLowerCase() || '';
+    if (name.includes('ss-4') || name.includes('ein')) {
+      return 'Número de identificación fiscal federal';
+    }
+    if (name.includes('2848')) {
+      return 'Poder notarial para asuntos fiscales';
+    }
+    if (name.includes('8821')) {
+      return 'Autorización para divulgación de información fiscal';
+    }
+    if (name.includes('artículos') || name.includes('articles')) {
+      return 'Documento legal que establece tu empresa';
+    }
+    if (name.includes('acuerdo') || name.includes('agreement')) {
+      return 'Gobierno interno de la empresa';
+    }
+    if (name.includes('licencia') || name.includes('license')) {
+      return 'Permiso para operar en el estado';
+    }
+    return doc.description || 'Documento de la empresa';
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed':
+      case 'signed':
         return <CheckCircleIcon className="h-5 w-5 text-green-500" />;
       case 'processing':
+      case 'generated':
         return <ClockIcon className="h-5 w-5 text-blue-500" />;
       case 'pending':
         return <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500" />;
@@ -163,8 +191,10 @@ export default function ClientPage() {
   const getStatusText = (status: string) => {
     switch (status) {
       case 'completed':
+      case 'signed':
         return 'Completado';
       case 'processing':
+      case 'generated':
         return 'En Proceso';
       case 'pending':
         return 'Pendiente';
@@ -176,8 +206,10 @@ export default function ClientPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
+      case 'signed':
         return 'text-green-600 bg-green-100';
       case 'processing':
+      case 'generated':
         return 'text-blue-600 bg-blue-100';
       case 'pending':
         return 'text-yellow-600 bg-yellow-100';
@@ -424,27 +456,37 @@ export default function ClientPage() {
               <div className="px-6 py-4 border-b border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900">Documentos Recientes</h3>
               </div>
-              <div className="divide-y divide-gray-200">
-                {documents.map((doc) => (
-                  <div key={doc.id} className="px-6 py-4 hover:bg-gray-50">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        {getStatusIcon(doc.status)}
-                        <div className="ml-3">
-                          <h4 className="text-sm font-medium text-gray-900">{doc.name}</h4>
-                          <p className="text-sm text-gray-600">{doc.description}</p>
+              {loadingDocuments ? (
+                <div className="px-6 py-8 text-center text-gray-500">
+                  Cargando documentos...
+                </div>
+              ) : documents.length === 0 ? (
+                <div className="px-6 py-8 text-center text-gray-500">
+                  No hay documentos disponibles aún.
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-200">
+                  {documents.slice(0, 5).map((doc) => (
+                    <div key={doc.id} className="px-6 py-4 hover:bg-gray-50">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          {getStatusIcon(doc.status)}
+                          <div className="ml-3">
+                            <h4 className="text-sm font-medium text-gray-900">{doc.name}</h4>
+                            <p className="text-sm text-gray-600">{getDocumentDescription(doc)}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(doc.status)}`}>
+                            {getStatusText(doc.status)}
+                          </span>
+                          <span className="text-sm text-gray-500">{formatDocumentDate(doc.createdAt || doc.date)}</span>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-3">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(doc.status)}`}>
-                          {getStatusText(doc.status)}
-                        </span>
-                        <span className="text-sm text-gray-500">{doc.date}</span>
-                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Quick Actions */}

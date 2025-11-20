@@ -38,9 +38,13 @@ export async function POST(request: NextRequest) {
 
     // Validate file type
     const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
     if (!allowedTypes.includes(file.type)) {
+      const errorMessage = fileExtension === 'pdf' 
+        ? 'Formato incorrecto. El archivo es PDF pero solo se aceptan imágenes PNG o JPEG.'
+        : `Formato incorrecto. Solo se aceptan archivos PNG o JPEG. El archivo subido es: ${fileExtension || 'desconocido'}.`;
       return NextResponse.json(
-        { error: 'Invalid file type. Only PNG and JPEG are allowed.' },
+        { error: errorMessage },
         { status: 400 }
       );
     }
@@ -49,7 +53,7 @@ export async function POST(request: NextRequest) {
     const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
       return NextResponse.json(
-        { error: 'File too large. Maximum size is 10MB.' },
+        { error: `El archivo es demasiado grande. El tamaño máximo permitido es 10MB. El archivo subido tiene ${(file.size / (1024 * 1024)).toFixed(2)}MB.` },
         { status: 400 }
       );
     }

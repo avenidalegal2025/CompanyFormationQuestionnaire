@@ -361,8 +361,8 @@ export default function DocumentsPage() {
                           <ArrowDownTrayIcon className="h-4 w-4 mr-1" />
                           Descargar
                         </button>
-                        {/* Show upload button for tax forms that are generated but not signed */}
-                        {doc.type === 'tax' && (doc.status === 'generated' || downloadedDocs.has(doc.id)) && (
+                        {/* Show upload button for all documents that have been downloaded or are generated */}
+                        {(doc.status === 'generated' || downloadedDocs.has(doc.id)) && (
                           <label className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 cursor-pointer">
                             <input
                               type="file"
@@ -379,7 +379,7 @@ export default function DocumentsPage() {
                             ) : (
                               <>
                                 <ArrowUpTrayIcon className="h-4 w-4 mr-1" />
-                                Subir Documento Firmado
+                                Subir
                               </>
                             )}
                           </label>
