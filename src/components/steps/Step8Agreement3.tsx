@@ -498,10 +498,9 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                             
                             return (
                               <input
-                                type="number"
-                                min="50.01"
-                                max="99.99"
-                                step="0.01"
+                                type="text"
+                                inputMode="decimal"
+                                pattern="[0-9]*\.?[0-9]*"
                                 className={`input w-full ${
                                   isInputInvalid(
                                     watch("agreement.llc_majorDecisions") || "", 
@@ -511,23 +510,13 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                                 value={displayValue}
                                 onChange={(e) => {
                                   const inputValue = e.target.value;
-                                  // Update local state to allow free typing
-                                  setMajorDecisionsInput(inputValue);
-                                  
-                                  // Allow empty input
-                                  if (inputValue === '') {
-                                    field.onChange(undefined);
-                                    return;
+                                  // Only allow numbers and decimal point
+                                  if (inputValue === '' || /^\d*\.?\d*$/.test(inputValue)) {
+                                    // Update local state to allow free typing
+                                    setMajorDecisionsInput(inputValue);
                                   }
-                                  
-                                  // Validate it's a valid number format (allows decimals)
-                                  if (/^\d*\.?\d*$/.test(inputValue)) {
-                                    const numValue = parseFloat(inputValue);
-                                    if (!isNaN(numValue)) {
-                                      // Update form value as user types (for validation)
-                                      field.onChange(numValue);
-                                    }
-                                  }
+                                  // Don't update form value while typing - only update on blur
+                                  // This allows users to type "50.0" and then "1" to make "50.01"
                                 }}
                                 onBlur={(e) => {
                                   const inputValue = e.target.value;
@@ -614,10 +603,9 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                             
                             return (
                               <input
-                                type="number"
-                                min="50.01"
-                                max="99.99"
-                                step="0.01"
+                                type="text"
+                                inputMode="decimal"
+                                pattern="[0-9]*\.?[0-9]*"
                                 className={`input w-full ${
                                   isInputInvalid(
                                     watch("agreement.llc_minorDecisions") || "", 
@@ -627,23 +615,13 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                                 value={displayValue}
                                 onChange={(e) => {
                                   const inputValue = e.target.value;
-                                  // Update local state to allow free typing
-                                  setMinorDecisionsInput(inputValue);
-                                  
-                                  // Allow empty input
-                                  if (inputValue === '') {
-                                    field.onChange(undefined);
-                                    return;
+                                  // Only allow numbers and decimal point
+                                  if (inputValue === '' || /^\d*\.?\d*$/.test(inputValue)) {
+                                    // Update local state to allow free typing
+                                    setMinorDecisionsInput(inputValue);
                                   }
-                                  
-                                  // Validate it's a valid number format (allows decimals)
-                                  if (/^\d*\.?\d*$/.test(inputValue)) {
-                                    const numValue = parseFloat(inputValue);
-                                    if (!isNaN(numValue)) {
-                                      // Update form value as user types (for validation)
-                                      field.onChange(numValue);
-                                    }
-                                  }
+                                  // Don't update form value while typing - only update on blur
+                                  // This allows users to type "50.0" and then "1" to make "50.01"
                                 }}
                                 onBlur={(e) => {
                                   const inputValue = e.target.value;
