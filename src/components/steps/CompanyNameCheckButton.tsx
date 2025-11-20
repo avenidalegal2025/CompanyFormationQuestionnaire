@@ -147,11 +147,61 @@ export default function CompanyNameCheckButton({
       setResult({ status: "warn", message: "Ingresa un nombre primero" });
       return;
     }
+
+    // For Florida, use Lambda function to check availability
+    if (formationState === "Florida") {
+      setLoading(true);
+      try {
+        const response = await fetch('/api/check-name-availability', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            companyName: name,
+            entityType: entityType || 'LLC',
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          setResult({ 
+            status: "error", 
+            message: data.message || data.error || "Error al verificar disponibilidad" 
+          });
+          return;
+        }
+
+        if (data.available) {
+          setResult({ 
+            status: "ok", 
+            message: `✅ ${data.message || "El nombre está disponible"}`
+          });
+        } else {
+          setResult({ 
+            status: "error", 
+            message: `❌ ${data.message || "El nombre no está disponible"}`
+          });
+        }
+      } catch (error: any) {
+        console.error('Error checking name availability:', error);
+        setResult({ 
+          status: "error", 
+          message: "Error al verificar disponibilidad. Por favor, intenta de nuevo." 
+        });
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // For other states, open the official website
     const url = formationState ? stateToUrl[formationState] : undefined;
     if (url) {
       window.open(url, "_blank", "noopener,noreferrer");
       setResult({ status: "ok", message: "Abriendo el buscador oficial en una nueva pestaña…" });
-      } else {
+    } else {
       setResult({ status: "warn", message: "Selecciona un estado compatible para abrir el buscador." });
     }
   };
