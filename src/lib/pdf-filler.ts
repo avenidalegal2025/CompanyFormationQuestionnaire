@@ -214,15 +214,21 @@ async function callLambdaFunction(
   console.log(`📋 Data sample:`, JSON.stringify(data, null, 2).substring(0, 500));
   
   try {
+    // Lambda functions expect 'form_data' instead of 'data'
+    // They also accept 'drive_folder_url' as an alternative, but we're using templateUrl
+    const payload = {
+      form_data: data,
+      templateUrl: templateUrl, // Include templateUrl in case Lambda needs it
+    };
+    
+    console.log(`📤 Sending payload with form_data (${Object.keys(data).length} keys)`);
+    
     const response = await fetch(lambdaUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        templateUrl: templateUrl,
-        data: data,
-      }),
+      body: JSON.stringify(payload),
     });
     
     console.log(`📡 Lambda response status: ${response.status} ${response.statusText}`);
