@@ -6,10 +6,9 @@
  * Otherwise, it will try to get form data from DynamoDB for the user
  */
 
-import { getFormData } from '@/lib/dynamo';
-import { getFormDataSnapshot } from '@/lib/s3-vault';
-import { generateAllTaxForms } from '@/lib/pdf-filler';
-import { getVaultMetadata } from '@/lib/dynamo';
+import { getFormData, getVaultMetadata } from '../src/lib/dynamo';
+import { getFormDataSnapshot } from '../src/lib/s3-vault';
+import { generateAllTaxForms } from '../src/lib/pdf-filler';
 
 const userId = process.argv[2];
 const sessionId = process.argv[3];
@@ -43,12 +42,28 @@ async function testPDFGeneration() {
   
   if (!formData) {
     console.log('📥 Attempting to load form data from DynamoDB...');
-    formData = await getFormData(userId);
-    if (formData) {
-      console.log('✅ Loaded form data from DynamoDB\n');
-    } else {
-      console.error('❌ No form data found in DynamoDB');
-      console.error('💡 Try providing a session-id to use S3 snapshot instead');
+    try {
+      formData = await getFormData(userId);
+      if (formData) {
+        console.log('✅ Loaded form data from DynamoDB\n');
+      } else {
+        console.log('⚠️ No form data found in DynamoDB for this user');
+        console.log('💡 This could mean:');
+        console.log('   1. The user has not completed a payment yet');
+        console.log('   2. The formData was not saved during checkout');
+        console.log('   3. Try providing a session-id to use S3 snapshot instead');
+        console.log('');
+        console.log('💡 To test with a session ID, run:');
+        console.log(`   npm run test-pdf-generation ${userId} <session-id>`);
+        process.exit(1);
+      }
+    } catch (error: any) {
+      console.error('❌ Error loading form data from DynamoDB:', error.message);
+      if (error.message.includes('key element does not match the schema')) {
+        console.error('💡 This might mean the DynamoDB table structure is different');
+        console.error('💡 Try providing a session-id to use S3 snapshot instead:');
+        console.log(`   npm run test-pdf-generation ${userId} <session-id>`);
+      }
       process.exit(1);
     }
   }

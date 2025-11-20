@@ -23,6 +23,7 @@ export default function DocumentsPage() {
   const [documents, setDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState<{ [key: string]: boolean }>({});
+  const [downloadedDocs, setDownloadedDocs] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     // Get company data from localStorage
@@ -74,6 +75,9 @@ export default function DocumentsPage() {
       // This will stream the document through our server with auth checks
       const viewUrl = `/api/documents/view?id=${encodeURIComponent(documentId)}`;
       window.open(viewUrl, '_blank');
+      
+      // Mark document as downloaded to show upload button
+      setDownloadedDocs(prev => new Set(prev).add(documentId));
     } catch (error) {
       console.error('Error downloading document:', error);
       alert('Error al descargar el documento. Por favor, intenta de nuevo.');
@@ -347,7 +351,7 @@ export default function DocumentsPage() {
                           Descargar
                         </button>
                         {/* Show upload button for tax forms that are generated but not signed */}
-                        {doc.type === 'tax' && doc.status === 'generated' && (
+                        {doc.type === 'tax' && (doc.status === 'generated' || downloadedDocs.has(doc.id)) && (
                           <label className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 cursor-pointer">
                             <input
                               type="file"

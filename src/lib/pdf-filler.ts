@@ -198,8 +198,10 @@ function transformDataFor8821(formData: QuestionnaireData): any {
     designeeFax: '', // If available
     
     // Authorization details
+    taxInfo: 'N/A', // Tax information type
+    taxForms: 'All tax forms and information', // Specific forms
     taxYears: '2024, 2025, 2026', // Current and future years
-    taxForms: 'All tax forms and information',
+    taxMatters: 'N/A', // Tax matters description
   };
 }
 
