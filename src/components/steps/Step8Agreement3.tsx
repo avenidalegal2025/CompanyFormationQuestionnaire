@@ -54,6 +54,24 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
           return false;
         }
       }
+
+      // Check llc_majorDecisions
+      if (watch("agreement.llc_majorDecisions") === "Mayoría") {
+        const majority = watch("agreement.llc_majorDecisionsMajority");
+        if (!majority || majority < 50.01 || majority > 99.99) {
+          alert("Por favor ingrese un porcentaje válido para la mayoría de decisiones mayores (entre 50.01% y 99.99%)");
+          return false;
+        }
+      }
+
+      // Check llc_minorDecisions
+      if (watch("agreement.llc_minorDecisions") === "Mayoría") {
+        const majority = watch("agreement.llc_minorDecisionsMajority");
+        if (!majority || majority < 50.01 || majority > 99.99) {
+          alert("Por favor ingrese un porcentaje válido para la mayoría de decisiones menores (entre 50.01% y 99.99%)");
+          return false;
+        }
+      }
     }
     return true;
   };
@@ -429,7 +447,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                   <label className="label flex items-center gap-2">Decisiones mayores (ej. &gt; $10,000):
                     <InfoTooltip
                       title="Decisiones Mayores"
-                      body="Decisiones de alto impacto financiero u operativo (por ejemplo, gastos superiores a un umbral, contratación/despido clave, endeudamiento). Especifique quién debe aprobarlas."
+                      body="Decisiones de alto impacto financiero u operativo (por ejemplo, gastos superiores a un umbral, contratación/despido clave, endeudamiento). Especifique si requieren unanimidad o mayoría y, de ser mayoría, el porcentaje requerido."
                     />
                   </label>
                 </div>
@@ -439,11 +457,11 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                   control={control}
                   render={({ field }) => (
                       <SegmentedToggle
-                        value={field.value || "Unánime"}
+                        value={field.value || "Decisión Unánime"}
                         onChange={field.onChange}
                         options={[
-                          { value: "Unánime", label: "Unánime" },
-                          { value: "Cualquiera de los dueños", label: "Cualquiera de los dueños" },
+                          { value: "Decisión Unánime", label: "Unánime" },
+                          { value: "Mayoría", label: "Mayoría" },
                         ]}
                         ariaLabel="LLC major decisions"
                         name={field.name}
@@ -451,13 +469,82 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                   )}
                 />
                 </div>
+                {watch("agreement.llc_majorDecisions") === "Mayoría" && (
+                  <div className="mt-3 md:col-start-2 md:justify-self-end">
+                    <label className="label flex items-center gap-5">Porcentaje requerido para mayoría
+                      <InfoTooltip
+                        title="Porcentaje de Mayoría"
+                        body="Porcentaje mínimo necesario para aprobar decisiones mayores por mayoría (por ejemplo, 60% o 75%)."
+                      />
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <div className="w-1/6 min-w-[120px]">
+                        <Controller
+                          name="agreement.llc_majorDecisionsMajority"
+                          control={control}
+                          render={({ field }) => {
+                            const currentValue = field.value;
+                            const displayValue = currentValue !== undefined && currentValue !== null 
+                              ? String(currentValue) 
+                              : '';
+                            
+                            return (
+                              <input
+                                type="number"
+                                min="50.01"
+                                max="99.99"
+                                step="0.01"
+                                className={`input w-full ${
+                                  isInputInvalid(
+                                    watch("agreement.llc_majorDecisions") || "", 
+                                    currentValue
+                                  ) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''
+                                }`}
+                                value={displayValue}
+                                onChange={(e) => {
+                                  const inputValue = e.target.value;
+                                  // Allow empty input
+                                  if (inputValue === '') {
+                                    field.onChange(undefined);
+                                    return;
+                                  }
+                                  // Parse as number but preserve precision
+                                  const numValue = parseFloat(inputValue);
+                                  if (!isNaN(numValue)) {
+                                    // Round to 2 decimal places to prevent precision issues
+                                    const rounded = Math.round(numValue * 100) / 100;
+                                    field.onChange(rounded);
+                                  }
+                                }}
+                                onBlur={(e) => {
+                                  const inputValue = e.target.value;
+                                  if (inputValue === '') {
+                                    field.onChange(undefined);
+                                    return;
+                                  }
+                                  const numValue = parseFloat(inputValue);
+                                  if (!isNaN(numValue)) {
+                                    const rounded = Math.round(numValue * 100) / 100;
+                                    field.onChange(rounded);
+                                  }
+                                }}
+                              />
+                            );
+                          }}
+                        />
+                      </div>
+                      <span className="text-sm text-gray-500">%</span>
+                    </div>
+                    <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
+                  </div>
+                )}
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
               <div>
                   <label className="label flex items-center gap-2">Decisiones menores (&lt; $10,000):
                     <InfoTooltip
                       title="Decisiones Menores"
-                      body="Asuntos operativos cotidianos con menor impacto económico. Especifique si requieren unanimidad o si cualquiera de los dueños puede decidir."
+                      body="Asuntos operativos cotidianos con menor impacto económico. Especifique si requieren unanimidad o mayoría y, de ser mayoría, el porcentaje requerido."
                     />
                   </label>
                 </div>
@@ -467,11 +554,11 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                   control={control}
                   render={({ field }) => (
                       <SegmentedToggle
-                        value={field.value || "Unánime"}
+                        value={field.value || "Decisión Unánime"}
                         onChange={field.onChange}
                         options={[
-                          { value: "Unánime", label: "Unánime" },
-                          { value: "Cualquiera de los dueños", label: "Cualquiera de los dueños" },
+                          { value: "Decisión Unánime", label: "Unánime" },
+                          { value: "Mayoría", label: "Mayoría" },
                         ]}
                         ariaLabel="LLC minor decisions"
                         name={field.name}
@@ -479,6 +566,75 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                   )}
                 />
                 </div>
+                {watch("agreement.llc_minorDecisions") === "Mayoría" && (
+                  <div className="mt-3 md:col-start-2 md:justify-self-end">
+                    <label className="label flex items-center gap-5">Porcentaje requerido para mayoría
+                      <InfoTooltip
+                        title="Porcentaje de Mayoría"
+                        body="Porcentaje mínimo necesario para aprobar decisiones menores por mayoría (por ejemplo, 60% o 75%)."
+                      />
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <div className="w-1/6 min-w-[120px]">
+                        <Controller
+                          name="agreement.llc_minorDecisionsMajority"
+                          control={control}
+                          render={({ field }) => {
+                            const currentValue = field.value;
+                            const displayValue = currentValue !== undefined && currentValue !== null 
+                              ? String(currentValue) 
+                              : '';
+                            
+                            return (
+                              <input
+                                type="number"
+                                min="50.01"
+                                max="99.99"
+                                step="0.01"
+                                className={`input w-full ${
+                                  isInputInvalid(
+                                    watch("agreement.llc_minorDecisions") || "", 
+                                    currentValue
+                                  ) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''
+                                }`}
+                                value={displayValue}
+                                onChange={(e) => {
+                                  const inputValue = e.target.value;
+                                  // Allow empty input
+                                  if (inputValue === '') {
+                                    field.onChange(undefined);
+                                    return;
+                                  }
+                                  // Parse as number but preserve precision
+                                  const numValue = parseFloat(inputValue);
+                                  if (!isNaN(numValue)) {
+                                    // Round to 2 decimal places to prevent precision issues
+                                    const rounded = Math.round(numValue * 100) / 100;
+                                    field.onChange(rounded);
+                                  }
+                                }}
+                                onBlur={(e) => {
+                                  const inputValue = e.target.value;
+                                  if (inputValue === '') {
+                                    field.onChange(undefined);
+                                    return;
+                                  }
+                                  const numValue = parseFloat(inputValue);
+                                  if (!isNaN(numValue)) {
+                                    const rounded = Math.round(numValue * 100) / 100;
+                                    field.onChange(rounded);
+                                  }
+                                }}
+                              />
+                            );
+                          }}
+                        />
+                      </div>
+                      <span className="text-sm text-gray-500">%</span>
+                    </div>
+                    <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
+                  </div>
+                )}
               </div>
             </>
           )}
