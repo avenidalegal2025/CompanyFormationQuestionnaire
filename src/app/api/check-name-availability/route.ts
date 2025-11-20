@@ -81,77 +81,52 @@ export async function POST(request: NextRequest) {
 
     console.log(`✅ Parsed result:`, JSON.stringify(result, null, 2));
 
-    // Trust Lambda's result first - it does the actual Sunbiz search
-    let finalAvailable = result?.available ?? false;
+    // Trust Lambda's result completely - it handles:
+    // 1. Sunbiz search for the input name
+    // 2. Checking INACT entities' detail pages to see if inactive >1 year from Event Date Filed
+    // 3. Similarity rules: singular/plural/possessive are the same; punctuation/spaces don't matter
+    // 4. ACTIVE entities = not available
+    // 5. INACT entities inactive >1 year = available (if no conflicts)
+    
+    const finalAvailable = result?.available ?? false;
     let finalMessage = result?.message || 'No se pudo determinar la disponibilidad';
 
-    // Additional validation: Only if Lambda says available, do a conservative double-check
-    // Normalize company name for comparison (remove entity suffixes, normalize spacing, special chars)
-    const normalizeName = (name: string) => {
-      return name
-        .toUpperCase()
-        .replace(/\s+/g, ' ') // Normalize multiple spaces to single space
-        .trim()
-        .replace(/[^A-Z0-9\s]/g, '') // Remove special characters but keep spaces
-        .replace(/\s+/g, '') // THEN remove spaces for comparison (spaces don't matter for entity names)
-        .replace(/\b(LLC|L\.L\.C\.|LIMITEDLIABILITYCOMPANY|CORP|CORPORATION|INC|INCORPORATED|LTD|LIMITED)\b/gi, ''); // Remove entity suffixes
-    };
-
-    // Only do additional checking if Lambda says available (to catch cases Lambda might miss)
-    // OR if Lambda found entities but marked as available (shouldn't happen, but safety check)
-    if (finalAvailable && result?.existing_entities && Array.isArray(result.existing_entities) && result.existing_entities.length > 0) {
-      const normalizedInputName = normalizeName(companyName);
-      
-      // Check existing entities for similar normalized names
-      const conflictingEntities = result.existing_entities.filter((entity: any) => {
-        if (!entity.name) return false;
-        const normalizedEntityName = normalizeName(entity.name);
-        // Check if normalized names match (handles "AVENIDALEGAL" vs "AVENIDA LEGAL, LLC")
-        // Spaces are removed in normalization because they don't matter for entity name conflicts
-        return normalizedEntityName === normalizedInputName;
-      });
-
-      if (conflictingEntities.length > 0) {
-        const activeConflicts = conflictingEntities.filter((e: any) => 
-          e.status && e.status.toUpperCase().includes('ACTIVE')
-        );
-
-        if (activeConflicts.length > 0) {
-          // Found active conflicts with normalized name match - override Lambda's result
-          finalAvailable = false;
-          const conflictNames = activeConflicts.map((e: any) => `${e.name} (${e.status})`).join(', ');
-          finalMessage = `❌ Nombre no disponible. Entidades activas encontradas: ${conflictNames}`;
-          console.log(`🚨 Found active conflict after normalization (Lambda said available but conflict found):`, {
-            input: companyName,
-            normalizedInput: normalizedInputName,
-            conflicts: activeConflicts,
-          });
-        }
-      }
-    }
-
-    // If Lambda says not available, enhance the message with entity details
-    if (!finalAvailable && result?.existing_entities && Array.isArray(result.existing_entities) && result.existing_entities.length > 0) {
+    // Enhance message with entity details if available
+    if (result?.existing_entities && Array.isArray(result.existing_entities) && result.existing_entities.length > 0) {
       const activeEntities = result.existing_entities.filter((e: any) => 
-        e.status && e.status.toUpperCase().includes('ACTIVE')
+        e.status && (e.status.toUpperCase().includes('ACTIVE') || e.status === 'Active')
       );
 
-      if (activeEntities.length > 0 && !finalMessage.includes('Entidades activas encontradas')) {
+      const inactiveEntities = result.existing_entities.filter((e: any) => 
+        e.status && (e.status.toUpperCase().includes('INACT') || e.status === 'Inactive')
+      );
+
+      if (activeEntities.length > 0) {
+        // Active entities found - name is not available
         const entityNames = activeEntities.map((e: any) => `${e.name} (${e.status})`).join(', ');
         finalMessage = `❌ Nombre no disponible. Entidades activas encontradas: ${entityNames}`;
-      } else if (result.existing_entities.length > 0 && !finalMessage.includes('encontrado')) {
+      } else if (inactiveEntities.length > 0 && finalAvailable) {
+        // Inactive entities found but Lambda determined they're available (inactive >1 year)
+        const entityNames = inactiveEntities.map((e: any) => `${e.name} (${e.status})`).join(', ');
+        finalMessage = `✅ Nombre disponible. Entidades inactivas encontradas (inactivas >1 año): ${entityNames}`;
+      } else if (result.existing_entities.length > 0 && !finalAvailable) {
+        // Similar names found but not available for other reasons
         const entityNames = result.existing_entities.map((e: any) => `${e.name} (${e.status || 'N/A'})`).join(', ');
-        finalMessage = `⚠️ Nombre similar encontrado: ${entityNames}. Se recomienda elegir un nombre diferente.`;
+        finalMessage = `❌ Nombre no disponible. Entidades encontradas: ${entityNames}`;
       }
     }
 
-    console.log(`✅ Final availability check:`, {
-      originalAvailable: result?.available,
-      finalAvailable,
-      finalMessage,
+    console.log(`✅ Final availability result:`, {
+      available: finalAvailable,
+      message: finalMessage,
+      entitiesFound: result?.existing_entities?.length || 0,
     });
 
     // Lambda returns: { success: boolean, available: boolean, message: string, method?: string, existing_entities?: array }
+    // The Lambda should handle all the logic:
+    // - ACTIVE = not available
+    // - INACT with Event Date Filed >1 year ago = available
+    // - Similarity checks (singular/plural/possessive, punctuation/spaces)
     return NextResponse.json({
       success: result?.success ?? true,
       available: finalAvailable,
