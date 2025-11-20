@@ -236,15 +236,16 @@ def lambda_handler(event, context):
             })
         }
         
-        # If return_pdf is true, return PDF as binary
+        # If return_pdf is true, return PDF as binary (base64 encoded for Lambda Function URL)
         if return_pdf and pdf_bytes:
+            import base64
             response["statusCode"] = 200
             response["headers"] = {
                 "Content-Type": "application/pdf",
                 "Content-Disposition": f"attachment; filename=2848.pdf"
             }
-            response["body"] = pdf_bytes
-            response["isBase64Encoded"] = False
+            response["body"] = base64.b64encode(pdf_bytes).decode('utf-8')
+            response["isBase64Encoded"] = True
         
         return response
         
