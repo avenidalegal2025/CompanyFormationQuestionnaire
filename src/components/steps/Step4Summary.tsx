@@ -583,8 +583,8 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                         : (adminData?.managersCount || 1), 
                       6
                     ) }).map((_, i) => {
-                      const managerName = watch(`admin.manager${i + 1}Name` as never) as string;
-                      const managerAddress = watch(`admin.manager${i + 1}Address` as never) as string;
+                      const managerName = (adminData as any)?.[`manager${i + 1}Name`] as string | undefined;
+                      const managerAddress = (adminData as any)?.[`manager${i + 1}Address`] as string | undefined;
                       const owner = ownersData[i] as any;
                       
                       // If managersAllOwners is "Yes", prefer manager data, fallback to owner data
