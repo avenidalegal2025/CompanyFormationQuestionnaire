@@ -222,11 +222,12 @@ async function callLambdaFunction(
   console.log(`📦 S3 Destination: s3://${s3Bucket}/${s3Key}`);
   
   try {
-    // Lambda functions now expect 'form_data', 's3_bucket', and 's3_key' instead of 'drive_folder_url'
+    // Lambda functions expect 'form_data', 's3_bucket', 's3_key', and 'templateUrl'
     const payload: any = {
       form_data: data,
       s3_bucket: s3Bucket,
       s3_key: s3Key,
+      templateUrl: templateUrl, // Template URL is required by Lambda functions
       return_pdf: true, // Also return PDF as binary so we can save it
     };
     

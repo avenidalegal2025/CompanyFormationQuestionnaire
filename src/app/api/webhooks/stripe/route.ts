@@ -17,6 +17,8 @@ const PROXY_TOKEN = process.env.NAMECHEAP_PROXY_TOKEN || 'super-secret-32char-to
 export async function POST(request: NextRequest) {
   const body = await request.text();
   const signature = (await headers()).get('stripe-signature');
+  
+  console.log('🔔 Webhook received - checking signature...');
 
   if (!signature) {
     return NextResponse.json({ error: 'No signature' }, { status: 400 });
@@ -305,6 +307,13 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
           entityType: formData.company?.entityType,
           ownersCount: formData.owners?.length,
           hasAgreement: !!formData.agreement,
+        });
+        console.log('📁 Vault path:', vaultPath);
+        console.log('🏢 Company name:', companyName);
+        console.log('🔗 Lambda URLs configured:', {
+          ss4: !!process.env.LAMBDA_SS4_URL,
+          form2848: !!process.env.LAMBDA_2848_URL,
+          form8821: !!process.env.LAMBDA_8821_URL,
         });
         
         const taxForms = await generateAllTaxForms(
