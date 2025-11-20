@@ -378,8 +378,8 @@ export function mapQuestionnaireToAirtable(
     
     // Phone & Contact
     'Has US Phone': company.hasUsPhone === 'Yes' ? 'Yes' : 'No',
-    'Business Phone': company.businessPhone || '',
-    'Forward Phone': company.forwardPhoneE164 || '',
+    'Business Phone': company.usPhoneNumber || '', // Phone number user already has (when hasUsPhone === 'Yes')
+    'Forward Phone': company.forwardPhoneE164 || '', // Forwarding number for provisioned phone (when hasUsPhone === 'No')
     
     // Owners
     'Owner Count': owners.length,
