@@ -538,101 +538,103 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
           </div>
           <div className="bg-gray-50 rounded-lg p-4 space-y-3">
             {entityType === "LLC" ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <span className="font-bold text-gray-700">¿Todos los socios son gerentes?</span>
-                  {editingSection === "admin" ? (
-                    <Controller
-                      name={"admin.managersAllOwners"}
-                      control={control}
-                      render={({ field }) => (
-                        <select className="input mt-1" {...field}>
-                          <option value="Yes">Sí</option>
-                          <option value="No">No</option>
-                        </select>
-                      )}
-                    />
-                  ) : (
-                    <p className="text-gray-900">{adminData?.managersAllOwners === "Yes" ? "Sí" : "No"}</p>
-                  )}
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <span className="font-bold text-gray-700">¿Todos los socios son gerentes?</span>
+                    {editingSection === "admin" ? (
+                      <Controller
+                        name={"admin.managersAllOwners"}
+                        control={control}
+                        render={({ field }) => (
+                          <select className="input mt-1" {...field}>
+                            <option value="Yes">Sí</option>
+                            <option value="No">No</option>
+                          </select>
+                        )}
+                      />
+                    ) : (
+                      <p className="text-gray-900">{adminData?.managersAllOwners === "Yes" ? "Sí" : "No"}</p>
+                    )}
+                  </div>
+                  <div>
+                    <span className="font-bold text-gray-700">Número de gerentes:</span>
+                    {editingSection === "admin" ? (
+                      <Controller
+                        name={"admin.managersCount"}
+                        control={control}
+                        render={({ field }) => (
+                          <input type="number" min={1} className="input mt-1 w-24" {...field} />
+                        )}
+                      />
+                    ) : (
+                      <p className="text-gray-900">{adminData?.managersCount ?? 1}</p>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <span className="font-bold text-gray-700">Número de gerentes:</span>
-                  {editingSection === "admin" ? (
-                    <Controller
-                      name={"admin.managersCount"}
-                      control={control}
-                      render={({ field }) => (
-                        <input type="number" min={1} className="input mt-1 w-24" {...field} />
-                      )}
-                    />
-                  ) : (
-                    <p className="text-gray-900">{adminData?.managersCount ?? 1}</p>
-                  )}
-                </div>
-              </div>
-              
-              {/* Manager Details */}
-              {(adminData?.managersAllOwners === "Yes" || (adminData?.managersAllOwners === "No" && adminData?.managersCount)) && (
-                <div className="mt-4 space-y-4">
-                  <h4 className="text-md font-semibold text-gray-800">Detalles de los Gerentes</h4>
-                  {Array.from({ length: Math.min(
-                    adminData?.managersAllOwners === "Yes" 
-                      ? ownersCount 
-                      : (adminData?.managersCount || 1), 
-                    6
-                  ) }).map((_, i) => {
-                    const managerName = watch(`admin.manager${i + 1}Name` as never) as string;
-                    const managerAddress = watch(`admin.manager${i + 1}Address` as never) as string;
-                    const owner = ownersData[i] as any;
-                    
-                    // If managersAllOwners is "Yes", prefer manager data, fallback to owner data
-                    // If managersAllOwners is "No", use manager data only
-                    const displayName = adminData?.managersAllOwners === "Yes" 
-                      ? (managerName || owner?.fullName || "")
-                      : managerName;
-                    const displayAddress = adminData?.managersAllOwners === "Yes"
-                      ? (managerAddress || owner?.address || "")
-                      : managerAddress;
-                    
-                    return (
-                      <div key={i} className="bg-white rounded-lg p-4 border border-gray-200">
-                        <h5 className="text-sm font-semibold text-gray-700 mb-2">Gerente {i + 1}</h5>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <span className="font-bold text-gray-700 text-sm">Nombre completo:</span>
-                            {editingSection === "admin" ? (
-                              <Controller
-                                name={`admin.manager${i + 1}Name` as never}
-                                control={control}
-                                render={({ field }) => (
-                                  <input className="input mt-1" {...field} />
-                                )}
-                              />
-                            ) : (
-                              <p className="text-gray-900 text-sm">{displayName || "No especificado"}</p>
-                            )}
-                          </div>
-                          <div>
-                            <span className="font-bold text-gray-700 text-sm">Dirección:</span>
-                            {editingSection === "admin" ? (
-                              <Controller
-                                name={`admin.manager${i + 1}Address` as never}
-                                control={control}
-                                render={({ field }) => (
-                                  <input className="input mt-1" {...field} />
-                                )}
-                              />
-                            ) : (
-                              <p className="text-gray-900 text-sm">{displayAddress || "No especificado"}</p>
-                            )}
+                
+                {/* Manager Details */}
+                {(adminData?.managersAllOwners === "Yes" || (adminData?.managersAllOwners === "No" && adminData?.managersCount)) && (
+                  <div className="mt-4 space-y-4">
+                    <h4 className="text-md font-semibold text-gray-800">Detalles de los Gerentes</h4>
+                    {Array.from({ length: Math.min(
+                      adminData?.managersAllOwners === "Yes" 
+                        ? ownersCount 
+                        : (adminData?.managersCount || 1), 
+                      6
+                    ) }).map((_, i) => {
+                      const managerName = watch(`admin.manager${i + 1}Name` as never) as string;
+                      const managerAddress = watch(`admin.manager${i + 1}Address` as never) as string;
+                      const owner = ownersData[i] as any;
+                      
+                      // If managersAllOwners is "Yes", prefer manager data, fallback to owner data
+                      // If managersAllOwners is "No", use manager data only
+                      const displayName = adminData?.managersAllOwners === "Yes" 
+                        ? (managerName || owner?.fullName || "")
+                        : managerName;
+                      const displayAddress = adminData?.managersAllOwners === "Yes"
+                        ? (managerAddress || owner?.address || "")
+                        : managerAddress;
+                      
+                      return (
+                        <div key={i} className="bg-white rounded-lg p-4 border border-gray-200">
+                          <h5 className="text-sm font-semibold text-gray-700 mb-2">Gerente {i + 1}</h5>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <span className="font-bold text-gray-700 text-sm">Nombre completo:</span>
+                              {editingSection === "admin" ? (
+                                <Controller
+                                  name={`admin.manager${i + 1}Name` as never}
+                                  control={control}
+                                  render={({ field }) => (
+                                    <input className="input mt-1" {...field} />
+                                  )}
+                                />
+                              ) : (
+                                <p className="text-gray-900 text-sm">{displayName || "No especificado"}</p>
+                              )}
+                            </div>
+                            <div>
+                              <span className="font-bold text-gray-700 text-sm">Dirección:</span>
+                              {editingSection === "admin" ? (
+                                <Controller
+                                  name={`admin.manager${i + 1}Address` as never}
+                                  control={control}
+                                  render={({ field }) => (
+                                    <input className="input mt-1" {...field} />
+                                  )}
+                                />
+                              ) : (
+                                <p className="text-gray-900 text-sm">{displayAddress || "No especificado"}</p>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                      );
+                    })}
+                  </div>
+                )}
+              </>
             ) : (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
