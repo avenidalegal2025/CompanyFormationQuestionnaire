@@ -81,21 +81,58 @@ export async function POST(request: NextRequest) {
 
     console.log(`✅ Parsed result:`, JSON.stringify(result, null, 2));
 
-    // Use Lambda's result directly - it already does the checking
-    // The Lambda returns available: false when conflicts are found
+    // Normalize company name for comparison (remove spaces, special chars, entity suffixes)
+    const normalizeName = (name: string) => {
+      return name
+        .toUpperCase()
+        .replace(/\s+/g, '') // Remove all spaces
+        .replace(/[^A-Z0-9]/g, '') // Remove special characters
+        .replace(/\b(LLC|L\.L\.C\.|LIMITEDLIABILITYCOMPANY|CORP|CORPORATION|INC|INCORPORATED|LTD|LIMITED)\b/gi, ''); // Remove entity suffixes
+    };
+
+    const normalizedInputName = normalizeName(companyName);
     let finalAvailable = result?.available ?? false;
     let finalMessage = result?.message || 'No se pudo determinar la disponibilidad';
 
-    // If Lambda says not available, trust it and enhance the message with entity details
+    // Additional validation: Check existing entities for similar normalized names
+    // This catches cases where Lambda might miss conflicts due to spacing differences
+    if (result?.existing_entities && Array.isArray(result.existing_entities) && result.existing_entities.length > 0) {
+      const conflictingEntities = result.existing_entities.filter((entity: any) => {
+        if (!entity.name) return false;
+        const normalizedEntityName = normalizeName(entity.name);
+        // Check if normalized names match (handles "AVENIDALEGAL" vs "AVENIDA LEGAL, LLC")
+        return normalizedEntityName === normalizedInputName;
+      });
+
+      if (conflictingEntities.length > 0) {
+        const activeConflicts = conflictingEntities.filter((e: any) => 
+          e.status && e.status.toUpperCase().includes('ACTIVE')
+        );
+
+        if (activeConflicts.length > 0) {
+          // Found active conflicts with normalized name match - definitely not available
+          finalAvailable = false;
+          const conflictNames = activeConflicts.map((e: any) => `${e.name} (${e.status})`).join(', ');
+          finalMessage = `❌ Nombre no disponible. Entidades activas encontradas: ${conflictNames}`;
+          console.log(`🚨 Found active conflict after normalization:`, {
+            input: companyName,
+            normalizedInput: normalizedInputName,
+            conflicts: activeConflicts,
+          });
+        }
+      }
+    }
+
+    // If Lambda says not available, enhance the message with entity details
     if (!finalAvailable && result?.existing_entities && Array.isArray(result.existing_entities) && result.existing_entities.length > 0) {
       const activeEntities = result.existing_entities.filter((e: any) => 
         e.status && e.status.toUpperCase().includes('ACTIVE')
       );
 
-      if (activeEntities.length > 0) {
+      if (activeEntities.length > 0 && !finalMessage.includes('Entidades activas encontradas')) {
         const entityNames = activeEntities.map((e: any) => `${e.name} (${e.status})`).join(', ');
         finalMessage = `❌ Nombre no disponible. Entidades activas encontradas: ${entityNames}`;
-      } else {
+      } else if (result.existing_entities.length > 0 && !finalMessage.includes('encontrado')) {
         const entityNames = result.existing_entities.map((e: any) => `${e.name} (${e.status || 'N/A'})`).join(', ');
         finalMessage = `⚠️ Nombre similar encontrado: ${entityNames}. Se recomienda elegir un nombre diferente.`;
       }
