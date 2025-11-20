@@ -573,8 +573,8 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                   </div>
                 </div>
                 
-                {/* Manager Details */}
-                {(adminData?.managersAllOwners === "Yes" || (adminData?.managersAllOwners === "No" && adminData?.managersCount)) && (
+                {/* Manager Details - Always show when managersAllOwners is "Yes", or when "No" and managersCount is set */}
+                {((adminData?.managersAllOwners === "Yes" && ownersCount > 0) || (adminData?.managersAllOwners === "No" && adminData?.managersCount)) && (
                   <div className="mt-4 space-y-4">
                     <h4 className="text-md font-semibold text-gray-800">Detalles de los Gerentes</h4>
                     {Array.from({ length: Math.min(
@@ -585,16 +585,19 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                     ) }).map((_, i) => {
                       const managerName = (adminData as any)?.[`manager${i + 1}Name`] as string | undefined;
                       const managerAddress = (adminData as any)?.[`manager${i + 1}Address`] as string | undefined;
-                      const owner = ownersData[i] as any;
+                      const owner = (ownersData[i] || {}) as {
+                        fullName?: string;
+                        address?: string;
+                      };
                       
-                      // If managersAllOwners is "Yes", prefer manager data, fallback to owner data
-                      // If managersAllOwners is "No", use manager data only
+                      // If managersAllOwners is "Yes", use owner data (since managers = owners)
+                      // If managersAllOwners is "No", use manager data from adminData
                       const displayName = adminData?.managersAllOwners === "Yes" 
-                        ? (managerName || owner?.fullName || "")
-                        : managerName;
+                        ? (owner?.fullName || "")
+                        : (managerName || "");
                       const displayAddress = adminData?.managersAllOwners === "Yes"
-                        ? (managerAddress || owner?.address || "")
-                        : managerAddress;
+                        ? (owner?.address || "")
+                        : (managerAddress || "");
                       
                       return (
                         <div key={i} className="bg-white rounded-lg p-4 border border-gray-200">
