@@ -100,11 +100,11 @@ export async function POST(request: NextRequest) {
         // Map document ID to Airtable field name
         let airtableField: string | null = null;
         if (documentId === 'ss4-ein-application') {
-          airtableField = 'SS-4 EIN Application URL';
+          airtableField = 'SS-4 URL';
         } else if (documentId === 'form-2848-power-of-attorney') {
-          airtableField = 'Form 2848 Power of Attorney URL';
+          airtableField = '2848 URL';
         } else if (documentId === 'form-8821-tax-authorization') {
-          airtableField = 'Form 8821 Tax Authorization URL';
+          airtableField = '8821 URL';
         }
         
         if (airtableField) {

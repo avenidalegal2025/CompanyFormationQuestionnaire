@@ -124,9 +124,9 @@ export interface AirtableFormationRecord {
   'Membership Registry URL'?: string;
   'Organizational Resolution URL'?: string;
   'Operating Agreement URL'?: string;
-  'SS-4 EIN Application URL'?: string;
-  'Form 2848 Power of Attorney URL'?: string;
-  'Form 8821 Tax Authorization URL'?: string;
+  'SS-4 URL'?: string;
+  '2848 URL'?: string;
+  '8821 URL'?: string;
   
   // Agreement Terms
   'Want Agreement'?: 'Yes' | 'No';
@@ -397,13 +397,13 @@ export function mapQuestionnaireToAirtable(
     'Operating Agreement URL': documentUrls?.operatingAgreement
       ? `${process.env.NEXT_PUBLIC_BASE_URL || 'https://company-formation-questionnaire.vercel.app'}/api/documents/view?key=${encodeURIComponent(documentUrls.operatingAgreement)}`
       : '',
-    'SS-4 EIN Application URL': documentUrls?.ss4
+    'SS-4 URL': documentUrls?.ss4
       ? `${process.env.NEXT_PUBLIC_BASE_URL || 'https://company-formation-questionnaire.vercel.app'}/api/documents/view?key=${encodeURIComponent(documentUrls.ss4)}`
       : '',
-    'Form 2848 Power of Attorney URL': documentUrls?.form2848
+    '2848 URL': documentUrls?.form2848
       ? `${process.env.NEXT_PUBLIC_BASE_URL || 'https://company-formation-questionnaire.vercel.app'}/api/documents/view?key=${encodeURIComponent(documentUrls.form2848)}`
       : '',
-    'Form 8821 Tax Authorization URL': documentUrls?.form8821
+    '8821 URL': documentUrls?.form8821
       ? `${process.env.NEXT_PUBLIC_BASE_URL || 'https://company-formation-questionnaire.vercel.app'}/api/documents/view?key=${encodeURIComponent(documentUrls.form8821)}`
       : '',
     
