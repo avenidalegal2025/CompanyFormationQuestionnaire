@@ -4,6 +4,7 @@ import Stripe from 'stripe';
 import { SERVICES, FORMATION_PRICES } from '@/lib/pricing';
 import { authOptions } from '@/lib/auth';
 import { saveFormData } from '@/lib/dynamo';
+import { saveFormDataSnapshot } from '@/lib/s3-vault';
 
 // Initialize Stripe with fallback key to bypass environment variable issues
 const encodedKey = 'c2tfdGVzdF81MUdHRlZ5R29LZXhrbGRiTlZTaFQ3R25vSGU3blR2bDJDaTdzUTJrMW1UQlN2VlowWnBGRDg3QlZpN3pvSHMyOVBLWEdJZ2RpbmIzdWlFV3dZcjJkcm0yMDAyMjlGczN5';
@@ -237,6 +238,14 @@ export async function POST(request: NextRequest) {
     });
 
     console.log('Checkout session created successfully:', checkoutSession.id);
+
+    // Save a snapshot of the form data tied to this checkout session for webhook fallback
+    try {
+      await saveFormDataSnapshot(checkoutSession.id, formData);
+      console.log('💾 Form data snapshot saved for session:', checkoutSession.id);
+    } catch (snapshotError) {
+      console.error('⚠️ Failed to save form data snapshot:', snapshotError);
+    }
     return NextResponse.json({ 
       sessionId: checkoutSession.id,
       paymentLinkUrl: checkoutSession.url,

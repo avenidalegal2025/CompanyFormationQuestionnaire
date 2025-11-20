@@ -16,6 +16,7 @@ const s3Client = new S3Client({
 });
 
 const BUCKET_NAME = process.env.S3_DOCUMENTS_BUCKET || 'avenida-legal-documents';
+const FORM_DATA_FOLDER = 'form-data';
 
 export interface DocumentMetadata {
   id: string;
@@ -127,6 +128,72 @@ export async function uploadDocument(
     s3Key: key,
     size: body.length,
   };
+}
+
+/**
+ * Saves a snapshot of form data for a specific checkout session.
+ * Used as a fallback if DynamoDB formData lookup fails.
+ */
+export async function saveFormDataSnapshot(
+  sessionId: string,
+  data: any
+): Promise<{ s3Key: string }> {
+  const key = `${FORM_DATA_FOLDER}/${sessionId}.json`;
+  const body = Buffer.from(JSON.stringify(data, null, 2), 'utf-8');
+
+  console.log(`💾 Saving form data snapshot for session ${sessionId} to ${key}`);
+
+  await s3Client.send(
+    new PutObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: key,
+      Body: body,
+      ContentType: 'application/json',
+      Metadata: {
+        sessionId,
+        savedAt: new Date().toISOString(),
+      },
+    })
+  );
+
+  return { s3Key: key };
+}
+
+/**
+ * Retrieves a form data snapshot for a given checkout session.
+ */
+export async function getFormDataSnapshot(sessionId: string): Promise<any | null> {
+  const key = `${FORM_DATA_FOLDER}/${sessionId}.json`;
+
+  try {
+    const command = new GetObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: key,
+    });
+
+    const response = await s3Client.send(command);
+    
+    if (!response.Body) {
+      return null;
+    }
+
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of response.Body as any) {
+      chunks.push(chunk);
+    }
+    const buffer = Buffer.concat(chunks);
+    const json = buffer.toString('utf-8');
+
+    console.log(`✅ Retrieved form data snapshot for session ${sessionId}`);
+    return JSON.parse(json);
+  } catch (error: any) {
+    if (error?.name === 'NoSuchKey') {
+      console.warn(`⚠️ No form data snapshot found for session ${sessionId}`);
+      return null;
+    }
+    console.error(`❌ Failed to retrieve form data snapshot for session ${sessionId}:`, error.message);
+    return null;
+  }
 }
 
 /**

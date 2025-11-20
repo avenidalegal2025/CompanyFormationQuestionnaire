@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import { saveDomainRegistration, type DomainRegistration, saveBusinessPhone, saveGoogleWorkspace, type GoogleWorkspaceRecord, saveUserDocuments, type DocumentRecord, saveVaultMetadata, type VaultMetadata, getFormData, addUserDocument } from '@/lib/dynamo';
-import { createVaultStructure, copyTemplateToVault } from '@/lib/s3-vault';
+import { createVaultStructure, copyTemplateToVault, getFormDataSnapshot } from '@/lib/s3-vault';
 import { createFormationRecord, mapQuestionnaireToAirtable } from '@/lib/airtable';
 import { generateAllTaxForms } from '@/lib/pdf-filler';
 // import { createWorkspaceAccount } from '@/lib/googleWorkspace'; // Temporarily disabled
@@ -263,13 +263,22 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
     const formDataUserId = session.metadata?.userId || session.customer_details?.email || (session.customer_email as string) || '';
     console.log('🔍 Looking up formData for userId:', formDataUserId);
     
-    const formData = formDataUserId ? await getFormData(formDataUserId) : null;
+    let formData = formDataUserId ? await getFormData(formDataUserId) : null;
     
     if (!formData) {
       console.error('❌ No form data found in DynamoDB for user:', formDataUserId);
-      console.error('❌ Cannot generate PDFs or sync to Airtable without form data');
-      console.log('⚠️ Continuing without PDF generation and Airtable sync');
-    } else {
+      console.log('🔄 Attempting to load form data snapshot from S3 using session ID:', session.id);
+      formData = await getFormDataSnapshot(session.id);
+      if (formData) {
+        console.log('✅ Loaded form data snapshot from S3');
+      } else {
+        console.error('❌ No form data snapshot found for session:', session.id);
+        console.error('❌ Cannot generate PDFs or sync to Airtable without form data');
+        console.log('⚠️ Continuing without PDF generation and Airtable sync');
+      }
+    }
+
+    if (formData) {
       console.log('✅ FormData retrieved from DynamoDB');
       console.log('📋 FormData structure:', {
         hasCompany: !!formData.company,
