@@ -586,8 +586,12 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                       const managerName = (adminData as any)?.[`manager${i + 1}Name`] as string | undefined;
                       const managerAddress = (adminData as any)?.[`manager${i + 1}Address`] as string | undefined;
                       // Get owner data directly from watch to ensure we have the latest data
-                      const currentOwners = watch("owners") || [];
-                      const owner = (currentOwners[i] || ownersData[i] || {}) as {
+                      // Watch the specific owner fields to get real-time updates
+                      const ownerFullName = watch(`owners.${i}.fullName` as never) as string | undefined;
+                      const ownerAddress = watch(`owners.${i}.address` as never) as string | undefined;
+                      // Fallback to ownersData if watch doesn't return a value
+                      const currentOwners = watch("owners") || ownersData || [];
+                      const ownerFromData = (currentOwners[i] || {}) as {
                         fullName?: string;
                         address?: string;
                       };
@@ -595,10 +599,10 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                       // If managersAllOwners is "Yes", use owner data (since managers = owners)
                       // If managersAllOwners is "No", use manager data from adminData
                       const displayName = adminData?.managersAllOwners === "Yes" 
-                        ? (owner?.fullName || "")
+                        ? (ownerFullName || ownerFromData?.fullName || "")
                         : (managerName || "");
                       const displayAddress = adminData?.managersAllOwners === "Yes"
-                        ? (owner?.address || "")
+                        ? (ownerAddress || ownerFromData?.address || "")
                         : (managerAddress || "");
                       
                       return (
