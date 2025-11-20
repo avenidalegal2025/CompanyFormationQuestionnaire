@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Controller } from "react-hook-form";
 import HeroMiami3 from "@/components/HeroMiami3";
 import SegmentedToggle from "@/components/SegmentedToggle";
@@ -16,6 +17,10 @@ interface Step8Agreement3Props extends StepProps {
 export default function Step8Agreement3({ form, setStep, onSave, onNext, session, anonymousId }: Step8Agreement3Props) {
   const { register, watch, control, formState: { errors } } = form;
   const isCorp = watch("company.entityType") === "C-Corp";
+  
+  // Local state to track input values for majority percentages (allows free typing)
+  const [majorDecisionsInput, setMajorDecisionsInput] = useState<string>('');
+  const [minorDecisionsInput, setMinorDecisionsInput] = useState<string>('');
 
   // Helper function to check if input should be red
   const isInputInvalid = (decisionValue: string, majorityValue: number | undefined) => {
@@ -484,9 +489,12 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                           control={control}
                           render={({ field }) => {
                             const currentValue = field.value;
-                            const displayValue = currentValue !== undefined && currentValue !== null 
-                              ? String(currentValue) 
-                              : '';
+                            // Use local state if available, otherwise use field value
+                            const displayValue = majorDecisionsInput !== '' 
+                              ? majorDecisionsInput 
+                              : (currentValue !== undefined && currentValue !== null 
+                                  ? String(currentValue) 
+                                  : '');
                             
                             return (
                               <input
@@ -503,29 +511,45 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                                 value={displayValue}
                                 onChange={(e) => {
                                   const inputValue = e.target.value;
+                                  // Update local state to allow free typing
+                                  setMajorDecisionsInput(inputValue);
+                                  
                                   // Allow empty input
                                   if (inputValue === '') {
                                     field.onChange(undefined);
                                     return;
                                   }
-                                  // Parse as number but preserve precision
-                                  const numValue = parseFloat(inputValue);
-                                  if (!isNaN(numValue)) {
-                                    // Round to 2 decimal places to prevent precision issues
-                                    const rounded = Math.round(numValue * 100) / 100;
-                                    field.onChange(rounded);
+                                  
+                                  // Validate it's a valid number format (allows decimals)
+                                  if (/^\d*\.?\d*$/.test(inputValue)) {
+                                    const numValue = parseFloat(inputValue);
+                                    if (!isNaN(numValue)) {
+                                      // Update form value as user types (for validation)
+                                      field.onChange(numValue);
+                                    }
                                   }
                                 }}
                                 onBlur={(e) => {
                                   const inputValue = e.target.value;
+                                  // Clear local state
+                                  setMajorDecisionsInput('');
+                                  
                                   if (inputValue === '') {
                                     field.onChange(undefined);
                                     return;
                                   }
+                                  
                                   const numValue = parseFloat(inputValue);
                                   if (!isNaN(numValue)) {
+                                    // Round to 2 decimal places on blur
                                     const rounded = Math.round(numValue * 100) / 100;
                                     field.onChange(rounded);
+                                  }
+                                }}
+                                onFocus={(e) => {
+                                  // Initialize local state with current value when focused
+                                  if (currentValue !== undefined && currentValue !== null) {
+                                    setMajorDecisionsInput(String(currentValue));
                                   }
                                 }}
                               />
@@ -581,9 +605,12 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                           control={control}
                           render={({ field }) => {
                             const currentValue = field.value;
-                            const displayValue = currentValue !== undefined && currentValue !== null 
-                              ? String(currentValue) 
-                              : '';
+                            // Use local state if available, otherwise use field value
+                            const displayValue = minorDecisionsInput !== '' 
+                              ? minorDecisionsInput 
+                              : (currentValue !== undefined && currentValue !== null 
+                                  ? String(currentValue) 
+                                  : '');
                             
                             return (
                               <input
@@ -600,29 +627,45 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                                 value={displayValue}
                                 onChange={(e) => {
                                   const inputValue = e.target.value;
+                                  // Update local state to allow free typing
+                                  setMinorDecisionsInput(inputValue);
+                                  
                                   // Allow empty input
                                   if (inputValue === '') {
                                     field.onChange(undefined);
                                     return;
                                   }
-                                  // Parse as number but preserve precision
-                                  const numValue = parseFloat(inputValue);
-                                  if (!isNaN(numValue)) {
-                                    // Round to 2 decimal places to prevent precision issues
-                                    const rounded = Math.round(numValue * 100) / 100;
-                                    field.onChange(rounded);
+                                  
+                                  // Validate it's a valid number format (allows decimals)
+                                  if (/^\d*\.?\d*$/.test(inputValue)) {
+                                    const numValue = parseFloat(inputValue);
+                                    if (!isNaN(numValue)) {
+                                      // Update form value as user types (for validation)
+                                      field.onChange(numValue);
+                                    }
                                   }
                                 }}
                                 onBlur={(e) => {
                                   const inputValue = e.target.value;
+                                  // Clear local state
+                                  setMinorDecisionsInput('');
+                                  
                                   if (inputValue === '') {
                                     field.onChange(undefined);
                                     return;
                                   }
+                                  
                                   const numValue = parseFloat(inputValue);
                                   if (!isNaN(numValue)) {
+                                    // Round to 2 decimal places on blur
                                     const rounded = Math.round(numValue * 100) / 100;
                                     field.onChange(rounded);
+                                  }
+                                }}
+                                onFocus={(e) => {
+                                  // Initialize local state with current value when focused
+                                  if (currentValue !== undefined && currentValue !== null) {
+                                    setMinorDecisionsInput(String(currentValue));
                                   }
                                 }}
                               />
