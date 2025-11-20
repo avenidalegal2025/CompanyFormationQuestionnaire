@@ -83,11 +83,37 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
     if (entityType !== "LLC") {
       return true;
     }
+    
+    // If all owners are managers, ensure managersCount is set and managers are populated
     if (managersAllOwners === "Yes") {
-      return true; // All owners are managers, no validation needed
+      const ownersCount = watch("ownersCount") || 1;
+      const currentManagersCount = watch("admin.managersCount");
+      
+      // Ensure managersCount is set to match ownersCount
+      if (currentManagersCount !== ownersCount) {
+        setValue("admin.managersCount", ownersCount, { shouldValidate: false });
+      }
+      
+      // Verify all managers have names (they should be auto-populated from owners)
+      const missingManagers = Array.from({ length: Math.min(ownersCount, 6) }).some((_, idx) => {
+        const managerName = watch(fp(`admin.manager${idx + 1}Name`)) as string;
+        const ownerName = watch(fp(`owners.${idx}.fullName`)) as string;
+        // If manager name is missing but owner name exists, populate it now
+        if (!managerName && ownerName) {
+          setValue(fp(`admin.manager${idx + 1}Name`), ownerName, { shouldValidate: false });
+        }
+        return !managerName || managerName.trim() === "";
+      });
+      
+      if (missingManagers) {
+        alert("Por favor complete el nombre de todos los socios antes de continuar.");
+        return false;
+      }
+      
+      return true; // All owners are managers, validation passed
     }
     
-    // Check if managersCount is valid
+    // If not all owners are managers, check if managersCount is valid
     if (!managersCount || managersCount < 1 || managersCount > 6) {
       alert("Por favor ingrese un número válido de gerentes (entre 1 y 6).");
       return false;
@@ -211,7 +237,34 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
                   render={({ field }) => (
                     <SegmentedToggle
                       value={(field.value as string) ?? "Yes"}
-                      onChange={field.onChange}
+                      onChange={(value) => {
+                        field.onChange(value);
+                        // Immediately set managersCount when "Yes" is selected
+                        if (value === "Yes") {
+                          const ownersCount = watch("ownersCount") || 1;
+                          setValue("admin.managersCount", ownersCount, { shouldValidate: false });
+                          
+                          // Immediately populate manager names and addresses
+                          Array.from({ length: Math.min(ownersCount, 6) }).forEach((_, idx) => {
+                            const ownerName = watch(fp(`owners.${idx}.fullName`)) as string;
+                            const ownerAddress = watch(fp(`owners.${idx}.address`)) as string;
+                            const ownerCity = watch(fp(`owners.${idx}.city`)) as string;
+                            const ownerState = watch(fp(`owners.${idx}.state`)) as string;
+                            const ownerZipCode = watch(fp(`owners.${idx}.zipCode`)) as string;
+                            
+                            setValue(fp(`admin.manager${idx + 1}Name`), ownerName || "", { shouldValidate: false });
+                            
+                            const fullOwnerAddress = ownerAddress || 
+                              (ownerCity || ownerState || ownerZipCode 
+                                ? [ownerAddress, ownerCity, ownerState, ownerZipCode].filter(Boolean).join(", ")
+                                : "");
+                            setValue(fp(`admin.manager${idx + 1}Address`), fullOwnerAddress, { shouldValidate: false });
+                          });
+                        } else {
+                          // Clear managersCount when "No" is selected
+                          setValue("admin.managersCount", undefined, { shouldValidate: false });
+                        }
+                      }}
                       options={[
                         { value: "Yes", label: "Sí" },
                         { value: "No", label: "No" },
