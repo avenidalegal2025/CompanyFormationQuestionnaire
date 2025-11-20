@@ -585,7 +585,9 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                     ) }).map((_, i) => {
                       const managerName = (adminData as any)?.[`manager${i + 1}Name`] as string | undefined;
                       const managerAddress = (adminData as any)?.[`manager${i + 1}Address`] as string | undefined;
-                      const owner = (ownersData[i] || {}) as {
+                      // Get owner data directly from watch to ensure we have the latest data
+                      const currentOwners = watch("owners") || [];
+                      const owner = (currentOwners[i] || ownersData[i] || {}) as {
                         fullName?: string;
                         address?: string;
                       };
