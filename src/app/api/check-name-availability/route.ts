@@ -63,12 +63,31 @@ export async function POST(request: NextRequest) {
 
     console.log(`✅ Lambda response payload:`, JSON.stringify(responsePayload, null, 2));
 
-    // Lambda should return: { available: boolean, message: string, details?: any }
+    // Lambda returns { statusCode: 200, body: "..." } where body is a JSON string
+    let result;
+    if (responsePayload?.body) {
+      // Parse the body JSON string
+      try {
+        result = JSON.parse(responsePayload.body);
+      } catch (parseError) {
+        console.error('❌ Failed to parse Lambda body:', parseError);
+        // Fallback: try to use responsePayload directly
+        result = responsePayload;
+      }
+    } else {
+      // Fallback: use responsePayload directly if no body field
+      result = responsePayload;
+    }
+
+    console.log(`✅ Parsed result:`, JSON.stringify(result, null, 2));
+
+    // Lambda returns: { success: boolean, available: boolean, message: string, method?: string, existing_entities?: array }
     return NextResponse.json({
-      success: true,
-      available: responsePayload?.available ?? false,
-      message: responsePayload?.message || 'No se pudo determinar la disponibilidad',
-      details: responsePayload?.details,
+      success: result?.success ?? true,
+      available: result?.available ?? false,
+      message: result?.message || 'No se pudo determinar la disponibilidad',
+      method: result?.method,
+      existingEntities: result?.existing_entities,
     });
 
   } catch (error: any) {
