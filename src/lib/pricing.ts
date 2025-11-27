@@ -39,6 +39,17 @@ export const FORMATION_PRICES: { [entityType: string]: { [state: string]: number
     'California': 94500, // $945
     'Georgia': 83500, // $835
     'Arizona': 85000, // $850
+  },
+  'S-Corp': {
+    'Florida': 79500, // $795 (same as C-Corp)
+    'Delaware': 96500, // $965
+    'Wyoming': 85000, // $850
+    'Texas': 103500, // $1035
+    'Nevada': 127500, // $1275
+    'New Mexico': 82500, // $825
+    'California': 94500, // $945
+    'Georgia': 83500, // $835
+    'Arizona': 85000, // $850
   }
 };
 
@@ -114,7 +125,7 @@ export const PACKAGES: PricingPackage[] = [
 
 export function calculateTotalPrice(
   selectedServices: string[], 
-  entityType: 'LLC' | 'C-Corp', 
+  entityType: 'LLC' | 'C-Corp' | 'S-Corp', 
   state: string,
   hasUsAddress: boolean = false,
   hasUsPhone: boolean = false,
@@ -129,7 +140,7 @@ export function calculateTotalPrice(
   } else {
     console.warn(`No formation price found for ${entityType} in ${state}. Using default.`);
     // Fallback to default prices
-    total += entityType === 'LLC' ? 60000 : 80000; // $600 or $800
+    total += entityType === 'LLC' ? 60000 : 80000; // $600 or $800 (C-Corp/S-Corp)
   }
   
   // Add other selected services
