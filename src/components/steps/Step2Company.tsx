@@ -59,6 +59,7 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
   // Modal state for S-Corp
   const [showSCorpModal, setShowSCorpModal] = useState(false);
   const [pendingEntityType, setPendingEntityType] = useState<string | null>(null);
+  const entityTypeFieldRef = useRef<((value: string) => void) | null>(null);
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -140,7 +141,11 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
     setShowSCorpModal(false);
     setPendingEntityType(null);
     // Always default to LLC when cancel is clicked
+    // Use both setValue and field.onChange to ensure toggle updates
     setValue("company.entityType", "LLC", { shouldValidate: true });
+    if (entityTypeFieldRef.current) {
+      entityTypeFieldRef.current("LLC");
+    }
   };
 
   // Build full company name from base + suffix
@@ -292,20 +297,30 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
             <Controller
               name="company.entityType"
               control={control}
-              render={({ field }) => (
-                <div className="w-fit">
-                  <SegmentedToggle
-                    value={(field.value as string) ?? "LLC"}
-                    onChange={(v) => {
-                      handleEntityTypeChange(v);
-                      field.onChange(v);
-                    }}
-                    options={entityTypes.map((v) => ({ value: v, label: v }))}
-                    ariaLabel="Tipo de entidad"
-                    name={field.name}
-                  />
-                </div>
-              )}
+              render={({ field }) => {
+                // Store field.onChange in ref so we can use it in cancel handler
+                entityTypeFieldRef.current = field.onChange;
+                return (
+                  <div className="w-fit">
+                    <SegmentedToggle
+                      value={(field.value as string) ?? "LLC"}
+                      onChange={(v) => {
+                        if (v === "S-Corp") {
+                          // Don't update form value yet - wait for modal confirmation
+                          handleEntityTypeChange(v);
+                        } else {
+                          // For LLC and C-Corp, update immediately
+                          handleEntityTypeChange(v);
+                          field.onChange(v);
+                        }
+                      }}
+                      options={entityTypes.map((v) => ({ value: v, label: v }))}
+                      ariaLabel="Tipo de entidad"
+                      name={field.name}
+                    />
+                  </div>
+                );
+              }}
             />
           </div>
         </div>
