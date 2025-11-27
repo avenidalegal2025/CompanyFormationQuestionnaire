@@ -154,49 +154,68 @@ async function addFields() {
 
     console.log(`📝 Adding ${fieldsToAdd.length} new fields...\n`);
 
-    // Add fields in batches (Airtable has limits on batch size)
-    const BATCH_SIZE = 10;
+    // Add fields one at a time (Airtable API requires individual field creation)
     let addedCount = 0;
+    let failedCount = 0;
 
-    for (let i = 0; i < fieldsToAdd.length; i += BATCH_SIZE) {
-      const batch = fieldsToAdd.slice(i, i + BATCH_SIZE);
-      const batchNum = Math.floor(i / BATCH_SIZE) + 1;
-      const totalBatches = Math.ceil(fieldsToAdd.length / BATCH_SIZE);
+    for (let i = 0; i < fieldsToAdd.length; i++) {
+      const field = fieldsToAdd[i];
+      const fieldNum = i + 1;
+      const totalFields = fieldsToAdd.length;
 
-      console.log(`📦 Batch ${batchNum}/${totalBatches}: Adding ${batch.length} fields...`);
-
-      const response = await fetch(`https://api.airtable.com/v0/meta/bases/${AIRTABLE_BASE_ID}/tables/${tableId}/fields`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${AIRTABLE_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          fields: batch
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`❌ Failed to add batch ${batchNum}`);
-        console.error(`Status: ${response.status} ${response.statusText}`);
-        console.error(`Response: ${errorText}\n`);
-        
-        if (response.status === 401) {
-          console.error('💡 Authentication failed. Please check:');
-          console.error('   1. Your AIRTABLE_API_KEY is correct');
-          console.error('   2. Your token has these scopes:');
-          console.error('      - schema.bases:read');
-          console.error('      - schema.bases:write');
-          console.error('   3. Your token has access to this base\n');
-        }
-        
-        process.exit(1);
+      // Show progress every 10 fields
+      if (fieldNum % 10 === 0 || fieldNum === totalFields) {
+        console.log(`📦 Progress: ${fieldNum}/${totalFields} fields...`);
       }
 
-      const result = await response.json();
-      addedCount += result.fields.length;
-      console.log(`   ✅ Added ${result.fields.length} fields`);
+      try {
+        const response = await fetch(`https://api.airtable.com/v0/meta/bases/${AIRTABLE_BASE_ID}/tables/${tableId}/fields`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${AIRTABLE_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(field),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`\n❌ Failed to add field "${field.name}"`);
+          console.error(`Status: ${response.status} ${response.statusText}`);
+          console.error(`Response: ${errorText}\n`);
+          
+          if (response.status === 401) {
+            console.error('💡 Authentication failed. Please check:');
+            console.error('   1. Your AIRTABLE_API_KEY is correct');
+            console.error('   2. Your token has these scopes:');
+            console.error('      - schema.bases:read');
+            console.error('      - schema.bases:write');
+            console.error('   3. Your token has access to this base\n');
+            process.exit(1);
+          }
+          
+          failedCount++;
+          // Continue with next field instead of exiting
+          continue;
+        }
+
+        const result = await response.json();
+        addedCount++;
+        
+        // Small delay to avoid rate limiting
+        if (i < fieldsToAdd.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      } catch (error: any) {
+        console.error(`\n❌ Error adding field "${field.name}":`, error.message);
+        failedCount++;
+      }
+    }
+
+    console.log(`\n📊 Results:`);
+    console.log(`   ✅ Successfully added: ${addedCount} fields`);
+    if (failedCount > 0) {
+      console.log(`   ❌ Failed: ${failedCount} fields`);
     }
 
     console.log(`\n✅ Successfully added ${addedCount} fields to "${TABLE_NAME}" table!\n`);
