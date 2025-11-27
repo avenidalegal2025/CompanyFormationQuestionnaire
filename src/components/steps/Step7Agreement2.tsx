@@ -15,7 +15,7 @@ interface Step7Agreement2Props extends StepProps {
 
 export default function Step7Agreement2({ form, setStep, onSave, onNext, session, anonymousId }: Step7Agreement2Props) {
   const { register, watch, control, formState: { errors } } = form;
-  const isCorp = watch("company.entityType") === "C-Corp";
+  const isCorp = watch("company.entityType") === "C-Corp" || watch("company.entityType") === "S-Corp";
 
   // Helper function to check if input should be red
   const isInputInvalid = (decisionValue: string, majorityValue: number | undefined) => {

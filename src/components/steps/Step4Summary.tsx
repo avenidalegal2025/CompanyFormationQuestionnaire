@@ -133,7 +133,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
   }, [ownersData, ownersCount]);
 
   const entityType = companyData?.entityType;
-  const isCorp = entityType === "C-Corp";
+  const isCorp = entityType === "C-Corp" || entityType === "S-Corp";
   const groupLabel = isCorp ? "accionistas" : "socios";
 
   const agreementName = entityType === "LLC" ? "Operating Agreement" : "Shareholder Agreement";
@@ -198,6 +198,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                       <select className="input mt-1" {...field}>
                         <option value="LLC">LLC</option>
                         <option value="C-Corp">C-Corp</option>
+                        <option value="S-Corp">S-Corp</option>
                       </select>
                     )}
                   />
@@ -266,7 +267,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
               </div>
             )}
 
-            {isCorp && companyData?.numberOfShares && (
+            {(isCorp || entityType === "S-Corp") && companyData?.numberOfShares && (
               <div>
                 <span className="font-bold text-gray-700">Número de acciones:</span>
                 <p className="text-gray-900">{companyData.numberOfShares.toLocaleString()}</p>

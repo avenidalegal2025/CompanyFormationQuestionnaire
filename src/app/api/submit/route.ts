@@ -32,13 +32,16 @@ export async function POST(req: Request) {
     } else if (data.company.entityType === "C-Corp") {
       fields["Nombre de la C-Corp"] = data.company.companyName;
       fields["Nombre de la LLC"] = "";
+    } else if (data.company.entityType === "S-Corp") {
+      fields["Nombre de la C-Corp"] = data.company.companyName;
+      fields["Nombre de la LLC"] = "";
     } else {
       fields["Nombre de la LLC"] = data.company.companyName;
       fields["Nombre de la C-Corp"] = data.company.companyName;
     }
 
     fields["LLC o C-Corp"] =
-      data.company.entityType === "C-Corp" ? "Corporation" : "LLC";
+      (data.company.entityType === "C-Corp" || data.company.entityType === "S-Corp") ? "Corporation" : "LLC";
 
     // TODO: add the Airtable fetch here when ready.
     // For now just respond success so the build passes.

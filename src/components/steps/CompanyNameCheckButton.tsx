@@ -10,7 +10,7 @@ export default function CompanyNameCheckButton({
 }: {
   getName: () => string;
   formationState?: string;
-  entityType?: "LLC" | "C-Corp";
+  entityType?: "LLC" | "C-Corp" | "S-Corp";
 }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<null | { status: "ok" | "warn" | "error"; message: string }>(null);
@@ -150,8 +150,8 @@ export default function CompanyNameCheckButton({
 
     // For Florida, use Lambda function to check availability
     if (formationState === "Florida") {
-      setLoading(true);
-      try {
+    setLoading(true);
+    try {
         const response = await fetch('/api/check-name-availability', {
           method: 'POST',
           headers: {
@@ -190,8 +190,8 @@ export default function CompanyNameCheckButton({
           status: "error", 
           message: "Error al verificar disponibilidad. Por favor, intenta de nuevo." 
         });
-      } finally {
-        setLoading(false);
+    } finally {
+      setLoading(false);
       }
       return;
     }

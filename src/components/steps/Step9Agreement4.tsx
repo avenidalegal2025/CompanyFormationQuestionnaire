@@ -15,7 +15,7 @@ interface Step9Agreement4Props extends StepProps {
 
 export default function Step9Agreement4({ form, setStep, onSave, onNext, session, anonymousId }: Step9Agreement4Props) {
   const { register, watch, control, formState: { errors } } = form;
-  const isCorp = watch("company.entityType") === "C-Corp";
+  const isCorp = watch("company.entityType") === "C-Corp" || watch("company.entityType") === "S-Corp";
 
   // Helper function to check if input should be red
   const isInputInvalid = (decisionValue: string, majorityValue: number | undefined) => {

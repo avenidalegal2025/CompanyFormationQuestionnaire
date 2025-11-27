@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
 
     // Ensure agreement is included based on entity type if not skipped
     if (!skipAgreement) {
-      const agreementId = entityType === 'LLC' ? 'operating_agreement' : entityType === 'C-Corp' ? 'shareholder_agreement' : undefined;
+      const agreementId = entityType === 'LLC' ? 'operating_agreement' : (entityType === 'C-Corp' || entityType === 'S-Corp') ? 'shareholder_agreement' : undefined;
       if (agreementId && !normalizedSelected.includes(agreementId)) {
         const agreementService = SERVICES.find(s => s.id === agreementId);
         if (agreementService) {

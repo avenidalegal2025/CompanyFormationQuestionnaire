@@ -17,7 +17,7 @@ interface Step6Agreement1Props extends StepProps {
 export default function Step6Agreement1({ form, setStep, onSave, onNext, session, anonymousId }: Step6Agreement1Props) {
   const { register, watch, control } = form;
   const entityType = watch("company.entityType");
-  const isCorp = entityType === "C-Corp";
+  const isCorp = entityType === "C-Corp" || entityType === "S-Corp";
   
   // Get owners data
   const ownersData = watch("owners") || [];

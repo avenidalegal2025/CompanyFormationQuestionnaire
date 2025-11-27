@@ -48,7 +48,7 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
     initStripe();
   }, []);
 
-  const entityType = formData.company?.entityType as 'LLC' | 'C-Corp';
+  const entityType = formData.company?.entityType as 'LLC' | 'C-Corp' | 'S-Corp';
   
   // If entityType is undefined, we can't show agreement services
   if (!entityType) {
@@ -94,7 +94,7 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
     if (!skipAgreement) {
       if (entityType === 'LLC') {
         recommended.push('operating_agreement');
-      } else if (entityType === 'C-Corp') {
+      } else if (entityType === 'C-Corp' || entityType === 'S-Corp') {
         recommended.push('shareholder_agreement');
       }
     }
@@ -203,7 +203,7 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
       return shouldShow;
     }
     if (service.id === 'shareholder_agreement') {
-      const shouldShow = !skipAgreement && entityType === 'C-Corp';
+      const shouldShow = !skipAgreement && (entityType === 'C-Corp' || entityType === 'S-Corp');
       return shouldShow;
     }
     

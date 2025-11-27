@@ -26,7 +26,7 @@ const formationStates = [
   "Arizona",
 ];
 
-const entityTypes = ["LLC", "C-Corp"] as const;
+const entityTypes = ["LLC", "C-Corp", "S-Corp"] as const;
 
 function formatWithCommas(n: number | string | undefined): string {
   if (n === undefined || n === null || n === "") return "";
@@ -51,10 +51,26 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
   } = form;
 
   // ====== Entity type / suffix ======
-  const entityType = watch("company.entityType") as "LLC" | "C-Corp" | undefined;
+  const entityType = watch("company.entityType") as "LLC" | "C-Corp" | "S-Corp" | undefined;
   const formationState = watch("company.formationState") as string | undefined;
   const companyNameBase = (watch("company.companyNameBase") || "").toString();
   const entitySuffix = watch("company.entitySuffix") as string | undefined;
+
+  // Modal state for S-Corp
+  const [showSCorpModal, setShowSCorpModal] = useState(false);
+  const [pendingEntityType, setPendingEntityType] = useState<string | null>(null);
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (showSCorpModal) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, [showSCorpModal]);
 
   // Entity suffix options based on entity type
   const entitySuffixOptions = useMemo(() => {
@@ -65,6 +81,13 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
         "Limited Liability Company"
       ];
     } else if (entityType === "C-Corp") {
+      return [
+        "Corp",
+        "Corporation",
+        "Inc",
+        "Incorporated"
+      ];
+    } else if (entityType === "S-Corp") {
       return [
         "Corp",
         "Corporation",
@@ -88,8 +111,38 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
       setValue("company.entitySuffix", "LLC", { shouldValidate: true });
     } else if (entityType === "C-Corp" && !entitySuffix) {
       setValue("company.entitySuffix", "Inc", { shouldValidate: true });
+    } else if (entityType === "S-Corp" && !entitySuffix) {
+      setValue("company.entitySuffix", "Inc", { shouldValidate: true });
     }
   }, [entityType, entitySuffix, setValue]);
+
+  // Handle entity type change - show modal for S-Corp
+  const handleEntityTypeChange = (newType: string) => {
+    if (newType === "S-Corp") {
+      setPendingEntityType(newType);
+      setShowSCorpModal(true);
+    } else {
+      setValue("company.entityType", newType as "LLC" | "C-Corp" | "S-Corp", { shouldValidate: true });
+    }
+  };
+
+  // Handle S-Corp modal OK
+  const handleSCorpModalOK = () => {
+    if (pendingEntityType) {
+      setValue("company.entityType", pendingEntityType as "LLC" | "C-Corp" | "S-Corp", { shouldValidate: true });
+    }
+    setShowSCorpModal(false);
+    setPendingEntityType(null);
+  };
+
+  // Handle S-Corp modal Cancel
+  const handleSCorpModalCancel = () => {
+    setShowSCorpModal(false);
+    setPendingEntityType(null);
+    // Revert to previous entity type or default to LLC
+    const currentType = entityType || "LLC";
+    setValue("company.entityType", currentType as "LLC" | "C-Corp" | "S-Corp", { shouldValidate: true });
+  };
 
   // Build full company name from base + suffix
   useEffect(() => {
@@ -244,7 +297,10 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
                 <div className="w-fit">
                   <SegmentedToggle
                     value={(field.value as string) ?? "LLC"}
-                    onChange={field.onChange}
+                    onChange={(v) => {
+                      handleEntityTypeChange(v);
+                      field.onChange(v);
+                    }}
                     options={entityTypes.map((v) => ({ value: v, label: v }))}
                     ariaLabel="Tipo de entidad"
                     name={field.name}
@@ -305,7 +361,7 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
             <CompanyNameCheckButton
               getName={() => getValues("company.companyName") as string}
               formationState={formationState}
-              entityType={entityType}
+              entityType={entityType as "LLC" | "C-Corp" | undefined}
             />
           </div>
           <input type="hidden" {...register("company.companyName")} />
@@ -483,7 +539,7 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
         </div>
 
         {/* Número de acciones */}
-        {entityType === "C-Corp" && (
+        {(entityType === "C-Corp" || entityType === "S-Corp") && (
           <div className="mt-12 pt-10 border-t border-gray-100">
             <div className="label-lg mb-2 flex items-center gap-2">
               Número de acciones
@@ -532,6 +588,78 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
           </div>
         </div>
       </div>
+
+      {/* S-Corp Requirements Modal */}
+      {showSCorpModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div 
+            className="absolute inset-0 bg-black/80" 
+            onClick={handleSCorpModalCancel}
+            style={{ zIndex: 2147483646 }}
+          />
+          <div 
+            className="relative w-full max-w-lg rounded-2xl bg-white shadow-xl p-6"
+            style={{ zIndex: 2147483647 }}
+            role="dialog"
+            aria-modal="true"
+          >
+            {/* Close button */}
+            <button
+              type="button"
+              aria-label="Cerrar"
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl leading-none"
+              onClick={handleSCorpModalCancel}
+            >
+              ×
+            </button>
+
+            {/* Header */}
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 bg-brand-100 rounded-full flex items-center justify-center">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900">Requisitos para S-Corp</h3>
+            </div>
+
+            {/* Content */}
+            <div className="mb-6">
+              <p className="text-base font-semibold text-gray-900 mb-3">
+                Las S-Corps solo pueden ser formadas por:
+              </p>
+              <ol className="list-decimal list-inside space-y-2 text-gray-700">
+                <li className="pl-2">
+                  <strong>Personas naturales.</strong> Es decir los accionistas no pueden ser empresas.
+                </li>
+                <li className="pl-2">
+                  Que tengan <strong>residencia permanente de USA</strong> o sean <strong>ciudadanos estadounidenses</strong> con <strong>Social Security Number (SSN)</strong>.
+                </li>
+              </ol>
+            </div>
+
+            {/* Buttons */}
+            <div className="flex items-center gap-4 justify-end">
+              <button
+                type="button"
+                onClick={handleSCorpModalCancel}
+                className="btn text-gray-700 bg-white hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSCorpModalOK}
+                className="btn btn-primary"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

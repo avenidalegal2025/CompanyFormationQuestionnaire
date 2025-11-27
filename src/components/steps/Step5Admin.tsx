@@ -47,9 +47,9 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
 
   const availableRoles = ["President", "Vice-President", "Treasurer", "Secretary"];
 
-  // Validation function to check if at least one president is selected (C‑Corp only)
+  // Validation function to check if at least one president is selected (C‑Corp/S-Corp only)
   const validateOfficers = () => {
-    if (entityType !== "C-Corp") {
+    if (entityType !== "C-Corp" && entityType !== "S-Corp") {
       return true;
     }
     if (officersAllOwners === "Yes") {
@@ -150,7 +150,7 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
 
   // Auto-assign and lock President role when there's only 1 officer
   useEffect(() => {
-    if (entityType === "C-Corp" && officersAllOwners === "No" && officersCount === 1) {
+    if ((entityType === "C-Corp" || entityType === "S-Corp") && officersAllOwners === "No" && officersCount === 1) {
       const currentRole = watch(fp("admin.officer1Role")) as string;
       if (currentRole !== "President") {
         setValue(fp("admin.officer1Role"), "President");
@@ -250,7 +250,7 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
       <div className="card">
         <h2 className="text-xl font-semibold text-gray-900">Datos Administrativos</h2>
         <p className="mt-1 text-sm text-gray-600">
-          {entityType === "C-Corp"
+          {entityType === "C-Corp" || entityType === "S-Corp"
             ? "Configure directores y oficiales."
             : "Configure gerentes de la LLC."}
         </p>

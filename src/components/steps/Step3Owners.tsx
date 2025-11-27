@@ -26,8 +26,9 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
   const reg = (name: string) => register(name as never);
 
   // Entity type decides wording
-  const entityType = watch("company.entityType") as "LLC" | "C-Corp" | undefined;
-  const isCorp = entityType === "C-Corp";
+  const entityType = watch("company.entityType") as "LLC" | "C-Corp" | "S-Corp" | undefined;
+  const isCorp = entityType === "C-Corp" || entityType === "S-Corp";
+  const isSCorp = entityType === "S-Corp";
   const groupLabel = isCorp ? "accionistas" : "socios";
   const singleLabel = isCorp ? "Accionista" : "Socio";
   const heroTitle = isCorp ? "Datos de los accionistas" : "Datos de los socios";
@@ -54,6 +55,18 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
   }, 0);
 
   const remainingPercentage = 100 - totalPercentage;
+
+  // For S-Corp, automatically set all owners as US citizens/residents (required for SSN)
+  useEffect(() => {
+    if (isSCorp) {
+      Array.from({ length: ownersCount }).forEach((_, i) => {
+        const currentValue = w(`owners.${i}.isUsCitizen`) as "Yes" | "No" | undefined;
+        if (currentValue !== "Yes") {
+          setValue(`owners.${i}.isUsCitizen` as never, "Yes" as never);
+        }
+      });
+    }
+  }, [isSCorp, ownersCount, w, setValue]);
 
   // Handle passport file upload
   const handlePassportUpload = async (ownerIndex: number, file: File) => {
@@ -245,32 +258,41 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
                   />
                 </div>
 
-                {/* ¿Es ciudadano/residente de EE.UU.? */}
-                <div className="mt-4">
-                  <div className="label-lg mb-2">
-                    ¿El {singleLabel.toLowerCase()} es ciudadano o residente de los Estados Unidos?
-                  </div>
-                  <Controller
-                    name={residentKey as never}
-                    control={control}
-                    render={({ field }) => (
-                      <SegmentedToggle
-                        value={(field.value as string) ?? "No"}
-                        onChange={field.onChange}
-                        options={[
-                          { value: "Yes", label: "Sí" },
-                          { value: "No", label: "No" },
-                        ]}
-                        ariaLabel="Residencia en EE.UU."
-                        name={field.name}
-                      />
-                    )}
-                  />
-                </div>
-
-                {/* Conditional: Single SSN/EIN (US) or Passport (non-US) */}
-                {resident === "Yes" ? (
+                {/* ¿Es ciudadano/residente de EE.UU.? - Hidden for S-Corp since it's required */}
+                {!isSCorp && (
                   <div className="mt-4">
+                    <div className="label-lg mb-2">
+                      ¿El {singleLabel.toLowerCase()} es ciudadano o residente de los Estados Unidos?
+                    </div>
+                    <Controller
+                      name={residentKey as never}
+                      control={control}
+                      render={({ field }) => (
+                        <SegmentedToggle
+                          value={(field.value as string) ?? "No"}
+                          onChange={field.onChange}
+                          options={[
+                            { value: "Yes", label: "Sí" },
+                            { value: "No", label: "No" },
+                          ]}
+                          ariaLabel="Residencia en EE.UU."
+                          name={field.name}
+                        />
+                      )}
+                    />
+                  </div>
+                )}
+
+                {/* For S-Corp, always show SSN/EIN (required). For others, conditional based on resident status */}
+                {(isSCorp || resident === "Yes") ? (
+                  <div className="mt-4">
+                    {isSCorp && (
+                      <div className="mb-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-sm text-blue-800">
+                          <strong>Requisito S-Corp:</strong> Todos los accionistas deben tener SSN (Social Security Number) ya que las S-Corps solo pueden ser formadas por personas naturales con residencia permanente de USA o ciudadanos estadounidenses.
+                        </p>
+                      </div>
+                    )}
                     <Controller
                       name={`${base}.tin` as never} // store raw digits only
                       control={control}

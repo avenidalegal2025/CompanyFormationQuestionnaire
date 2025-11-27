@@ -47,12 +47,15 @@ export default function SegmentedToggle({
     }
   };
 
+  // Determine grid columns based on number of options
+  const gridCols = opts.length === 2 ? 'grid-cols-2' : opts.length === 3 ? 'grid-cols-3' : `grid-cols-${opts.length}`;
+  
   return (
     <div
       role="radiogroup"
       aria-label={ariaLabel}
       aria-labelledby={name}
-      className={`grid grid-cols-2 ${isYesNoToggle ? 'w-[200px]' : 'w-auto min-w-[320px]'} rounded-2xl border border-gray-300 overflow-hidden`}
+      className={`grid ${gridCols} ${isYesNoToggle ? 'w-[200px]' : 'w-auto min-w-[320px]'} rounded-2xl border border-gray-300 overflow-hidden`}
       onKeyDown={onKeyDown}
     >
       {opts.map((opt, idx) => {

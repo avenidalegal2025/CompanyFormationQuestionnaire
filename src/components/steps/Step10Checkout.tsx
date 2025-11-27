@@ -23,7 +23,7 @@ export default function Step10Checkout({ form, setStep, onSave, onNext, session,
   const formData = form.getValues();
   
   // Get entity type for agreement display
-  const entityType = formData.company?.entityType as 'LLC' | 'C-Corp' | undefined;
+  const entityType = formData.company?.entityType as 'LLC' | 'C-Corp' | 'S-Corp' | undefined;
   
   // Debug logging to understand what's happening
   console.log('Step10Checkout Debug:', {
@@ -55,7 +55,7 @@ export default function Step10Checkout({ form, setStep, onSave, onNext, session,
   
   // Get the formation state for display
   const formationState = formData.company?.formationState || 'Delaware';
-  const agreementName = entityType === 'C-Corp' ? 'Acuerdo de Accionistas' : 'Acuerdo Operativo';
+  const agreementName = (entityType === 'C-Corp' || entityType === 'S-Corp') ? 'Acuerdo de Accionistas' : 'Acuerdo Operativo';
 
   const handleStartCheckout = () => {
     setShowCheckout(true);

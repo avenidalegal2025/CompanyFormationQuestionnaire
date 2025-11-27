@@ -8,7 +8,7 @@ export const ProfileSchema = z.object({
 });
 
 /** ------------ Company (Step 2) ------------ */
-export const EntityTypeEnum = z.enum(["LLC", "C-Corp"]);
+export const EntityTypeEnum = z.enum(["LLC", "C-Corp", "S-Corp"]);
 
 /**
  * Helper: accept numbers typed as strings (e.g. "1,000")

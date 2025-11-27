@@ -15,7 +15,7 @@ const base = new Airtable({ apiKey: AIRTABLE_API_KEY }).base(AIRTABLE_BASE_ID);
 export interface AirtableFormationRecord {
   // Core Information
   'Company Name': string;
-  'Entity Type': 'LLC' | 'C-Corp';
+  'Entity Type': 'LLC' | 'C-Corp' | 'S-Corp';
   'Formation State': string;
   'Formation Status': 'Pending' | 'In Progress' | 'Completed' | 'Filed';
   'Customer Email': string;
@@ -339,7 +339,7 @@ export function mapQuestionnaireToAirtable(
   
   const entityType = company.entityType || 'LLC';
   const isLLC = entityType === 'LLC';
-  const isCorp = entityType === 'C-Corp';
+  const isCorp = entityType === 'C-Corp' || entityType === 'S-Corp';
   
   // Debug: Log address-related fields
   console.log('🏠 Address debug:', {
@@ -375,7 +375,7 @@ export function mapQuestionnaireToAirtable(
       ? '12550 Biscayne Blvd Ste 110, North Miami, FL 33181'
       : (company.address || company.addressLine1 || company.fullAddress || ''),
     'Business Purpose': company.businessPurpose || '',
-    'Number of Shares': isCorp ? (company.numberOfShares || 0) : undefined,
+    'Number of Shares': (isCorp || entityType === 'S-Corp') ? (company.numberOfShares || 0) : undefined,
     'Vault Path': vaultPath,
     
     // Phone & Contact

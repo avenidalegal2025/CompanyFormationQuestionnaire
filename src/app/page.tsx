@@ -295,7 +295,7 @@ function QuestionnaireContent() {
       { key: "step-summary",  label: "Resumen",        status: step === 4 ? "active" : step > 4 ? "done" : "todo" },
     ];
     if (wantsAgreement) {
-      const isCorp = entityType === "C-Corp";
+      const isCorp = entityType === "C-Corp" || entityType === "S-Corp";
       const t1 = "Dueños & Roles";
       const t2 = "Capital & Préstamos";
       const t3 = "Gobierno & Decisiones";
