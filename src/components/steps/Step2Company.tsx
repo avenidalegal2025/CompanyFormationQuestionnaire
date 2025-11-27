@@ -315,7 +315,7 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
         <div className="mt-12 pt-10 border-t border-gray-100">
           <div className="label-lg mb-2">Nombre de la empresa</div>
           <div className="flex items-center gap-[10px]">
-            <div className="w-[25%]">
+            <div className="w-[37.5%]">
               <Controller
                 name="company.companyNameBase"
                 control={control}
