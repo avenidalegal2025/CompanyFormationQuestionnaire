@@ -9,6 +9,7 @@
     "lint": "next lint",
     "setup-airtable": "ts-node --project tsconfig.scripts.json scripts/setup-airtable.ts",
     "create-airtable-table": "ts-node --project tsconfig.scripts.json scripts/create-airtable-table.ts",
+    "add-airtable-fields": "ts-node --project tsconfig.scripts.json scripts/add-airtable-fields.ts",
     "backfill-airtable": "ts-node --project tsconfig.scripts.json scripts/backfill-airtable.ts",
     "check-dynamo-company": "ts-node --project tsconfig.scripts.json scripts/check-dynamo-company.ts",
     "list-dynamo-companies": "ts-node --project tsconfig.scripts.json scripts/list-dynamo-companies.ts",
