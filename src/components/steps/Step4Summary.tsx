@@ -267,7 +267,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
               </div>
             )}
 
-            {(isCorp || entityType === "S-Corp") && companyData?.numberOfShares && (
+            {isCorp && companyData?.numberOfShares && (
               <div>
                 <span className="font-bold text-gray-700">Número de acciones:</span>
                 <p className="text-gray-900">{companyData.numberOfShares.toLocaleString()}</p>
