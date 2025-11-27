@@ -320,18 +320,118 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
           <div className="space-y-4">
             {Array.from({ length: ownersCount }).map((_, i) => {
               const owner = (ownersData[i] || {}) as {
+                ownerType?: "persona" | "empresa";
                 fullName?: string;
                 ownership?: number | string;
                 address?: string;
                 isUsCitizen?: string;
                 tin?: string;
                 passportImage?: string;
+                companyName?: string;
+                companyAddress?: string;
+                nestedOwnersCount?: number;
+                nestedOwners?: Array<{
+                  fullName?: string;
+                  address?: string;
+                  isUsCitizen?: string;
+                  tin?: string;
+                  passportImage?: string;
+                  passportS3Key?: string;
+                }>;
               };
+              const ownerType = owner?.ownerType || "persona";
+              const isEmpresa = ownerType === "empresa";
+              const nestedOwners = owner?.nestedOwners || [];
+              const nestedOwnersCount = owner?.nestedOwnersCount || 0;
+              const entityType = watch("company.entityType") as "LLC" | "C-Corp" | "S-Corp" | undefined;
+              const isSCorp = entityType === "S-Corp";
+              
               return (
                 <div key={i} className="bg-gray-50 rounded-lg p-4">
                   <h4 className="text-lg font-bold text-gray-900 mb-3">
                     {isCorp ? "Accionista" : "Socio"} {i + 1}
                   </h4>
+                  
+                  {/* Persona / Empresa Toggle - Only for LLC and C-Corp (not S-Corp) */}
+                  {!isSCorp && (
+                    <div className="mb-4">
+                      <span className="font-bold text-gray-700">Tipo:</span>
+                      {editingSection === "owners" ? (
+                        <Controller
+                          name={`owners.${i}.ownerType` as never}
+                          control={control}
+                          render={({ field }) => (
+                            <div className="mt-2">
+                              <SegmentedToggle
+                                value={(field.value as string) ?? "persona"}
+                                onChange={field.onChange}
+                                options={[
+                                  { value: "persona", label: "Persona" },
+                                  { value: "empresa", label: "Empresa" },
+                                ]}
+                                ariaLabel="Tipo de propietario"
+                                name={field.name}
+                              />
+                            </div>
+                          )}
+                        />
+                      ) : (
+                        <p className="text-gray-900">{ownerType === "empresa" ? "Empresa" : "Persona"}</p>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Ownership percentage - shown for both persona and empresa */}
+                  <div className="mb-4">
+                    <span className="font-bold text-gray-700">Porcentaje de propiedad:</span>
+                    {editingSection === "owners" ? (
+                      <Controller
+                        name={`owners.${i}.ownership` as never}
+                        control={control}
+                        render={({ field }) => {
+                          const currentTotal = Array.from({ length: ownersCount }).reduce((total: number, _, idx) => {
+                            if (idx === i) return total;
+                            const percentage = Number(watch(`owners.${idx}.ownership`));
+                            return total + (isNaN(percentage) ? 0 : percentage);
+                          }, 0);
+                          const currentValue = Number(field.value);
+                          const validCurrentValue = isNaN(currentValue) ? 0 : currentValue;
+                          const newTotal = currentTotal + validCurrentValue;
+                          const remaining = 100 - newTotal;
+                          return (
+                            <>
+                              <input 
+                                type="number" 
+                                min="0" 
+                                max="100" 
+                                className="input mt-1 w-full max-w-xs" 
+                                {...field} 
+                              />
+                              <div className="mt-1 text-sm">
+                                {remaining > 0 ? (
+                                  <span className="text-blue-600">
+                                    Faltan {remaining}% para completar 100%
+                                  </span>
+                                ) : remaining < 0 ? (
+                                  <span className="text-red-600">
+                                    Excede 100% por {Math.abs(remaining)}%
+                                  </span>
+                                ) : (
+                                  <span className="text-green-600">✓ Total: 100%</span>
+                                )}
+                              </div>
+                            </>
+                          );
+                        }}
+                      />
+                    ) : (
+                      <p className="text-gray-900">{owner?.ownership || 0}%</p>
+                    )}
+                  </div>
+                  
+                  {/* Persona fields */}
+                  {!isEmpresa && (
+                    <>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <span className="font-bold text-gray-700">Nombre completo:</span>
@@ -345,70 +445,6 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                         />
                       ) : (
                         <p className="text-gray-900">{owner?.fullName || "No especificado"}</p>
-                      )}
-                    </div>
-                    <div>
-                      <span className="font-bold text-gray-700">Porcentaje de propiedad:</span>
-                      {editingSection === "owners" ? (
-                        <Controller
-                          name={`owners.${i}.ownership` as never}
-                          control={control}
-                          render={({ field }) => {
-                            // Calculate current total excluding this field
-                            const currentTotal = Array.from({ length: ownersCount }).reduce((total: number, _, idx) => {
-                              if (idx === i) return total; // Skip current field
-                              const percentage = Number(watch(`owners.${idx}.ownership`));
-                              return total + (isNaN(percentage) ? 0 : percentage);
-                            }, 0);
-                            
-                            const currentValue = Number(field.value);
-                            const validCurrentValue = isNaN(currentValue) ? 0 : currentValue;
-                            const newTotal = currentTotal + validCurrentValue;
-                            const remaining = 100 - newTotal;
-                            
-                            return (
-                              <>
-                                <input 
-                                  type="number" 
-                                  min="0" 
-                                  max="100" 
-                                  className="input mt-1" 
-                                  {...field} 
-                                />
-                                <div className="mt-1 text-sm">
-                                  {remaining > 0 ? (
-                                    <span className="text-blue-600">
-                                      Faltan {remaining}% para completar 100%
-                                    </span>
-                                  ) : remaining < 0 ? (
-                                    <span className="text-red-600">
-                                      Excede 100% por {Math.abs(remaining)}%
-                                    </span>
-                                  ) : (
-                                    <span className="text-green-600">✓ Total: 100%</span>
-                                  )}
-                                </div>
-                              </>
-                            );
-                          }}
-                        />
-                      ) : (
-                        <>
-                          <p className="text-gray-900">{owner?.ownership || 0}%</p>
-                          <div className="mt-1 text-sm">
-                            {100 - totalOwnership > 0 ? (
-                              <span className="text-blue-600">
-                                Faltan {100 - totalOwnership}% para completar 100%
-                              </span>
-                            ) : 100 - totalOwnership < 0 ? (
-                              <span className="text-red-600">
-                                Excede 100% por {Math.abs(100 - totalOwnership)}%
-                              </span>
-                            ) : (
-                              <span className="text-green-600">✓ Total: 100%</span>
-                            )}
-                          </div>
-                        </>
                       )}
                     </div>
                     <div>
@@ -502,6 +538,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                       </div>
                     )}
                   </div>
+                  </>
                   )}
                   
                   {/* Empresa fields */}
