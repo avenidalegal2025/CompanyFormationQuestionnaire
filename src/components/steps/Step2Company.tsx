@@ -139,9 +139,8 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
   const handleSCorpModalCancel = () => {
     setShowSCorpModal(false);
     setPendingEntityType(null);
-    // Revert to previous entity type or default to LLC
-    const currentType = entityType || "LLC";
-    setValue("company.entityType", currentType as "LLC" | "C-Corp" | "S-Corp", { shouldValidate: true });
+    // Always default to LLC when cancel is clicked
+    setValue("company.entityType", "LLC", { shouldValidate: true });
   };
 
   // Build full company name from base + suffix
