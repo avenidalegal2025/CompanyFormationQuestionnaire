@@ -53,8 +53,22 @@ export const CompanySchema = z.object({
   forwardPhoneE164: z.string().optional(),
 });
 
+/** ------------ Nested Owner (for company owners) ------------ */
+export const NestedOwnerSchema = z.object({
+  fullName: z.string().optional(),
+  address: z.string().optional(),
+  tin: z.string().optional(), // Tax Identification Number (SSN/EIN)
+  isUsCitizen: z.enum(["Yes", "No"]).optional(),
+  passportImage: z.string().optional(), // For non-US citizens (filename only)
+  passportS3Key: z.string().optional(), // S3 key for uploaded passport
+});
+
 /** ------------ Owners (Step 3) ------------ */
 export const OwnerSchema = z.object({
+  // Persona or Empresa toggle
+  ownerType: z.enum(["persona", "empresa"]).optional(),
+  
+  // Persona fields (existing)
   fullName: z.string().optional(),
   ownership: z.union([z.number(), z.string()]).optional(),
   address: z.string().optional(),
@@ -62,6 +76,12 @@ export const OwnerSchema = z.object({
   isUsCitizen: z.enum(["Yes", "No"]).optional(),
   passportImage: z.string().optional(), // For non-US citizens (filename only)
   passportS3Key: z.string().optional(), // S3 key for uploaded passport (e.g., "tech-corp-abc/documents/ids/john-doe-passport-123.png")
+  
+  // Empresa fields (new)
+  companyName: z.string().optional(), // Nombre completo de la empresa
+  companyAddress: z.string().optional(), // Dirección de la empresa
+  nestedOwnersCount: z.number().int().min(1).max(6).optional(), // Number of owners with >15% participation
+  nestedOwners: z.array(NestedOwnerSchema).optional(), // Array of nested owners (1-6)
 });
 
 export const OwnersSchema = z.array(OwnerSchema);

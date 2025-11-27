@@ -43,31 +43,199 @@ export interface AirtableFormationRecord {
   'Owner 1 Address'?: string;
   'Owner 1 SSN'?: string;
   'Owner 1 ID Document URL'?: string;
+  'Owner 1 Type'?: 'persona' | 'empresa';
+  'Owner 1 Company Name'?: string;
+  'Owner 1 Company Address'?: string;
+  'Owner 1 Nested Owners Count'?: number;
+  'Owner 1 Nested Owner 1 Name'?: string;
+  'Owner 1 Nested Owner 1 Address'?: string;
+  'Owner 1 Nested Owner 1 SSN'?: string;
+  'Owner 1 Nested Owner 1 ID Document URL'?: string;
+  'Owner 1 Nested Owner 2 Name'?: string;
+  'Owner 1 Nested Owner 2 Address'?: string;
+  'Owner 1 Nested Owner 2 SSN'?: string;
+  'Owner 1 Nested Owner 2 ID Document URL'?: string;
+  'Owner 1 Nested Owner 3 Name'?: string;
+  'Owner 1 Nested Owner 3 Address'?: string;
+  'Owner 1 Nested Owner 3 SSN'?: string;
+  'Owner 1 Nested Owner 3 ID Document URL'?: string;
+  'Owner 1 Nested Owner 4 Name'?: string;
+  'Owner 1 Nested Owner 4 Address'?: string;
+  'Owner 1 Nested Owner 4 SSN'?: string;
+  'Owner 1 Nested Owner 4 ID Document URL'?: string;
+  'Owner 1 Nested Owner 5 Name'?: string;
+  'Owner 1 Nested Owner 5 Address'?: string;
+  'Owner 1 Nested Owner 5 SSN'?: string;
+  'Owner 1 Nested Owner 5 ID Document URL'?: string;
+  'Owner 1 Nested Owner 6 Name'?: string;
+  'Owner 1 Nested Owner 6 Address'?: string;
+  'Owner 1 Nested Owner 6 SSN'?: string;
+  'Owner 1 Nested Owner 6 ID Document URL'?: string;
   'Owner 2 Name'?: string;
   'Owner 2 Ownership %'?: number;
   'Owner 2 Address'?: string;
   'Owner 2 SSN'?: string;
   'Owner 2 ID Document URL'?: string;
+  'Owner 2 Type'?: 'persona' | 'empresa';
+  'Owner 2 Company Name'?: string;
+  'Owner 2 Company Address'?: string;
+  'Owner 2 Nested Owners Count'?: number;
+  'Owner 2 Nested Owner 1 Name'?: string;
+  'Owner 2 Nested Owner 1 Address'?: string;
+  'Owner 2 Nested Owner 1 SSN'?: string;
+  'Owner 2 Nested Owner 1 ID Document URL'?: string;
+  'Owner 2 Nested Owner 2 Name'?: string;
+  'Owner 2 Nested Owner 2 Address'?: string;
+  'Owner 2 Nested Owner 2 SSN'?: string;
+  'Owner 2 Nested Owner 2 ID Document URL'?: string;
+  'Owner 2 Nested Owner 3 Name'?: string;
+  'Owner 2 Nested Owner 3 Address'?: string;
+  'Owner 2 Nested Owner 3 SSN'?: string;
+  'Owner 2 Nested Owner 3 ID Document URL'?: string;
+  'Owner 2 Nested Owner 4 Name'?: string;
+  'Owner 2 Nested Owner 4 Address'?: string;
+  'Owner 2 Nested Owner 4 SSN'?: string;
+  'Owner 2 Nested Owner 4 ID Document URL'?: string;
+  'Owner 2 Nested Owner 5 Name'?: string;
+  'Owner 2 Nested Owner 5 Address'?: string;
+  'Owner 2 Nested Owner 5 SSN'?: string;
+  'Owner 2 Nested Owner 5 ID Document URL'?: string;
+  'Owner 2 Nested Owner 6 Name'?: string;
+  'Owner 2 Nested Owner 6 Address'?: string;
+  'Owner 2 Nested Owner 6 SSN'?: string;
+  'Owner 2 Nested Owner 6 ID Document URL'?: string;
   'Owner 3 Name'?: string;
   'Owner 3 Ownership %'?: number;
   'Owner 3 Address'?: string;
   'Owner 3 SSN'?: string;
   'Owner 3 ID Document URL'?: string;
+  'Owner 3 Type'?: 'persona' | 'empresa';
+  'Owner 3 Company Name'?: string;
+  'Owner 3 Company Address'?: string;
+  'Owner 3 Nested Owners Count'?: number;
+  'Owner 3 Nested Owner 1 Name'?: string;
+  'Owner 3 Nested Owner 1 Address'?: string;
+  'Owner 3 Nested Owner 1 SSN'?: string;
+  'Owner 3 Nested Owner 1 ID Document URL'?: string;
+  'Owner 3 Nested Owner 2 Name'?: string;
+  'Owner 3 Nested Owner 2 Address'?: string;
+  'Owner 3 Nested Owner 2 SSN'?: string;
+  'Owner 3 Nested Owner 2 ID Document URL'?: string;
+  'Owner 3 Nested Owner 3 Name'?: string;
+  'Owner 3 Nested Owner 3 Address'?: string;
+  'Owner 3 Nested Owner 3 SSN'?: string;
+  'Owner 3 Nested Owner 3 ID Document URL'?: string;
+  'Owner 3 Nested Owner 4 Name'?: string;
+  'Owner 3 Nested Owner 4 Address'?: string;
+  'Owner 3 Nested Owner 4 SSN'?: string;
+  'Owner 3 Nested Owner 4 ID Document URL'?: string;
+  'Owner 3 Nested Owner 5 Name'?: string;
+  'Owner 3 Nested Owner 5 Address'?: string;
+  'Owner 3 Nested Owner 5 SSN'?: string;
+  'Owner 3 Nested Owner 5 ID Document URL'?: string;
+  'Owner 3 Nested Owner 6 Name'?: string;
+  'Owner 3 Nested Owner 6 Address'?: string;
+  'Owner 3 Nested Owner 6 SSN'?: string;
+  'Owner 3 Nested Owner 6 ID Document URL'?: string;
   'Owner 4 Name'?: string;
   'Owner 4 Ownership %'?: number;
   'Owner 4 Address'?: string;
   'Owner 4 SSN'?: string;
   'Owner 4 ID Document URL'?: string;
+  'Owner 4 Type'?: 'persona' | 'empresa';
+  'Owner 4 Company Name'?: string;
+  'Owner 4 Company Address'?: string;
+  'Owner 4 Nested Owners Count'?: number;
+  'Owner 4 Nested Owner 1 Name'?: string;
+  'Owner 4 Nested Owner 1 Address'?: string;
+  'Owner 4 Nested Owner 1 SSN'?: string;
+  'Owner 4 Nested Owner 1 ID Document URL'?: string;
+  'Owner 4 Nested Owner 2 Name'?: string;
+  'Owner 4 Nested Owner 2 Address'?: string;
+  'Owner 4 Nested Owner 2 SSN'?: string;
+  'Owner 4 Nested Owner 2 ID Document URL'?: string;
+  'Owner 4 Nested Owner 3 Name'?: string;
+  'Owner 4 Nested Owner 3 Address'?: string;
+  'Owner 4 Nested Owner 3 SSN'?: string;
+  'Owner 4 Nested Owner 3 ID Document URL'?: string;
+  'Owner 4 Nested Owner 4 Name'?: string;
+  'Owner 4 Nested Owner 4 Address'?: string;
+  'Owner 4 Nested Owner 4 SSN'?: string;
+  'Owner 4 Nested Owner 4 ID Document URL'?: string;
+  'Owner 4 Nested Owner 5 Name'?: string;
+  'Owner 4 Nested Owner 5 Address'?: string;
+  'Owner 4 Nested Owner 5 SSN'?: string;
+  'Owner 4 Nested Owner 5 ID Document URL'?: string;
+  'Owner 4 Nested Owner 6 Name'?: string;
+  'Owner 4 Nested Owner 6 Address'?: string;
+  'Owner 4 Nested Owner 6 SSN'?: string;
+  'Owner 4 Nested Owner 6 ID Document URL'?: string;
   'Owner 5 Name'?: string;
   'Owner 5 Ownership %'?: number;
   'Owner 5 Address'?: string;
   'Owner 5 SSN'?: string;
   'Owner 5 ID Document URL'?: string;
+  'Owner 5 Type'?: 'persona' | 'empresa';
+  'Owner 5 Company Name'?: string;
+  'Owner 5 Company Address'?: string;
+  'Owner 5 Nested Owners Count'?: number;
+  'Owner 5 Nested Owner 1 Name'?: string;
+  'Owner 5 Nested Owner 1 Address'?: string;
+  'Owner 5 Nested Owner 1 SSN'?: string;
+  'Owner 5 Nested Owner 1 ID Document URL'?: string;
+  'Owner 5 Nested Owner 2 Name'?: string;
+  'Owner 5 Nested Owner 2 Address'?: string;
+  'Owner 5 Nested Owner 2 SSN'?: string;
+  'Owner 5 Nested Owner 2 ID Document URL'?: string;
+  'Owner 5 Nested Owner 3 Name'?: string;
+  'Owner 5 Nested Owner 3 Address'?: string;
+  'Owner 5 Nested Owner 3 SSN'?: string;
+  'Owner 5 Nested Owner 3 ID Document URL'?: string;
+  'Owner 5 Nested Owner 4 Name'?: string;
+  'Owner 5 Nested Owner 4 Address'?: string;
+  'Owner 5 Nested Owner 4 SSN'?: string;
+  'Owner 5 Nested Owner 4 ID Document URL'?: string;
+  'Owner 5 Nested Owner 5 Name'?: string;
+  'Owner 5 Nested Owner 5 Address'?: string;
+  'Owner 5 Nested Owner 5 SSN'?: string;
+  'Owner 5 Nested Owner 5 ID Document URL'?: string;
+  'Owner 5 Nested Owner 6 Name'?: string;
+  'Owner 5 Nested Owner 6 Address'?: string;
+  'Owner 5 Nested Owner 6 SSN'?: string;
+  'Owner 5 Nested Owner 6 ID Document URL'?: string;
   'Owner 6 Name'?: string;
   'Owner 6 Ownership %'?: number;
   'Owner 6 Address'?: string;
   'Owner 6 SSN'?: string;
   'Owner 6 ID Document URL'?: string;
+  'Owner 6 Type'?: 'persona' | 'empresa';
+  'Owner 6 Company Name'?: string;
+  'Owner 6 Company Address'?: string;
+  'Owner 6 Nested Owners Count'?: number;
+  'Owner 6 Nested Owner 1 Name'?: string;
+  'Owner 6 Nested Owner 1 Address'?: string;
+  'Owner 6 Nested Owner 1 SSN'?: string;
+  'Owner 6 Nested Owner 1 ID Document URL'?: string;
+  'Owner 6 Nested Owner 2 Name'?: string;
+  'Owner 6 Nested Owner 2 Address'?: string;
+  'Owner 6 Nested Owner 2 SSN'?: string;
+  'Owner 6 Nested Owner 2 ID Document URL'?: string;
+  'Owner 6 Nested Owner 3 Name'?: string;
+  'Owner 6 Nested Owner 3 Address'?: string;
+  'Owner 6 Nested Owner 3 SSN'?: string;
+  'Owner 6 Nested Owner 3 ID Document URL'?: string;
+  'Owner 6 Nested Owner 4 Name'?: string;
+  'Owner 6 Nested Owner 4 Address'?: string;
+  'Owner 6 Nested Owner 4 SSN'?: string;
+  'Owner 6 Nested Owner 4 ID Document URL'?: string;
+  'Owner 6 Nested Owner 5 Name'?: string;
+  'Owner 6 Nested Owner 5 Address'?: string;
+  'Owner 6 Nested Owner 5 SSN'?: string;
+  'Owner 6 Nested Owner 5 ID Document URL'?: string;
+  'Owner 6 Nested Owner 6 Name'?: string;
+  'Owner 6 Nested Owner 6 Address'?: string;
+  'Owner 6 Nested Owner 6 SSN'?: string;
+  'Owner 6 Nested Owner 6 ID Document URL'?: string;
   
   // Directors (C-Corp)
   'Directors Count'?: number;
@@ -420,19 +588,47 @@ export function mapQuestionnaireToAirtable(
   owners.forEach((owner: any, index: number) => {
     const num = index + 1;
     if (num <= 6) {
-      (record as any)[`Owner ${num} Name`] = owner.fullName;
+      const ownerType = owner.ownerType || 'persona';
+      (record as any)[`Owner ${num} Type`] = ownerType;
+      
       // Convert ownership from whole number (50) to decimal (0.5) for Airtable percent field
       (record as any)[`Owner ${num} Ownership %`] = owner.ownership ? Number(owner.ownership) / 100 : undefined;
-      (record as any)[`Owner ${num} Address`] = owner.address;
-      (record as any)[`Owner ${num} SSN`] = owner.tin; // TIN = Tax Identification Number (SSN/EIN)
       
-      // Store S3 key for passport document
-      // Airtable will display this as a clickable link using a formula field
-      // Format: https://yourapp.com/admin/passport/view?key={s3Key}
-      if (owner.passportS3Key) {
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://company-formation-questionnaire.vercel.app';
-        const viewUrl = `${baseUrl}/api/admin/passport/view?key=${encodeURIComponent(owner.passportS3Key)}`;
-        (record as any)[`Owner ${num} ID Document URL`] = viewUrl;
+      if (ownerType === 'persona') {
+        // Persona fields (existing)
+        (record as any)[`Owner ${num} Name`] = owner.fullName;
+        (record as any)[`Owner ${num} Address`] = owner.address;
+        (record as any)[`Owner ${num} SSN`] = owner.tin; // TIN = Tax Identification Number (SSN/EIN)
+        
+        // Store S3 key for passport document
+        if (owner.passportS3Key) {
+          const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://company-formation-questionnaire.vercel.app';
+          const viewUrl = `${baseUrl}/api/admin/passport/view?key=${encodeURIComponent(owner.passportS3Key)}`;
+          (record as any)[`Owner ${num} ID Document URL`] = viewUrl;
+        }
+      } else if (ownerType === 'empresa') {
+        // Empresa fields
+        (record as any)[`Owner ${num} Company Name`] = owner.companyName;
+        (record as any)[`Owner ${num} Company Address`] = owner.companyAddress;
+        (record as any)[`Owner ${num} Nested Owners Count`] = owner.nestedOwnersCount || 0;
+        
+        // Map nested owners (1-6)
+        const nestedOwners = owner.nestedOwners || [];
+        nestedOwners.forEach((nestedOwner: any, nestedIndex: number) => {
+          const nestedNum = nestedIndex + 1;
+          if (nestedNum <= 6) {
+            (record as any)[`Owner ${num} Nested Owner ${nestedNum} Name`] = nestedOwner.fullName;
+            (record as any)[`Owner ${num} Nested Owner ${nestedNum} Address`] = nestedOwner.address;
+            (record as any)[`Owner ${num} Nested Owner ${nestedNum} SSN`] = nestedOwner.tin;
+            
+            // Store S3 key for nested owner passport document
+            if (nestedOwner.passportS3Key) {
+              const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://company-formation-questionnaire.vercel.app';
+              const viewUrl = `${baseUrl}/api/admin/passport/view?key=${encodeURIComponent(nestedOwner.passportS3Key)}`;
+              (record as any)[`Owner ${num} Nested Owner ${nestedNum} ID Document URL`] = viewUrl;
+            }
+          }
+        });
       }
     }
   });

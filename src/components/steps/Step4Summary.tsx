@@ -6,6 +6,7 @@ import SSNEINInput from "@/components/SSNEINInput";
 import { Controller } from "react-hook-form";
 import HeroMiami1 from "@/components/HeroMiami1";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
+import SegmentedToggle from "@/components/SegmentedToggle";
 import type { StepProps } from "./types";
 import { Session } from "next-auth";
 import { handleSaveWithAuth } from "@/lib/auth-helpers";
@@ -501,6 +502,200 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                       </div>
                     )}
                   </div>
+                  )}
+                  
+                  {/* Empresa fields */}
+                  {isEmpresa && (
+                    <div className="space-y-4 mt-4">
+                      <div>
+                        <span className="font-bold text-gray-700">Nombre completo de la empresa:</span>
+                        {editingSection === "owners" ? (
+                          <Controller
+                            name={`owners.${i}.companyName` as never}
+                            control={control}
+                            render={({ field }) => (
+                              <input className="input mt-1" {...field} />
+                            )}
+                          />
+                        ) : (
+                          <p className="text-gray-900">{owner?.companyName || "No especificado"}</p>
+                        )}
+                      </div>
+                      <div>
+                        <span className="font-bold text-gray-700">Dirección de la empresa:</span>
+                        {editingSection === "owners" ? (
+                          <Controller
+                            name={`owners.${i}.companyAddress` as never}
+                            control={control}
+                            render={({ field }) => (
+                              <AddressAutocomplete
+                                placeholder="Escriba y seleccione la dirección"
+                                value={(field.value as string) ?? ""}
+                                onChangeText={field.onChange}
+                                onSelect={(addr) => field.onChange(addr.fullAddress)}
+                              />
+                            )}
+                          />
+                        ) : (
+                          <p className="text-gray-900">{owner?.companyAddress || "No especificado"}</p>
+                        )}
+                      </div>
+                      <div>
+                        <span className="font-bold text-gray-700">Número de socios con más de 15% de participación:</span>
+                        {editingSection === "owners" ? (
+                          <Controller
+                            name={`owners.${i}.nestedOwnersCount` as never}
+                            control={control}
+                            render={({ field }) => (
+                              <input 
+                                type="number" 
+                                min={1} 
+                                max={6} 
+                                className="input mt-1 w-24" 
+                                value={field.value ?? 1}
+                                onChange={(e) => {
+                                  const val = Number(e.target.value);
+                                  if (!isNaN(val) && val >= 1 && val <= 6) {
+                                    field.onChange(val);
+                                    // Initialize nested owners array if needed
+                                    const currentNested = watch(`owners.${i}.nestedOwners`) as any[] | undefined;
+                                    if (!currentNested || currentNested.length < val) {
+                                      const newNested = Array.from({ length: val }).map((_, idx) => 
+                                        currentNested?.[idx] || {}
+                                      );
+                                      setValue(`owners.${i}.nestedOwners` as never, newNested as never);
+                                    }
+                                  }
+                                }}
+                              />
+                            )}
+                          />
+                        ) : (
+                          <p className="text-gray-900">{nestedOwnersCount || 0}</p>
+                        )}
+                      </div>
+                      
+                      {/* Nested Owners */}
+                      {nestedOwnersCount > 0 && (
+                        <div className="mt-4 space-y-4 border-t pt-4">
+                          <h5 className="text-md font-semibold text-gray-800">Socios de la empresa:</h5>
+                          {Array.from({ length: nestedOwnersCount }).map((_, nestedIdx) => {
+                            const nestedOwner = nestedOwners[nestedIdx] || {};
+                            return (
+                              <div key={nestedIdx} className="bg-white rounded-lg p-4 border border-gray-200">
+                                <h6 className="text-sm font-semibold text-gray-700 mb-3">Socio {nestedIdx + 1}</h6>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div>
+                                    <span className="font-bold text-gray-700 text-sm">Nombre completo:</span>
+                                    {editingSection === "owners" ? (
+                                      <Controller
+                                        name={`owners.${i}.nestedOwners.${nestedIdx}.fullName` as never}
+                                        control={control}
+                                        render={({ field }) => (
+                                          <input className="input mt-1" {...field} />
+                                        )}
+                                      />
+                                    ) : (
+                                      <p className="text-gray-900 text-sm">{nestedOwner?.fullName || "No especificado"}</p>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <span className="font-bold text-gray-700 text-sm">Dirección:</span>
+                                    {editingSection === "owners" ? (
+                                      <Controller
+                                        name={`owners.${i}.nestedOwners.${nestedIdx}.address` as never}
+                                        control={control}
+                                        render={({ field }) => (
+                                          <AddressAutocomplete
+                                            placeholder="Escriba y seleccione la dirección"
+                                            value={(field.value as string) ?? ""}
+                                            onChangeText={field.onChange}
+                                            onSelect={(addr) => field.onChange(addr.fullAddress)}
+                                          />
+                                        )}
+                                      />
+                                    ) : (
+                                      <p className="text-gray-900 text-sm">{nestedOwner?.address || "No especificado"}</p>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <span className="font-bold text-gray-700 text-sm">Ciudadano/Residente de EE.UU.:</span>
+                                    {editingSection === "owners" ? (
+                                      <Controller
+                                        name={`owners.${i}.nestedOwners.${nestedIdx}.isUsCitizen` as never}
+                                        control={control}
+                                        render={({ field }) => (
+                                          <select
+                                            className="input mt-1"
+                                            value={(field.value as string) || "No"}
+                                            onChange={(e) => {
+                                              const val = e.target.value;
+                                              field.onChange(val);
+                                              if (val === "Yes") {
+                                                setValue(`owners.${i}.nestedOwners.${nestedIdx}.tin` as never, "" as never);
+                                              } else {
+                                                setValue(`owners.${i}.nestedOwners.${nestedIdx}.passportImage` as never, "" as never);
+                                              }
+                                            }}
+                                          >
+                                            <option value="No">No</option>
+                                            <option value="Yes">Sí</option>
+                                          </select>
+                                        )}
+                                      />
+                                    ) : (
+                                      <p className="text-gray-900 text-sm">{nestedOwner?.isUsCitizen === "Yes" ? "Sí" : "No"}</p>
+                                    )}
+                                  </div>
+                                  {(nestedOwner?.isUsCitizen ?? "No") === "Yes" ? (
+                                    <div>
+                                      <span className="font-bold text-gray-700 text-sm">SSN/EIN:</span>
+                                      {editingSection === "owners" ? (
+                                        <Controller
+                                          name={`owners.${i}.nestedOwners.${nestedIdx}.tin` as never}
+                                          control={control}
+                                          render={({ field }) => (
+                                            <SSNEINInput
+                                              value={(field.value as string) ?? ""}
+                                              onChange={(digits) => field.onChange(digits)}
+                                              label="SSN / EIN"
+                                              showLabel={false}
+                                            />
+                                          )}
+                                        />
+                                      ) : (
+                                        <p className="text-gray-900 text-sm">{String(obfuscateSSNEIN(nestedOwner?.tin, true))}</p>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <div>
+                                      <span className="font-bold text-gray-700 text-sm">Pasaporte:</span>
+                                      {editingSection === "owners" ? (
+                                        <Controller
+                                          name={`owners.${i}.nestedOwners.${nestedIdx}.passportImage` as never}
+                                          control={control}
+                                          render={({ field }) => (
+                                            <input 
+                                              type="file" 
+                                              accept="image/*" 
+                                              className="input mt-1" 
+                                              onChange={(e) => field.onChange(e.target.files?.[0]?.name || "")}
+                                            />
+                                          )}
+                                        />
+                                      ) : (
+                                        <p className="text-gray-900 text-sm">{nestedOwner?.passportImage ? "Archivo subido" : "No especificado"}</p>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}

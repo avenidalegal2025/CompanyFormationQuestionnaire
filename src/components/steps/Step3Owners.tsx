@@ -38,8 +38,10 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
   const [inputValue, setInputValue] = useState(ownersCount.toString());
   
   // State for passport uploads
-  const [uploadingPassport, setUploadingPassport] = useState<Record<number, boolean>>({});
-  const [uploadError, setUploadError] = useState<Record<number, string>>({});
+  const [uploadingPassport, setUploadingPassport] = useState<Record<string, boolean>>({});
+  const [uploadError, setUploadError] = useState<Record<string, string>>({});
+  // State for nested owners count input values
+  const [nestedInputValues, setNestedInputValues] = useState<Record<number, string>>({});
   
   console.log("Current ownersCount:", ownersCount);
 
@@ -47,6 +49,21 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
   useEffect(() => {
     setInputValue(ownersCount.toString());
   }, [ownersCount]);
+
+  // Sync nested input values when nested owners count changes
+  useEffect(() => {
+    Array.from({ length: ownersCount }).forEach((_, i) => {
+      const nestedCount = w(`owners.${i}.nestedOwnersCount`) as number | undefined;
+      if (nestedCount) {
+        setNestedInputValues(prev => {
+          if (prev[i] !== nestedCount.toString()) {
+            return { ...prev, [i]: nestedCount.toString() };
+          }
+          return prev;
+        });
+      }
+    });
+  }, [ownersCount, w]);
 
   // Calculate total percentage owned
   const totalPercentage = Array.from({ length: ownersCount }).reduce((total: number, _, i) => {
@@ -68,14 +85,20 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
     }
   }, [isSCorp, ownersCount, w, setValue]);
 
-  // Handle passport file upload
-  const handlePassportUpload = async (ownerIndex: number, file: File) => {
+  // Handle passport file upload (supports both regular owners and nested owners)
+  const handlePassportUpload = async (ownerIndex: number, file: File, nestedIndex?: number) => {
     try {
-      setUploadingPassport(prev => ({ ...prev, [ownerIndex]: true }));
-      setUploadError(prev => ({ ...prev, [ownerIndex]: '' }));
+      const uploadKey = nestedIndex !== undefined ? `${ownerIndex}-${nestedIndex}` : ownerIndex;
+      setUploadingPassport(prev => ({ ...prev, [uploadKey]: true }));
+      setUploadError(prev => ({ ...prev, [uploadKey]: '' }));
 
       // Get owner name and company name for the S3 path
-      const ownerName = w(`owners.${ownerIndex}.fullName`) as string || `Owner-${ownerIndex + 1}`;
+      let ownerName: string;
+      if (nestedIndex !== undefined) {
+        ownerName = w(`owners.${ownerIndex}.nestedOwners.${nestedIndex}.fullName`) as string || `Nested-Owner-${nestedIndex + 1}`;
+      } else {
+        ownerName = w(`owners.${ownerIndex}.fullName`) as string || `Owner-${ownerIndex + 1}`;
+      }
       const companyName = w('company.companyName') as string || 'Company';
       
       // Generate a temporary vault path (will be replaced with actual vault path after payment)
@@ -87,6 +110,9 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
       const formData = new FormData();
       formData.append('file', file);
       formData.append('ownerIndex', ownerIndex.toString());
+      if (nestedIndex !== undefined) {
+        formData.append('nestedIndex', nestedIndex.toString());
+      }
       formData.append('ownerName', ownerName);
       formData.append('vaultPath', vaultPath);
 
@@ -104,16 +130,23 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
       const result = await response.json();
       
       // Save S3 key to form data
-      setValue(`owners.${ownerIndex}.passportS3Key` as never, result.s3Key as never);
-      setValue(`owners.${ownerIndex}.passportImage` as never, result.fileName as never);
+      if (nestedIndex !== undefined) {
+        setValue(`owners.${ownerIndex}.nestedOwners.${nestedIndex}.passportS3Key` as never, result.s3Key as never);
+        setValue(`owners.${ownerIndex}.nestedOwners.${nestedIndex}.passportImage` as never, result.fileName as never);
+      } else {
+        setValue(`owners.${ownerIndex}.passportS3Key` as never, result.s3Key as never);
+        setValue(`owners.${ownerIndex}.passportImage` as never, result.fileName as never);
+      }
       
-      console.log(`✅ Passport uploaded for owner ${ownerIndex}:`, result.s3Key);
+      console.log(`✅ Passport uploaded for ${nestedIndex !== undefined ? `nested owner ${nestedIndex}` : `owner ${ownerIndex}`}:`, result.s3Key);
       
     } catch (error: any) {
       console.error('❌ Passport upload failed:', error);
-      setUploadError(prev => ({ ...prev, [ownerIndex]: error.message }));
+      const uploadKey = nestedIndex !== undefined ? `${ownerIndex}-${nestedIndex}` : ownerIndex;
+      setUploadError(prev => ({ ...prev, [uploadKey]: error.message }));
     } finally {
-      setUploadingPassport(prev => ({ ...prev, [ownerIndex]: false }));
+      const uploadKey = nestedIndex !== undefined ? `${ownerIndex}-${nestedIndex}` : ownerIndex;
+      setUploadingPassport(prev => ({ ...prev, [uploadKey]: false }));
     }
   };
 
@@ -196,6 +229,9 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
             const base = `owners.${i}`;
             const residentKey = `${base}.isUsCitizen`;
             const resident = w(residentKey) as "Yes" | "No" | undefined;
+            const ownerType = w(`${base}.ownerType`) as "persona" | "empresa" | undefined;
+            const isEmpresa = ownerType === "empresa";
+            const nestedOwnersCount = (w(`${base}.nestedOwnersCount`) as number | undefined) ?? 1;
 
             return (
               <div key={i} className="rounded-2xl border p-4">
@@ -203,42 +239,69 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
                   {singleLabel} {i + 1}
                 </h3>
 
-                {/* Name + %: name wider (~2/3), % narrower (~1/3) */}
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-4">
-                  <div>
-                    <label className="label">Nombre completo</label>
-                    <input className="input" {...reg(`${base}.fullName`)} />
-                  </div>
-
-                  <div>
-                    <label className="label">Porcentaje de propiedad (%)</label>
-                    <input
-                      type="number"
-                      min={0}
-                      step={1}
-                      className={`input ${totalPercentage > 100 ? 'border-red-500 bg-red-50' : ''}`}
-                      {...reg(`${base}.ownership`)}
-                      onChange={(e) => {
-                        const value = Number(e.target.value);
-                        (setValue as (name: string, value: unknown) => void)(`${base}.ownership`, value);
-                      }}
-                    />
-                    <div className="mt-1 text-sm">
-                      {remainingPercentage > 0 ? (
-                        <span className="text-blue-600">
-                          Faltan {remainingPercentage}% para completar 100%
-                        </span>
-                      ) : remainingPercentage < 0 ? (
-                        <span className="text-red-600 font-semibold">
-                          ⚠️ Excede 100% por {Math.abs(remainingPercentage)}%
-                        </span>
-                      ) : (
-                        <span className="text-green-600">
-                          ✓ Total: 100%
-                        </span>
-                      )}
+                {/* Persona / Empresa Toggle - Only for LLC and C-Corp (not S-Corp) */}
+                {!isSCorp && (
+                  <div className="mt-4">
+                    <div className="label-lg mb-2">
+                      ¿Es una persona o una empresa?
                     </div>
+                    <Controller
+                      name={`${base}.ownerType` as never}
+                      control={control}
+                      render={({ field }) => (
+                        <SegmentedToggle
+                          value={(field.value as string) ?? "persona"}
+                          onChange={field.onChange}
+                          options={[
+                            { value: "persona", label: "Persona" },
+                            { value: "empresa", label: "Empresa" },
+                          ]}
+                          ariaLabel="Tipo de propietario"
+                          name={field.name}
+                        />
+                      )}
+                    />
                   </div>
+                )}
+
+                {/* Ownership percentage - shown for both persona and empresa */}
+                <div className="mt-4">
+                  <label className="label">Porcentaje de propiedad (%)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    className={`input w-full max-w-xs ${totalPercentage > 100 ? 'border-red-500 bg-red-50' : ''}`}
+                    {...reg(`${base}.ownership`)}
+                    onChange={(e) => {
+                      const value = Number(e.target.value);
+                      (setValue as (name: string, value: unknown) => void)(`${base}.ownership`, value);
+                    }}
+                  />
+                  <div className="mt-1 text-sm">
+                    {remainingPercentage > 0 ? (
+                      <span className="text-blue-600">
+                        Faltan {remainingPercentage}% para completar 100%
+                      </span>
+                    ) : remainingPercentage < 0 ? (
+                      <span className="text-red-600 font-semibold">
+                        ⚠️ Excede 100% por {Math.abs(remainingPercentage)}%
+                      </span>
+                    ) : (
+                      <span className="text-green-600">
+                        ✓ Total: 100%
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Persona fields */}
+                {!isEmpresa && (
+                  <>
+                {/* Name */}
+                <div className="mt-4">
+                  <label className="label">Nombre completo</label>
+                  <input className="input" {...reg(`${base}.fullName`)} />
                 </div>
 
                 {/* Dirección completa (Google Places) */}
@@ -338,6 +401,198 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
                       </p>
                     )}
                     <p className="help">Arrastrar y soltar o buscar archivo.</p>
+                  </div>
+                )}
+                  </>
+                )}
+
+                {/* Empresa fields */}
+                {isEmpresa && (
+                  <div className="mt-4 space-y-6">
+                    {/* Company Name */}
+                    <div>
+                      <label className="label">Nombre completo de la empresa (incluye si es LLC, Inc, etc)</label>
+                      <input className="input" {...reg(`${base}.companyName`)} />
+                    </div>
+
+                    {/* Company Address */}
+                    <div>
+                      <label className="label">Dirección de la empresa</label>
+                      <Controller
+                        name={`${base}.companyAddress` as never}
+                        control={control}
+                        render={({ field }) => (
+                          <AddressAutocomplete
+                            placeholder="Escriba y seleccione la dirección"
+                            value={field.value as string}
+                            onChangeText={field.onChange}
+                            onSelect={(addr) => field.onChange(addr.fullAddress)}
+                          />
+                        )}
+                      />
+                    </div>
+
+                    {/* Number of nested owners */}
+                    <div>
+                      <label className="label">
+                        Selecciona el número de socios con más de 15% de participación en la empresa:
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={6}
+                        className="input w-full max-w-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        value={nestedInputValues[i] ?? nestedOwnersCount.toString()}
+                        placeholder="Ingrese número (1-6)"
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setNestedInputValues(prev => ({ ...prev, [i]: value }));
+                          
+                          if (value === "") {
+                            return;
+                          }
+                          
+                          const numValue = Number(value);
+                          if (!isNaN(numValue) && numValue >= 1 && numValue <= 6) {
+                            setValue(`${base}.nestedOwnersCount` as never, numValue as never);
+                            // Initialize nested owners array if needed
+                            const currentNested = w(`${base}.nestedOwners`) as any[] | undefined;
+                            if (!currentNested || currentNested.length < numValue) {
+                              const newNested = Array.from({ length: numValue }).map((_, idx) => 
+                                currentNested?.[idx] || {}
+                              );
+                              setValue(`${base}.nestedOwners` as never, newNested as never);
+                            }
+                          }
+                        }}
+                        onBlur={() => {
+                          if (!nestedInputValues[i] || Number(nestedInputValues[i]) < 1 || Number(nestedInputValues[i]) > 6) {
+                            setNestedInputValues(prev => ({ ...prev, [i]: "1" }));
+                            setValue(`${base}.nestedOwnersCount` as never, 1 as never);
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '-' || e.key === '.') {
+                            e.preventDefault();
+                          }
+                        }}
+                      />
+                      <p className="help">Define cuántos socios se muestran debajo (1 a 6).</p>
+                    </div>
+
+                    {/* Nested Owners */}
+                    <div className="mt-6 space-y-6 border-t pt-6">
+                      {Array.from({ length: nestedOwnersCount }).map((_, nestedIdx) => {
+                        const nestedBase = `${base}.nestedOwners.${nestedIdx}`;
+                        const nestedResidentKey = `${nestedBase}.isUsCitizen`;
+                        const nestedResident = w(nestedResidentKey) as "Yes" | "No" | undefined;
+
+                        return (
+                          <div key={nestedIdx} className="rounded-xl border border-gray-200 p-4 bg-gray-50">
+                            <h4 className="text-base font-semibold text-gray-800 mb-4">
+                              Nombre Completo del socio {nestedIdx + 1}
+                            </h4>
+
+                            {/* Nested Owner Name */}
+                            <div className="mb-4">
+                              <label className="label">Nombre Completo del socio {nestedIdx + 1}</label>
+                              <input className="input" {...reg(`${nestedBase}.fullName`)} />
+                            </div>
+
+                            {/* Nested Owner Address */}
+                            <div className="mb-4">
+                              <label className="label">Dirección</label>
+                              <Controller
+                                name={`${nestedBase}.address` as never}
+                                control={control}
+                                render={({ field }) => (
+                                  <AddressAutocomplete
+                                    placeholder="Escriba y seleccione la dirección"
+                                    value={field.value as string}
+                                    onChangeText={field.onChange}
+                                    onSelect={(addr) => field.onChange(addr.fullAddress)}
+                                  />
+                                )}
+                              />
+                            </div>
+
+                            {/* Citizenship/Residency Toggle */}
+                            <div className="mb-4">
+                              <div className="label-lg mb-2">
+                                ¿El accionista es ciudadano o residente de los Estados Unidos?
+                              </div>
+                              <Controller
+                                name={nestedResidentKey as never}
+                                control={control}
+                                render={({ field }) => (
+                                  <SegmentedToggle
+                                    value={(field.value as string) ?? "No"}
+                                    onChange={field.onChange}
+                                    options={[
+                                      { value: "Yes", label: "Sí" },
+                                      { value: "No", label: "No" },
+                                    ]}
+                                    ariaLabel="Residencia en EE.UU."
+                                    name={field.name}
+                                  />
+                                )}
+                              />
+                            </div>
+
+                            {/* SSN or Passport */}
+                            {nestedResident === "Yes" ? (
+                              <div>
+                                <Controller
+                                  name={`${nestedBase}.tin` as never}
+                                  control={control}
+                                  render={({ field }) => (
+                                    <SSNEINInput
+                                      value={(field.value as string) ?? ""}
+                                      onChange={(digits) => field.onChange(digits)}
+                                      label="SSN / EIN"
+                                    />
+                                  )}
+                                />
+                              </div>
+                            ) : (
+                              <div>
+                                <label className="label">
+                                  Subir imagen de pasaporte vigente (.png o .jpeg)
+                                </label>
+                                <input
+                                  type="file"
+                                  accept=".png,.jpg,.jpeg,.PNG,.JPG,.JPEG"
+                                  className="block w-full rounded-xl border border-dashed p-6 text-sm text-gray-600"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      handlePassportUpload(i, file, nestedIdx);
+                                    }
+                                  }}
+                                  disabled={uploadingPassport[`${i}-${nestedIdx}`]}
+                                />
+                                {uploadingPassport[`${i}-${nestedIdx}`] && (
+                                  <p className="mt-2 text-sm text-blue-600">
+                                    ⏳ Subiendo pasaporte...
+                                  </p>
+                                )}
+                                {uploadError[`${i}-${nestedIdx}`] && (
+                                  <p className="mt-2 text-sm text-red-600">
+                                    ❌ Error: {uploadError[`${i}-${nestedIdx}`]}
+                                  </p>
+                                )}
+                                {!!w(`${nestedBase}.passportS3Key`) && !uploadingPassport[`${i}-${nestedIdx}`] && !uploadError[`${i}-${nestedIdx}`] && (
+                                  <p className="mt-2 text-sm text-green-600">
+                                    ✅ Pasaporte subido correctamente
+                                  </p>
+                                )}
+                                <p className="help">Arrastrar y soltar o buscar archivo.</p>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
