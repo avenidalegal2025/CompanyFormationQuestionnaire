@@ -18,6 +18,8 @@
  *   npx ts-node --project tsconfig.scripts.json scripts/add-airtable-fields.ts
  */
 
+// Wrap in IIFE to avoid variable redeclaration conflicts
+(async () => {
 const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY;
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
 const TABLE_NAME = 'Formations';
@@ -215,5 +217,6 @@ async function addFields() {
   }
 }
 
-addFields();
+await addFields();
+})();
 
