@@ -591,15 +591,13 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
 
       {/* S-Corp Requirements Modal */}
       {showSCorpModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center">
           <div 
-            className="absolute inset-0 bg-black/80" 
+            className="absolute inset-0 bg-black/80 z-[9998]" 
             onClick={handleSCorpModalCancel}
-            style={{ zIndex: 2147483646 }}
           />
           <div 
-            className="relative w-full max-w-lg rounded-2xl bg-white shadow-xl p-6"
-            style={{ zIndex: 2147483647 }}
+            className="relative w-full max-w-lg rounded-2xl bg-white shadow-xl p-6 z-[9999]"
             role="dialog"
             aria-modal="true"
           >

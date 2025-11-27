@@ -65,6 +65,8 @@ export default function SegmentedToggle({
         const colors = active
           ? "bg-brand-600 text-white"
           : "bg-white text-gray-700 hover:bg-gray-50";
+        // Add border-right separator except for the last button
+        const separator = idx < opts.length - 1 ? "border-r border-gray-300" : "";
 
         return (
           <button
@@ -78,7 +80,7 @@ export default function SegmentedToggle({
             aria-checked={active}
             aria-label={opt.label}
             onClick={() => onChange(opt.value)}
-            className={`${base} ${colors}`}
+            className={`${base} ${colors} ${separator}`}
           >
             {opt.label}
           </button>
