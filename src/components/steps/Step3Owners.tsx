@@ -249,16 +249,18 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
                       name={`${base}.ownerType` as never}
                       control={control}
                       render={({ field }) => (
-                        <SegmentedToggle
-                          value={(field.value as string) ?? "persona"}
-                          onChange={field.onChange}
-                          options={[
-                            { value: "persona", label: "Persona" },
-                            { value: "empresa", label: "Empresa" },
-                          ]}
-                          ariaLabel="Tipo de propietario"
-                          name={field.name}
-                        />
+                        <div className="w-fit">
+                          <SegmentedToggle
+                            value={(field.value as string) ?? "persona"}
+                            onChange={field.onChange}
+                            options={[
+                              { value: "persona", label: "Persona" },
+                              { value: "empresa", label: "Empresa" },
+                            ]}
+                            ariaLabel="Tipo de propietario"
+                            name={field.name}
+                          />
+                        </div>
                       )}
                     />
                   </div>

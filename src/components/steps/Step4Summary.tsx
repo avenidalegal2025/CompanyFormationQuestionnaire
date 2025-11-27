@@ -361,7 +361,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                           name={`owners.${i}.ownerType` as never}
                           control={control}
                           render={({ field }) => (
-                            <div className="mt-2">
+                            <div className="mt-2 w-fit">
                               <SegmentedToggle
                                 value={(field.value as string) ?? "persona"}
                                 onChange={field.onChange}
