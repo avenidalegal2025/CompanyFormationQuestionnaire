@@ -414,7 +414,7 @@ export default function ClientPage() {
             </div>
 
             {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="card">
                 <div className="flex items-start">
                   <div className="flex-shrink-0">
@@ -426,7 +426,7 @@ export default function ClientPage() {
                   </div>
                 </div>
               </div>
-              
+
               <div className="card">
                 <div className="flex items-start">
                   <div className="flex-shrink-0">
@@ -438,7 +438,7 @@ export default function ClientPage() {
                   </div>
                 </div>
               </div>
-              
+
               <div className="card">
                 <div className="flex items-start">
                   <div className="flex-shrink-0">
@@ -447,6 +447,26 @@ export default function ClientPage() {
                   <div className="ml-4">
                     <h3 className="text-lg font-semibold text-gray-900 mb-1">Tiempo de procesamiento</h3>
                     <p className="text-sm text-gray-600">{processingTime}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* EIN in process info */}
+              <div className="card">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <DocumentTextIcon className="h-8 w-8 text-brand-600" />
+                  </div>
+                  <div className="ml-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                      EIN (Employer Identification Number)
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      Requisito expedido por el IRS necesario para abrir una cuenta de banco.
+                    </p>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Tiempo aproximado: 1 mes.
+                    </p>
                   </div>
                 </div>
               </div>
