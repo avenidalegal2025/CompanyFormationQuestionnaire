@@ -304,9 +304,9 @@ export default function DocumentsPage() {
                 </h3>
                 <div className="space-y-2">
                   {[
-                    { key: 'download', label: 'Descargar documento' },
-                    { key: 'sign', label: 'Firmar documento' },
-                    { key: 'upload', label: 'Subir documento firmado' },
+                    { key: 'download', label: 'Descargar' },
+                    { key: 'sign', label: 'Firmar' },
+                    { key: 'upload', label: 'Subir' },
                   ].map((step, index) => {
                     const isCompleted = activeTab === 'firmado';
                     
@@ -356,7 +356,7 @@ export default function DocumentsPage() {
                               <div className="h-4 w-4 border-2 border-gray-300 rounded" />
                             )}
                             <span className={isDownloaded || category === 'firmado' ? 'text-gray-600 line-through' : 'text-gray-900'}>
-                              1. Descargado
+                              1. Descargar
                             </span>
                           </div>
                           <div className="flex items-center space-x-2 text-sm">
@@ -366,7 +366,7 @@ export default function DocumentsPage() {
                               <div className="h-4 w-4 border-2 border-gray-300 rounded" />
                             )}
                             <span className={category === 'firmado' ? 'text-gray-600 line-through' : 'text-gray-900'}>
-                              2. Firmado
+                              2. Firmar
                             </span>
                           </div>
                           <div className="flex items-center space-x-2 text-sm">
@@ -376,7 +376,7 @@ export default function DocumentsPage() {
                               <div className="h-4 w-4 border-2 border-gray-300 rounded" />
                             )}
                             <span className={isSigned ? 'text-gray-600 line-through' : 'text-gray-900'}>
-                              3. Subido
+                              3. Subir
                             </span>
                           </div>
                         </div>
