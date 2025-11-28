@@ -9,10 +9,13 @@ import {
   CheckCircleIcon,
   ClockIcon,
   MagnifyingGlassIcon,
-  ArrowUpTrayIcon
+  ArrowUpTrayIcon,
+  PlusIcon
 } from '@heroicons/react/24/outline';
+import { useRouter } from 'next/navigation';
 
 export default function DocumentsPage() {
+  const router = useRouter();
   const [currentTab, setCurrentTab] = useState('documents');
   const [activeTab, setActiveTab] = useState<'firmado' | 'por-firmar' | 'en-proceso'>('por-firmar');
   const [searchTerm, setSearchTerm] = useState('');
@@ -21,6 +24,14 @@ export default function DocumentsPage() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState<{ [key: string]: boolean }>({});
   const [downloadedDocs, setDownloadedDocs] = useState<Set<string>>(new Set());
+
+  const handleNewCompany = () => {
+    // Clear all localStorage data to start fresh
+    localStorage.removeItem('questionnaireData');
+    localStorage.removeItem('selectedCompanyId');
+    // Redirect to questionnaire
+    router.push('/');
+  };
 
   useEffect(() => {
     // Get company data from localStorage
@@ -198,12 +209,13 @@ export default function DocumentsPage() {
                   <p className="text-sm text-gray-600 mt-1">{getCompanyDisplayName()}</p>
                 </div>
                 <div className="flex items-center space-x-4">
-                  <Link
-                    href="/"
-                    className="text-sm text-gray-600 hover:text-brand-600 transition-colors"
+                  <button
+                    onClick={handleNewCompany}
+                    className="btn btn-primary whitespace-nowrap"
                   >
-                    Volver al Cuestionario
-                  </Link>
+                    <PlusIcon className="h-5 w-5 mr-2" />
+                    Formar Empresa
+                  </button>
                 </div>
               </div>
             </div>

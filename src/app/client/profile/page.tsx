@@ -10,13 +10,24 @@ import {
   MapPinIcon,
   BuildingOfficeIcon,
   CalendarIcon,
-  PencilIcon
+  PencilIcon,
+  PlusIcon
 } from '@heroicons/react/24/outline';
+import { useRouter } from 'next/navigation';
 
 export default function ProfilePage() {
+  const router = useRouter();
   const [currentTab, setCurrentTab] = useState('profile');
   const [companyData, setCompanyData] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
+
+  const handleNewCompany = () => {
+    // Clear all localStorage data to start fresh
+    localStorage.removeItem('questionnaireData');
+    localStorage.removeItem('selectedCompanyId');
+    // Redirect to questionnaire
+    router.push('/');
+  };
 
   useEffect(() => {
     // Get company data from localStorage
@@ -101,12 +112,13 @@ export default function ProfilePage() {
                     <PencilIcon className="h-4 w-4 mr-2" />
                     {isEditing ? 'Cancelar' : 'Editar'}
                   </button>
-                  <Link
-                    href="/"
-                    className="text-gray-600 hover:text-gray-900 text-sm"
+                  <button
+                    onClick={handleNewCompany}
+                    className="btn btn-primary whitespace-nowrap"
                   >
-                    Volver al Cuestionario
-                  </Link>
+                    <PlusIcon className="h-5 w-5 mr-2" />
+                    Formar Empresa
+                  </button>
                 </div>
               </div>
             </div>

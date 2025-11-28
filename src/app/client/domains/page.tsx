@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import ClientNavigation from '@/components/ClientNavigation';
 import DomainPurchase from '@/components/DomainPurchase';
 import Link from 'next/link';
@@ -143,6 +144,16 @@ export default function DomainsPage() {
 
     return () => clearInterval(refreshInterval);
   }, [status, purchasedDomains]);
+
+  const router = useRouter();
+
+  const handleNewCompany = () => {
+    // Clear all localStorage data to start fresh
+    localStorage.removeItem('questionnaireData');
+    localStorage.removeItem('selectedCompanyId');
+    // Redirect to questionnaire
+    router.push('/');
+  };
 
   const getCompanyDisplayName = () => {
     if (!companyData?.company) return 'Mi Empresa';
@@ -481,12 +492,13 @@ export default function DomainsPage() {
                   <p className="text-sm text-gray-600">{getCompanyDisplayName()}</p>
                 </div>
                 <div className="flex items-center space-x-4">
-                  <Link
-                    href="/"
-                    className="text-gray-600 hover:text-gray-900 text-sm"
+                  <button
+                    onClick={handleNewCompany}
+                    className="btn btn-primary whitespace-nowrap"
                   >
-                    Volver al Cuestionario
-                  </Link>
+                    <PlusIcon className="h-5 w-5 mr-2" />
+                    Formar Empresa
+                  </button>
                 </div>
               </div>
             </div>

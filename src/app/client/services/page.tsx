@@ -174,6 +174,14 @@ export default function ServicesPage() {
   const [companyData, setCompanyData] = useState<any>(null);
   const router = useRouter();
 
+  const handleNewCompany = () => {
+    // Clear all localStorage data to start fresh
+    localStorage.removeItem('questionnaireData');
+    localStorage.removeItem('selectedCompanyId');
+    // Redirect to questionnaire
+    router.push('/');
+  };
+
   useEffect(() => {
     // Get company data from localStorage or API
     const savedData = localStorage.getItem('questionnaireData');
@@ -250,12 +258,13 @@ export default function ServicesPage() {
                   <p className="text-sm text-gray-600">{getCompanyDisplayName()}</p>
                 </div>
                 <div className="flex items-center space-x-4">
-                  <Link
-                    href="/"
-                    className="text-gray-600 hover:text-gray-900 text-sm"
+                  <button
+                    onClick={handleNewCompany}
+                    className="btn btn-primary whitespace-nowrap"
                   >
-                    Volver al Cuestionario
-                  </Link>
+                    <PlusIcon className="h-5 w-5 mr-2" />
+                    Formar Empresa
+                  </button>
                 </div>
               </div>
             </div>
