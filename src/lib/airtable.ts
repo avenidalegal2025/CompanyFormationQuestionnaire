@@ -500,6 +500,11 @@ export function mapQuestionnaireToAirtable(
     form8821?: string;
   }
 ): AirtableFormationRecord {
+  // Handle case where formData is null/undefined - use Stripe session metadata as fallback
+  if (!formData) {
+    console.warn('⚠️ formData is null/undefined, using Stripe session metadata as fallback');
+  }
+  
   const company = formData?.company || {};
   const owners = formData?.owners || [];
   const admin = formData?.admin || {}; // Admin contains wantAgreement, managersCount, and dynamic manager/director/officer fields

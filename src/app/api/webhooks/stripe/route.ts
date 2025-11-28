@@ -400,9 +400,15 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
     console.log(`✅ Document vault created at: ${vaultPath} with ${documents.length} documents`);
     
     // Step 7: Sync to Airtable CRM
-    if (formData) {
-      try {
-        console.log('📊 Syncing formation data to Airtable...');
+    // IMPORTANT: Always try to create Airtable record, even if formData is missing
+    // This ensures the company appears in the dashboard
+    try {
+      console.log('📊 Syncing formation data to Airtable...');
+      
+      if (!formData) {
+        console.warn('⚠️ WARNING: formData is missing, creating minimal Airtable record from Stripe session data');
+        console.warn('⚠️ This means some fields will be empty, but the company will still be visible in the dashboard');
+      }
       
       // Build document URLs (use signed versions when available, otherwise use original)
       // Prefer signedS3Key if it exists, otherwise fall back to s3Key
@@ -432,12 +438,21 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
       console.log('📋 All documents in array:', documents.map(d => ({ id: d.id, name: d.name, s3Key: d.s3Key })));
       
       // Map and create Airtable record
+      // If formData is missing, mapQuestionnaireToAirtable will use Stripe session metadata as fallback
       const airtableRecord = mapQuestionnaireToAirtable(
-        formData,
+        formData || {}, // Pass empty object if formData is null
         session,
         vaultPath,
         documentUrls
       );
+      
+      console.log('📊 Airtable record being created:', {
+        'Company Name': airtableRecord['Company Name'],
+        'Customer Email': airtableRecord['Customer Email'],
+        'Entity Type': airtableRecord['Entity Type'],
+        'Formation State': airtableRecord['Formation State'],
+        'Stripe Payment ID': airtableRecord['Stripe Payment ID'],
+      });
       
       console.log('📊 Airtable record tax form URLs:', {
         'SS-4 URL': airtableRecord['SS-4 URL'] || 'EMPTY',
@@ -446,14 +461,18 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
       });
       
       const airtableRecordId = await createFormationRecord(airtableRecord);
-      console.log(`✅ Airtable record created: ${airtableRecordId}`);
+      console.log(`✅ Airtable record created successfully: ${airtableRecordId}`);
+      console.log(`✅ Company "${airtableRecord['Company Name']}" is now visible in the dashboard`);
       
-      } catch (airtableError: any) {
-        console.error('❌ Failed to sync to Airtable:', airtableError.message);
-        console.error('❌ Airtable error stack:', airtableError.stack);
-        console.error('❌ Airtable error details:', JSON.stringify(airtableError, null, 2));
-        // Don't fail the entire process if Airtable sync fails
-      }
+    } catch (airtableError: any) {
+      console.error('❌ CRITICAL: Failed to sync to Airtable:', airtableError.message);
+      console.error('❌ Airtable error stack:', airtableError.stack);
+      console.error('❌ Airtable error details:', JSON.stringify(airtableError, null, 2));
+      console.error('❌ This means the company will NOT appear in the client dashboard');
+      console.error('❌ Company name:', session.metadata?.companyName || 'Unknown');
+      console.error('❌ Customer email:', session.customer_details?.email || session.customer_email || 'Unknown');
+      console.error('❌ Stripe Payment ID:', session.id);
+      // Don't fail the entire process if Airtable sync fails, but log it prominently
     }
     
   } catch (vaultError) {
