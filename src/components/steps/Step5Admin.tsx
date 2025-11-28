@@ -97,7 +97,7 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
         setValue("admin.managersCount", ownersCount, { shouldValidate: false });
       }
       
-      // Verify all managers have names (they should be auto-populated from owners)
+      // Verify all managers have names (they should be auto-populated from owners when "Yes")
       const missingManagers = Array.from({ length: Math.min(ownersCount, 6) }).some((_, idx) => {
         const managerName = watch(fp(`admin.manager${idx + 1}Name`)) as string;
         const ownerName = watch(fp(`owners.${idx}.fullName`)) as string;
@@ -159,6 +159,7 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
   }, [entityType, officersAllOwners, officersCount, watch, setValue]);
 
   // Auto-populate managers from owners when "Todos los socios son gerentes" is Yes
+  // This happens in the background - no input fields are shown
   useEffect(() => {
     if (entityType === "LLC") {
       const currentManagersAllOwners = watch("admin.managersAllOwners");
@@ -179,7 +180,7 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
           setValue("admin.managersCount", ownersCount, { shouldValidate: false });
         }
         
-        // Auto-populate each manager's name and address from corresponding owner
+        // Auto-populate each manager's name and address from corresponding owner (in background)
         Array.from({ length: Math.min(ownersCount, 6) }).forEach((_, idx) => {
           const ownerName = watch(fp(`owners.${idx}.fullName`)) as string;
           const ownerAddress = watch(fp(`owners.${idx}.address`)) as string;
@@ -206,6 +207,114 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
     watch("ownersCount"),
     watch("admin.managersAllOwners"),
     // Watch all owner fields to update managers when owners change
+    ...Array.from({ length: 6 }).flatMap((_, idx) => [
+      watch(fp(`owners.${idx}.fullName`)),
+      watch(fp(`owners.${idx}.address`)),
+      watch(fp(`owners.${idx}.city`)),
+      watch(fp(`owners.${idx}.state`)),
+      watch(fp(`owners.${idx}.zipCode`)),
+    ]),
+    watch,
+    setValue
+  ]);
+
+  // Auto-populate directors from owners when "Todos los accionistas son directores" is Yes
+  // This happens in the background - no input fields are shown
+  useEffect(() => {
+    if (entityType === "C-Corp" || entityType === "S-Corp") {
+      const currentDirectorsAllOwners = watch("admin.directorsAllOwners");
+      const isAllOwnersDirectors = currentDirectorsAllOwners === "Yes" || currentDirectorsAllOwners === undefined;
+      
+      if (isAllOwnersDirectors) {
+        if (currentDirectorsAllOwners === undefined) {
+          setValue("admin.directorsAllOwners", "Yes", { shouldValidate: false });
+        }
+        
+        const ownersCount = watch("ownersCount") || 1;
+        const currentDirectorsCount = watch("admin.directorsCount");
+        
+        if (currentDirectorsCount !== ownersCount) {
+          setValue("admin.directorsCount", ownersCount, { shouldValidate: false });
+        }
+        
+        // Auto-populate each director's name and address from corresponding owner (in background)
+        Array.from({ length: Math.min(ownersCount, 6) }).forEach((_, idx) => {
+          const ownerName = watch(fp(`owners.${idx}.fullName`)) as string;
+          const ownerAddress = watch(fp(`owners.${idx}.address`)) as string;
+          const ownerCity = watch(fp(`owners.${idx}.city`)) as string;
+          const ownerState = watch(fp(`owners.${idx}.state`)) as string;
+          const ownerZipCode = watch(fp(`owners.${idx}.zipCode`)) as string;
+          
+          setValue(fp(`admin.director${idx + 1}Name`), ownerName || "", { shouldValidate: false });
+          
+          const fullOwnerAddress = ownerAddress || 
+            (ownerCity || ownerState || ownerZipCode 
+              ? [ownerAddress, ownerCity, ownerState, ownerZipCode].filter(Boolean).join(", ")
+              : "");
+          setValue(fp(`admin.director${idx + 1}Address`), fullOwnerAddress, { shouldValidate: false });
+        });
+      }
+    }
+  }, [
+    entityType,
+    directorsAllOwners,
+    watch("ownersCount"),
+    watch("admin.directorsAllOwners"),
+    // Watch all owner fields to update directors when owners change
+    ...Array.from({ length: 6 }).flatMap((_, idx) => [
+      watch(fp(`owners.${idx}.fullName`)),
+      watch(fp(`owners.${idx}.address`)),
+      watch(fp(`owners.${idx}.city`)),
+      watch(fp(`owners.${idx}.state`)),
+      watch(fp(`owners.${idx}.zipCode`)),
+    ]),
+    watch,
+    setValue
+  ]);
+
+  // Auto-populate officers from owners when "Todos los accionistas son oficiales" is Yes
+  // This happens in the background - no input fields are shown
+  useEffect(() => {
+    if (entityType === "C-Corp" || entityType === "S-Corp") {
+      const currentOfficersAllOwners = watch("admin.officersAllOwners");
+      const isAllOwnersOfficers = currentOfficersAllOwners === "Yes" || currentOfficersAllOwners === undefined;
+      
+      if (isAllOwnersOfficers) {
+        if (currentOfficersAllOwners === undefined) {
+          setValue("admin.officersAllOwners", "Yes", { shouldValidate: false });
+        }
+        
+        const ownersCount = watch("ownersCount") || 1;
+        const currentOfficersCount = watch("admin.officersCount");
+        
+        if (currentOfficersCount !== ownersCount) {
+          setValue("admin.officersCount", ownersCount, { shouldValidate: false });
+        }
+        
+        // Auto-populate each officer's name and address from corresponding owner (in background)
+        Array.from({ length: Math.min(ownersCount, 6) }).forEach((_, idx) => {
+          const ownerName = watch(fp(`owners.${idx}.fullName`)) as string;
+          const ownerAddress = watch(fp(`owners.${idx}.address`)) as string;
+          const ownerCity = watch(fp(`owners.${idx}.city`)) as string;
+          const ownerState = watch(fp(`owners.${idx}.state`)) as string;
+          const ownerZipCode = watch(fp(`owners.${idx}.zipCode`)) as string;
+          
+          setValue(fp(`admin.officer${idx + 1}Name`), ownerName || "", { shouldValidate: false });
+          
+          const fullOwnerAddress = ownerAddress || 
+            (ownerCity || ownerState || ownerZipCode 
+              ? [ownerAddress, ownerCity, ownerState, ownerZipCode].filter(Boolean).join(", ")
+              : "");
+          setValue(fp(`admin.officer${idx + 1}Address`), fullOwnerAddress, { shouldValidate: false });
+        });
+      }
+    }
+  }, [
+    entityType,
+    officersAllOwners,
+    watch("ownersCount"),
+    watch("admin.officersAllOwners"),
+    // Watch all owner fields to update officers when owners change
     ...Array.from({ length: 6 }).flatMap((_, idx) => [
       watch(fp(`owners.${idx}.fullName`)),
       watch(fp(`owners.${idx}.address`)),
@@ -275,12 +384,11 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
                       value={(field.value as string) ?? "Yes"}
                       onChange={(value) => {
                         field.onChange(value);
-                        // Immediately set managersCount when "Yes" is selected
                         if (value === "Yes") {
                           const ownersCount = watch("ownersCount") || 1;
                           setValue("admin.managersCount", ownersCount, { shouldValidate: false });
                           
-                          // Immediately populate manager names and addresses
+                          // Auto-populate manager names and addresses from owners (in background)
                           Array.from({ length: Math.min(ownersCount, 6) }).forEach((_, idx) => {
                             const ownerName = watch(fp(`owners.${idx}.fullName`)) as string;
                             const ownerAddress = watch(fp(`owners.${idx}.address`)) as string;
@@ -297,8 +405,14 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
                             setValue(fp(`admin.manager${idx + 1}Address`), fullOwnerAddress, { shouldValidate: false });
                           });
                         } else {
-                          // Clear managersCount when "No" is selected
+                          // Clear managersCount and manager data when "No" is selected
+                          // This ensures input fields are empty (not auto-filled)
                           setValue("admin.managersCount", undefined, { shouldValidate: false });
+                          // Clear all manager names and addresses
+                          Array.from({ length: 6 }).forEach((_, idx) => {
+                            setValue(fp(`admin.manager${idx + 1}Name`), "", { shouldValidate: false });
+                            setValue(fp(`admin.manager${idx + 1}Address`), "", { shouldValidate: false });
+                          });
                         }
                       }}
                       options={[
@@ -316,7 +430,7 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
             {managersAllOwners === "Yes" && (
               <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-sm text-blue-800">
-                  ✅ Los gerentes se configurarán automáticamente con los mismos datos de los socios.
+                  Todos los socios serán gerentes.
                 </p>
                 <p className="text-sm text-blue-700 mt-2">
                   Número de gerentes: <strong>{watch("ownersCount") || 1}</strong>
@@ -427,7 +541,39 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
                 render={({ field }) => (
                   <SegmentedToggle
                     value={(field.value as string) ?? "Yes"}
-                    onChange={field.onChange}
+                    onChange={(value) => {
+                      field.onChange(value);
+                      if (value === "Yes") {
+                        const ownersCount = watch("ownersCount") || 1;
+                        setValue("admin.directorsCount", ownersCount, { shouldValidate: false });
+                        
+                        // Auto-populate director names and addresses from owners (in background)
+                        Array.from({ length: Math.min(ownersCount, 6) }).forEach((_, idx) => {
+                          const ownerName = watch(fp(`owners.${idx}.fullName`)) as string;
+                          const ownerAddress = watch(fp(`owners.${idx}.address`)) as string;
+                          const ownerCity = watch(fp(`owners.${idx}.city`)) as string;
+                          const ownerState = watch(fp(`owners.${idx}.state`)) as string;
+                          const ownerZipCode = watch(fp(`owners.${idx}.zipCode`)) as string;
+                          
+                          setValue(fp(`admin.director${idx + 1}Name`), ownerName || "", { shouldValidate: false });
+                          
+                          const fullOwnerAddress = ownerAddress || 
+                            (ownerCity || ownerState || ownerZipCode 
+                              ? [ownerAddress, ownerCity, ownerState, ownerZipCode].filter(Boolean).join(", ")
+                              : "");
+                          setValue(fp(`admin.director${idx + 1}Address`), fullOwnerAddress, { shouldValidate: false });
+                        });
+                      } else {
+                        // Clear directorsCount and director data when "No" is selected
+                        // This ensures input fields are empty (not auto-filled)
+                        setValue("admin.directorsCount", undefined, { shouldValidate: false });
+                        // Clear all director names and addresses
+                        Array.from({ length: 6 }).forEach((_, idx) => {
+                          setValue(fp(`admin.director${idx + 1}Name`), "", { shouldValidate: false });
+                          setValue(fp(`admin.director${idx + 1}Address`), "", { shouldValidate: false });
+                        });
+                      }
+                    }}
                     options={[
                       { value: "Yes", label: "Sí" },
                       { value: "No", label: "No" },
@@ -501,7 +647,39 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
                 render={({ field }) => (
                   <SegmentedToggle
                     value={(field.value as string) ?? "Yes"}
-                    onChange={field.onChange}
+                    onChange={(value) => {
+                      field.onChange(value);
+                      if (value === "Yes") {
+                        const ownersCount = watch("ownersCount") || 1;
+                        setValue("admin.officersCount", ownersCount, { shouldValidate: false });
+                        
+                        // Auto-populate officer names and addresses from owners (in background)
+                        Array.from({ length: Math.min(ownersCount, 6) }).forEach((_, idx) => {
+                          const ownerName = watch(fp(`owners.${idx}.fullName`)) as string;
+                          const ownerAddress = watch(fp(`owners.${idx}.address`)) as string;
+                          const ownerCity = watch(fp(`owners.${idx}.city`)) as string;
+                          const ownerState = watch(fp(`owners.${idx}.state`)) as string;
+                          const ownerZipCode = watch(fp(`owners.${idx}.zipCode`)) as string;
+                          
+                          setValue(fp(`admin.officer${idx + 1}Name`), ownerName || "", { shouldValidate: false });
+                          
+                          const fullOwnerAddress = ownerAddress || 
+                            (ownerCity || ownerState || ownerZipCode 
+                              ? [ownerAddress, ownerCity, ownerState, ownerZipCode].filter(Boolean).join(", ")
+                              : "");
+                          setValue(fp(`admin.officer${idx + 1}Address`), fullOwnerAddress, { shouldValidate: false });
+                        });
+                      } else {
+                        // Clear officersCount and officer data when "No" is selected
+                        // This ensures input fields are empty (not auto-filled)
+                        setValue("admin.officersCount", undefined, { shouldValidate: false });
+                        // Clear all officer names and addresses
+                        Array.from({ length: 6 }).forEach((_, idx) => {
+                          setValue(fp(`admin.officer${idx + 1}Name`), "", { shouldValidate: false });
+                          setValue(fp(`admin.officer${idx + 1}Address`), "", { shouldValidate: false });
+                        });
+                      }
+                    }}
                     options={[
                       { value: "Yes", label: "Sí" },
                       { value: "No", label: "No" },
