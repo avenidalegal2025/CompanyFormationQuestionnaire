@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import ClientNavigation from '@/components/ClientNavigation';
+import CompanySwitcher from '@/components/CompanySwitcher';
 import VoiceCaller from '@/components/VoiceCaller';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   CheckCircleIcon,
   ClockIcon,
@@ -11,7 +13,8 @@ import {
   ShoppingBagIcon,
   ExclamationTriangleIcon,
   PhoneIcon,
-  GlobeAltIcon
+  GlobeAltIcon,
+  PlusIcon
 } from '@heroicons/react/24/outline';
 
 const LATAM_COUNTRIES = [
@@ -47,8 +50,11 @@ function hasOwnerWithSSN(owners: any[] | undefined): boolean {
 }
 
 export default function ClientPage() {
+  const router = useRouter();
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [companyData, setCompanyData] = useState<any>(null);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string>('');
   const [businessPhone, setBusinessPhone] = useState<{ phoneNumber: string; forwardToE164: string } | null>(null);
   const [hasUsPhone, setHasUsPhone] = useState<boolean>(false);
   const [cc, setCc] = useState('+52');
@@ -61,8 +67,35 @@ export default function ClientPage() {
   const [loadingDocuments, setLoadingDocuments] = useState(true);
   const e164 = `${cc}${localNum.replace(/[^\d]/g, '')}`;
 
+  const handleNewCompany = () => {
+    // Clear all localStorage data to start fresh
+    localStorage.removeItem('questionnaireData');
+    localStorage.removeItem('selectedCompanyId');
+    // Redirect to questionnaire
+    router.push('/');
+  };
+
+  const handleCompanyChange = (companyId: string) => {
+    setSelectedCompanyId(companyId);
+    localStorage.setItem('selectedCompanyId', companyId);
+    // TODO: Fetch company data from API based on companyId
+    // For now, we'll still use localStorage but this should be updated
+    // to fetch from Airtable or DynamoDB
+    window.location.reload(); // Temporary: reload to refresh data
+  };
+
   useEffect(() => {
-    // Get company data from localStorage
+    // Get user email from localStorage
+    const email = localStorage.getItem('userEmail') || '';
+    setUserEmail(email);
+
+    // Get selected company ID from localStorage
+    const savedCompanyId = localStorage.getItem('selectedCompanyId');
+    if (savedCompanyId) {
+      setSelectedCompanyId(savedCompanyId);
+    }
+
+    // Get company data from localStorage (for backward compatibility)
     const savedData = localStorage.getItem('questionnaireData');
     if (savedData) {
       try {
@@ -84,7 +117,7 @@ export default function ClientPage() {
 
     // Fetch real documents from API
     fetchDocuments();
-  }, []);
+  }, [selectedCompanyId]);
 
   const fetchDocuments = async () => {
     try {
@@ -236,12 +269,20 @@ export default function ClientPage() {
                   <p className="text-sm text-gray-600 mt-1">{getCompanyDisplayName()}</p>
                 </div>
                 <div className="flex items-center space-x-4">
-                  <Link
-                    href="/"
-                    className="text-sm text-gray-600 hover:text-brand-600 transition-colors"
+                  {userEmail && (
+                    <CompanySwitcher
+                      userEmail={userEmail}
+                      selectedCompanyId={selectedCompanyId}
+                      onCompanyChange={handleCompanyChange}
+                    />
+                  )}
+                  <button
+                    onClick={handleNewCompany}
+                    className="btn btn-primary flex items-center space-x-2"
                   >
-                    Volver al Cuestionario
-                  </Link>
+                    <PlusIcon className="h-5 w-5" />
+                    <span>Formar Empresa</span>
+                  </button>
                 </div>
               </div>
             </div>

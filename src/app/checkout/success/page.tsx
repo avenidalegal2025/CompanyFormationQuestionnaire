@@ -19,8 +19,22 @@ function CheckoutSuccessContent() {
 
   useEffect(() => {
     if (sessionId) {
-      // Here you would typically verify the session with your backend
-      // and update your database with the completed order
+      // Fetch session email and save to localStorage
+      const fetchSessionEmail = async () => {
+        try {
+          const response = await fetch(`/api/session/email?session_id=${sessionId}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.email) {
+              localStorage.setItem('userEmail', data.email);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching session email:', error);
+        }
+      };
+
+      fetchSessionEmail();
       
       // Set a flag in localStorage to indicate payment completion
       if (typeof window !== 'undefined') {

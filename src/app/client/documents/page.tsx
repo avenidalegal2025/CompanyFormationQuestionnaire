@@ -6,19 +6,16 @@ import Link from 'next/link';
 import {
   DocumentTextIcon,
   ArrowDownTrayIcon,
-  EyeIcon,
   CheckCircleIcon,
   ClockIcon,
-  ExclamationTriangleIcon,
   MagnifyingGlassIcon,
-  FunnelIcon,
   ArrowUpTrayIcon
 } from '@heroicons/react/24/outline';
 
 export default function DocumentsPage() {
   const [currentTab, setCurrentTab] = useState('documents');
+  const [activeTab, setActiveTab] = useState<'firmado' | 'por-firmar' | 'en-proceso'>('por-firmar');
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
   const [companyData, setCompanyData] = useState<any>(null);
   const [documents, setDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -191,32 +188,39 @@ export default function DocumentsPage() {
     }
   };
 
+  // Categorize documents into three states
+  const categorizeDocument = (doc: any) => {
+    // Firmado: has signedS3Key OR status is 'signed'
+    if (doc.signedS3Key || doc.status === 'signed') {
+      return 'firmado';
+    }
+    
+    // Por firmar: status is 'generated' or 'pending_signature' (needs user action)
+    if (doc.status === 'generated' || doc.status === 'pending_signature') {
+      return 'por-firmar';
+    }
+    
+    // En proceso: status is 'template' or 'processing' (nothing for user to do)
+    if (doc.status === 'template' || doc.status === 'processing') {
+      return 'en-proceso';
+    }
+    
+    // Default to 'por-firmar' for unknown statuses
+    return 'por-firmar';
+  };
+
   const filteredDocuments = documents.filter(doc => {
     const matchesSearch = doc.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (doc.description && doc.description.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    // Map document statuses to filter categories
-    if (statusFilter === 'all') {
-      return matchesSearch;
-    }
-    
-    // Map statuses to filter categories
-    const isCompleted = doc.status === 'signed' || doc.status === 'completed';
-    const isProcessing = doc.status === 'generated' || doc.status === 'processing';
-    const isPending = doc.status === 'pending' || doc.status === 'pending_signature' || doc.status === 'template';
-    
-    if (statusFilter === 'completed' && isCompleted) return matchesSearch;
-    if (statusFilter === 'processing' && isProcessing) return matchesSearch;
-    if (statusFilter === 'pending' && isPending) return matchesSearch;
-    
-    return false;
+    const category = categorizeDocument(doc);
+    return category === activeTab && matchesSearch;
   });
 
-  const statusCounts = {
-    all: documents.length,
-    completed: documents.filter(doc => doc.status === 'signed' || doc.status === 'completed').length,
-    processing: documents.filter(doc => doc.status === 'generated' || doc.status === 'processing').length,
-    pending: documents.filter(doc => doc.status === 'pending' || doc.status === 'pending_signature' || doc.status === 'template').length
+  const tabCounts = {
+    'firmado': documents.filter(doc => categorizeDocument(doc) === 'firmado').length,
+    'por-firmar': documents.filter(doc => categorizeDocument(doc) === 'por-firmar').length,
+    'en-proceso': documents.filter(doc => categorizeDocument(doc) === 'en-proceso').length,
   };
 
   return (
@@ -249,153 +253,220 @@ export default function DocumentsPage() {
 
           {/* Main Content */}
           <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-            {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="card">
-                <div className="flex items-start">
-                  <div className="flex-shrink-0">
-                    <DocumentTextIcon className="h-8 w-8 text-brand-600" />
-                  </div>
-                  <div className="ml-4">
-                    <h3 className="text-sm font-medium text-gray-600 mb-1">Total Documentos</h3>
-                    <p className="text-2xl font-bold text-gray-900">{statusCounts.all}</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="card">
-                <div className="flex items-start">
-                  <div className="flex-shrink-0">
-                    <CheckCircleIcon className="h-8 w-8 text-green-500" />
-                  </div>
-                  <div className="ml-4">
-                    <h3 className="text-sm font-medium text-gray-600 mb-1">Completados</h3>
-                    <p className="text-2xl font-bold text-gray-900">{statusCounts.completed}</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="card">
-                <div className="flex items-start">
-                  <div className="flex-shrink-0">
-                    <ClockIcon className="h-8 w-8 text-brand-500" />
-                  </div>
-                  <div className="ml-4">
-                    <h3 className="text-sm font-medium text-gray-600 mb-1">En Proceso</h3>
-                    <p className="text-2xl font-bold text-gray-900">{statusCounts.processing}</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="card">
-                <div className="flex items-start">
-                  <div className="flex-shrink-0">
-                    <ExclamationTriangleIcon className="h-8 w-8 text-yellow-500" />
-                  </div>
-                  <div className="ml-4">
-                    <h3 className="text-sm font-medium text-gray-600 mb-1">Pendientes</h3>
-                    <p className="text-2xl font-bold text-gray-900">{statusCounts.pending}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Search and Filters */}
-            <div className="card">
-              <div className="flex flex-col md:flex-row gap-4">
-                {/* Search */}
-                <div className="flex-1">
-                  <div className="relative">
-                    <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Buscar documentos..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="input pl-10"
-                    />
-                  </div>
-                </div>
-
-                {/* Status Filter */}
-                <div className="flex items-center space-x-2">
-                  <FunnelIcon className="h-5 w-5 text-gray-400" />
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="input"
+            {/* Tab Bar */}
+            <div className="card p-0">
+              <div className="border-b border-gray-200">
+                <nav className="flex -mb-px" aria-label="Tabs">
+                  <button
+                    onClick={() => setActiveTab('por-firmar')}
+                    className={`flex-1 px-6 py-4 text-sm font-medium text-center border-b-2 transition-colors ${
+                      activeTab === 'por-firmar'
+                        ? 'border-brand-600 text-brand-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
                   >
-                    <option value="all">Todos los estados</option>
-                    <option value="completed">Completados</option>
-                    <option value="processing">En Proceso</option>
-                    <option value="pending">Pendientes</option>
-                  </select>
-                </div>
+                    Por Firmar
+                    <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+                      activeTab === 'por-firmar'
+                        ? 'bg-brand-100 text-brand-700'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {tabCounts['por-firmar']}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('firmado')}
+                    className={`flex-1 px-6 py-4 text-sm font-medium text-center border-b-2 transition-colors ${
+                      activeTab === 'firmado'
+                        ? 'border-green-600 text-green-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    Firmado
+                    <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+                      activeTab === 'firmado'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {tabCounts['firmado']}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('en-proceso')}
+                    className={`flex-1 px-6 py-4 text-sm font-medium text-center border-b-2 transition-colors ${
+                      activeTab === 'en-proceso'
+                        ? 'border-blue-600 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    En Proceso
+                    <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+                      activeTab === 'en-proceso'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {tabCounts['en-proceso']}
+                    </span>
+                  </button>
+                </nav>
               </div>
             </div>
+
+            {/* Search */}
+            <div className="card">
+              <div className="relative">
+                <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar documentos..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="input pl-10"
+                />
+              </div>
+            </div>
+
+            {/* Checklist Info for Por Firmar and Firmado */}
+            {(activeTab === 'por-firmar' || activeTab === 'firmado') && (
+              <div className={`card ${activeTab === 'por-firmar' ? 'bg-blue-50 border-blue-200' : 'bg-green-50 border-green-200'}`}>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  {activeTab === 'por-firmar' ? '📋 Pasos a completar para cada documento:' : '✅ Pasos completados:'}
+                </h3>
+                <div className="space-y-2">
+                  {[
+                    { key: 'download', label: 'Descargar documento' },
+                    { key: 'sign', label: 'Firmar documento' },
+                    { key: 'upload', label: 'Subir documento firmado' },
+                  ].map((step) => {
+                    const isCompleted = activeTab === 'firmado';
+                    
+                    return (
+                      <div key={step.key} className="flex items-center space-x-3">
+                        {isCompleted ? (
+                          <CheckCircleIcon className="h-5 w-5 text-green-600 flex-shrink-0" />
+                        ) : (
+                          <div className="h-5 w-5 border-2 border-gray-300 rounded flex-shrink-0" />
+                        )}
+                        <span className={`text-sm ${isCompleted ? 'text-gray-700 line-through' : 'text-gray-900 font-medium'}`}>
+                          {step.label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Documents Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredDocuments.map((doc) => (
-                <div key={doc.id} className="card hover:shadow-lg transition-shadow">
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center">
-                        {getStatusIcon(doc.status)}
-                        <div className="ml-3">
-                          <h3 className="text-lg font-semibold text-gray-900">{doc.name}</h3>
-                          <p className="text-sm text-gray-500 mt-0.5">{doc.type}</p>
+              {filteredDocuments.map((doc) => {
+                const isDownloaded = downloadedDocs.has(doc.id);
+                const isSigned = doc.signedS3Key || doc.status === 'signed';
+                const category = categorizeDocument(doc);
+
+                return (
+                  <div key={doc.id} className="card hover:shadow-lg transition-shadow">
+                    <div className="p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center">
+                          {getStatusIcon(doc.status)}
+                          <div className="ml-3">
+                            <h3 className="text-lg font-semibold text-gray-900">{doc.name}</h3>
+                            <p className="text-sm text-gray-500 mt-0.5">{doc.type}</p>
+                          </div>
                         </div>
                       </div>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(doc.status)}`}>
-                        {getStatusText(doc.status)}
-                      </span>
-                    </div>
 
-                    <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-                      <span className="text-sm text-gray-500">
-                        {new Date(doc.createdAt).toLocaleDateString('es-ES', { 
-                          year: 'numeric', 
-                          month: 'long', 
-                          day: 'numeric' 
-                        })}
-                      </span>
-                    </div>
+                      {/* Checklist for individual document */}
+                      {(category === 'por-firmar' || category === 'firmado') && (
+                        <div className="mb-4 space-y-2">
+                          <div className="flex items-center space-x-2 text-sm">
+                            {isDownloaded || category === 'firmado' ? (
+                              <CheckCircleIcon className="h-4 w-4 text-green-600" />
+                            ) : (
+                              <div className="h-4 w-4 border-2 border-gray-300 rounded" />
+                            )}
+                            <span className={isDownloaded || category === 'firmado' ? 'text-gray-600 line-through' : 'text-gray-900'}>
+                              Descargado
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-2 text-sm">
+                            {category === 'firmado' ? (
+                              <CheckCircleIcon className="h-4 w-4 text-green-600" />
+                            ) : (
+                              <div className="h-4 w-4 border-2 border-gray-300 rounded" />
+                            )}
+                            <span className={category === 'firmado' ? 'text-gray-600 line-through' : 'text-gray-900'}>
+                              Firmado
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-2 text-sm">
+                            {isSigned ? (
+                              <CheckCircleIcon className="h-4 w-4 text-green-600" />
+                            ) : (
+                              <div className="h-4 w-4 border-2 border-gray-300 rounded" />
+                            )}
+                            <span className={isSigned ? 'text-gray-600 line-through' : 'text-gray-900'}>
+                              Subido
+                            </span>
+                          </div>
+                        </div>
+                      )}
 
-                    <div className="flex space-x-2">
-                      <button 
-                        onClick={() => handleDownload(doc.id)}
-                        className="btn btn-primary flex-1 flex items-center justify-center"
-                        title="Descargar"
-                      >
-                        <ArrowDownTrayIcon className="h-4 w-4 mr-1" />
-                        Descargar
-                      </button>
-                      {/* Show upload button for all documents */}
-                      <label className="btn bg-green-600 hover:bg-green-700 text-white border-transparent flex-1 flex items-center justify-center cursor-pointer">
-                        <input
-                          type="file"
-                          accept=".pdf,application/pdf"
-                          onChange={(e) => handleFileSelect(doc.id, e)}
-                          className="hidden"
-                          disabled={uploading[doc.id]}
-                        />
-                        {uploading[doc.id] ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
-                            Subiendo...
-                          </>
-                        ) : (
-                          <>
-                            <ArrowUpTrayIcon className="h-4 w-4 mr-1" />
-                            Subir
-                          </>
-                        )}
-                      </label>
+                      {category === 'en-proceso' && (
+                        <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                          <p className="text-sm text-blue-800">
+                            Este documento está siendo procesado. No se requiere ninguna acción de tu parte.
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
+                        <span className="text-sm text-gray-500">
+                          {new Date(doc.createdAt).toLocaleDateString('es-ES', { 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric' 
+                          })}
+                        </span>
+                      </div>
+
+                      {category !== 'en-proceso' && (
+                        <div className="flex space-x-2">
+                          <button 
+                            onClick={() => handleDownload(doc.id)}
+                            className="btn btn-primary flex-1 flex items-center justify-center"
+                            title="Descargar"
+                          >
+                            <ArrowDownTrayIcon className="h-4 w-4 mr-1" />
+                            Descargar
+                          </button>
+                          <label className="btn bg-green-600 hover:bg-green-700 text-white border-transparent flex-1 flex items-center justify-center cursor-pointer">
+                            <input
+                              type="file"
+                              accept=".pdf,application/pdf"
+                              onChange={(e) => handleFileSelect(doc.id, e)}
+                              className="hidden"
+                              disabled={uploading[doc.id]}
+                            />
+                            {uploading[doc.id] ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
+                                Subiendo...
+                              </>
+                            ) : (
+                              <>
+                                <ArrowUpTrayIcon className="h-4 w-4 mr-1" />
+                                Subir
+                              </>
+                            )}
+                          </label>
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Loading State */}
@@ -410,11 +481,20 @@ export default function DocumentsPage() {
             {!loading && filteredDocuments.length === 0 && (
               <div className="card text-center py-12">
                 <DocumentTextIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No se encontraron documentos</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  {activeTab === 'por-firmar' 
+                    ? 'No hay documentos por firmar'
+                    : activeTab === 'firmado'
+                    ? 'No hay documentos firmados'
+                    : 'No hay documentos en proceso'
+                  }
+                </h3>
                 <p className="text-gray-600 text-sm">
-                  {documents.length === 0 
+                  {activeTab === 'en-proceso'
+                    ? 'Los documentos en proceso aparecerán aquí. No se requiere ninguna acción de tu parte.'
+                    : documents.length === 0 
                     ? 'Aún no tienes documentos. Se generarán automáticamente después de tu pago.'
-                    : 'Intenta ajustar los filtros de búsqueda'
+                    : 'Intenta ajustar la búsqueda o cambiar de pestaña'
                   }
                 </p>
               </div>

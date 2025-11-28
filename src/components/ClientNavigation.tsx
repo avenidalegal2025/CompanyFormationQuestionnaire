@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import CompanySwitcher from '@/components/CompanySwitcher';
 import {
   HomeIcon,
   DocumentTextIcon,
@@ -21,7 +22,24 @@ interface ClientNavigationProps {
 
 export default function ClientNavigation({ currentTab, onTabChange }: ClientNavigationProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [userEmail, setUserEmail] = useState<string>('');
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    const email = localStorage.getItem('userEmail') || '';
+    setUserEmail(email);
+    const companyId = localStorage.getItem('selectedCompanyId');
+    if (companyId) {
+      setSelectedCompanyId(companyId);
+    }
+  }, []);
+
+  const handleCompanyChange = (companyId: string) => {
+    setSelectedCompanyId(companyId);
+    localStorage.setItem('selectedCompanyId', companyId);
+    window.location.reload(); // Reload to refresh data
+  };
 
   const handleLogout = () => {
     // Clear all authentication data
@@ -108,10 +126,18 @@ export default function ClientNavigation({ currentTab, onTabChange }: ClientNavi
             </button>
           </div>
 
-          {/* Company Info */}
+          {/* Company Switcher */}
           <div className="px-6 py-5 border-b border-gray-200 bg-gray-50">
-            <h2 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Empresa</h2>
-            <p className="text-sm font-medium text-gray-900 truncate">{getCompanyDisplayName()}</p>
+            <h2 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Empresa</h2>
+            {userEmail ? (
+              <CompanySwitcher
+                userEmail={userEmail}
+                selectedCompanyId={selectedCompanyId}
+                onCompanyChange={handleCompanyChange}
+              />
+            ) : (
+              <p className="text-sm font-medium text-gray-900 truncate">{getCompanyDisplayName()}</p>
+            )}
           </div>
 
           {/* Navigation */}
