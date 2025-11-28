@@ -176,12 +176,12 @@ export default function CompanyNameCheckButton({
         if (data.available) {
           setResult({ 
             status: "ok", 
-            message: `✅ ${data.message || "El nombre está disponible"}`
+            message: data.message || "El nombre está disponible"
           });
         } else {
           setResult({ 
             status: "error", 
-            message: `❌ ${data.message || "El nombre no está disponible"}`
+            message: data.message || "El nombre no está disponible"
           });
         }
       } catch (error: any) {
