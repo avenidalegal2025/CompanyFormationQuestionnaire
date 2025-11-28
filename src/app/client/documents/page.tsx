@@ -305,7 +305,7 @@ export default function DocumentsPage() {
                 <div className="space-y-2">
                   {[
                     { key: 'download', label: 'Descargar' },
-                    { key: 'sign', label: 'Firmar' },
+                    { key: 'sign', label: 'Imprimir y firmar' },
                     { key: 'upload', label: 'Subir' },
                   ].map((step, index) => {
                     const isCompleted = activeTab === 'firmado';
@@ -366,7 +366,7 @@ export default function DocumentsPage() {
                               <div className="h-4 w-4 border-2 border-gray-300 rounded" />
                             )}
                             <span className={category === 'firmado' ? 'text-gray-600 line-through' : 'text-gray-900'}>
-                              2. Firmar
+                              2. Imprimir y firmar
                             </span>
                           </div>
                           <div className="flex items-center space-x-2 text-sm">
