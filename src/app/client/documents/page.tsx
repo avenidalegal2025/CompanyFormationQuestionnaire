@@ -295,7 +295,7 @@ export default function DocumentsPage() {
                     { key: 'download', label: 'Descargar documento' },
                     { key: 'sign', label: 'Firmar documento' },
                     { key: 'upload', label: 'Subir documento firmado' },
-                  ].map((step) => {
+                  ].map((step, index) => {
                     const isCompleted = activeTab === 'firmado';
                     
                     return (
@@ -306,7 +306,7 @@ export default function DocumentsPage() {
                           <div className="h-5 w-5 border-2 border-gray-300 rounded flex-shrink-0" />
                         )}
                         <span className={`text-sm ${isCompleted ? 'text-gray-700 line-through' : 'text-gray-900 font-medium'}`}>
-                          {step.label}
+                          {index + 1}. {step.label}
                         </span>
                       </div>
                     );
