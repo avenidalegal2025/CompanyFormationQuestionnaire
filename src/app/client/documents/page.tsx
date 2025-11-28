@@ -164,6 +164,18 @@ export default function DocumentsPage() {
       return 'firmado';
     }
     
+    // Membership Registry, Organizational Resolution, and Shareholder Agreement should be in "por-firmar"
+    const docName = (doc.name || '').toLowerCase();
+    const isAgreementDoc = docName.includes('membership registry') || 
+                          docName.includes('organizational resolution') || 
+                          docName.includes('shareholder agreement') ||
+                          docName.includes('operating agreement');
+    
+    // If it's an agreement document, it should be in "por-firmar" (unless already signed)
+    if (isAgreementDoc) {
+      return 'por-firmar';
+    }
+    
     // Por firmar: status is 'generated' or 'pending_signature' (needs user action)
     if (doc.status === 'generated' || doc.status === 'pending_signature') {
       return 'por-firmar';
