@@ -67,6 +67,8 @@ export default function ClientPage() {
   const [processingTime, setProcessingTime] = useState<string>('5-7 días');
   const [documents, setDocuments] = useState<any[]>([]);
   const [loadingDocuments, setLoadingDocuments] = useState(true);
+  const [uploading, setUploading] = useState<{ [key: string]: boolean }>({});
+  const [downloadedDocs, setDownloadedDocs] = useState<Set<string>>(new Set());
   const e164 = `${cc}${localNum.replace(/[^\d]/g, '')}`;
 
   const handleNewCompany = () => {
@@ -153,6 +155,98 @@ export default function ClientPage() {
     } finally {
       setLoadingDocuments(false);
     }
+  };
+
+  // Categorize documents into three states (same logic as documents page)
+  const categorizeDocument = (doc: any) => {
+    const docNameLower = doc.name?.toLowerCase();
+    
+    // Firmado: has signedS3Key OR status is 'signed'
+    if (doc.signedS3Key || doc.status === 'signed') {
+      return 'firmado';
+    }
+    
+    // Documents that should always be 'por-firmar' if not yet signed
+    if (
+      docNameLower?.includes('membership registry') ||
+      docNameLower?.includes('organizational resolution') ||
+      docNameLower?.includes('shareholder agreement') ||
+      docNameLower?.includes('operating agreement')
+    ) {
+      return 'por-firmar';
+    }
+    
+    // Por firmar: status is 'generated' or 'pending_signature' (needs user action)
+    if (doc.status === 'generated' || doc.status === 'pending_signature') {
+      return 'por-firmar';
+    }
+    
+    // En proceso: status is 'template' or 'processing' (nothing for user to do)
+    if (doc.status === 'template' || doc.status === 'processing') {
+      return 'en-proceso';
+    }
+    
+    // Default to 'por-firmar' for any other unknown statuses
+    return 'por-firmar';
+  };
+
+  const handleDownload = async (documentId: string) => {
+    try {
+      const viewUrl = `/api/documents/view?id=${encodeURIComponent(documentId)}`;
+      window.open(viewUrl, '_blank');
+      setDownloadedDocs(prev => new Set(prev).add(documentId));
+    } catch (error) {
+      console.error('Error downloading document:', error);
+      alert('Error al descargar el documento. Por favor, intenta de nuevo.');
+    }
+  };
+
+  const handleUploadSigned = async (documentId: string, file: File) => {
+    try {
+      setUploading(prev => ({ ...prev, [documentId]: true }));
+
+      const formData = new FormData();
+      formData.append('documentId', documentId);
+      formData.append('file', file);
+
+      const response = await fetch('/api/documents/upload-signed', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to upload signed document');
+      }
+
+      const result = await response.json();
+      
+      setDocuments(prev => prev.map(doc => 
+        doc.id === documentId 
+          ? { ...doc, ...result.document }
+          : doc
+      ));
+
+      alert('Documento firmado subido exitosamente.');
+      await fetchDocuments();
+    } catch (error: any) {
+      console.error('Error uploading signed document:', error);
+      alert(`Error al subir el documento firmado: ${error.message}`);
+    } finally {
+      setUploading(prev => ({ ...prev, [documentId]: false }));
+    }
+  };
+
+  const handleFileSelect = (documentId: string, event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (!file.type.includes('pdf') && !file.name.toLowerCase().endsWith('.pdf')) {
+        alert('Por favor, sube un archivo PDF.');
+        return;
+      }
+      handleUploadSigned(documentId, file);
+    }
+    event.target.value = '';
   };
 
   useEffect(() => {
