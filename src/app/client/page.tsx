@@ -14,7 +14,9 @@ import {
   ExclamationTriangleIcon,
   PhoneIcon,
   GlobeAltIcon,
-  PlusIcon
+  PlusIcon,
+  ArrowDownTrayIcon,
+  ArrowUpTrayIcon
 } from '@heroicons/react/24/outline';
 
 const LATAM_COUNTRIES = [
@@ -517,41 +519,130 @@ export default function ClientPage() {
             )}
 
             {/* Recent Documents */}
-            <div className="card">
-              <div className="px-6 py-5 border-b border-gray-200">
+            <div>
+              <div className="mb-6">
                 <h3 className="text-xl font-semibold text-gray-900">Documentos Recientes</h3>
+                <p className="text-sm text-gray-600 mt-1">Gestiona tus documentos más recientes</p>
               </div>
               {loadingDocuments ? (
-                <div className="px-6 py-12 text-center text-gray-500">
-                  <ClockIcon className="h-8 w-8 mx-auto mb-2 animate-spin text-brand-500" />
-                  <p className="text-sm">Cargando documentos...</p>
+                <div className="card text-center py-12">
+                  <ClockIcon className="h-12 w-12 mx-auto mb-4 animate-spin text-brand-500" />
+                  <p className="text-gray-600">Cargando documentos...</p>
                 </div>
               ) : documents.length === 0 ? (
-                <div className="px-6 py-12 text-center text-gray-500">
-                  <DocumentTextIcon className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                  <p className="text-sm">No hay documentos disponibles aún.</p>
+                <div className="card text-center py-12">
+                  <DocumentTextIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-sm text-gray-600">No hay documentos disponibles aún.</p>
                 </div>
               ) : (
-                <div className="divide-y divide-gray-200">
-                  {documents.slice(0, 5).map((doc) => (
-                    <div key={doc.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          {getStatusIcon(doc.status)}
-                          <div className="ml-3">
-                            <h4 className="text-base font-medium text-gray-900">{doc.name}</h4>
-                            <p className="text-sm text-gray-600 mt-0.5">{getDocumentDescription(doc)}</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {documents.slice(0, 6).map((doc) => {
+                    const isDownloaded = downloadedDocs.has(doc.id);
+                    const isSigned = doc.signedS3Key || doc.status === 'signed';
+                    const category = categorizeDocument(doc);
+
+                    return (
+                      <div key={doc.id} className="card hover:shadow-lg transition-shadow">
+                        <div className="p-6">
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex items-center">
+                              <div>
+                                <h3 className="text-lg font-semibold text-gray-900">{doc.name}</h3>
+                                <p className="text-sm text-gray-500 mt-0.5">{doc.type}</p>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(doc.status)}`}>
-                            {getStatusText(doc.status)}
-                          </span>
-                          <span className="text-sm text-gray-500">{formatDocumentDate(doc.createdAt || doc.date)}</span>
+
+                          {/* Checklist for individual document */}
+                          {(category === 'por-firmar' || category === 'firmado') && (
+                            <div className="mb-4 space-y-2">
+                              <div className="flex items-center space-x-2 text-sm">
+                                {isDownloaded || category === 'firmado' ? (
+                                  <CheckCircleIcon className="h-4 w-4 text-green-600" />
+                                ) : (
+                                  <div className="h-4 w-4 border-2 border-gray-300 rounded" />
+                                )}
+                                <span className={isDownloaded || category === 'firmado' ? 'text-gray-600 line-through' : 'text-gray-900'}>
+                                  1. Descargar
+                                </span>
+                              </div>
+                              <div className="flex items-center space-x-2 text-sm">
+                                {category === 'firmado' ? (
+                                  <CheckCircleIcon className="h-4 w-4 text-green-600" />
+                                ) : (
+                                  <div className="h-4 w-4 border-2 border-gray-300 rounded" />
+                                )}
+                                <span className={category === 'firmado' ? 'text-gray-600 line-through' : 'text-gray-900'}>
+                                  2. Imprimir y firmar
+                                </span>
+                              </div>
+                              <div className="flex items-center space-x-2 text-sm">
+                                {isSigned ? (
+                                  <CheckCircleIcon className="h-4 w-4 text-green-600" />
+                                ) : (
+                                  <div className="h-4 w-4 border-2 border-gray-300 rounded" />
+                                )}
+                                <span className={isSigned ? 'text-gray-600 line-through' : 'text-gray-900'}>
+                                  3. Subir
+                                </span>
+                              </div>
+                            </div>
+                          )}
+
+                          {category === 'en-proceso' && (
+                            <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                              <p className="text-sm text-blue-800">
+                                Este documento está siendo procesado. No se requiere ninguna acción de tu parte.
+                              </p>
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
+                            <span className="text-sm text-gray-500">
+                              {new Date(doc.createdAt || doc.date).toLocaleDateString('es-ES', { 
+                                year: 'numeric', 
+                                month: 'long', 
+                                day: 'numeric' 
+                              })}
+                            </span>
+                          </div>
+
+                          {category !== 'en-proceso' && (
+                            <div className="flex space-x-2">
+                              <button 
+                                onClick={() => handleDownload(doc.id)}
+                                className="btn btn-primary flex-1 flex items-center justify-center"
+                                title="Descargar"
+                              >
+                                <ArrowDownTrayIcon className="h-4 w-4 mr-1" />
+                                Descargar
+                              </button>
+                              <label className="btn bg-green-600 hover:bg-green-700 text-white border-transparent flex-1 flex items-center justify-center cursor-pointer">
+                                <input
+                                  type="file"
+                                  accept=".pdf,application/pdf"
+                                  onChange={(e) => handleFileSelect(doc.id, e)}
+                                  className="hidden"
+                                  disabled={uploading[doc.id]}
+                                />
+                                {uploading[doc.id] ? (
+                                  <>
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
+                                    Subiendo...
+                                  </>
+                                ) : (
+                                  <>
+                                    <ArrowUpTrayIcon className="h-4 w-4 mr-1" />
+                                    Subir
+                                  </>
+                                )}
+                              </label>
+                            </div>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
