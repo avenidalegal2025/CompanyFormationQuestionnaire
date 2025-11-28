@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
     const inputName = companyName.trim();
     const entities = result?.existing_entities || [];
     
-    // Helper: Check if entity is blocking (Active or INACT <1 year)
+    // Helper: Check if entity is blocking (Active or INACT <2 years)
     const isBlockingEntity = (entity: any): boolean => {
       const status = entity?.status?.toUpperCase() || '';
       
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
         return true;
       }
       
-      // INACT entities: check if inactive <1 year from Event Date Filed
+      // INACT entities: check if inactive <2 years from Event Date Filed
       if (status.includes('INACT') || status === 'INACTIVE') {
         const eventDateFiled = entity?.eventDateFiled || entity?.event_date_filed || entity?.lastEventDate;
         if (eventDateFiled) {
@@ -107,11 +107,11 @@ export async function POST(request: NextRequest) {
             // Parse date (format: MM/DD/YYYY)
             const [month, day, year] = eventDateFiled.split('/').map(Number);
             const eventDate = new Date(year, month - 1, day);
-            const oneYearAgo = new Date();
-            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+            const twoYearsAgo = new Date();
+            twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
             
-            // If inactive <1 year, it blocks
-            if (eventDate > oneYearAgo) {
+            // If inactive <2 years, it blocks
+            if (eventDate > twoYearsAgo) {
               return true;
             }
           } catch (error) {
@@ -182,8 +182,8 @@ export async function POST(request: NextRequest) {
                            'coincidencia similar';
       finalMessage = `❌ Nombre no disponible. ${matchTypeText}: ${entityNames}`;
     } else if (entities.length > 0) {
-      // Entities found but none are blocking (all INACT >1 year)
-      finalMessage = `✅ Nombre disponible. Entidades similares encontradas pero inactivas >1 año.`;
+      // Entities found but none are blocking (all INACT >2 years)
+      finalMessage = `✅ Nombre disponible. Entidades similares encontradas pero inactivas >2 años.`;
     } else {
       finalMessage = `✅ Nombre disponible. No se encontraron entidades similares.`;
     }

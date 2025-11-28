@@ -369,8 +369,7 @@ export default function DocumentsPage() {
                     <div className="p-6">
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex items-center">
-                          {getStatusIcon(doc.status)}
-                          <div className="ml-3">
+                          <div>
                             <h3 className="text-lg font-semibold text-gray-900">{doc.name}</h3>
                             <p className="text-sm text-gray-500 mt-0.5">{doc.type}</p>
                           </div>
