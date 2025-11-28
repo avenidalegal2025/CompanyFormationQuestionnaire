@@ -37,33 +37,50 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log(`🔍 Fetching companies for user: ${email}`);
+    // Normalize email: lowercase and trim
+    const normalizedEmail = email.toLowerCase().trim();
+    console.log(`🔍 Fetching companies for user: ${normalizedEmail} (original: ${email})`);
 
     const companies: Company[] = [];
 
-    // Query Airtable for all records with matching email
+    // Query Airtable for all records with matching email (case-insensitive)
+    // Airtable formula: LOWER() function to make comparison case-insensitive
     await base(AIRTABLE_TABLE_NAME)
       .select({
-        filterByFormula: `{Customer Email} = "${email}"`,
+        filterByFormula: `LOWER({Customer Email}) = "${normalizedEmail}"`,
         sort: [{ field: 'Payment Date', direction: 'desc' }], // Most recent first
       })
       .eachPage((records, fetchNextPage) => {
         records.forEach((record) => {
           const fields = record.fields;
+          const recordEmail = (fields['Customer Email'] as string) || '';
+          const recordCompanyName = (fields['Company Name'] as string) || 'Unknown Company';
+          
+          console.log(`📋 Found company: ${recordCompanyName} (email: ${recordEmail})`);
+          
           companies.push({
             id: record.id,
-            companyName: (fields['Company Name'] as string) || 'Unknown Company',
+            companyName: recordCompanyName,
             entityType: (fields['Entity Type'] as string) || 'LLC',
             formationState: (fields['Formation State'] as string) || '',
             formationStatus: (fields['Formation Status'] as string) || 'Pending',
             createdAt: (fields['Payment Date'] as string) || new Date().toISOString(),
-            customerEmail: (fields['Customer Email'] as string) || email,
+            customerEmail: recordEmail || normalizedEmail,
           });
         });
         fetchNextPage();
       });
 
-    console.log(`✅ Found ${companies.length} companies for user: ${email}`);
+    console.log(`✅ Found ${companies.length} companies for user: ${normalizedEmail}`);
+    
+    // If no companies found, log a warning with all available emails for debugging
+    if (companies.length === 0) {
+      console.warn(`⚠️ No companies found for email: ${normalizedEmail}`);
+      console.warn(`💡 This could mean:`);
+      console.warn(`   1. The company record hasn't been created in Airtable yet (check webhook logs)`);
+      console.warn(`   2. The email in Airtable doesn't match: ${normalizedEmail}`);
+      console.warn(`   3. The webhook may have failed to create the record`);
+    }
 
     return NextResponse.json({
       success: true,

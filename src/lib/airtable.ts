@@ -527,7 +527,7 @@ export function mapQuestionnaireToAirtable(
     // Use formData state first (source of truth), then Stripe metadata as fallback
     'Formation State': company.formationState || company.state || stripeSession.metadata?.state || 'Unknown',
     'Formation Status': 'Pending',
-    'Customer Email': stripeSession.customer_details?.email || '',
+    'Customer Email': (stripeSession.customer_details?.email || '').toLowerCase().trim(),
     'Customer Name': stripeSession.customer_details?.name || formData.profile?.fullName || '',
     'Total Payment Amount': (stripeSession.amount_total || 0) / 100, // Convert cents to dollars
     'Products Purchased': stripeSession.metadata?.selectedServices || '',
