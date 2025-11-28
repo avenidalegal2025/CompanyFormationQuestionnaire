@@ -64,8 +64,15 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
         return false;
       }
     } else if (officersAllOwners === "No") {
+      // Ensure officersCount is at least 1
+      const currentOfficersCount = watch("admin.officersCount") || 1;
+      if (currentOfficersCount < 1) {
+        alert("Debe haber al menos un oficial.");
+        return false;
+      }
+      
       // Check if at least one officer has the President role
-      const hasPresident = Array.from({ length: officersCount || 0 }).some((_, idx) => {
+      const hasPresident = Array.from({ length: currentOfficersCount }).some((_, idx) => {
         const role = watch(fp(`admin.officer${idx + 1}Role`)) as string;
         return role === "President";
       });
