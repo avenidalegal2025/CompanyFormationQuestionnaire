@@ -26,8 +26,21 @@ export default function CompanySwitcher({ userEmail, selectedCompanyId, onCompan
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetchCompanies();
+    if (userEmail) {
+      fetchCompanies();
+    }
   }, [userEmail]);
+
+  // Also refetch when component mounts to catch newly created companies
+  useEffect(() => {
+    if (userEmail) {
+      // Small delay to ensure webhook has processed
+      const timer = setTimeout(() => {
+        fetchCompanies();
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   useEffect(() => {
     // Close dropdown when clicking outside

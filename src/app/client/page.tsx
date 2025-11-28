@@ -119,6 +119,23 @@ export default function ClientPage() {
     fetchDocuments();
   }, [selectedCompanyId]);
 
+  // Refetch companies when userEmail changes (e.g., after payment)
+  useEffect(() => {
+    if (userEmail) {
+      // Trigger a refresh of the CompanySwitcher by forcing a re-render
+      // The CompanySwitcher will handle the actual fetch
+      const checkPaymentCompleted = localStorage.getItem('paymentCompleted');
+      if (checkPaymentCompleted === 'true') {
+        // Clear the flag and wait a bit for webhook to process
+        setTimeout(() => {
+          localStorage.removeItem('paymentCompleted');
+          // Force a page refresh to show new company
+          window.location.reload();
+        }, 3000);
+      }
+    }
+  }, [userEmail]);
+
   const fetchDocuments = async () => {
     try {
       setLoadingDocuments(true);
