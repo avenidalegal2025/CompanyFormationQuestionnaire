@@ -145,48 +145,6 @@ export default function DocumentsPage() {
     event.target.value = '';
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'signed':
-      case 'generated':
-        return <CheckCircleIcon className="h-5 w-5 text-green-500" />;
-      case 'pending_signature':
-        return <ClockIcon className="h-5 w-5 text-blue-500" />;
-      case 'template':
-        return <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500" />;
-      default:
-        return <ClockIcon className="h-5 w-5 text-gray-400" />;
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'signed':
-        return 'Firmado';
-      case 'generated':
-        return 'Generado';
-      case 'pending_signature':
-        return 'Pendiente de Firma';
-      case 'template':
-        return 'Plantilla';
-      default:
-        return 'Desconocido';
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'signed':
-      case 'generated':
-        return 'text-green-600 bg-green-100';
-      case 'pending_signature':
-        return 'text-blue-600 bg-blue-100';
-      case 'template':
-        return 'text-yellow-600 bg-yellow-100';
-      default:
-        return 'text-gray-600 bg-gray-100';
-    }
-  };
 
   // Categorize documents into three states
   const categorizeDocument = (doc: any) => {
