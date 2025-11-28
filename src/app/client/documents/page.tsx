@@ -356,7 +356,7 @@ export default function DocumentsPage() {
                               <div className="h-4 w-4 border-2 border-gray-300 rounded" />
                             )}
                             <span className={isDownloaded || category === 'firmado' ? 'text-gray-600 line-through' : 'text-gray-900'}>
-                              Descargado
+                              1. Descargado
                             </span>
                           </div>
                           <div className="flex items-center space-x-2 text-sm">
@@ -366,7 +366,7 @@ export default function DocumentsPage() {
                               <div className="h-4 w-4 border-2 border-gray-300 rounded" />
                             )}
                             <span className={category === 'firmado' ? 'text-gray-600 line-through' : 'text-gray-900'}>
-                              Firmado
+                              2. Firmado
                             </span>
                           </div>
                           <div className="flex items-center space-x-2 text-sm">
@@ -376,7 +376,7 @@ export default function DocumentsPage() {
                               <div className="h-4 w-4 border-2 border-gray-300 rounded" />
                             )}
                             <span className={isSigned ? 'text-gray-600 line-through' : 'text-gray-900'}>
-                              Subido
+                              3. Subido
                             </span>
                           </div>
                         </div>
