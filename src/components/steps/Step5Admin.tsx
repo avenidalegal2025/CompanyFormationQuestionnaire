@@ -138,15 +138,8 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
     return true;
   };
 
-  // Auto-assign President role to sole shareholder
-  useEffect(() => {
-    if (officersAllOwners === "Yes" && (watch("ownersCount") || 1) === 1) {
-      const currentRole = watch(fp("admin.shareholderOfficer1Role")) as string;
-      if (!currentRole) {
-        setValue(fp("admin.shareholderOfficer1Role"), "President");
-      }
-    }
-  }, [officersAllOwners, watch, setValue]);
+  // Note: When officersAllOwners is "Yes", user must manually select which owner is President
+  // We don't auto-assign it - the user needs to make the choice
 
   // Auto-assign and lock President role when there's only 1 officer
   useEffect(() => {
@@ -670,10 +663,11 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
                           setValue(fp(`admin.officer${idx + 1}Address`), fullOwnerAddress, { shouldValidate: false });
                         });
                       } else {
-                        // Clear officersCount and officer data when "No" is selected
-                        // This ensures input fields are empty (not auto-filled)
-                        setValue("admin.officersCount", undefined, { shouldValidate: false });
-                        // Clear all officer names and addresses
+                        // When "No" is selected, set default to 1 (editable)
+                        setValue("admin.officersCount", 1, { shouldValidate: false });
+                        // Auto-assign President role to first officer when count is 1
+                        setValue(fp("admin.officer1Role"), "President", { shouldValidate: false });
+                        // Clear all officer names and addresses (user must enter manually)
                         Array.from({ length: 6 }).forEach((_, idx) => {
                           setValue(fp(`admin.officer${idx + 1}Name`), "", { shouldValidate: false });
                           setValue(fp(`admin.officer${idx + 1}Address`), "", { shouldValidate: false });
@@ -691,7 +685,7 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
               />
             </div>
 
-            {officersAllOwners === "Yes" && (watch("ownersCount") || 1) > 1 && (
+            {officersAllOwners === "Yes" && (
               <>
                 <div className="mt-6">
                   <label className="label">Asignar roles a los accionistas</label>
@@ -774,7 +768,11 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
                     type="number"
                     min={1}
                     step={1}
-                    {...register("admin.officersCount", { valueAsNumber: true })}
+                    defaultValue={1}
+                    {...register("admin.officersCount", { 
+                      valueAsNumber: true,
+                      value: 1,
+                    })}
                   />
                   <p className="help">
                     Debe elegir al menos un oficial con el rol de Presidente.
