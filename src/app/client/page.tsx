@@ -278,10 +278,10 @@ export default function ClientPage() {
                   )}
                   <button
                     onClick={handleNewCompany}
-                    className="btn btn-primary flex items-center space-x-2"
+                    className="btn btn-primary whitespace-nowrap"
                   >
-                    <PlusIcon className="h-5 w-5" />
-                    <span>Formar Empresa</span>
+                    <PlusIcon className="h-5 w-5 mr-2" />
+                    Formar Empresa
                   </button>
                 </div>
               </div>
