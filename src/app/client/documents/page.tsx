@@ -308,33 +308,49 @@ export default function DocumentsPage() {
               </div>
             </div>
 
-            {/* Checklist Info for Por Firmar and Firmado */}
-            {(activeTab === 'por-firmar' || activeTab === 'firmado') && (
-              <div className={`card ${activeTab === 'por-firmar' ? 'bg-blue-50 border-blue-200' : 'bg-green-50 border-green-200'}`}>
+            {/* Checklist Info for Por Firmar */}
+            {activeTab === 'por-firmar' && (
+              <div className="card bg-blue-50 border-blue-200">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  {activeTab === 'por-firmar' ? '📋 Pasos a completar para cada documento:' : '✅ Pasos completados:'}
+                  📋 Pasos a completar para cada documento:
                 </h3>
                 <div className="space-y-2">
                   {[
                     { key: 'download', label: 'Descargar' },
                     { key: 'sign', label: 'Imprimir y firmar' },
                     { key: 'upload', label: 'Subir' },
-                  ].map((step, index) => {
-                    const isCompleted = activeTab === 'firmado';
-                    
-                    return (
-                      <div key={step.key} className="flex items-center space-x-3">
-                        {isCompleted ? (
-                          <CheckCircleIcon className="h-5 w-5 text-green-600 flex-shrink-0" />
-                        ) : (
-                          <div className="h-5 w-5 border-2 border-gray-300 rounded flex-shrink-0" />
-                        )}
-                        <span className={`text-sm ${isCompleted ? 'text-gray-700 line-through' : 'text-gray-900 font-medium'}`}>
-                          {index + 1}. {step.label}
+                  ].map((step, index) => (
+                    <div key={step.key} className="flex items-center space-x-3">
+                      <div className="h-5 w-5 border-2 border-gray-300 rounded flex-shrink-0" />
+                      <span className="text-sm text-gray-900 font-medium">
+                        {index + 1}. {step.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Signed Documents List for Firmado */}
+            {activeTab === 'firmado' && (
+              <div className="card bg-green-50 border-green-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  ✅ Documentos firmados:
+                </h3>
+                <div className="space-y-2">
+                  {documents
+                    .filter(doc => categorizeDocument(doc) === 'firmado')
+                    .map((doc, index) => (
+                      <div key={doc.id} className="flex items-center space-x-3">
+                        <CheckCircleIcon className="h-5 w-5 text-green-600 flex-shrink-0" />
+                        <span className="text-sm text-gray-900 font-medium">
+                          {doc.name || 'Documento sin nombre'}
                         </span>
                       </div>
-                    );
-                  })}
+                    ))}
+                  {documents.filter(doc => categorizeDocument(doc) === 'firmado').length === 0 && (
+                    <p className="text-sm text-gray-600 italic">Aún no hay documentos firmados</p>
+                  )}
                 </div>
               </div>
             )}
