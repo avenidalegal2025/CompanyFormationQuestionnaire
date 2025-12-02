@@ -452,20 +452,25 @@ export default function ClientPage() {
               </div>
 
               {/* EIN in process info */}
-              <div className="card">
+              <div className="card border-l-4 border-l-blue-500">
                 <div className="flex items-start">
                   <div className="flex-shrink-0">
-                    <DocumentTextIcon className="h-8 w-8 text-brand-600" />
+                    <ClockIcon className="h-8 w-8 text-blue-500" />
                   </div>
-                  <div className="ml-4">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                      EIN (Employer Identification Number)
-                    </h3>
+                  <div className="ml-4 flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        EIN (Employer Identification Number)
+                      </h3>
+                      <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                        En Proceso
+                      </span>
+                    </div>
                     <p className="text-sm text-gray-600">
                       Requisito expedido por el IRS necesario para abrir una cuenta de banco.
                     </p>
-                    <p className="text-sm text-gray-600 mt-1">
-                      Tiempo aproximado: 1 mes.
+                    <p className="text-sm text-gray-500 mt-1 font-medium">
+                      ⏱️ Tiempo aproximado: 1 mes
                     </p>
                   </div>
                 </div>
