@@ -12,10 +12,11 @@ import {
   ArrowUpTrayIcon,
   PlusIcon
 } from '@heroicons/react/24/outline';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function DocumentsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [currentTab, setCurrentTab] = useState('documents');
   const [activeTab, setActiveTab] = useState<'firmado' | 'por-firmar' | 'en-proceso'>('por-firmar');
   const [searchTerm, setSearchTerm] = useState('');
@@ -45,9 +46,15 @@ export default function DocumentsPage() {
       }
     }
 
+    // Check for tab query parameter
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'por-firmar' || tabParam === 'firmado' || tabParam === 'en-proceso') {
+      setActiveTab(tabParam);
+    }
+
     // Fetch documents from API
     fetchDocuments();
-  }, []);
+  }, [searchParams]);
 
   const fetchDocuments = async () => {
     try {

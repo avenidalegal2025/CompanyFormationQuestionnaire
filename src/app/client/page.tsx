@@ -415,41 +415,74 @@ export default function ClientPage() {
 
             {/* Quick Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="card">
+              {/* Documents that need signing */}
+              <Link href="/client/documents?tab=por-firmar" className="card hover:shadow-lg transition-shadow cursor-pointer">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <DocumentTextIcon className="h-8 w-8 text-orange-500" />
+                  </div>
+                  <div className="ml-4 flex-1">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                      Documentos por Firmar
+                    </h3>
+                    <p className="text-2xl font-bold text-orange-600 mb-1">
+                      {documents.filter(doc => categorizeDocument(doc) === 'por-firmar').length}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      {documents.filter(doc => categorizeDocument(doc) === 'por-firmar').length === 0
+                        ? 'Todos los documentos están firmados'
+                        : 'Requieren tu firma para continuar'}
+                    </p>
+                  </div>
+                </div>
+              </Link>
+
+              {/* EIN Status */}
+              <div className="card border-l-4 border-l-blue-500">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <ClockIcon className="h-8 w-8 text-blue-500" />
+                  </div>
+                  <div className="ml-4 flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        EIN
+                      </h3>
+                      <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                        En Proceso
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-1">
+                      Requisito expedido por el IRS necesario para abrir una cuenta de banco.
+                    </p>
+                    <p className="text-sm text-gray-500 font-medium">
+                      ⏱️ Tiempo aproximado: 1 mes
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Signed Documents */}
+              <Link href="/client/documents?tab=firmado" className="card hover:shadow-lg transition-shadow cursor-pointer">
                 <div className="flex items-start">
                   <div className="flex-shrink-0">
                     <CheckCircleIcon className="h-8 w-8 text-green-500" />
                   </div>
-                  <div className="ml-4">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-1">Pago Completado</h3>
-                    <p className="text-sm text-gray-600">Tu pago ha sido procesado exitosamente</p>
+                  <div className="ml-4 flex-1">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                      Documentos Firmados
+                    </h3>
+                    <p className="text-2xl font-bold text-green-600 mb-1">
+                      {documents.filter(doc => categorizeDocument(doc) === 'firmado').length}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      {documents.filter(doc => categorizeDocument(doc) === 'firmado').length === 0
+                        ? 'Aún no hay documentos firmados'
+                        : 'Documentos completados y firmados'}
+                    </p>
                   </div>
                 </div>
-              </div>
-
-              <div className="card">
-                <div className="flex items-start">
-                  <div className="flex-shrink-0">
-                    <DocumentTextIcon className="h-8 w-8 text-brand-600" />
-                  </div>
-                  <div className="ml-4">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-1">Documentos en Proceso</h3>
-                    <p className="text-sm text-gray-600">Preparando tu documentación</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="card">
-                <div className="flex items-start">
-                  <div className="flex-shrink-0">
-                    <ClockIcon className="h-8 w-8 text-brand-500" />
-                  </div>
-                  <div className="ml-4">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-1">Tiempo de procesamiento</h3>
-                    <p className="text-sm text-gray-600">{processingTime}</p>
-                  </div>
-                </div>
-              </div>
+              </Link>
             </div>
 
             {/* Business Phone Card - Only show if user doesn't have US phone */}
