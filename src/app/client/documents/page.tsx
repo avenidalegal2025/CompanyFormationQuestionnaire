@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import ClientNavigation from '@/components/ClientNavigation';
 import Link from 'next/link';
 import {
@@ -14,7 +14,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function DocumentsPage() {
+function DocumentsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [currentTab, setCurrentTab] = useState('documents');
@@ -539,5 +539,20 @@ export default function DocumentsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function DocumentsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <ClockIcon className="h-12 w-12 mx-auto mb-4 animate-spin text-brand-500" />
+          <p className="text-gray-600">Cargando documentos...</p>
+        </div>
+      </div>
+    }>
+      <DocumentsContent />
+    </Suspense>
   );
 }
