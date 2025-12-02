@@ -201,7 +201,7 @@ export default function DocumentsPage() {
   const tabCounts = {
     'firmado': documents.filter(doc => categorizeDocument(doc) === 'firmado').length,
     'por-firmar': documents.filter(doc => categorizeDocument(doc) === 'por-firmar').length,
-    'en-proceso': documents.filter(doc => categorizeDocument(doc) === 'en-proceso').length,
+    'en-proceso': documents.filter(doc => categorizeDocument(doc) === 'en-proceso').length + 1, // +1 for EIN card
   };
 
   return (
@@ -294,19 +294,19 @@ export default function DocumentsPage() {
               </div>
             </div>
 
-            {/* Search */}
+                {/* Search */}
             <div className="card">
-              <div className="relative">
-                <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Buscar documentos..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  <div className="relative">
+                    <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Buscar documentos..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
                   className="input pl-10"
-                />
-              </div>
-            </div>
+                    />
+                  </div>
+                </div>
 
             {/* Checklist Info for Por Firmar */}
             {activeTab === 'por-firmar' && (
@@ -351,8 +351,8 @@ export default function DocumentsPage() {
                   {documents.filter(doc => categorizeDocument(doc) === 'firmado').length === 0 && (
                     <p className="text-sm text-gray-600 italic">Aún no hay documentos firmados</p>
                   )}
-                </div>
               </div>
+            </div>
             )}
 
             {/* Documents Grid */}
@@ -364,11 +364,11 @@ export default function DocumentsPage() {
 
                 return (
                   <div key={doc.id} className="card hover:shadow-lg transition-shadow">
-                    <div className="p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center">
+                  <div className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center">
                           <div>
-                            <h3 className="text-lg font-semibold text-gray-900">{doc.name}</h3>
+                          <h3 className="text-lg font-semibold text-gray-900">{doc.name}</h3>
                             <p className="text-sm text-gray-500 mt-0.5">{doc.type}</p>
                           </div>
                         </div>
@@ -405,8 +405,8 @@ export default function DocumentsPage() {
                             )}
                             <span className={isSigned ? 'text-gray-600 line-through' : 'text-gray-900'}>
                               3. Subir
-                            </span>
-                          </div>
+                      </span>
+                    </div>
                         </div>
                       )}
 
@@ -418,7 +418,7 @@ export default function DocumentsPage() {
                         </div>
                       )}
 
-                      <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
+                    <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
                         <span className="text-sm text-gray-500">
                           {new Date(doc.createdAt).toLocaleDateString('es-ES', { 
                             year: 'numeric', 
@@ -426,10 +426,10 @@ export default function DocumentsPage() {
                             day: 'numeric' 
                           })}
                         </span>
-                      </div>
+                    </div>
 
                       {category !== 'en-proceso' && (
-                        <div className="flex space-x-2">
+                      <div className="flex space-x-2">
                           <button 
                             onClick={() => handleDownload(doc.id)}
                             className="btn btn-primary flex-1 flex items-center justify-center"
@@ -474,8 +474,42 @@ export default function DocumentsPage() {
               </div>
             )}
 
+            {/* EIN Card for En Proceso tab */}
+            {activeTab === 'en-proceso' && (
+              <div className="card border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow">
+                <div className="p-6">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <ClockIcon className="h-8 w-8 text-blue-500" />
+                    </div>
+                    <div className="ml-4 flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          EIN (Employer Identification Number)
+                        </h3>
+                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                          En Proceso
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-2">
+                        Requisito expedido por el IRS necesario para abrir una cuenta de banco.
+                      </p>
+                      <p className="text-sm text-gray-500 font-medium">
+                        ⏱️ Tiempo aproximado: 1 mes
+                      </p>
+                      <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                        <p className="text-sm text-blue-800">
+                          Este trámite está siendo procesado. No se requiere ninguna acción de tu parte.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+            </div>
+            )}
+
             {/* Empty State */}
-            {!loading && filteredDocuments.length === 0 && (
+            {!loading && filteredDocuments.length === 0 && activeTab !== 'en-proceso' && (
               <div className="card text-center py-12">
                 <DocumentTextIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -487,9 +521,7 @@ export default function DocumentsPage() {
                   }
                 </h3>
                 <p className="text-gray-600 text-sm">
-                  {activeTab === 'en-proceso'
-                    ? 'Los documentos en proceso aparecerán aquí. No se requiere ninguna acción de tu parte.'
-                    : documents.length === 0 
+                  {documents.length === 0 
                     ? 'Aún no tienes documentos. Se generarán automáticamente después de tu pago.'
                     : 'Intenta ajustar la búsqueda o cambiar de pestaña'
                   }
