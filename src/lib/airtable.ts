@@ -830,9 +830,8 @@ export function mapQuestionnaireToAirtable(
       }
       
       (record as any)[`Director ${i} Name`] = directorName || `${finalFirstName} ${finalLastName}`.trim();
-      // Note: First Name/Last Name fields commented out until Airtable columns are added
-      // (record as any)[`Director ${i} First Name`] = finalFirstName;
-      // (record as any)[`Director ${i} Last Name`] = finalLastName;
+      (record as any)[`Director ${i} First Name`] = finalFirstName;
+      (record as any)[`Director ${i} Last Name`] = finalLastName;
       (record as any)[`Director ${i} Address`] = admin[`director${i}Address`];
     }
   }
@@ -857,9 +856,8 @@ export function mapQuestionnaireToAirtable(
       }
       
       (record as any)[`Officer ${i} Name`] = officerName || `${finalFirstName} ${finalLastName}`.trim();
-      // Note: First Name/Last Name fields commented out until Airtable columns are added
-      // (record as any)[`Officer ${i} First Name`] = finalFirstName;
-      // (record as any)[`Officer ${i} Last Name`] = finalLastName;
+      (record as any)[`Officer ${i} First Name`] = finalFirstName;
+      (record as any)[`Officer ${i} Last Name`] = finalLastName;
       (record as any)[`Officer ${i} Address`] = admin[`officer${i}Address`];
       (record as any)[`Officer ${i} Role`] = admin[`officer${i}Role`];
     }
@@ -885,9 +883,8 @@ export function mapQuestionnaireToAirtable(
       }
       
       (record as any)[`Manager ${i} Name`] = managerName || `${finalFirstName} ${finalLastName}`.trim();
-      // Note: First Name/Last Name fields commented out until Airtable columns are added
-      // (record as any)[`Manager ${i} First Name`] = finalFirstName;
-      // (record as any)[`Manager ${i} Last Name`] = finalLastName;
+      (record as any)[`Manager ${i} First Name`] = finalFirstName;
+      (record as any)[`Manager ${i} Last Name`] = finalLastName;
       (record as any)[`Manager ${i} Address`] = admin[`manager${i}Address`];
     }
   }
