@@ -496,13 +496,24 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
                     key={idx}
                     className="mt-6 grid grid-cols-1 gap-4 rounded-2xl border border-gray-100 p-4"
                   >
-                    {/* Nombre del Gerente */}
-                    <div>
-                      <label className="label">Nombre completo del Gerente {idx + 1}</label>
-                      <input
-                        className="input"
-                        {...register(fp(`admin.manager${idx + 1}Name`))}
-                      />
+                    {/* Nombre del Gerente - Split into First and Last */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="label">Nombre(s) del Gerente {idx + 1}</label>
+                        <input
+                          className="input"
+                          placeholder="Ej: Juan Carlos"
+                          {...register(fp(`admin.manager${idx + 1}FirstName`))}
+                        />
+                      </div>
+                      <div>
+                        <label className="label">Apellido(s) del Gerente {idx + 1}</label>
+                        <input
+                          className="input"
+                          placeholder="Ej: García López"
+                          {...register(fp(`admin.manager${idx + 1}LastName`))}
+                        />
+                      </div>
                     </div>
 
                     <div>
@@ -604,13 +615,24 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
                     key={idx}
                     className="mt-6 grid grid-cols-1 gap-4 rounded-2xl border border-gray-100 p-4"
                   >
-                    {/* Nombre del Director */}
-                    <div>
-                      <label className="label">Nombre completo del Director {idx + 1}</label>
-                      <input
-                        className="input"
-                        {...register(fp(`admin.director${idx + 1}Name`))}
-                      />
+                    {/* Nombre del Director - Split into First and Last */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="label">Nombre(s) del Director {idx + 1}</label>
+                        <input
+                          className="input"
+                          placeholder="Ej: Juan Carlos"
+                          {...register(fp(`admin.director${idx + 1}FirstName`))}
+                        />
+                      </div>
+                      <div>
+                        <label className="label">Apellido(s) del Director {idx + 1}</label>
+                        <input
+                          className="input"
+                          placeholder="Ej: García López"
+                          {...register(fp(`admin.director${idx + 1}LastName`))}
+                        />
+                      </div>
                     </div>
 
                     <div>
@@ -791,13 +813,22 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
                     key={idx}
                     className="mt-6 grid grid-cols-1 gap-4 rounded-2xl border border-gray-100 p-4"
                   >
-                    {/* Nombre + Rol side-by-side */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Nombre del Oficial - Split into First and Last, plus Rol */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <label className="label">Nombre completo del Oficial {idx + 1}</label>
+                        <label className="label">Nombre(s) del Oficial {idx + 1}</label>
                         <input
                           className="input"
-                          {...register(fp(`admin.officer${idx + 1}Name`))}
+                          placeholder="Ej: Juan Carlos"
+                          {...register(fp(`admin.officer${idx + 1}FirstName`))}
+                        />
+                      </div>
+                      <div>
+                        <label className="label">Apellido(s) del Oficial {idx + 1}</label>
+                        <input
+                          className="input"
+                          placeholder="Ej: García López"
+                          {...register(fp(`admin.officer${idx + 1}LastName`))}
                         />
                       </div>
                       <div>

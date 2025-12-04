@@ -1,0 +1,44 @@
+============================================================
+Test started at: 2025-12-02 21:32:26.340057
+============================================================
+
+[STEP 1] Initializing browser...
+Initializing browser...
+Using Firefox at: /Applications/Firefox.app/Contents/MacOS/firefox
+✅ Browser initialized
+
+[STEP 2] Navigating to Sunbiz...
+✅ Navigated to: https://efile.sunbiz.org/llc_file.html
+Driver valid, current URL: https://efile.sunbiz.org/llc_file.html
+📸 Screenshot: screenshot_01_initial.png
+
+============================================================
+[STEP 3] CLOUDFLARE CHECK
+============================================================
+👆 Complete Cloudflare in the browser window
+   Wait until you see the Sunbiz filing form
+About to wait for user input at: 2025-12-02 21:32:41.421733
+Waiting for Enter key...
+👉 Press Enter ONLY when Cloudflare is passed...Traceback (most recent call last):
+  File "/Users/rodolfo/company-questionnaire/sunbiz-filing-code/test_with_logging.py", line 118, in <module>
+    input("👉 Press Enter ONLY when Cloudflare is passed...")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+EOFError: EOF when reading a line
+
+============================================================
+❌ ERROR OCCURRED
+============================================================
+Error type: EOFError
+Error message: EOF when reading a line
+
+📋 Full traceback:
+============================================================
+Driver valid, current URL: https://efile.sunbiz.org/llc_file.html
+📸 Screenshot: screenshot_error_state.png
+
+👋 Cleaning up...
+Driver valid, current URL: https://efile.sunbiz.org/llc_file.html
+✅ Browser closed
+✅ Done
+
+📋 Full log saved to: test_run.log

@@ -300,10 +300,16 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
                 {/* Persona fields */}
                 {!isEmpresa && (
                   <>
-                {/* Name */}
-                <div className="mt-4">
-                  <label className="label">Nombre completo</label>
-                  <input className="input" {...reg(`${base}.fullName`)} />
+                {/* Name - Split into First and Last */}
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="label">Nombre(s)</label>
+                    <input className="input" {...reg(`${base}.firstName`)} placeholder="Ej: Juan Carlos" />
+                  </div>
+                  <div>
+                    <label className="label">Apellido(s)</label>
+                    <input className="input" {...reg(`${base}.lastName`)} placeholder="Ej: García López" />
+                  </div>
                 </div>
 
                 {/* Dirección completa (Google Places) */}
@@ -492,13 +498,19 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
                         return (
                           <div key={nestedIdx} className="rounded-xl border border-gray-200 p-4 bg-gray-50">
                             <h4 className="text-base font-semibold text-gray-800 mb-4">
-                              Nombre Completo del socio {nestedIdx + 1}
+                              Socio {nestedIdx + 1} de la empresa
                             </h4>
 
-                            {/* Nested Owner Name */}
-                            <div className="mb-4">
-                              <label className="label">Nombre Completo del socio {nestedIdx + 1}</label>
-                              <input className="input" {...reg(`${nestedBase}.fullName`)} />
+                            {/* Nested Owner Name - Split into First and Last */}
+                            <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="label">Nombre(s) del socio {nestedIdx + 1}</label>
+                                <input className="input" {...reg(`${nestedBase}.firstName`)} placeholder="Ej: Juan Carlos" />
+                              </div>
+                              <div>
+                                <label className="label">Apellido(s) del socio {nestedIdx + 1}</label>
+                                <input className="input" {...reg(`${nestedBase}.lastName`)} placeholder="Ej: García López" />
+                              </div>
                             </div>
 
                             {/* Nested Owner Address */}

@@ -11,6 +11,28 @@ if (!AIRTABLE_API_KEY || !AIRTABLE_BASE_ID) {
 
 const base = new Airtable({ apiKey: AIRTABLE_API_KEY }).base(AIRTABLE_BASE_ID);
 
+/**
+ * Parse a full name into first and last name components
+ * Logic: First word is first name, everything else is last name
+ * Examples:
+ *   "John Doe" -> { first: "John", last: "Doe" }
+ *   "John Michael Doe" -> { first: "John", last: "Michael Doe" }
+ *   "Maria" -> { first: "Maria", last: "" }
+ */
+function parseName(fullName: string | undefined): { first: string; last: string } {
+  if (!fullName || typeof fullName !== 'string') {
+    return { first: '', last: '' };
+  }
+  
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return { first: parts[0], last: parts.slice(1).join(' ') };
+  } else if (parts.length === 1) {
+    return { first: parts[0], last: '' };
+  }
+  return { first: '', last: '' };
+}
+
 // Type definitions for our Airtable record
 export interface AirtableFormationRecord {
   // Core Information
@@ -39,6 +61,8 @@ export interface AirtableFormationRecord {
   // Owners (1-6)
   'Owner Count'?: number;
   'Owner 1 Name'?: string;
+  'Owner 1 First Name'?: string;
+  'Owner 1 Last Name'?: string;
   'Owner 1 Ownership %'?: number;
   'Owner 1 Address'?: string;
   'Owner 1 SSN'?: string;
@@ -48,30 +72,44 @@ export interface AirtableFormationRecord {
   'Owner 1 Company Address'?: string;
   'Owner 1 Nested Owners Count'?: number;
   'Owner 1 Nested Owner 1 Name'?: string;
+  'Owner 1 Nested Owner 1 First Name'?: string;
+  'Owner 1 Nested Owner 1 Last Name'?: string;
   'Owner 1 Nested Owner 1 Address'?: string;
   'Owner 1 Nested Owner 1 SSN'?: string;
   'Owner 1 Nested Owner 1 ID Document URL'?: string;
   'Owner 1 Nested Owner 2 Name'?: string;
+  'Owner 1 Nested Owner 2 First Name'?: string;
+  'Owner 1 Nested Owner 2 Last Name'?: string;
   'Owner 1 Nested Owner 2 Address'?: string;
   'Owner 1 Nested Owner 2 SSN'?: string;
   'Owner 1 Nested Owner 2 ID Document URL'?: string;
   'Owner 1 Nested Owner 3 Name'?: string;
+  'Owner 1 Nested Owner 3 First Name'?: string;
+  'Owner 1 Nested Owner 3 Last Name'?: string;
   'Owner 1 Nested Owner 3 Address'?: string;
   'Owner 1 Nested Owner 3 SSN'?: string;
   'Owner 1 Nested Owner 3 ID Document URL'?: string;
   'Owner 1 Nested Owner 4 Name'?: string;
+  'Owner 1 Nested Owner 4 First Name'?: string;
+  'Owner 1 Nested Owner 4 Last Name'?: string;
   'Owner 1 Nested Owner 4 Address'?: string;
   'Owner 1 Nested Owner 4 SSN'?: string;
   'Owner 1 Nested Owner 4 ID Document URL'?: string;
   'Owner 1 Nested Owner 5 Name'?: string;
+  'Owner 1 Nested Owner 5 First Name'?: string;
+  'Owner 1 Nested Owner 5 Last Name'?: string;
   'Owner 1 Nested Owner 5 Address'?: string;
   'Owner 1 Nested Owner 5 SSN'?: string;
   'Owner 1 Nested Owner 5 ID Document URL'?: string;
   'Owner 1 Nested Owner 6 Name'?: string;
+  'Owner 1 Nested Owner 6 First Name'?: string;
+  'Owner 1 Nested Owner 6 Last Name'?: string;
   'Owner 1 Nested Owner 6 Address'?: string;
   'Owner 1 Nested Owner 6 SSN'?: string;
   'Owner 1 Nested Owner 6 ID Document URL'?: string;
   'Owner 2 Name'?: string;
+  'Owner 2 First Name'?: string;
+  'Owner 2 Last Name'?: string;
   'Owner 2 Ownership %'?: number;
   'Owner 2 Address'?: string;
   'Owner 2 SSN'?: string;
@@ -81,30 +119,44 @@ export interface AirtableFormationRecord {
   'Owner 2 Company Address'?: string;
   'Owner 2 Nested Owners Count'?: number;
   'Owner 2 Nested Owner 1 Name'?: string;
+  'Owner 2 Nested Owner 1 First Name'?: string;
+  'Owner 2 Nested Owner 1 Last Name'?: string;
   'Owner 2 Nested Owner 1 Address'?: string;
   'Owner 2 Nested Owner 1 SSN'?: string;
   'Owner 2 Nested Owner 1 ID Document URL'?: string;
   'Owner 2 Nested Owner 2 Name'?: string;
+  'Owner 2 Nested Owner 2 First Name'?: string;
+  'Owner 2 Nested Owner 2 Last Name'?: string;
   'Owner 2 Nested Owner 2 Address'?: string;
   'Owner 2 Nested Owner 2 SSN'?: string;
   'Owner 2 Nested Owner 2 ID Document URL'?: string;
   'Owner 2 Nested Owner 3 Name'?: string;
+  'Owner 2 Nested Owner 3 First Name'?: string;
+  'Owner 2 Nested Owner 3 Last Name'?: string;
   'Owner 2 Nested Owner 3 Address'?: string;
   'Owner 2 Nested Owner 3 SSN'?: string;
   'Owner 2 Nested Owner 3 ID Document URL'?: string;
   'Owner 2 Nested Owner 4 Name'?: string;
+  'Owner 2 Nested Owner 4 First Name'?: string;
+  'Owner 2 Nested Owner 4 Last Name'?: string;
   'Owner 2 Nested Owner 4 Address'?: string;
   'Owner 2 Nested Owner 4 SSN'?: string;
   'Owner 2 Nested Owner 4 ID Document URL'?: string;
   'Owner 2 Nested Owner 5 Name'?: string;
+  'Owner 2 Nested Owner 5 First Name'?: string;
+  'Owner 2 Nested Owner 5 Last Name'?: string;
   'Owner 2 Nested Owner 5 Address'?: string;
   'Owner 2 Nested Owner 5 SSN'?: string;
   'Owner 2 Nested Owner 5 ID Document URL'?: string;
   'Owner 2 Nested Owner 6 Name'?: string;
+  'Owner 2 Nested Owner 6 First Name'?: string;
+  'Owner 2 Nested Owner 6 Last Name'?: string;
   'Owner 2 Nested Owner 6 Address'?: string;
   'Owner 2 Nested Owner 6 SSN'?: string;
   'Owner 2 Nested Owner 6 ID Document URL'?: string;
   'Owner 3 Name'?: string;
+  'Owner 3 First Name'?: string;
+  'Owner 3 Last Name'?: string;
   'Owner 3 Ownership %'?: number;
   'Owner 3 Address'?: string;
   'Owner 3 SSN'?: string;
@@ -114,30 +166,44 @@ export interface AirtableFormationRecord {
   'Owner 3 Company Address'?: string;
   'Owner 3 Nested Owners Count'?: number;
   'Owner 3 Nested Owner 1 Name'?: string;
+  'Owner 3 Nested Owner 1 First Name'?: string;
+  'Owner 3 Nested Owner 1 Last Name'?: string;
   'Owner 3 Nested Owner 1 Address'?: string;
   'Owner 3 Nested Owner 1 SSN'?: string;
   'Owner 3 Nested Owner 1 ID Document URL'?: string;
   'Owner 3 Nested Owner 2 Name'?: string;
+  'Owner 3 Nested Owner 2 First Name'?: string;
+  'Owner 3 Nested Owner 2 Last Name'?: string;
   'Owner 3 Nested Owner 2 Address'?: string;
   'Owner 3 Nested Owner 2 SSN'?: string;
   'Owner 3 Nested Owner 2 ID Document URL'?: string;
   'Owner 3 Nested Owner 3 Name'?: string;
+  'Owner 3 Nested Owner 3 First Name'?: string;
+  'Owner 3 Nested Owner 3 Last Name'?: string;
   'Owner 3 Nested Owner 3 Address'?: string;
   'Owner 3 Nested Owner 3 SSN'?: string;
   'Owner 3 Nested Owner 3 ID Document URL'?: string;
   'Owner 3 Nested Owner 4 Name'?: string;
+  'Owner 3 Nested Owner 4 First Name'?: string;
+  'Owner 3 Nested Owner 4 Last Name'?: string;
   'Owner 3 Nested Owner 4 Address'?: string;
   'Owner 3 Nested Owner 4 SSN'?: string;
   'Owner 3 Nested Owner 4 ID Document URL'?: string;
   'Owner 3 Nested Owner 5 Name'?: string;
+  'Owner 3 Nested Owner 5 First Name'?: string;
+  'Owner 3 Nested Owner 5 Last Name'?: string;
   'Owner 3 Nested Owner 5 Address'?: string;
   'Owner 3 Nested Owner 5 SSN'?: string;
   'Owner 3 Nested Owner 5 ID Document URL'?: string;
   'Owner 3 Nested Owner 6 Name'?: string;
+  'Owner 3 Nested Owner 6 First Name'?: string;
+  'Owner 3 Nested Owner 6 Last Name'?: string;
   'Owner 3 Nested Owner 6 Address'?: string;
   'Owner 3 Nested Owner 6 SSN'?: string;
   'Owner 3 Nested Owner 6 ID Document URL'?: string;
   'Owner 4 Name'?: string;
+  'Owner 4 First Name'?: string;
+  'Owner 4 Last Name'?: string;
   'Owner 4 Ownership %'?: number;
   'Owner 4 Address'?: string;
   'Owner 4 SSN'?: string;
@@ -147,30 +213,44 @@ export interface AirtableFormationRecord {
   'Owner 4 Company Address'?: string;
   'Owner 4 Nested Owners Count'?: number;
   'Owner 4 Nested Owner 1 Name'?: string;
+  'Owner 4 Nested Owner 1 First Name'?: string;
+  'Owner 4 Nested Owner 1 Last Name'?: string;
   'Owner 4 Nested Owner 1 Address'?: string;
   'Owner 4 Nested Owner 1 SSN'?: string;
   'Owner 4 Nested Owner 1 ID Document URL'?: string;
   'Owner 4 Nested Owner 2 Name'?: string;
+  'Owner 4 Nested Owner 2 First Name'?: string;
+  'Owner 4 Nested Owner 2 Last Name'?: string;
   'Owner 4 Nested Owner 2 Address'?: string;
   'Owner 4 Nested Owner 2 SSN'?: string;
   'Owner 4 Nested Owner 2 ID Document URL'?: string;
   'Owner 4 Nested Owner 3 Name'?: string;
+  'Owner 4 Nested Owner 3 First Name'?: string;
+  'Owner 4 Nested Owner 3 Last Name'?: string;
   'Owner 4 Nested Owner 3 Address'?: string;
   'Owner 4 Nested Owner 3 SSN'?: string;
   'Owner 4 Nested Owner 3 ID Document URL'?: string;
   'Owner 4 Nested Owner 4 Name'?: string;
+  'Owner 4 Nested Owner 4 First Name'?: string;
+  'Owner 4 Nested Owner 4 Last Name'?: string;
   'Owner 4 Nested Owner 4 Address'?: string;
   'Owner 4 Nested Owner 4 SSN'?: string;
   'Owner 4 Nested Owner 4 ID Document URL'?: string;
   'Owner 4 Nested Owner 5 Name'?: string;
+  'Owner 4 Nested Owner 5 First Name'?: string;
+  'Owner 4 Nested Owner 5 Last Name'?: string;
   'Owner 4 Nested Owner 5 Address'?: string;
   'Owner 4 Nested Owner 5 SSN'?: string;
   'Owner 4 Nested Owner 5 ID Document URL'?: string;
   'Owner 4 Nested Owner 6 Name'?: string;
+  'Owner 4 Nested Owner 6 First Name'?: string;
+  'Owner 4 Nested Owner 6 Last Name'?: string;
   'Owner 4 Nested Owner 6 Address'?: string;
   'Owner 4 Nested Owner 6 SSN'?: string;
   'Owner 4 Nested Owner 6 ID Document URL'?: string;
   'Owner 5 Name'?: string;
+  'Owner 5 First Name'?: string;
+  'Owner 5 Last Name'?: string;
   'Owner 5 Ownership %'?: number;
   'Owner 5 Address'?: string;
   'Owner 5 SSN'?: string;
@@ -180,30 +260,44 @@ export interface AirtableFormationRecord {
   'Owner 5 Company Address'?: string;
   'Owner 5 Nested Owners Count'?: number;
   'Owner 5 Nested Owner 1 Name'?: string;
+  'Owner 5 Nested Owner 1 First Name'?: string;
+  'Owner 5 Nested Owner 1 Last Name'?: string;
   'Owner 5 Nested Owner 1 Address'?: string;
   'Owner 5 Nested Owner 1 SSN'?: string;
   'Owner 5 Nested Owner 1 ID Document URL'?: string;
   'Owner 5 Nested Owner 2 Name'?: string;
+  'Owner 5 Nested Owner 2 First Name'?: string;
+  'Owner 5 Nested Owner 2 Last Name'?: string;
   'Owner 5 Nested Owner 2 Address'?: string;
   'Owner 5 Nested Owner 2 SSN'?: string;
   'Owner 5 Nested Owner 2 ID Document URL'?: string;
   'Owner 5 Nested Owner 3 Name'?: string;
+  'Owner 5 Nested Owner 3 First Name'?: string;
+  'Owner 5 Nested Owner 3 Last Name'?: string;
   'Owner 5 Nested Owner 3 Address'?: string;
   'Owner 5 Nested Owner 3 SSN'?: string;
   'Owner 5 Nested Owner 3 ID Document URL'?: string;
   'Owner 5 Nested Owner 4 Name'?: string;
+  'Owner 5 Nested Owner 4 First Name'?: string;
+  'Owner 5 Nested Owner 4 Last Name'?: string;
   'Owner 5 Nested Owner 4 Address'?: string;
   'Owner 5 Nested Owner 4 SSN'?: string;
   'Owner 5 Nested Owner 4 ID Document URL'?: string;
   'Owner 5 Nested Owner 5 Name'?: string;
+  'Owner 5 Nested Owner 5 First Name'?: string;
+  'Owner 5 Nested Owner 5 Last Name'?: string;
   'Owner 5 Nested Owner 5 Address'?: string;
   'Owner 5 Nested Owner 5 SSN'?: string;
   'Owner 5 Nested Owner 5 ID Document URL'?: string;
   'Owner 5 Nested Owner 6 Name'?: string;
+  'Owner 5 Nested Owner 6 First Name'?: string;
+  'Owner 5 Nested Owner 6 Last Name'?: string;
   'Owner 5 Nested Owner 6 Address'?: string;
   'Owner 5 Nested Owner 6 SSN'?: string;
   'Owner 5 Nested Owner 6 ID Document URL'?: string;
   'Owner 6 Name'?: string;
+  'Owner 6 First Name'?: string;
+  'Owner 6 Last Name'?: string;
   'Owner 6 Ownership %'?: number;
   'Owner 6 Address'?: string;
   'Owner 6 SSN'?: string;
@@ -213,26 +307,38 @@ export interface AirtableFormationRecord {
   'Owner 6 Company Address'?: string;
   'Owner 6 Nested Owners Count'?: number;
   'Owner 6 Nested Owner 1 Name'?: string;
+  'Owner 6 Nested Owner 1 First Name'?: string;
+  'Owner 6 Nested Owner 1 Last Name'?: string;
   'Owner 6 Nested Owner 1 Address'?: string;
   'Owner 6 Nested Owner 1 SSN'?: string;
   'Owner 6 Nested Owner 1 ID Document URL'?: string;
   'Owner 6 Nested Owner 2 Name'?: string;
+  'Owner 6 Nested Owner 2 First Name'?: string;
+  'Owner 6 Nested Owner 2 Last Name'?: string;
   'Owner 6 Nested Owner 2 Address'?: string;
   'Owner 6 Nested Owner 2 SSN'?: string;
   'Owner 6 Nested Owner 2 ID Document URL'?: string;
   'Owner 6 Nested Owner 3 Name'?: string;
+  'Owner 6 Nested Owner 3 First Name'?: string;
+  'Owner 6 Nested Owner 3 Last Name'?: string;
   'Owner 6 Nested Owner 3 Address'?: string;
   'Owner 6 Nested Owner 3 SSN'?: string;
   'Owner 6 Nested Owner 3 ID Document URL'?: string;
   'Owner 6 Nested Owner 4 Name'?: string;
+  'Owner 6 Nested Owner 4 First Name'?: string;
+  'Owner 6 Nested Owner 4 Last Name'?: string;
   'Owner 6 Nested Owner 4 Address'?: string;
   'Owner 6 Nested Owner 4 SSN'?: string;
   'Owner 6 Nested Owner 4 ID Document URL'?: string;
   'Owner 6 Nested Owner 5 Name'?: string;
+  'Owner 6 Nested Owner 5 First Name'?: string;
+  'Owner 6 Nested Owner 5 Last Name'?: string;
   'Owner 6 Nested Owner 5 Address'?: string;
   'Owner 6 Nested Owner 5 SSN'?: string;
   'Owner 6 Nested Owner 5 ID Document URL'?: string;
   'Owner 6 Nested Owner 6 Name'?: string;
+  'Owner 6 Nested Owner 6 First Name'?: string;
+  'Owner 6 Nested Owner 6 Last Name'?: string;
   'Owner 6 Nested Owner 6 Address'?: string;
   'Owner 6 Nested Owner 6 SSN'?: string;
   'Owner 6 Nested Owner 6 ID Document URL'?: string;
@@ -240,52 +346,88 @@ export interface AirtableFormationRecord {
   // Directors (C-Corp)
   'Directors Count'?: number;
   'Director 1 Name'?: string;
+  'Director 1 First Name'?: string;
+  'Director 1 Last Name'?: string;
   'Director 1 Address'?: string;
   'Director 2 Name'?: string;
+  'Director 2 First Name'?: string;
+  'Director 2 Last Name'?: string;
   'Director 2 Address'?: string;
   'Director 3 Name'?: string;
+  'Director 3 First Name'?: string;
+  'Director 3 Last Name'?: string;
   'Director 3 Address'?: string;
   'Director 4 Name'?: string;
+  'Director 4 First Name'?: string;
+  'Director 4 Last Name'?: string;
   'Director 4 Address'?: string;
   'Director 5 Name'?: string;
+  'Director 5 First Name'?: string;
+  'Director 5 Last Name'?: string;
   'Director 5 Address'?: string;
   'Director 6 Name'?: string;
+  'Director 6 First Name'?: string;
+  'Director 6 Last Name'?: string;
   'Director 6 Address'?: string;
   
   // Officers (C-Corp)
   'Officers Count'?: number;
   'Officer 1 Name'?: string;
+  'Officer 1 First Name'?: string;
+  'Officer 1 Last Name'?: string;
   'Officer 1 Address'?: string;
   'Officer 1 Role'?: string;
   'Officer 2 Name'?: string;
+  'Officer 2 First Name'?: string;
+  'Officer 2 Last Name'?: string;
   'Officer 2 Address'?: string;
   'Officer 2 Role'?: string;
   'Officer 3 Name'?: string;
+  'Officer 3 First Name'?: string;
+  'Officer 3 Last Name'?: string;
   'Officer 3 Address'?: string;
   'Officer 3 Role'?: string;
   'Officer 4 Name'?: string;
+  'Officer 4 First Name'?: string;
+  'Officer 4 Last Name'?: string;
   'Officer 4 Address'?: string;
   'Officer 4 Role'?: string;
   'Officer 5 Name'?: string;
+  'Officer 5 First Name'?: string;
+  'Officer 5 Last Name'?: string;
   'Officer 5 Address'?: string;
   'Officer 5 Role'?: string;
   'Officer 6 Name'?: string;
+  'Officer 6 First Name'?: string;
+  'Officer 6 Last Name'?: string;
   'Officer 6 Address'?: string;
   'Officer 6 Role'?: string;
   
   // Managers (LLC)
   'Managers Count'?: number;
   'Manager 1 Name'?: string;
+  'Manager 1 First Name'?: string;
+  'Manager 1 Last Name'?: string;
   'Manager 1 Address'?: string;
   'Manager 2 Name'?: string;
+  'Manager 2 First Name'?: string;
+  'Manager 2 Last Name'?: string;
   'Manager 2 Address'?: string;
   'Manager 3 Name'?: string;
+  'Manager 3 First Name'?: string;
+  'Manager 3 Last Name'?: string;
   'Manager 3 Address'?: string;
   'Manager 4 Name'?: string;
+  'Manager 4 First Name'?: string;
+  'Manager 4 Last Name'?: string;
   'Manager 4 Address'?: string;
   'Manager 5 Name'?: string;
+  'Manager 5 First Name'?: string;
+  'Manager 5 Last Name'?: string;
   'Manager 5 Address'?: string;
   'Manager 6 Name'?: string;
+  'Manager 6 First Name'?: string;
+  'Manager 6 Last Name'?: string;
   'Manager 6 Address'?: string;
   
   // Documents
@@ -600,8 +742,23 @@ export function mapQuestionnaireToAirtable(
       (record as any)[`Owner ${num} Ownership %`] = owner.ownership ? Number(owner.ownership) / 100 : undefined;
       
       if (ownerType === 'persona') {
-        // Persona fields (existing)
-        (record as any)[`Owner ${num} Name`] = owner.fullName;
+        // Persona fields - use separate firstName/lastName if available, otherwise parse fullName
+        const firstName = owner.firstName || '';
+        const lastName = owner.lastName || '';
+        const fullName = owner.fullName || `${firstName} ${lastName}`.trim();
+        
+        // If separate fields aren't filled, fall back to parsing fullName
+        let finalFirstName = firstName;
+        let finalLastName = lastName;
+        if (!firstName && !lastName && fullName) {
+          const parsed = parseName(fullName);
+          finalFirstName = parsed.first;
+          finalLastName = parsed.last;
+        }
+        
+        (record as any)[`Owner ${num} Name`] = fullName || `${finalFirstName} ${finalLastName}`.trim();
+        (record as any)[`Owner ${num} First Name`] = finalFirstName;
+        (record as any)[`Owner ${num} Last Name`] = finalLastName;
         (record as any)[`Owner ${num} Address`] = owner.address;
         (record as any)[`Owner ${num} SSN`] = owner.tin; // TIN = Tax Identification Number (SSN/EIN)
         
@@ -622,7 +779,22 @@ export function mapQuestionnaireToAirtable(
         nestedOwners.forEach((nestedOwner: any, nestedIndex: number) => {
           const nestedNum = nestedIndex + 1;
           if (nestedNum <= 6) {
-            (record as any)[`Owner ${num} Nested Owner ${nestedNum} Name`] = nestedOwner.fullName;
+            // Use separate firstName/lastName if available, otherwise parse fullName
+            const nestedFirstName = nestedOwner.firstName || '';
+            const nestedLastName = nestedOwner.lastName || '';
+            const nestedFullName = nestedOwner.fullName || `${nestedFirstName} ${nestedLastName}`.trim();
+            
+            let finalNestedFirstName = nestedFirstName;
+            let finalNestedLastName = nestedLastName;
+            if (!nestedFirstName && !nestedLastName && nestedFullName) {
+              const parsed = parseName(nestedFullName);
+              finalNestedFirstName = parsed.first;
+              finalNestedLastName = parsed.last;
+            }
+            
+            (record as any)[`Owner ${num} Nested Owner ${nestedNum} Name`] = nestedFullName || `${finalNestedFirstName} ${finalNestedLastName}`.trim();
+            (record as any)[`Owner ${num} Nested Owner ${nestedNum} First Name`] = finalNestedFirstName;
+            (record as any)[`Owner ${num} Nested Owner ${nestedNum} Last Name`] = finalNestedLastName;
             (record as any)[`Owner ${num} Nested Owner ${nestedNum} Address`] = nestedOwner.address;
             (record as any)[`Owner ${num} Nested Owner ${nestedNum} SSN`] = nestedOwner.tin;
             
@@ -643,9 +815,23 @@ export function mapQuestionnaireToAirtable(
     const directorsCount = admin.directorsCount || 0;
     record['Directors Count'] = directorsCount;
     
-    // Directors are stored as dynamic keys: director1Name, director1Address, etc.
+    // Directors are stored as dynamic keys: director1FirstName, director1LastName, director1Address, etc.
     for (let i = 1; i <= Math.min(directorsCount, 6); i++) {
-      (record as any)[`Director ${i} Name`] = admin[`director${i}Name`];
+      const directorFirstName = admin[`director${i}FirstName`] || '';
+      const directorLastName = admin[`director${i}LastName`] || '';
+      const directorName = admin[`director${i}Name`] || `${directorFirstName} ${directorLastName}`.trim();
+      
+      let finalFirstName = directorFirstName;
+      let finalLastName = directorLastName;
+      if (!directorFirstName && !directorLastName && directorName) {
+        const parsed = parseName(directorName);
+        finalFirstName = parsed.first;
+        finalLastName = parsed.last;
+      }
+      
+      (record as any)[`Director ${i} Name`] = directorName || `${finalFirstName} ${finalLastName}`.trim();
+      (record as any)[`Director ${i} First Name`] = finalFirstName;
+      (record as any)[`Director ${i} Last Name`] = finalLastName;
       (record as any)[`Director ${i} Address`] = admin[`director${i}Address`];
     }
   }
@@ -655,9 +841,23 @@ export function mapQuestionnaireToAirtable(
     const officersCount = admin.officersCount || 0;
     record['Officers Count'] = officersCount;
     
-    // Officers are stored as dynamic keys: officer1Name, officer1Address, officer1Role, etc.
+    // Officers are stored as dynamic keys: officer1FirstName, officer1LastName, officer1Address, officer1Role, etc.
     for (let i = 1; i <= Math.min(officersCount, 6); i++) {
-      (record as any)[`Officer ${i} Name`] = admin[`officer${i}Name`];
+      const officerFirstName = admin[`officer${i}FirstName`] || '';
+      const officerLastName = admin[`officer${i}LastName`] || '';
+      const officerName = admin[`officer${i}Name`] || `${officerFirstName} ${officerLastName}`.trim();
+      
+      let finalFirstName = officerFirstName;
+      let finalLastName = officerLastName;
+      if (!officerFirstName && !officerLastName && officerName) {
+        const parsed = parseName(officerName);
+        finalFirstName = parsed.first;
+        finalLastName = parsed.last;
+      }
+      
+      (record as any)[`Officer ${i} Name`] = officerName || `${finalFirstName} ${finalLastName}`.trim();
+      (record as any)[`Officer ${i} First Name`] = finalFirstName;
+      (record as any)[`Officer ${i} Last Name`] = finalLastName;
       (record as any)[`Officer ${i} Address`] = admin[`officer${i}Address`];
       (record as any)[`Officer ${i} Role`] = admin[`officer${i}Role`];
     }
@@ -668,9 +868,23 @@ export function mapQuestionnaireToAirtable(
     const managersCount = admin.managersCount || 0;
     record['Managers Count'] = managersCount;
     
-    // Managers are stored as dynamic keys: manager1Name, manager1Address, etc.
+    // Managers are stored as dynamic keys: manager1FirstName, manager1LastName, manager1Address, etc.
     for (let i = 1; i <= Math.min(managersCount, 6); i++) {
-      (record as any)[`Manager ${i} Name`] = admin[`manager${i}Name`];
+      const managerFirstName = admin[`manager${i}FirstName`] || '';
+      const managerLastName = admin[`manager${i}LastName`] || '';
+      const managerName = admin[`manager${i}Name`] || `${managerFirstName} ${managerLastName}`.trim();
+      
+      let finalFirstName = managerFirstName;
+      let finalLastName = managerLastName;
+      if (!managerFirstName && !managerLastName && managerName) {
+        const parsed = parseName(managerName);
+        finalFirstName = parsed.first;
+        finalLastName = parsed.last;
+      }
+      
+      (record as any)[`Manager ${i} Name`] = managerName || `${finalFirstName} ${finalLastName}`.trim();
+      (record as any)[`Manager ${i} First Name`] = finalFirstName;
+      (record as any)[`Manager ${i} Last Name`] = finalLastName;
       (record as any)[`Manager ${i} Address`] = admin[`manager${i}Address`];
     }
   }

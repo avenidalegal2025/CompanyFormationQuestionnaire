@@ -383,68 +383,82 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                   
                   {/* Ownership percentage - shown for both persona and empresa */}
                   <div className="mb-4">
-                    <span className="font-bold text-gray-700">Porcentaje de propiedad:</span>
-                    {editingSection === "owners" ? (
-                      <Controller
-                        name={`owners.${i}.ownership` as never}
-                        control={control}
-                        render={({ field }) => {
-                          const currentTotal = Array.from({ length: ownersCount }).reduce((total: number, _, idx) => {
+                      <span className="font-bold text-gray-700">Porcentaje de propiedad:</span>
+                      {editingSection === "owners" ? (
+                        <Controller
+                          name={`owners.${i}.ownership` as never}
+                          control={control}
+                          render={({ field }) => {
+                            const currentTotal = Array.from({ length: ownersCount }).reduce((total: number, _, idx) => {
                             if (idx === i) return total;
-                            const percentage = Number(watch(`owners.${idx}.ownership`));
-                            return total + (isNaN(percentage) ? 0 : percentage);
-                          }, 0);
-                          const currentValue = Number(field.value);
-                          const validCurrentValue = isNaN(currentValue) ? 0 : currentValue;
-                          const newTotal = currentTotal + validCurrentValue;
-                          const remaining = 100 - newTotal;
-                          return (
-                            <>
-                              <input 
-                                type="number" 
-                                min="0" 
-                                max="100" 
+                              const percentage = Number(watch(`owners.${idx}.ownership`));
+                              return total + (isNaN(percentage) ? 0 : percentage);
+                            }, 0);
+                            const currentValue = Number(field.value);
+                            const validCurrentValue = isNaN(currentValue) ? 0 : currentValue;
+                            const newTotal = currentTotal + validCurrentValue;
+                            const remaining = 100 - newTotal;
+                            return (
+                              <>
+                                <input 
+                                  type="number" 
+                                  min="0" 
+                                  max="100" 
                                 className="input mt-1 w-full max-w-xs" 
-                                {...field} 
-                              />
-                              <div className="mt-1 text-sm">
-                                {remaining > 0 ? (
-                                  <span className="text-blue-600">
-                                    Faltan {remaining}% para completar 100%
-                                  </span>
-                                ) : remaining < 0 ? (
-                                  <span className="text-red-600">
-                                    Excede 100% por {Math.abs(remaining)}%
-                                  </span>
-                                ) : (
-                                  <span className="text-green-600">✓ Total: 100%</span>
-                                )}
-                              </div>
-                            </>
-                          );
-                        }}
-                      />
-                    ) : (
-                      <p className="text-gray-900">{owner?.ownership || 0}%</p>
-                    )}
-                  </div>
+                                  {...field} 
+                                />
+                                <div className="mt-1 text-sm">
+                                  {remaining > 0 ? (
+                                    <span className="text-blue-600">
+                                      Faltan {remaining}% para completar 100%
+                                    </span>
+                                  ) : remaining < 0 ? (
+                                    <span className="text-red-600">
+                                      Excede 100% por {Math.abs(remaining)}%
+                                    </span>
+                                  ) : (
+                                    <span className="text-green-600">✓ Total: 100%</span>
+                                  )}
+                                </div>
+                              </>
+                            );
+                          }}
+                        />
+                      ) : (
+                          <p className="text-gray-900">{owner?.ownership || 0}%</p>
+                            )}
+                          </div>
                   
                   {/* Persona fields */}
                   {!isEmpresa && (
                     <>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <span className="font-bold text-gray-700">Nombre completo:</span>
+                      <span className="font-bold text-gray-700">Nombre(s):</span>
                       {editingSection === "owners" ? (
                         <Controller
-                          name={`owners.${i}.fullName` as never}
+                          name={`owners.${i}.firstName` as never}
                           control={control}
                           render={({ field }) => (
-                            <input className="input mt-1" {...field} />
+                            <input className="input mt-1" placeholder="Ej: Juan Carlos" {...field} />
                           )}
                         />
                       ) : (
-                        <p className="text-gray-900">{owner?.fullName || "No especificado"}</p>
+                        <p className="text-gray-900">{owner?.firstName || owner?.fullName?.split(' ')[0] || "No especificado"}</p>
+                      )}
+                    </div>
+                    <div>
+                      <span className="font-bold text-gray-700">Apellido(s):</span>
+                      {editingSection === "owners" ? (
+                        <Controller
+                          name={`owners.${i}.lastName` as never}
+                          control={control}
+                          render={({ field }) => (
+                            <input className="input mt-1" placeholder="Ej: García López" {...field} />
+                          )}
+                        />
+                      ) : (
+                        <p className="text-gray-900">{owner?.lastName || owner?.fullName?.split(' ').slice(1).join(' ') || "No especificado"}</p>
                       )}
                     </div>
                     <div>
@@ -772,39 +786,39 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
           <div className="bg-gray-50 rounded-lg p-4 space-y-3">
             {entityType === "LLC" ? (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <span className="font-bold text-gray-700">¿Todos los socios son gerentes?</span>
-                    {editingSection === "admin" ? (
-                      <Controller
-                        name={"admin.managersAllOwners"}
-                        control={control}
-                        render={({ field }) => (
-                          <select className="input mt-1" {...field}>
-                            <option value="Yes">Sí</option>
-                            <option value="No">No</option>
-                          </select>
-                        )}
-                      />
-                    ) : (
-                      <p className="text-gray-900">{adminData?.managersAllOwners === "Yes" ? "Sí" : "No"}</p>
-                    )}
-                  </div>
-                  <div>
-                    <span className="font-bold text-gray-700">Número de gerentes:</span>
-                    {editingSection === "admin" ? (
-                      <Controller
-                        name={"admin.managersCount"}
-                        control={control}
-                        render={({ field }) => (
-                          <input type="number" min={1} className="input mt-1 w-24" {...field} />
-                        )}
-                      />
-                    ) : (
-                      <p className="text-gray-900">{adminData?.managersCount ?? 1}</p>
-                    )}
-                  </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <span className="font-bold text-gray-700">¿Todos los socios son gerentes?</span>
+                  {editingSection === "admin" ? (
+                    <Controller
+                      name={"admin.managersAllOwners"}
+                      control={control}
+                      render={({ field }) => (
+                        <select className="input mt-1" {...field}>
+                          <option value="Yes">Sí</option>
+                          <option value="No">No</option>
+                        </select>
+                      )}
+                    />
+                  ) : (
+                    <p className="text-gray-900">{adminData?.managersAllOwners === "Yes" ? "Sí" : "No"}</p>
+                  )}
                 </div>
+                <div>
+                  <span className="font-bold text-gray-700">Número de gerentes:</span>
+                  {editingSection === "admin" ? (
+                    <Controller
+                      name={"admin.managersCount"}
+                      control={control}
+                      render={({ field }) => (
+                        <input type="number" min={1} className="input mt-1 w-24" {...field} />
+                      )}
+                    />
+                  ) : (
+                    <p className="text-gray-900">{adminData?.managersCount ?? 1}</p>
+                  )}
+                </div>
+              </div>
                 
                 {/* Manager Details - Always show when managersAllOwners is "Yes", or when "No" and managersCount is set */}
                 {((adminData?.managersAllOwners === "Yes" && ownersCount > 0) || (adminData?.managersAllOwners === "No" && adminData?.managersCount)) && (
