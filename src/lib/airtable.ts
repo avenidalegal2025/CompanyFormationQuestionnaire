@@ -528,6 +528,7 @@ export interface AirtableFormationRecord {
   // Admin
   'Notes'?: string;
   'Internal Status'?: 'New' | 'Contacted' | 'Documents Sent' | 'Filed' | 'Complete';
+  'Autofill'?: 'Yes' | 'No';
 }
 
 /**
@@ -729,6 +730,9 @@ export function mapQuestionnaireToAirtable(
     
     // Admin
     'Internal Status': 'New',
+    
+    // Trigger Sunbiz autofill automation
+    'Autofill': 'Yes',
   };
   
   // Map owners (1-6)
