@@ -834,27 +834,46 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                         : (adminData?.managersCount || 1), 
                       6
                     ) }).map((_, i) => {
+                      // Get manager firstName/lastName from adminData
+                      const managerFirstName = (adminData as any)?.[`manager${i + 1}FirstName`] as string | undefined;
+                      const managerLastName = (adminData as any)?.[`manager${i + 1}LastName`] as string | undefined;
                       const managerName = (adminData as any)?.[`manager${i + 1}Name`] as string | undefined;
                       const managerAddress = (adminData as any)?.[`manager${i + 1}Address`] as string | undefined;
-                      // Get owner data directly from watch to ensure we have the latest data
-                      // Watch the specific owner fields to get real-time updates
+                      
+                      // Get owner data with new firstName/lastName fields
+                      const ownerFirstName = (watch(`owners.${i}.firstName` as never) as unknown) as string | undefined;
+                      const ownerLastName = (watch(`owners.${i}.lastName` as never) as unknown) as string | undefined;
                       const ownerFullName = (watch(`owners.${i}.fullName` as never) as unknown) as string | undefined;
                       const ownerAddress = (watch(`owners.${i}.address` as never) as unknown) as string | undefined;
+                      
                       // Fallback to ownersData if watch doesn't return a value
                       const currentOwners = (watch("owners") || ownersData || []) as Array<{
+                        firstName?: string;
+                        lastName?: string;
                         fullName?: string;
                         address?: string;
                       }>;
                       const ownerFromData = (currentOwners[i] || {}) as {
+                        firstName?: string;
+                        lastName?: string;
                         fullName?: string;
                         address?: string;
                       };
                       
-                      // If managersAllOwners is "Yes", use owner data (since managers = owners)
-                      // If managersAllOwners is "No", use manager data from adminData
-                      const displayName = adminData?.managersAllOwners === "Yes" 
-                        ? (ownerFullName || ownerFromData?.fullName || "")
-                        : (managerName || "");
+                      // Build display name from firstName + lastName, falling back to fullName
+                      let displayName = "";
+                      if (adminData?.managersAllOwners === "Yes") {
+                        // Use owner data (since managers = owners)
+                        const first = ownerFirstName || ownerFromData?.firstName || "";
+                        const last = ownerLastName || ownerFromData?.lastName || "";
+                        displayName = `${first} ${last}`.trim() || ownerFullName || ownerFromData?.fullName || "";
+                      } else {
+                        // Use manager data from adminData
+                        const first = managerFirstName || "";
+                        const last = managerLastName || "";
+                        displayName = `${first} ${last}`.trim() || managerName || "";
+                      }
+                      
                       const displayAddress = adminData?.managersAllOwners === "Yes"
                         ? (ownerAddress || ownerFromData?.address || "")
                         : (managerAddress || "");
@@ -864,15 +883,24 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                           <h5 className="text-sm font-semibold text-gray-700 mb-2">Gerente {i + 1}</h5>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                              <span className="font-bold text-gray-700 text-sm">Nombre completo:</span>
+                              <span className="font-bold text-gray-700 text-sm">Nombre:</span>
                               {editingSection === "admin" ? (
-                                <Controller
-                                  name={`admin.manager${i + 1}Name` as never}
-                                  control={control}
-                                  render={({ field }) => (
-                                    <input className="input mt-1" {...field} />
-                                  )}
-                                />
+                                <div className="grid grid-cols-2 gap-2 mt-1">
+                                  <Controller
+                                    name={`admin.manager${i + 1}FirstName` as never}
+                                    control={control}
+                                    render={({ field }) => (
+                                      <input className="input" placeholder="Nombre(s)" {...field} />
+                                    )}
+                                  />
+                                  <Controller
+                                    name={`admin.manager${i + 1}LastName` as never}
+                                    control={control}
+                                    render={({ field }) => (
+                                      <input className="input" placeholder="Apellido(s)" {...field} />
+                                    )}
+                                  />
+                                </div>
                               ) : (
                                 <p className="text-gray-900 text-sm">{displayName || "No especificado"}</p>
                               )}
@@ -975,9 +1003,11 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                     <h4 className="text-md font-bold text-gray-900">Roles de Oficiales</h4>
                     <div className="space-y-3">
                       {Array.from({ length: watch("ownersCount") || 1 }).map((_, idx) => {
-                        const ownerName = watch(`owners.${idx}.fullName`) as string;
+                        const ownerFirstName = watch(`owners.${idx}.firstName`) as string;
+                        const ownerLastName = watch(`owners.${idx}.lastName`) as string;
+                        const ownerFullName = watch(`owners.${idx}.fullName`) as string;
                         const officerRole = watch(`admin.shareholderOfficer${idx + 1}Role`) as string;
-                        const nameStr = ownerName || `Accionista ${idx + 1}`;
+                        const nameStr = `${ownerFirstName || ""} ${ownerLastName || ""}`.trim() || ownerFullName || `Accionista ${idx + 1}`;
                         const roleStr = officerRole || "Sin asignar";
                         return (
                           <div key={idx} className="rounded-lg border border-gray-100 p-4">
@@ -1019,9 +1049,12 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                   <div className="mt-6 space-y-4">
                     <h4 className="text-md font-bold text-gray-900">Directores</h4>
                     {Array.from({ length: adminData?.directorsCount || 0 }).map((_, idx) => {
-                      const name = watch(`admin.director${idx + 1}Name`);
+                      const firstName = watch(`admin.director${idx + 1}FirstName`);
+                      const lastName = watch(`admin.director${idx + 1}LastName`);
                       const address = watch(`admin.director${idx + 1}Address`);
-                      const nameStr = (name as string | undefined) || "No especificado";
+                      const firstNameStr = (firstName as string | undefined) || "";
+                      const lastNameStr = (lastName as string | undefined) || "";
+                      const nameStr = `${firstNameStr} ${lastNameStr}`.trim() || "No especificado";
                       const addressStr = (address as string | undefined) || "No especificado";
                       return (
                         <div key={idx} className="rounded-lg border border-gray-100 p-4">
@@ -1029,13 +1062,22 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                             <div>
                               <span className="font-bold text-gray-700">Nombre:</span>
                               {editingSection === "admin" ? (
-                                <Controller
-                                  name={`admin.director${idx + 1}Name` as never}
-                                  control={control}
-                                  render={({ field }) => (
-                                    <input className="input mt-1" {...field} />
-                                  )}
-                                />
+                                <div className="grid grid-cols-2 gap-2 mt-1">
+                                  <Controller
+                                    name={`admin.director${idx + 1}FirstName` as never}
+                                    control={control}
+                                    render={({ field }) => (
+                                      <input className="input" placeholder="Nombre(s)" {...field} />
+                                    )}
+                                  />
+                                  <Controller
+                                    name={`admin.director${idx + 1}LastName` as never}
+                                    control={control}
+                                    render={({ field }) => (
+                                      <input className="input" placeholder="Apellido(s)" {...field} />
+                                    )}
+                                  />
+                                </div>
                               ) : (
                                 <p className="text-gray-900">{nameStr}</p>
                               )}
@@ -1071,10 +1113,13 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                   <div className="mt-6 space-y-4">
                     <h4 className="text-md font-bold text-gray-900">Oficiales</h4>
                     {Array.from({ length: adminData?.officersCount || 0 }).map((_, idx) => {
-                      const name = watch(`admin.officer${idx + 1}Name`);
+                      const firstName = watch(`admin.officer${idx + 1}FirstName`);
+                      const lastName = watch(`admin.officer${idx + 1}LastName`);
                       const role = watch(`admin.officer${idx + 1}Role`);
                       const address = watch(`admin.officer${idx + 1}Address`);
-                      const nameStr = (name as string | undefined) || "No especificado";
+                      const firstNameStr = (firstName as string | undefined) || "";
+                      const lastNameStr = (lastName as string | undefined) || "";
+                      const nameStr = `${firstNameStr} ${lastNameStr}`.trim() || "No especificado";
                       const roleStr = (role as string | undefined) || "No especificado";
                       const addressStr = (address as string | undefined) || "No especificado";
                       return (
@@ -1083,13 +1128,22 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                             <div>
                               <span className="font-bold text-gray-700">Nombre:</span>
                               {editingSection === "admin" ? (
-                                <Controller
-                                  name={`admin.officer${idx + 1}Name` as never}
-                                  control={control}
-                                  render={({ field }) => (
-                                    <input className="input mt-1" {...field} />
-                                  )}
-                                />
+                                <div className="grid grid-cols-2 gap-2 mt-1">
+                                  <Controller
+                                    name={`admin.officer${idx + 1}FirstName` as never}
+                                    control={control}
+                                    render={({ field }) => (
+                                      <input className="input" placeholder="Nombre(s)" {...field} />
+                                    )}
+                                  />
+                                  <Controller
+                                    name={`admin.officer${idx + 1}LastName` as never}
+                                    control={control}
+                                    render={({ field }) => (
+                                      <input className="input" placeholder="Apellido(s)" {...field} />
+                                    )}
+                                  />
+                                </div>
                               ) : (
                                 <p className="text-gray-900">{nameStr}</p>
                               )}
@@ -1181,9 +1235,12 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
               <div className="mt-6 space-y-4">
                 <h4 className="text-md font-bold text-gray-900">Gerentes</h4>
                 {Array.from({ length: adminData?.managersCount || 0 }).map((_, idx) => {
-                  const name = watch(`admin.manager${idx + 1}Name`);
+                  const firstName = watch(`admin.manager${idx + 1}FirstName`);
+                  const lastName = watch(`admin.manager${idx + 1}LastName`);
                   const address = watch(`admin.manager${idx + 1}Address`);
-                  const nameStr = (name as string | undefined) || "No especificado";
+                  const firstNameStr = (firstName as string | undefined) || "";
+                  const lastNameStr = (lastName as string | undefined) || "";
+                  const nameStr = `${firstNameStr} ${lastNameStr}`.trim() || "No especificado";
                   const addressStr = (address as string | undefined) || "No especificado";
                   return (
                     <div key={idx} className="rounded-lg border border-gray-100 p-4">
@@ -1191,13 +1248,22 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                         <div>
                           <span className="font-bold text-gray-700">Nombre:</span>
                           {editingSection === "admin" ? (
-                            <Controller
-                              name={`admin.manager${idx + 1}Name` as never}
-                              control={control}
-                              render={({ field }) => (
-                                <input className="input mt-1" {...field} />
-                              )}
-                            />
+                            <div className="grid grid-cols-2 gap-2 mt-1">
+                              <Controller
+                                name={`admin.manager${idx + 1}FirstName` as never}
+                                control={control}
+                                render={({ field }) => (
+                                  <input className="input" placeholder="Nombre(s)" {...field} />
+                                )}
+                              />
+                              <Controller
+                                name={`admin.manager${idx + 1}LastName` as never}
+                                control={control}
+                                render={({ field }) => (
+                                  <input className="input" placeholder="Apellido(s)" {...field} />
+                                )}
+                              />
+                            </div>
                           ) : (
                             <p className="text-gray-900">{nameStr}</p>
                           )}
