@@ -55,7 +55,9 @@ export const CompanySchema = z.object({
 
 /** ------------ Nested Owner (for company owners) ------------ */
 export const NestedOwnerSchema = z.object({
-  fullName: z.string().optional(),
+  fullName: z.string().optional(), // Legacy - for backward compatibility
+  firstName: z.string().optional(), // New - separate first name field
+  lastName: z.string().optional(), // New - separate last name field
   address: z.string().optional(),
   tin: z.string().optional(), // Tax Identification Number (SSN/EIN)
   isUsCitizen: z.enum(["Yes", "No"]).optional(),
@@ -69,7 +71,9 @@ export const OwnerSchema = z.object({
   ownerType: z.enum(["persona", "empresa"]).optional(),
   
   // Persona fields (existing)
-  fullName: z.string().optional(),
+  fullName: z.string().optional(), // Legacy - for backward compatibility
+  firstName: z.string().optional(), // New - separate first name field
+  lastName: z.string().optional(), // New - separate last name field
   ownership: z.union([z.number(), z.string()]).optional(),
   address: z.string().optional(),
   tin: z.string().optional(), // Tax Identification Number (SSN/EIN)
