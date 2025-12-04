@@ -757,8 +757,9 @@ export function mapQuestionnaireToAirtable(
         }
         
         (record as any)[`Owner ${num} Name`] = fullName || `${finalFirstName} ${finalLastName}`.trim();
-        (record as any)[`Owner ${num} First Name`] = finalFirstName;
-        (record as any)[`Owner ${num} Last Name`] = finalLastName;
+        // Note: First Name/Last Name fields commented out until Airtable columns are added
+        // (record as any)[`Owner ${num} First Name`] = finalFirstName;
+        // (record as any)[`Owner ${num} Last Name`] = finalLastName;
         (record as any)[`Owner ${num} Address`] = owner.address;
         (record as any)[`Owner ${num} SSN`] = owner.tin; // TIN = Tax Identification Number (SSN/EIN)
         
@@ -793,8 +794,9 @@ export function mapQuestionnaireToAirtable(
             }
             
             (record as any)[`Owner ${num} Nested Owner ${nestedNum} Name`] = nestedFullName || `${finalNestedFirstName} ${finalNestedLastName}`.trim();
-            (record as any)[`Owner ${num} Nested Owner ${nestedNum} First Name`] = finalNestedFirstName;
-            (record as any)[`Owner ${num} Nested Owner ${nestedNum} Last Name`] = finalNestedLastName;
+            // Note: First Name/Last Name fields commented out until Airtable columns are added
+            // (record as any)[`Owner ${num} Nested Owner ${nestedNum} First Name`] = finalNestedFirstName;
+            // (record as any)[`Owner ${num} Nested Owner ${nestedNum} Last Name`] = finalNestedLastName;
             (record as any)[`Owner ${num} Nested Owner ${nestedNum} Address`] = nestedOwner.address;
             (record as any)[`Owner ${num} Nested Owner ${nestedNum} SSN`] = nestedOwner.tin;
             
@@ -830,8 +832,9 @@ export function mapQuestionnaireToAirtable(
       }
       
       (record as any)[`Director ${i} Name`] = directorName || `${finalFirstName} ${finalLastName}`.trim();
-      (record as any)[`Director ${i} First Name`] = finalFirstName;
-      (record as any)[`Director ${i} Last Name`] = finalLastName;
+      // Note: First Name/Last Name fields commented out until Airtable columns are added
+      // (record as any)[`Director ${i} First Name`] = finalFirstName;
+      // (record as any)[`Director ${i} Last Name`] = finalLastName;
       (record as any)[`Director ${i} Address`] = admin[`director${i}Address`];
     }
   }
@@ -856,8 +859,9 @@ export function mapQuestionnaireToAirtable(
       }
       
       (record as any)[`Officer ${i} Name`] = officerName || `${finalFirstName} ${finalLastName}`.trim();
-      (record as any)[`Officer ${i} First Name`] = finalFirstName;
-      (record as any)[`Officer ${i} Last Name`] = finalLastName;
+      // Note: First Name/Last Name fields commented out until Airtable columns are added
+      // (record as any)[`Officer ${i} First Name`] = finalFirstName;
+      // (record as any)[`Officer ${i} Last Name`] = finalLastName;
       (record as any)[`Officer ${i} Address`] = admin[`officer${i}Address`];
       (record as any)[`Officer ${i} Role`] = admin[`officer${i}Role`];
     }
@@ -883,8 +887,9 @@ export function mapQuestionnaireToAirtable(
       }
       
       (record as any)[`Manager ${i} Name`] = managerName || `${finalFirstName} ${finalLastName}`.trim();
-      (record as any)[`Manager ${i} First Name`] = finalFirstName;
-      (record as any)[`Manager ${i} Last Name`] = finalLastName;
+      // Note: First Name/Last Name fields commented out until Airtable columns are added
+      // (record as any)[`Manager ${i} First Name`] = finalFirstName;
+      // (record as any)[`Manager ${i} Last Name`] = finalLastName;
       (record as any)[`Manager ${i} Address`] = admin[`manager${i}Address`];
     }
   }
