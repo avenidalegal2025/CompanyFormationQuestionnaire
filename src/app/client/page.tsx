@@ -58,7 +58,8 @@ export default function ClientPage() {
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
   const [businessPhone, setBusinessPhone] = useState<{ phoneNumber: string; forwardToE164: string } | null>(null);
-  const [hasUsPhone, setHasUsPhone] = useState<boolean>(false);
+  const [hasUsPhone, setHasUsPhone] = useState<boolean>(true); // Default to true = hide phone section
+  const [needsUsPhoneFromAvenida, setNeedsUsPhoneFromAvenida] = useState<boolean>(false);
   const [cc, setCc] = useState('+52');
   const [localNum, setLocalNum] = useState('');
   const [showCaller, setShowCaller] = useState(false);
@@ -106,9 +107,14 @@ export default function ClientPage() {
         const data = JSON.parse(savedData);
         setCompanyData(data);
         
-        // Check if user has US phone (if yes, phone section should be hidden)
+        // Check if user has US phone
         const userHasUsPhone = data?.company?.hasUsPhone === 'Yes';
         setHasUsPhone(userHasUsPhone);
+        
+        // Only show phone section if user explicitly said they DON'T have a US phone
+        // This means they need one from Avenida Legal
+        const needsPhone = data?.company?.hasUsPhone === 'No';
+        setNeedsUsPhoneFromAvenida(needsPhone);
         
         // Determine processing time based on owners' SSN
         const owners = data?.owners || [];
@@ -485,8 +491,8 @@ export default function ClientPage() {
               </Link>
             </div>
 
-            {/* Business Phone Card - Only show if user doesn't have US phone */}
-            {!hasUsPhone && (
+            {/* Business Phone Card - Only show if user explicitly requested US phone from Avenida Legal */}
+            {needsUsPhoneFromAvenida && (
             <div className="card overflow-hidden">
               <div className="bg-gradient-to-r from-brand-600 to-brand-700 px-6 py-5">
                 <h3 className="text-xl font-semibold text-white flex items-center gap-2">
