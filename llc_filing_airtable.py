@@ -102,25 +102,25 @@ def fetch_llc_data_from_airtable(record_id=None):
             raise ValueError(f"Record {record_id} is not a Florida LLC - cannot file on Sunbiz")
     else:
         # Build filter for NEW questionnaire submissions only
-        # SAFETY: Requires "Auto-File Enabled" = "Yes" to be set manually in Airtable
+        # Requires "Autofill" = "Yes" (set automatically when questionnaire is submitted)
         # Excludes already filed, completed, or in-progress records
         formula = """AND(
             {Formation Status} = 'Pending',
             {Formation State} = 'Florida',
             {Stripe Payment ID} != '',
             {Entity Type} = 'LLC',
-            {Auto-File Enabled} = 'Yes',
+            {Autofill} = 'Yes',
             {Formation Status} != 'Filed',
             {Formation Status} != 'Completed',
             {Formation Status} != 'In Progress'
         )"""
         
-        print("🔍 Searching for Pending Florida LLCs with Auto-File Enabled...")
+        print("🔍 Searching for Pending Florida LLCs with Autofill enabled...")
         records = table.all(formula=formula, max_records=1, sort=["-Payment Date"])
         
         if not records:
             print("ℹ️  No formations ready for auto-filing")
-            print("   To enable a record, set 'Auto-File Enabled' = 'Yes' in Airtable")
+            print("   Records need: Autofill = 'Yes', Formation Status = 'Pending', State = 'Florida'")
             return None
         
         record = records[0]
