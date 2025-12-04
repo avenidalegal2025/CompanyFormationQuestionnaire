@@ -757,9 +757,8 @@ export function mapQuestionnaireToAirtable(
         }
         
         (record as any)[`Owner ${num} Name`] = fullName || `${finalFirstName} ${finalLastName}`.trim();
-        // Note: First Name/Last Name fields commented out until Airtable columns are added
-        // (record as any)[`Owner ${num} First Name`] = finalFirstName;
-        // (record as any)[`Owner ${num} Last Name`] = finalLastName;
+        (record as any)[`Owner ${num} First Name`] = finalFirstName;
+        (record as any)[`Owner ${num} Last Name`] = finalLastName;
         (record as any)[`Owner ${num} Address`] = owner.address;
         (record as any)[`Owner ${num} SSN`] = owner.tin; // TIN = Tax Identification Number (SSN/EIN)
         
@@ -794,9 +793,8 @@ export function mapQuestionnaireToAirtable(
             }
             
             (record as any)[`Owner ${num} Nested Owner ${nestedNum} Name`] = nestedFullName || `${finalNestedFirstName} ${finalNestedLastName}`.trim();
-            // Note: First Name/Last Name fields commented out until Airtable columns are added
-            // (record as any)[`Owner ${num} Nested Owner ${nestedNum} First Name`] = finalNestedFirstName;
-            // (record as any)[`Owner ${num} Nested Owner ${nestedNum} Last Name`] = finalNestedLastName;
+            (record as any)[`Owner ${num} Nested Owner ${nestedNum} First Name`] = finalNestedFirstName;
+            (record as any)[`Owner ${num} Nested Owner ${nestedNum} Last Name`] = finalNestedLastName;
             (record as any)[`Owner ${num} Nested Owner ${nestedNum} Address`] = nestedOwner.address;
             (record as any)[`Owner ${num} Nested Owner ${nestedNum} SSN`] = nestedOwner.tin;
             
