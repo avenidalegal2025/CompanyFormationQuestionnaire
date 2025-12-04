@@ -19,6 +19,10 @@ const sesClient = new SESClient({
 // Send notification email for new company formations
 async function sendNewCompanyNotification(companyName: string, customerEmail: string, entityType: string, state: string) {
   try {
+    // Create S3 folder name (same format as EC2 script uses)
+    const s3FolderName = companyName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+    const s3FolderUrl = `https://s3.console.aws.amazon.com/s3/buckets/llc-filing-audit-trail-rodolfo?prefix=${encodeURIComponent(s3FolderName)}/screenshots/`;
+    
     const command = new SendEmailCommand({
       Source: 'avenidalegal.2024@gmail.com',
       Destination: {
@@ -44,8 +48,12 @@ async function sendNewCompanyNotification(companyName: string, customerEmail: st
                 <li>Revisar los datos en Airtable</li>
                 <li>Si todo está correcto, cambiar la columna <strong>Autofill</strong> a <strong>"Yes"</strong></li>
                 <li>El sistema automáticamente llenará el formulario de Sunbiz</li>
+                <li>Las capturas de pantalla se guardarán en: <a href="${s3FolderUrl}">Ver Screenshots en S3</a></li>
               </ol>
-              <p><a href="https://airtable.com/app8Ggz2miYds1F38/tblXXX" style="background: #0066cc; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Abrir Airtable</a></p>
+              <p style="margin-top: 20px;">
+                <a href="https://airtable.com/app8Ggz2miYds1F38" style="background: #0066cc; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-right: 10px;">Abrir Airtable</a>
+                <a href="${s3FolderUrl}" style="background: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Ver Screenshots</a>
+              </p>
             `,
           },
         },
