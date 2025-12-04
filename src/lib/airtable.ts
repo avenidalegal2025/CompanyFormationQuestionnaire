@@ -731,8 +731,8 @@ export function mapQuestionnaireToAirtable(
     // Admin
     'Internal Status': 'New',
     
-    // Trigger Sunbiz autofill automation
-    'Autofill': 'Yes',
+    // Autofill starts as No - user manually sets to Yes after review
+    'Autofill': 'No',
   };
   
   // Map owners (1-6)

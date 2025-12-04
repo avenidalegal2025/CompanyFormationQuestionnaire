@@ -5,6 +5,60 @@ import { saveDomainRegistration, type DomainRegistration, saveBusinessPhone, sav
 import { createVaultStructure, copyTemplateToVault, getFormDataSnapshot } from '@/lib/s3-vault';
 import { createFormationRecord, mapQuestionnaireToAirtable } from '@/lib/airtable';
 import { generateAllTaxForms } from '@/lib/pdf-filler';
+import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
+
+// SES client for email notifications
+const sesClient = new SESClient({
+  region: process.env.AWS_REGION || 'us-east-1',
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+  },
+});
+
+// Send notification email for new company formations
+async function sendNewCompanyNotification(companyName: string, customerEmail: string, entityType: string, state: string) {
+  try {
+    const command = new SendEmailCommand({
+      Source: 'avenidalegal.2024@gmail.com',
+      Destination: {
+        ToAddresses: ['avenidalegal.2024@gmail.com'],
+      },
+      Message: {
+        Subject: {
+          Data: `🏢 Nueva Empresa: ${companyName} - Requiere Aprobación`,
+        },
+        Body: {
+          Html: {
+            Data: `
+              <h2>Nueva Empresa Registrada</h2>
+              <p>Se ha registrado una nueva empresa que requiere aprobación para el auto-filing:</p>
+              <table style="border-collapse: collapse; margin: 20px 0;">
+                <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Empresa:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${companyName}</td></tr>
+                <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Tipo:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${entityType}</td></tr>
+                <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Estado:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${state}</td></tr>
+                <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Cliente:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${customerEmail}</td></tr>
+              </table>
+              <p><strong>Acción Requerida:</strong></p>
+              <ol>
+                <li>Revisar los datos en Airtable</li>
+                <li>Si todo está correcto, cambiar la columna <strong>Autofill</strong> a <strong>"Yes"</strong></li>
+                <li>El sistema automáticamente llenará el formulario de Sunbiz</li>
+              </ol>
+              <p><a href="https://airtable.com/app8Ggz2miYds1F38/tblXXX" style="background: #0066cc; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Abrir Airtable</a></p>
+            `,
+          },
+        },
+      },
+    });
+
+    await sesClient.send(command);
+    console.log(`📧 Notification email sent for ${companyName}`);
+  } catch (error) {
+    console.error('❌ Failed to send notification email:', error);
+    // Don't fail the webhook if email fails
+  }
+}
 // import { createWorkspaceAccount } from '@/lib/googleWorkspace'; // Temporarily disabled
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -463,6 +517,14 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
       const airtableRecordId = await createFormationRecord(airtableRecord);
       console.log(`✅ Airtable record created successfully: ${airtableRecordId}`);
       console.log(`✅ Company "${airtableRecord['Company Name']}" is now visible in the dashboard`);
+      
+      // Send email notification for approval
+      await sendNewCompanyNotification(
+        airtableRecord['Company Name'] || 'Unknown Company',
+        airtableRecord['Customer Email'] || email || 'unknown@email.com',
+        airtableRecord['Entity Type'] || 'LLC',
+        airtableRecord['Formation State'] || 'Florida'
+      );
       
     } catch (airtableError: any) {
       console.error('❌ CRITICAL: Failed to sync to Airtable:', airtableError.message);
