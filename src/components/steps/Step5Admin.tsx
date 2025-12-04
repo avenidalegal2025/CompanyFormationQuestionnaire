@@ -106,13 +106,33 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
       
       // Verify all managers have names (they should be auto-populated from owners when "Yes")
       const missingManagers = Array.from({ length: Math.min(ownersCount, 6) }).some((_, idx) => {
+        // Check for new firstName/lastName fields OR legacy fullName field
+        const managerFirstName = watch(fp(`admin.manager${idx + 1}FirstName`)) as string;
+        const managerLastName = watch(fp(`admin.manager${idx + 1}LastName`)) as string;
         const managerName = watch(fp(`admin.manager${idx + 1}Name`)) as string;
+        const ownerFirstName = watch(fp(`owners.${idx}.firstName`)) as string;
+        const ownerLastName = watch(fp(`owners.${idx}.lastName`)) as string;
         const ownerName = watch(fp(`owners.${idx}.fullName`)) as string;
+        
+        // Check if manager has either firstName/lastName OR legacy Name
+        const hasManagerName = (managerFirstName && managerFirstName.trim()) || 
+                               (managerLastName && managerLastName.trim()) || 
+                               (managerName && managerName.trim());
+        
         // If manager name is missing but owner name exists, populate it now
-        if (!managerName && ownerName) {
-          setValue(fp(`admin.manager${idx + 1}Name`), ownerName, { shouldValidate: false });
+        if (!hasManagerName) {
+          if (ownerFirstName) {
+            setValue(fp(`admin.manager${idx + 1}FirstName`), ownerFirstName, { shouldValidate: false });
+          }
+          if (ownerLastName) {
+            setValue(fp(`admin.manager${idx + 1}LastName`), ownerLastName, { shouldValidate: false });
+          }
+          if (ownerName && !ownerFirstName && !ownerLastName) {
+            setValue(fp(`admin.manager${idx + 1}Name`), ownerName, { shouldValidate: false });
+          }
         }
-        return !managerName || managerName.trim() === "";
+        
+        return !hasManagerName && !ownerFirstName && !ownerLastName && !ownerName;
       });
       
       if (missingManagers) {
@@ -131,10 +151,17 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
       return false;
     }
     
-    // Check if all managers have names filled
+    // Check if all managers have names filled (using new firstName/lastName fields)
     const missingManagers = Array.from({ length: currentManagersCount }).some((_, idx) => {
+      const managerFirstName = watch(fp(`admin.manager${idx + 1}FirstName`)) as string;
+      const managerLastName = watch(fp(`admin.manager${idx + 1}LastName`)) as string;
       const managerName = watch(fp(`admin.manager${idx + 1}Name`)) as string;
-      return !managerName || managerName.trim() === "";
+      
+      // Check if manager has either firstName/lastName OR legacy Name
+      const hasManagerName = (managerFirstName && managerFirstName.trim()) || 
+                             (managerLastName && managerLastName.trim()) || 
+                             (managerName && managerName.trim());
+      return !hasManagerName;
     });
     
     if (missingManagers) {
