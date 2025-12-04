@@ -322,6 +322,8 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
               const owner = (ownersData[i] || {}) as {
                 ownerType?: "persona" | "empresa";
                 fullName?: string;
+                firstName?: string;
+                lastName?: string;
                 ownership?: number | string;
                 address?: string;
                 isUsCitizen?: string;
@@ -332,6 +334,8 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                 nestedOwnersCount?: number;
                 nestedOwners?: Array<{
                   fullName?: string;
+                  firstName?: string;
+                  lastName?: string;
                   address?: string;
                   isUsCitizen?: string;
                   tin?: string;
