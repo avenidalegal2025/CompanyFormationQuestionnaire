@@ -529,7 +529,7 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
       // Send email notification for approval
       await sendNewCompanyNotification(
         airtableRecord['Company Name'] || 'Unknown Company',
-        airtableRecord['Customer Email'] || email || 'unknown@email.com',
+        airtableRecord['Customer Email'] || session.customer_details?.email || session.customer_email || 'unknown@email.com',
         airtableRecord['Entity Type'] || 'LLC',
         airtableRecord['Formation State'] || 'Florida'
       );
