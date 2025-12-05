@@ -735,11 +735,11 @@ export function mapQuestionnaireToAirtable(
     // Autofill starts as No - user manually sets to Yes after review
     'Autofill': 'No',
     
-    // Filing Images - S3 folder where Sunbiz filing screenshots are stored
+    // Filing Images - Link to screenshot viewer (authenticated, presigned URLs)
     'Filing Images': (() => {
       const companyName = company.companyName || stripeSession.metadata?.companyName || 'Unknown Company';
-      const s3FolderName = companyName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
-      return `https://s3.console.aws.amazon.com/s3/buckets/llc-filing-audit-trail-rodolfo?prefix=${encodeURIComponent(s3FolderName)}/screenshots/`;
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://company-formation-questionnaire.vercel.app';
+      return `${baseUrl}/admin/screenshots?company=${encodeURIComponent(companyName)}`;
     })(),
   };
   
