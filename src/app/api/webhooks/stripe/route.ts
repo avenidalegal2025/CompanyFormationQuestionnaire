@@ -522,7 +522,7 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
         '8821 URL': airtableRecord['8821 URL'] || 'EMPTY',
       });
       
-      console.log('📸 Screenshots URL:', airtableRecord['Screenshots URL'] || 'EMPTY');
+      console.log('📸 Filing Images URL:', airtableRecord['Filing Images'] || 'EMPTY');
       
       const airtableRecordId = await createFormationRecord(airtableRecord);
       console.log(`✅ Airtable record created successfully: ${airtableRecordId}`);

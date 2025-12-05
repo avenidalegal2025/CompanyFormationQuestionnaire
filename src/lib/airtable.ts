@@ -529,7 +529,7 @@ export interface AirtableFormationRecord {
   'Notes'?: string;
   'Internal Status'?: 'New' | 'Contacted' | 'Documents Sent' | 'Filed' | 'Complete';
   'Autofill'?: 'Yes' | 'No';
-  'Screenshots URL'?: string;
+  'Filing Images'?: string;
 }
 
 /**
@@ -735,8 +735,8 @@ export function mapQuestionnaireToAirtable(
     // Autofill starts as No - user manually sets to Yes after review
     'Autofill': 'No',
     
-    // Screenshots URL - S3 folder where Sunbiz filing screenshots are stored
-    'Screenshots URL': (() => {
+    // Filing Images - S3 folder where Sunbiz filing screenshots are stored
+    'Filing Images': (() => {
       const companyName = company.companyName || stripeSession.metadata?.companyName || 'Unknown Company';
       const s3FolderName = companyName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
       return `https://s3.console.aws.amazon.com/s3/buckets/llc-filing-audit-trail-rodolfo?prefix=${encodeURIComponent(s3FolderName)}/screenshots/`;
