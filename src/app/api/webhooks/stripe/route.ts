@@ -522,6 +522,8 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
         '8821 URL': airtableRecord['8821 URL'] || 'EMPTY',
       });
       
+      console.log('📸 Screenshots URL:', airtableRecord['Screenshots URL'] || 'EMPTY');
+      
       const airtableRecordId = await createFormationRecord(airtableRecord);
       console.log(`✅ Airtable record created successfully: ${airtableRecordId}`);
       console.log(`✅ Company "${airtableRecord['Company Name']}" is now visible in the dashboard`);
