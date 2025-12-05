@@ -35,9 +35,12 @@ function ScreenshotViewer() {
     }
 
     fetch(`/api/admin/screenshots?company=${encodeURIComponent(company)}`)
-      .then(res => {
+      .then(async res => {
         if (!res.ok) {
-          if (res.status === 403) throw new Error('No autorizado - solo abogados de Avenida Legal');
+          if (res.status === 403) {
+            const data = await res.json();
+            throw new Error(`No autorizado (${data.email || 'no email'}) - solo abogados de Avenida Legal`);
+          }
           throw new Error('Error al cargar las capturas');
         }
         return res.json();

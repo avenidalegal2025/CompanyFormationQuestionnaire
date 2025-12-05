@@ -26,15 +26,29 @@ export async function GET(request: NextRequest) {
     // Authenticate user
     const session = await getServerSession(authOptions);
     
+    console.log('🔐 Screenshots auth check:', {
+      hasSession: !!session,
+      email: session?.user?.email,
+      emailLower: session?.user?.email?.toLowerCase(),
+      authorizedEmails: AUTHORIZED_EMAILS,
+    });
+    
     if (!session?.user?.email) {
+      console.log('❌ No session, redirecting to login');
       const callbackUrl = encodeURIComponent(request.url);
       const loginUrl = `/api/auth/signin?callbackUrl=${callbackUrl}`;
       return NextResponse.redirect(new URL(loginUrl, request.url));
     }
 
-    // Check if user is authorized
-    if (!AUTHORIZED_EMAILS.includes(session.user.email.toLowerCase())) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    // Check if user is authorized (case-insensitive)
+    const userEmail = session.user.email.toLowerCase().trim();
+    const isAuthorized = AUTHORIZED_EMAILS.some(email => email.toLowerCase().trim() === userEmail);
+    
+    console.log('🔐 Authorization result:', { userEmail, isAuthorized });
+    
+    if (!isAuthorized) {
+      console.log(`❌ Unauthorized: ${userEmail} not in authorized list`);
+      return NextResponse.json({ error: 'Unauthorized', email: userEmail }, { status: 403 });
     }
 
     // Get company name from query parameter
