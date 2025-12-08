@@ -246,7 +246,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                   <label className="label flex items-center gap-2">¿Quién será el accionista responsable de impuestos (Tax Owner)?
                   <InfoTooltip
                     title="Tax Owner"
-                    body="El accionista responsable de impuestos es quien se encarga de presentar las declaraciones de impuestos de la corporación y mantener los registros fiscales. Debe ser un accionista de la corporación."
+                    body="El accionista responsable de impuestos es quien se encarga de presentar las declaraciones de impuestos de la corporación y mantener los registros fiscales. Para C-Corp, debe ser un oficial de la corporación."
                   />
                 </label>
                 </div>
@@ -254,19 +254,50 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                 <Controller
                   name="agreement.corp_taxOwner"
                   control={control}
-                  render={({ field }) => (
-                    <select className="input mt-1" {...field}>
-                      <option value="">Seleccionar accionista</option>
-                      {Array.from({ length: watch("ownersCount") || 1 }).map((_, idx) => {
-                        const ownerName = watch(`owners.${idx}.fullName`) || `Accionista ${idx + 1}`;
-                        return (
-                          <option key={idx} value={ownerName}>
-                            {ownerName}
+                  render={({ field }) => {
+                    // For C-Corp, only show officers; for other entity types, show all owners
+                    const officersCount = watch("admin.officersCount") || 0;
+                    const officersAllOwners = watch("admin.officersAllOwners");
+                    
+                    // Get list of officers
+                    const officers: Array<{ name: string; idx: number }> = [];
+                    if (isCorp && officersAllOwners === "No") {
+                      // If not all owners are officers, get the specific officers
+                      Array.from({ length: officersCount }).forEach((_, idx) => {
+                        const officerName = watch(`admin.officer${idx + 1}Name`) as string;
+                        if (officerName) {
+                          officers.push({ name: officerName, idx: idx + 1 });
+                        }
+                      });
+                    } else if (isCorp && officersAllOwners === "Yes") {
+                      // If all owners are officers, show all owners
+                      Array.from({ length: watch("ownersCount") || 1 }).forEach((_, idx) => {
+                        const ownerName = watch(`owners.${idx}.fullName`) as string;
+                        if (ownerName) {
+                          officers.push({ name: ownerName, idx: idx });
+                        }
+                      });
+                    } else {
+                      // For non-C-Corp entities, show all owners (fallback)
+                      Array.from({ length: watch("ownersCount") || 1 }).forEach((_, idx) => {
+                        const ownerName = watch(`owners.${idx}.fullName`) as string;
+                        if (ownerName) {
+                          officers.push({ name: ownerName, idx: idx });
+                        }
+                      });
+                    }
+                    
+                    return (
+                      <select className="input mt-1" {...field}>
+                        <option value="">Seleccionar {isCorp ? "oficial" : "accionista"}</option>
+                        {officers.map((officer, idx) => (
+                          <option key={idx} value={officer.name}>
+                            {officer.name}
                           </option>
-                        );
-                      })}
-                    </select>
-                  )}
+                        ))}
+                      </select>
+                    );
+                  }}
                 />
               </div>
               </div>

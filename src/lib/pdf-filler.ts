@@ -77,7 +77,21 @@ export interface QuestionnaireData {
 function transformDataForSS4(formData: QuestionnaireData): any {
   const company = formData.company || {};
   const owners = formData.owners || [];
-  const primaryOwner = owners[0] || {};
+  
+  // Find the first owner/partner with an SSN for responsible party (Line 7a and 7b)
+  // If one of the partners has a SSN, use their full name for 7a and their SSN for 7b
+  // If no one has a SSN, use Owner 1's name for 7a but leave 7b empty
+  let responsibleOwner = owners[0] || {};
+  let hasValidSSN = false;
+  
+  for (const owner of owners) {
+    const ssn = owner.ssn || owner.tin || '';
+    if (ssn && ssn.trim() !== '' && ssn.toUpperCase() !== 'N/A' && !ssn.toUpperCase().includes('FOREIGN')) {
+      responsibleOwner = owner;
+      hasValidSSN = true;
+      break; // Use the first owner with valid SSN
+    }
+  }
   
   // Get company name without entity suffix for some fields
   const companyNameBase = (company.companyName || '').replace(/\s+(LLC|Inc|Corp|Corporation|L\.L\.C\.|Incorporated)$/i, '').trim();
@@ -93,14 +107,14 @@ function transformDataForSS4(formData: QuestionnaireData): any {
     // Company Address
     companyAddress: company.address || company.addressLine1 || company.fullAddress || '',
     
-    // Primary Owner/Responsible Party
-    responsiblePartyName: primaryOwner.fullName || '',
-    responsiblePartySSN: primaryOwner.ssn || primaryOwner.tin || '',
-    responsiblePartyAddress: primaryOwner.address || primaryOwner.addressLine1 || '',
-    responsiblePartyCity: primaryOwner.city || '',
-    responsiblePartyState: primaryOwner.state || '',
-    responsiblePartyZip: primaryOwner.zipCode || '',
-    responsiblePartyCountry: primaryOwner.country || 'USA',
+    // Responsible Party (first owner with SSN, or primary owner if none have SSN)
+    responsiblePartyName: responsibleOwner.fullName || '',
+    responsiblePartySSN: hasValidSSN ? (responsibleOwner.ssn || responsibleOwner.tin || '') : 'N/A-FOREIGN', // N/A-FOREIGN if no owner has SSN
+    responsiblePartyAddress: responsibleOwner.address || responsibleOwner.addressLine1 || '',
+    responsiblePartyCity: responsibleOwner.city || '',
+    responsiblePartyState: responsibleOwner.state || '',
+    responsiblePartyZip: responsibleOwner.zipCode || '',
+    responsiblePartyCountry: responsibleOwner.country || 'USA',
     
     // Additional owner information if needed
     ownerCount: owners.length,

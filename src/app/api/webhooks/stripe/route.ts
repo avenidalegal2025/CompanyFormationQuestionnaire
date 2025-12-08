@@ -528,6 +528,78 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
       console.log(`✅ Airtable record created successfully: ${airtableRecordId}`);
       console.log(`✅ Company "${airtableRecord['Company Name']}" is now visible in the dashboard`);
       
+      // Step 8: Generate SS-4 from Airtable data (after payment confirmation)
+      // This ensures SS-4 is generated from the canonical Airtable source after payment
+      // The initial SS-4 generation (from formData) serves as a fallback
+      try {
+        console.log('📄 Generating SS-4 from Airtable record (post-payment confirmation)...');
+        console.log(`📋 Airtable Record ID: ${airtableRecordId}`);
+        
+        // Use internal API endpoint to generate SS-4 from Airtable
+        // In production, this will use the deployed URL; in dev, it uses localhost
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
+                       (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+        
+        console.log(`🔗 Calling SS-4 generation endpoint: ${baseUrl}/api/airtable/generate-ss4`);
+        
+        const generateSS4Response = await fetch(`${baseUrl}/api/airtable/generate-ss4`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            recordId: airtableRecordId,
+            updateAirtable: true, // Update the record with SS-4 URL
+          }),
+        });
+        
+        if (generateSS4Response.ok) {
+          const ss4Result = await generateSS4Response.json();
+          console.log(`✅ SS-4 generated from Airtable successfully`);
+          console.log(`📁 SS-4 S3 Key: ${ss4Result.s3Key}`);
+          console.log(`🔗 SS-4 View URL: ${ss4Result.viewUrl}`);
+          
+          // Update the documents array with the SS-4 from Airtable (replaces initial generation)
+          const existingSS4Index = documents.findIndex(d => d.id === 'ss4-ein-application');
+          if (existingSS4Index >= 0 && ss4Result.s3Key) {
+            // Replace existing SS-4 with the one from Airtable
+            documents[existingSS4Index].s3Key = ss4Result.s3Key;
+            documents[existingSS4Index].status = 'generated';
+            if (ss4Result.pdfSize) {
+              documents[existingSS4Index].size = ss4Result.pdfSize;
+            }
+            console.log('✅ Updated SS-4 document in documents array (from Airtable)');
+          } else if (ss4Result.s3Key) {
+            // Add SS-4 if it wasn't in the initial documents array
+            documents.push({
+              id: 'ss4-ein-application',
+              name: 'SS-4 EIN Application',
+              type: 'tax' as const,
+              s3Key: ss4Result.s3Key,
+              status: 'generated' as const,
+              createdAt: new Date().toISOString(),
+              size: ss4Result.pdfSize,
+            });
+            console.log('✅ Added SS-4 document to documents array (from Airtable)');
+          }
+          
+          // Update DynamoDB with the SS-4 from Airtable
+          await saveUserDocuments(userId, documents);
+          console.log('✅ Updated DynamoDB with SS-4 generated from Airtable');
+        } else {
+          const errorText = await generateSS4Response.text();
+          console.error(`❌ Failed to generate SS-4 from Airtable: ${generateSS4Response.status}`);
+          console.error(`❌ Error details: ${errorText}`);
+          console.log('⚠️ Using initial SS-4 generation (from formData) as fallback');
+          // Don't fail the entire process - initial SS-4 generation is still available
+        }
+      } catch (ss4Error: any) {
+        console.error('❌ Error generating SS-4 from Airtable:', ss4Error.message);
+        console.error('❌ SS-4 generation error stack:', ss4Error.stack);
+        console.log('⚠️ Using initial SS-4 generation (from formData) as fallback');
+        // Don't fail the entire process - initial SS-4 generation is still available
+      }
+      
       // Send email notification for approval
       await sendNewCompanyNotification(
         airtableRecord['Company Name'] || 'Unknown Company',

@@ -1,0 +1,38 @@
+[
+  {
+    "field": "Line 1",
+    "x": 65,
+    "y": 690,
+    "checkbox": false,
+    "note": "Adjust if legal name field is misaligned"
+  },
+  {
+    "field": "Line 7a",
+    "x": 65,
+    "y": 570,
+    "checkbox": false,
+    "note": "Responsible party name field"
+  },
+  {
+    "field": "Line 7b",
+    "x": 342,
+    "y": 570,
+    "checkbox": false,
+    "note": "SSN/ITIN/EIN field"
+  },
+  {
+    "field": "8a_yes",
+    "x": 257,
+    "y": 545,
+    "checkbox": true,
+    "note": "LLC Yes checkbox"
+  },
+  {
+    "field": "9a",
+    "x": 64,
+    "y": 496,
+    "checkbox": true,
+    "note": "Entity type checkbox area"
+  }
+]
+

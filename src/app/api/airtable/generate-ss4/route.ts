@@ -89,6 +89,186 @@ async function summarizeBusinessPurpose(businessPurpose: string): Promise<string
 }
 
 /**
+ * Categorize Business Purpose for Line 16 (principal activity checkbox)
+ * Returns category name and optional "other" specification
+ */
+async function categorizeBusinessPurposeForLine16(businessPurpose: string): Promise<{ category: string; otherSpecify?: string }> {
+  if (!businessPurpose || businessPurpose.trim() === '') {
+    return { category: 'other', otherSpecify: 'GENERAL BUSINESS' };
+  }
+
+  // If no OpenAI API key, fallback to simple keyword matching
+  if (!OPENAI_API_KEY) {
+    console.warn('⚠️ OpenAI API key not configured, using keyword matching fallback for Line 16');
+    return categorizeByKeywords(businessPurpose);
+  }
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a helpful assistant that categorizes business purposes. Return only a JSON object with "category" (one of: construction, rental, transportation, healthcare, accommodation, wholesale_broker, wholesale_other, retail, real_estate, manufacturing, finance, other) and optionally "otherSpecify" (max 45 chars) if category is "other".',
+          },
+          {
+            role: 'user',
+            content: `Categorize this business purpose into one of these categories: Construction, Rental & leasing, Transportation & warehousing, Health care & social assistance, Accommodation & food service, Wholesale—agent/broker, Wholesale—other, Retail, Real estate, Manufacturing, Finance & insurance, or Other. If "Other", provide a 45-character max description of the category. Return JSON only: "${businessPurpose}"`,
+          },
+        ],
+        max_tokens: 100,
+        temperature: 0.3,
+        response_format: { type: 'json_object' },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.warn(`⚠️ OpenAI API error for Line 16: ${response.status} - ${errorText}`);
+      return categorizeByKeywords(businessPurpose);
+    }
+
+    const data = await response.json();
+    const resultText = data.choices?.[0]?.message?.content?.trim() || '';
+    
+    if (!resultText) {
+      return categorizeByKeywords(businessPurpose);
+    }
+
+    try {
+      const result = JSON.parse(resultText);
+      const category = result.category || 'other';
+      const otherSpecify = result.otherSpecify ? result.otherSpecify.substring(0, 45).toUpperCase() : undefined;
+      
+      return { category, otherSpecify };
+    } catch (parseError) {
+      console.warn('⚠️ Failed to parse OpenAI response, using keyword matching');
+      return categorizeByKeywords(businessPurpose);
+    }
+  } catch (error: any) {
+    console.error('❌ Error calling OpenAI API for Line 16:', error);
+    return categorizeByKeywords(businessPurpose);
+  }
+}
+
+/**
+ * Fallback keyword-based categorization
+ */
+function categorizeByKeywords(businessPurpose: string): { category: string; otherSpecify?: string } {
+  const purposeLower = businessPurpose.toLowerCase();
+  
+  if (purposeLower.includes('construction') || purposeLower.includes('building') || purposeLower.includes('contractor')) {
+    return { category: 'construction' };
+  }
+  if (purposeLower.includes('rental') || purposeLower.includes('leasing') || purposeLower.includes('lease')) {
+    return { category: 'rental' };
+  }
+  if (purposeLower.includes('transportation') || purposeLower.includes('warehousing') || purposeLower.includes('logistics') || purposeLower.includes('shipping')) {
+    return { category: 'transportation' };
+  }
+  if (purposeLower.includes('health') || purposeLower.includes('medical') || purposeLower.includes('hospital') || purposeLower.includes('clinic')) {
+    return { category: 'healthcare' };
+  }
+  if (purposeLower.includes('restaurant') || purposeLower.includes('hotel') || purposeLower.includes('accommodation') || purposeLower.includes('food service') || purposeLower.includes('catering')) {
+    return { category: 'accommodation' };
+  }
+  if (purposeLower.includes('wholesale') && (purposeLower.includes('broker') || purposeLower.includes('agent'))) {
+    return { category: 'wholesale_broker' };
+  }
+  if (purposeLower.includes('wholesale')) {
+    return { category: 'wholesale_other' };
+  }
+  if (purposeLower.includes('retail') || purposeLower.includes('store') || purposeLower.includes('shop')) {
+    return { category: 'retail' };
+  }
+  if (purposeLower.includes('real estate') || purposeLower.includes('realty') || purposeLower.includes('property')) {
+    return { category: 'real_estate' };
+  }
+  if (purposeLower.includes('manufacturing') || purposeLower.includes('production') || purposeLower.includes('factory')) {
+    return { category: 'manufacturing' };
+  }
+  if (purposeLower.includes('finance') || purposeLower.includes('financial') || purposeLower.includes('insurance') || purposeLower.includes('banking') || purposeLower.includes('investment')) {
+    return { category: 'finance' };
+  }
+  
+  // Default to "other" with truncated business purpose
+  const otherSpecify = businessPurpose.substring(0, 45).toUpperCase();
+  return { category: 'other', otherSpecify };
+}
+
+/**
+ * Analyze Business Purpose and generate Line 17 content (principal line of merchandise/construction/products/services)
+ * Max 168 characters, ALL CAPS
+ */
+async function analyzeBusinessPurposeForLine17(businessPurpose: string): Promise<string> {
+  if (!businessPurpose || businessPurpose.trim() === '') {
+    return '';
+  }
+
+  // If no OpenAI API key, fallback to truncation
+  if (!OPENAI_API_KEY) {
+    console.warn('⚠️ OpenAI API key not configured, using truncation fallback for Line 17');
+    return businessPurpose.substring(0, 168).toUpperCase();
+  }
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a helpful assistant that analyzes business purposes and extracts specific information. Return only the extracted information, no explanations.',
+          },
+          {
+            role: 'user',
+            content: `Analyze this business purpose and indicate the principal line of merchandise sold, specific construction work done, products produced, or services provided. Be specific and concise. Maximum 168 characters. Return only the description, no labels or prefixes: "${businessPurpose}"`,
+          },
+        ],
+        max_tokens: 200,
+        temperature: 0.3,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.warn(`⚠️ OpenAI API error for Line 17: ${response.status} - ${errorText}`);
+      // Fallback to truncation
+      return businessPurpose.substring(0, 168).toUpperCase();
+    }
+
+    const data = await response.json();
+    const analysis = data.choices?.[0]?.message?.content?.trim() || '';
+    
+    if (!analysis) {
+      return businessPurpose.substring(0, 168).toUpperCase();
+    }
+
+    // Ensure it's max 168 characters
+    const finalAnalysis = analysis.length > 168 
+      ? analysis.substring(0, 168).trim()
+      : analysis.trim();
+    
+    return finalAnalysis.toUpperCase();
+  } catch (error: any) {
+    console.error('❌ Error calling OpenAI API for Line 17:', error);
+    // Fallback to truncation
+    return businessPurpose.substring(0, 168).toUpperCase();
+  }
+}
+
+/**
  * Map Airtable Formations record to SS-4 form data format
  * 
  * Note: This function is now async because it calls OpenAI to summarize Business Purpose
@@ -119,39 +299,197 @@ async function summarizeBusinessPurpose(businessPurpose: string): Promise<string
 async function mapAirtableToSS4(record: any): Promise<any> {
   const fields = record.fields || record;
   
-  // Find the first owner/partner with an SSN for responsible party (Line 7a and 7b)
-  // If one of the partners has a SSN, use their full name for 7a and their SSN for 7b
-  // If no one has a SSN, use Owner 1's name for 7a but leave 7b empty
+  // Determine entity type first
+  const entityType = fields['Entity Type'] || 'LLC';
+  const isLLC = entityType === 'LLC';
+  const isCorp = entityType === 'C-Corp' || entityType === 'S-Corp';
+  
+  // Find the responsible party for Line 7a and 7b
+  // For C-Corp: Must be an officer
+  // For LLC: Can be any owner/manager
   let responsiblePartyName = '';
   let responsiblePartyFirstName = '';
   let responsiblePartyLastName = '';
   let responsiblePartySSN = '';
   let responsiblePartyAddress = '';
+  let responsiblePartyOfficerRole = ''; // Officer role for C-Corp (for designee name)
   
-  const ownerCount = fields['Owner Count'] || 1;
-  for (let i = 1; i <= Math.min(ownerCount, 6); i++) {
-    const ownerSSN = fields[`Owner ${i} SSN`] || '';
-    // Check if SSN is valid (not empty, not N/A, not FOREIGN)
-    if (ownerSSN && ownerSSN.trim() !== '' && 
-        ownerSSN.toUpperCase() !== 'N/A' && 
-        !ownerSSN.toUpperCase().includes('FOREIGN')) {
-      // Found an owner with valid SSN - use this one
-      responsiblePartyName = fields[`Owner ${i} Name`] || '';
-      responsiblePartyFirstName = fields[`Owner ${i} First Name`] || '';
-      responsiblePartyLastName = fields[`Owner ${i} Last Name`] || '';
-      responsiblePartySSN = ownerSSN;
-      responsiblePartyAddress = fields[`Owner ${i} Address`] || '';
-      break; // Use the first owner with valid SSN
+  if (isCorp) {
+    // For C-Corp, responsible party must be an officer
+    // First, check if there's a tax owner specified (from agreement.corp_taxOwner)
+    const taxOwnerName = fields['Corp Tax Owner'] || '';
+    
+    // Get officers count
+    const officersCount = fields['Officers Count'] || 0;
+    const officersAllOwners = fields['Officers All Owners'] === 'Yes' || fields['Officers All Owners'] === true;
+    
+    // If tax owner is specified, try to find them in officers
+    if (taxOwnerName) {
+      if (officersAllOwners) {
+        // All owners are officers, search in owners
+        const ownerCount = fields['Owner Count'] || 1;
+        for (let i = 1; i <= Math.min(ownerCount, 6); i++) {
+          const ownerName = fields[`Owner ${i} Name`] || '';
+          if (ownerName === taxOwnerName) {
+            const ownerSSN = fields[`Owner ${i} SSN`] || '';
+            responsiblePartyName = ownerName;
+            responsiblePartyFirstName = fields[`Owner ${i} First Name`] || '';
+            responsiblePartyLastName = fields[`Owner ${i} Last Name`] || '';
+            responsiblePartySSN = (ownerSSN && ownerSSN.trim() !== '' && 
+                                   ownerSSN.toUpperCase() !== 'N/A' && 
+                                   !ownerSSN.toUpperCase().includes('FOREIGN')) 
+                                   ? ownerSSN : 'N/A-FOREIGN';
+            responsiblePartyAddress = fields[`Owner ${i} Address`] || '';
+            break;
+          }
+        }
+      } else {
+        // Specific officers listed, search in officers
+        for (let i = 1; i <= Math.min(officersCount, 6); i++) {
+          const officerName = fields[`Officer ${i} Name`] || '';
+          if (officerName === taxOwnerName) {
+            // Officer found, but we need to get their SSN from owners
+            // Match by name to find the owner's SSN
+            const ownerCount = fields['Owner Count'] || 1;
+            for (let j = 1; j <= Math.min(ownerCount, 6); j++) {
+              const ownerName = fields[`Owner ${j} Name`] || '';
+              if (ownerName === officerName) {
+                const ownerSSN = fields[`Owner ${j} SSN`] || '';
+                responsiblePartyName = officerName;
+                responsiblePartyFirstName = fields[`Officer ${i} First Name`] || fields[`Owner ${j} First Name`] || '';
+                responsiblePartyLastName = fields[`Officer ${i} Last Name`] || fields[`Owner ${j} Last Name`] || '';
+                responsiblePartySSN = (ownerSSN && ownerSSN.trim() !== '' && 
+                                     ownerSSN.toUpperCase() !== 'N/A' && 
+                                     !ownerSSN.toUpperCase().includes('FOREIGN')) 
+                                     ? ownerSSN : 'N/A-FOREIGN';
+                responsiblePartyAddress = fields[`Officer ${i} Address`] || fields[`Owner ${j} Address`] || '';
+                // Get officer role
+                responsiblePartyOfficerRole = fields[`Officer ${i} Role`] || 'President';
+                break;
+              }
+            }
+            if (responsiblePartyName) break;
+          }
+        }
+      }
     }
-  }
-  
-  // If no owner has a valid SSN, use Owner 1's name but set SSN to "N/A-FOREIGN"
-  if (!responsiblePartySSN) {
-    responsiblePartyName = fields['Owner 1 Name'] || fields['Manager 1 Name'] || fields['Customer Name'] || '';
-    responsiblePartyFirstName = fields['Owner 1 First Name'] || fields['Manager 1 First Name'] || '';
-    responsiblePartyLastName = fields['Owner 1 Last Name'] || fields['Manager 1 Last Name'] || '';
-    responsiblePartySSN = 'N/A-FOREIGN'; // Set to N/A-FOREIGN if no one has SSN
-    responsiblePartyAddress = fields['Owner 1 Address'] || '';
+    
+    // If tax owner not found or not specified, find first officer with SSN
+    if (!responsiblePartyName) {
+      if (officersAllOwners) {
+        // All owners are officers, search for first owner with SSN
+        const ownerCount = fields['Owner Count'] || 1;
+        for (let i = 1; i <= Math.min(ownerCount, 6); i++) {
+          const ownerSSN = fields[`Owner ${i} SSN`] || '';
+          if (ownerSSN && ownerSSN.trim() !== '' && 
+              ownerSSN.toUpperCase() !== 'N/A' && 
+              !ownerSSN.toUpperCase().includes('FOREIGN')) {
+            responsiblePartyName = fields[`Owner ${i} Name`] || '';
+            responsiblePartyFirstName = fields[`Owner ${i} First Name`] || '';
+            responsiblePartyLastName = fields[`Owner ${i} Last Name`] || '';
+            responsiblePartySSN = ownerSSN;
+            responsiblePartyAddress = fields[`Owner ${i} Address`] || '';
+            // Find officer role - if all owners are officers, find the role
+            for (let k = 1; k <= Math.min(officersCount, 6); k++) {
+              const officerName = fields[`Officer ${k} Name`] || '';
+              if (officerName === responsiblePartyName) {
+                responsiblePartyOfficerRole = fields[`Officer ${k} Role`] || 'President';
+                break;
+              }
+            }
+            // If not found, default to President
+            if (!responsiblePartyOfficerRole) {
+              responsiblePartyOfficerRole = 'President';
+            }
+            break;
+          }
+        }
+      } else {
+        // Specific officers, find first officer with SSN (match to owner for SSN)
+        for (let i = 1; i <= Math.min(officersCount, 6); i++) {
+          const officerName = fields[`Officer ${i} Name`] || '';
+          if (officerName) {
+            // Match officer to owner to get SSN
+            const ownerCount = fields['Owner Count'] || 1;
+            for (let j = 1; j <= Math.min(ownerCount, 6); j++) {
+              const ownerName = fields[`Owner ${j} Name`] || '';
+              if (ownerName === officerName) {
+                const ownerSSN = fields[`Owner ${j} SSN`] || '';
+                if (ownerSSN && ownerSSN.trim() !== '' && 
+                    ownerSSN.toUpperCase() !== 'N/A' && 
+                    !ownerSSN.toUpperCase().includes('FOREIGN')) {
+                  responsiblePartyName = officerName;
+                  responsiblePartyFirstName = fields[`Officer ${i} First Name`] || fields[`Owner ${j} First Name`] || '';
+                  responsiblePartyLastName = fields[`Officer ${i} Last Name`] || fields[`Owner ${j} Last Name`] || '';
+                  responsiblePartySSN = ownerSSN;
+                  responsiblePartyAddress = fields[`Officer ${i} Address`] || fields[`Owner ${j} Address`] || '';
+                  // Get officer role
+                  responsiblePartyOfficerRole = fields[`Officer ${i} Role`] || 'President';
+                  break;
+                }
+              }
+            }
+            if (responsiblePartySSN) break;
+          }
+        }
+      }
+    }
+    
+    // If still no responsible party found, use first officer (even without SSN)
+    if (!responsiblePartyName) {
+      if (officersAllOwners) {
+        responsiblePartyName = fields['Owner 1 Name'] || fields['Customer Name'] || '';
+        responsiblePartyFirstName = fields['Owner 1 First Name'] || '';
+        responsiblePartyLastName = fields['Owner 1 Last Name'] || '';
+        responsiblePartySSN = 'N/A-FOREIGN';
+        responsiblePartyAddress = fields['Owner 1 Address'] || '';
+        // Find officer role
+        for (let k = 1; k <= Math.min(officersCount, 6); k++) {
+          const officerName = fields[`Officer ${k} Name`] || '';
+          if (officerName === responsiblePartyName) {
+            responsiblePartyOfficerRole = fields[`Officer ${k} Role`] || 'President';
+            break;
+          }
+        }
+        if (!responsiblePartyOfficerRole) {
+          responsiblePartyOfficerRole = 'President';
+        }
+      } else if (officersCount > 0) {
+        responsiblePartyName = fields['Officer 1 Name'] || fields['Customer Name'] || '';
+        responsiblePartyFirstName = fields['Officer 1 First Name'] || '';
+        responsiblePartyLastName = fields['Officer 1 Last Name'] || '';
+        responsiblePartySSN = 'N/A-FOREIGN';
+        responsiblePartyAddress = fields['Officer 1 Address'] || '';
+        responsiblePartyOfficerRole = fields['Officer 1 Role'] || 'President';
+      }
+    }
+  } else {
+    // For LLC, use owner/manager logic (existing code)
+    const ownerCount = fields['Owner Count'] || 1;
+    for (let i = 1; i <= Math.min(ownerCount, 6); i++) {
+      const ownerSSN = fields[`Owner ${i} SSN`] || '';
+      // Check if SSN is valid (not empty, not N/A, not FOREIGN)
+      if (ownerSSN && ownerSSN.trim() !== '' && 
+          ownerSSN.toUpperCase() !== 'N/A' && 
+          !ownerSSN.toUpperCase().includes('FOREIGN')) {
+        // Found an owner with valid SSN - use this one
+        responsiblePartyName = fields[`Owner ${i} Name`] || '';
+        responsiblePartyFirstName = fields[`Owner ${i} First Name`] || '';
+        responsiblePartyLastName = fields[`Owner ${i} Last Name`] || '';
+        responsiblePartySSN = ownerSSN;
+        responsiblePartyAddress = fields[`Owner ${i} Address`] || '';
+        break; // Use the first owner with valid SSN
+      }
+    }
+    
+    // If no owner has a valid SSN, use Owner 1's name but set SSN to "N/A-FOREIGN"
+    if (!responsiblePartySSN) {
+      responsiblePartyName = fields['Owner 1 Name'] || fields['Manager 1 Name'] || fields['Customer Name'] || '';
+      responsiblePartyFirstName = fields['Owner 1 First Name'] || fields['Manager 1 First Name'] || '';
+      responsiblePartyLastName = fields['Owner 1 Last Name'] || fields['Manager 1 Last Name'] || '';
+      responsiblePartySSN = 'N/A-FOREIGN'; // Set to N/A-FOREIGN if no one has SSN
+      responsiblePartyAddress = fields['Owner 1 Address'] || '';
+    }
   }
   
   // Parse company address
@@ -161,13 +499,18 @@ async function mapAirtableToSS4(record: any): Promise<any> {
   // Parse responsible party address
   const rpAddressParts = parseAddress(responsiblePartyAddress);
   
-  // Determine entity type for SS-4
-  const entityType = fields['Entity Type'] || 'LLC';
-  const isLLC = entityType === 'LLC';
-  const isCorp = entityType === 'C-Corp' || entityType === 'S-Corp';
-  
-  // Get owner count for LLC members
+  // ownerCount for signature name calculation
   const ownerCount = fields['Owner Count'] || 1;
+  
+  // Signature Name: Same as Line 7a, add ",SOLE MEMBER" if single member LLC, or ",MEMBER" if multiple members
+  let signatureName = responsiblePartyName || `${responsiblePartyFirstName} ${responsiblePartyLastName}`.trim();
+  if (isLLC) {
+    if (ownerCount === 1) {
+      signatureName = `${signatureName},SOLE MEMBER`;
+    } else {
+      signatureName = `${signatureName},MEMBER`;
+    }
+  }
   
   return {
     // Line 1: Legal name of entity
@@ -256,16 +599,17 @@ async function mapAirtableToSS4(record: any): Promise<any> {
     // Line 17: Has applicant applied for EIN before?
     appliedBefore: 'No',
     
-    // Line 18: Third Party Designee (Avenida Legal)
-    designeeName: 'Avenida Legal',
-    designeeAddress: '12550 Biscayne Blvd Ste 110, North Miami, FL 33181',
+    // Line 18: Third Party Designee (Antonio Regojo)
+    designeeName: 'Antonio Regojo',
+    designeeAddress: '10634 NE 11 AVE, MIAMI, FL, 33138',
     designeePhone: '(305) 123-4567',
-    designeeFax: '',
+    designeeFax: '866-496-4957',
     
     // Signature information
-    signatureName: responsiblePartyName || `${responsiblePartyFirstName} ${responsiblePartyLastName}`.trim(),
+    signatureName: signatureName,
     signatureTitle: isLLC ? 'Member/Manager' : 'President',
-    applicantPhone: fields['Forward Phone'] || fields['Business Phone'] || '',
+    // Applicant Phone: Use Business Phone from Airtable Formations table
+    applicantPhone: fields['Business Phone'] || '',
     applicantFax: '',
     
     // Additional owner information for reference
@@ -469,16 +813,25 @@ export async function POST(request: NextRequest) {
     // Step 2: Map Airtable fields to SS-4 format (async - includes OpenAI summarization)
     const ss4Data = await mapAirtableToSS4(record);
     
-    // Step 2a: Summarize Business Purpose for Line 10
+    // Step 2a: Summarize Business Purpose for Line 10, categorize for Line 16, and analyze for Line 17
     const businessPurpose = fields['Business Purpose'] || 'General business operations';
-    const summarizedBusinessPurpose = await summarizeBusinessPurpose(businessPurpose);
+    const [summarizedBusinessPurpose, line16Category, line17Content] = await Promise.all([
+      summarizeBusinessPurpose(businessPurpose),
+      categorizeBusinessPurposeForLine16(businessPurpose),
+      analyzeBusinessPurposeForLine17(businessPurpose),
+    ]);
+    
     ss4Data.summarizedBusinessPurpose = summarizedBusinessPurpose; // For Line 10
+    ss4Data.line16Category = line16Category.category; // For Line 16 checkbox
+    ss4Data.line16OtherSpecify = line16Category.otherSpecify; // For Line 16 "Other" specification
+    ss4Data.line17PrincipalMerchandise = line17Content; // For Line 17
     
     console.log('📋 Mapped SS-4 data:', {
       companyName: ss4Data.companyName,
       responsibleParty: ss4Data.responsiblePartyName,
       entityType: ss4Data.entityType,
       summarizedBusinessPurpose: summarizedBusinessPurpose,
+      line17Content: line17Content,
     });
     
     // Step 3: Determine S3 path
@@ -549,8 +902,15 @@ export async function GET(request: NextRequest) {
     
     // Summarize Business Purpose for preview
     const businessPurpose = record.fields['Business Purpose'] || 'General business operations';
-    const summarizedBusinessPurpose = await summarizeBusinessPurpose(businessPurpose);
+    const [summarizedBusinessPurpose, line16Category, line17Content] = await Promise.all([
+      summarizeBusinessPurpose(businessPurpose),
+      categorizeBusinessPurposeForLine16(businessPurpose),
+      analyzeBusinessPurposeForLine17(businessPurpose),
+    ]);
     ss4Data.summarizedBusinessPurpose = summarizedBusinessPurpose;
+    ss4Data.line16Category = line16Category.category;
+    ss4Data.line16OtherSpecify = line16Category.otherSpecify;
+    ss4Data.line17PrincipalMerchandise = line17Content;
     
     return NextResponse.json({
       recordId: recordId,
