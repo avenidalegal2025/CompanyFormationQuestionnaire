@@ -51,11 +51,11 @@ CHECK_COORDS = {
     "8a_no": [300, 545],      # Is this a LLC? (No) - 43 pixels to the right (257 + 43 = 300)
     "8c_yes": [495, 533],
     "9a": [64, 496],          # Partnership / default position
-    "9a_corp": [64, 471],     # Corporation (non-sole proprietor) - 25px below partnership box
+    "9a_corp": [64, 483],     # Corporation (non-sole proprietor) - 24px up from previous position (459 + 24 = 483)
     "9a_sole": [64, 509],     # Entity type checkbox (sole proprietor) - 13 pixels up (496 + 13 = 509)
     "9a_corp_sole": [64, 484], # Corporation checkbox (sole proprietor) - 25 pixels below Partnership sole (509 - 25 = 484)
-    "9a_corp_form_number": (139, 496),  # Form number input field (1120 or 1120-S) - 75px to the right of Corporation checkbox (64 + 75 = 139)
-    "9a_corp_sole_form_number": (139, 484),  # Form number input field for sole proprietor (1120 or 1120-S) - 75px to the right of Corporation checkbox
+    "9a_corp_form_number": (244, 485),  # Form number input field (1120 or 1120-S) - X: 244, Y: 485
+    "9a_corp_sole_form_number": (244, 485),  # Form number input field for sole proprietor (1120 or 1120-S) - X: 244, Y: 485
     "10": [63, 388],
     "14": [407, 256],  # First date wages paid - 1 pixel to the right (406 + 1 = 407)
     # Line 16: Principal activity checkboxes (two-column vertical layout)
@@ -501,15 +501,16 @@ def map_data_to_ss4_fields(form_data):
         name_upper = to_upper(name)
         entity_type_upper = entity_type.upper() if entity_type else ""
         
-        # For C-Corp, add officer title (President or whoever has SSN)
+        # For C-Corp, add officer title (use ACTUAL role, NOT hardcoded to President)
         if "C-CORP" in entity_type_upper and "S-CORP" not in entity_type_upper:
             if form_data:
                 officer_role = form_data.get("responsiblePartyOfficerRole", "")
-                if officer_role:
+                if officer_role and officer_role.strip() != "":
                     # Use the officer role (e.g., "President", "Vice-President", "Treasurer", "Secretary")
                     return f"{name_upper},{to_upper(officer_role)}"
-            # Default to President if no role specified
-            return f"{name_upper},PRESIDENT"
+            # Don't default to President - return name without role if no role specified
+            print(f"===> ⚠️ No officer role found in form_data for {name_upper} - returning name without role (NOT defaulting to President)")
+            return name_upper
         
         # For LLC, add member designation
         if is_llc:
@@ -563,8 +564,9 @@ def map_data_to_ss4_fields(form_data):
         "Applicant Phone": format_phone(form_data.get("applicantPhone", "")),  # Business Phone from Airtable - formatted as xxx-xxx-xxxx
         "Applicant Fax": "",  # Usually empty
         "Signature Name": (
-            # If signature_name is provided and already has a suffix (MEMBER, PRESIDENT, etc.), use it
-            to_upper(signature_name) if signature_name and (",MEMBER" in signature_name.upper() or ",SOLE MEMBER" in signature_name.upper() or ",PRESIDENT" in signature_name.upper() or any(role.upper() in signature_name.upper() for role in ["VICE-PRESIDENT", "TREASURER", "SECRETARY"]))
+            # If signature_name is provided and already has a suffix (MEMBER, PRESIDENT, SECRETARY, etc.), use it
+            # Check if signature_name contains a comma followed by text (indicating a role suffix)
+            to_upper(signature_name) if signature_name and ("," in signature_name and len(signature_name.split(",")) >= 2)
             # Otherwise, if we have responsible_name, format it with the appropriate suffix
             else format_signature_name(responsible_name, is_llc, owner_count, form_data, entity_type) if responsible_name
             # If no responsible_name and signature_name doesn't have suffix, use signature_name as-is (might be just a title, which is wrong but better than empty)
@@ -582,9 +584,10 @@ def map_data_to_ss4_fields(form_data):
         else:
             mapped_data["8b"] = "1"  # Default to 1 if not specified
         # Line 8c: If LLC, check "Yes" if all members are individuals
-        # For now, assume yes if we have owner SSN
-        if responsible_ssn and responsible_ssn.upper() not in ['N/A-FOREIGN', 'N/A', '']:
-            mapped_data["Checks"]["8c_yes"] = CHECK_COORDS["8c_yes"]
+        # For LLCs, we assume all members are individuals (this is the standard case)
+        # Always check "Yes" for LLCs
+        mapped_data["Checks"]["8c_yes"] = CHECK_COORDS["8c_yes"]
+        print(f"===> ✅ LLC detected - checking 8c_yes at {CHECK_COORDS['8c_yes']}")
     else:
         # For non-LLC (C-Corp, etc.), check "No" and move 25 pixels to the right
         mapped_data["Checks"]["8a_no"] = CHECK_COORDS["8a_no"]  # Check "No" for C-Corp
@@ -836,12 +839,11 @@ def create_overlay(data, path):
     if "9a_corp_form_number" in data:
         form_number = str(data["9a_corp_form_number"]).upper()
         if "9a_corp" in checks:
-            corp_coords = checks["9a_corp"]
-            if isinstance(corp_coords, (list, tuple)) and len(corp_coords) >= 2:
-                corp_y = corp_coords[1]
-                # Form number is 75px to the right of checkbox
-                form_x = corp_coords[0] + 75
-                form_y = corp_y
+            # Use coordinates from CHECK_COORDS (5px more to the right than before: 139 + 5 = 144)
+            form_coords = CHECK_COORDS.get("9a_corp_form_number")
+            if form_coords and isinstance(form_coords, (list, tuple)) and len(form_coords) >= 2:
+                form_x = form_coords[0]
+                form_y = form_coords[1]
                 c.drawString(form_x, form_y, form_number)
                 print(f"===> Drawing form number {form_number} at ({form_x}, {form_y}) for regular corporation")
         elif "9a_scorp" in checks:
@@ -858,12 +860,11 @@ def create_overlay(data, path):
     if "9a_corp_sole_form_number" in data:
         form_number = str(data["9a_corp_sole_form_number"]).upper()
         if "9a_corp_sole" in checks:
-            corp_sole_coords = checks["9a_corp_sole"]
-            if isinstance(corp_sole_coords, (list, tuple)) and len(corp_sole_coords) >= 2:
-                corp_sole_y = corp_sole_coords[1]
-                # Form number is 75px to the right of checkbox
-                form_x = corp_sole_coords[0] + 75
-                form_y = corp_sole_y
+            # Use coordinates from CHECK_COORDS (5px more to the right than before: 139 + 5 = 144)
+            form_coords = CHECK_COORDS.get("9a_corp_sole_form_number")
+            if form_coords and isinstance(form_coords, (list, tuple)) and len(form_coords) >= 2:
+                form_x = form_coords[0]
+                form_y = form_coords[1]
                 c.drawString(form_x, form_y, form_number)
                 print(f"===> Drawing form number {form_number} at ({form_x}, {form_y}) for sole proprietor corporation")
     
@@ -935,6 +936,9 @@ def create_overlay(data, path):
     # Line 8c: If LLC, are all members individuals? (Yes checkbox)
     if "8c_yes" in checks:
         c.drawString(CHECK_COORDS["8c_yes"][0], CHECK_COORDS["8c_yes"][1], "X")
+        print(f"===> ✅ Drew 8c_yes checkbox at {CHECK_COORDS['8c_yes']}")
+    else:
+        print(f"===> ⚠️ 8c_yes checkbox NOT found in checks dict!")
     
     # Line 10: Reason for applying - Started new business
     if "10_started" in checks:

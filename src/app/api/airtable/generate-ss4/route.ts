@@ -805,6 +805,8 @@ async function mapAirtableToSS4(record: any): Promise<any> {
     // Signature information
     signatureName: signatureName,
     signatureTitle: isLLC ? 'Member/Manager' : 'President',
+    // Responsible party officer role (for C-Corp) - pass to Lambda so it can use actual role
+    responsiblePartyOfficerRole: responsiblePartyOfficerRole,
     // Applicant Phone: Use Business Phone from Airtable Formations table
     applicantPhone: fields['Business Phone'] || '',
     applicantFax: '',
