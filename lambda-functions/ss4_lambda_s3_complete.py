@@ -478,35 +478,34 @@ def map_data_to_ss4_fields(form_data):
         # If not 10 digits, return cleaned version (might be international or invalid)
         return phone_clean
     
-    # Helper function to format signature name with member designation
-    def format_signature_name(name, is_llc, owner_count):
+    # Helper function to format signature name with member designation or officer title
+    def format_signature_name(name, is_llc, owner_count, form_data=None, entity_type=""):
         name_upper = to_upper(name)
+        entity_type_upper = entity_type.upper() if entity_type else ""
+        
+        # For C-Corp, add officer title (President or whoever has SSN)
+        if "C-CORP" in entity_type_upper and "S-CORP" not in entity_type_upper:
+            if form_data:
+                officer_role = form_data.get("responsiblePartyOfficerRole", "")
+                if officer_role:
+                    # Use the officer role (e.g., "President", "Vice-President", "Treasurer", "Secretary")
+                    return f"{name_upper},{to_upper(officer_role)}"
+            # Default to President if no role specified
+            return f"{name_upper},PRESIDENT"
+        
+        # For LLC, add member designation
         if is_llc:
             if owner_count == 1:
                 return f"{name_upper},SOLE MEMBER"
             else:
                 return f"{name_upper},MEMBER"
+        
         return name_upper
     
-    # Helper function to format designee name with officer title for C-Corp only
+    # Helper function to format designee name - always just "ANTONIO REGOJO" (no officer title)
     def format_designee_name(form_data, entity_type):
-        base_name = "ANTONIO REGOJO"
-        entity_type_upper = entity_type.upper() if entity_type else ""
-        
-        # For C-Corp only, add officer title (President or whoever has SSN)
-        # For LLC, S-Corp, Partnership, etc., just use base name
-        if "C-CORP" in entity_type_upper and "S-CORP" not in entity_type_upper:
-            # Get responsible party officer role from form_data
-            officer_role = form_data.get("responsiblePartyOfficerRole", "")
-            if officer_role:
-                # Use the officer role (e.g., "President", "Vice-President", "Treasurer", "Secretary")
-                return f"{base_name},{to_upper(officer_role)}"
-            else:
-                # Default to President if no role specified
-                return f"{base_name},PRESIDENT"
-        
-        # For LLC, S-Corp, Partnership, and other entity types, just return the base name
-        return base_name
+        # Designee name is always just "ANTONIO REGOJO" - officer title goes in Signature Name, not Designee Name
+        return "ANTONIO REGOJO"
     
     # Ensure Line 1 only contains company name (no address) and limit length
     # Line 1 should only be the company name, max ~60 characters to fit on one line
@@ -545,7 +544,7 @@ def map_data_to_ss4_fields(form_data):
         "Designee Fax": "866-496-4957",  # Updated fax number
         "Applicant Phone": format_phone(form_data.get("applicantPhone", "")),  # Business Phone from Airtable - formatted as xxx-xxx-xxxx
         "Applicant Fax": "",  # Usually empty
-        "Signature Name": format_signature_name(responsible_name, is_llc, owner_count) if not signature_name else (to_upper(signature_name) if ",MEMBER" in signature_name.upper() or ",SOLE MEMBER" in signature_name.upper() else format_signature_name(responsible_name, is_llc, owner_count)),  # Always ensure ",MEMBER" or ",SOLE MEMBER" suffix
+        "Signature Name": format_signature_name(responsible_name, is_llc, owner_count, form_data, entity_type) if not signature_name else (to_upper(signature_name) if (",MEMBER" in signature_name.upper() or ",SOLE MEMBER" in signature_name.upper() or ",PRESIDENT" in signature_name.upper() or any(role.upper() in signature_name.upper() for role in ["VICE-PRESIDENT", "TREASURER", "SECRETARY"])) else format_signature_name(responsible_name, is_llc, owner_count, form_data, entity_type)),  # Always ensure ",MEMBER", ",SOLE MEMBER", or officer title suffix
         "Checks": {}
     }
     
