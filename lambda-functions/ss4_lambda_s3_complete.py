@@ -136,7 +136,29 @@ def map_data_to_ss4_fields(form_data):
     
     # TypeScript sends flat structure from transformDataForSS4
     # Translate all text fields from Spanish to English
-    company_name = translate_to_english(form_data.get("companyName", ""))
+    company_name_raw = translate_to_english(form_data.get("companyName", ""))
+    # Clean company name: Remove any address that might be concatenated
+    # Common patterns: "Company Name 123 Street" or "Company Name, 123 Street"
+    # Split by common address indicators and take only the first part (company name)
+    company_name = company_name_raw
+    # Remove any trailing address patterns (numbers followed by street names, or common address keywords)
+    # Split by comma, newline, or common address separators and take first part
+    if company_name:
+        # Split by comma and take first part (company name usually comes before address)
+        parts = company_name.split(',')
+        if len(parts) > 1:
+            # Check if second part looks like an address (contains numbers or street keywords)
+            second_part = parts[1].strip().upper()
+            if any(keyword in second_part for keyword in ['STREET', 'ST', 'AVE', 'AVENUE', 'BLVD', 'BOULEVARD', 'DR', 'DRIVE', 'RD', 'ROAD', 'LN', 'LANE', 'CT', 'COURT', 'PL', 'PLACE', 'WAY', 'CIRCLE', 'CIR']):
+                # Second part is likely an address, use only first part
+                company_name = parts[0].strip()
+        # Also check for addresses without comma (e.g., "Company Name 123 Street")
+        # Remove trailing patterns that look like addresses (number + street name)
+        import re
+        # Pattern: number followed by street name at the end
+        address_pattern = r'\s+\d+\s+(STREET|ST|AVE|AVENUE|BLVD|BOULEVARD|DR|DRIVE|RD|ROAD|LN|LANE|CT|COURT|PL|PLACE|WAY|CIRCLE|CIR|BROADWAY)\s*$'
+        company_name = re.sub(address_pattern, '', company_name, flags=re.IGNORECASE).strip()
+    
     company_name_base = translate_to_english(form_data.get("companyNameBase", company_name))
     entity_type = form_data.get("entityType", "")  # Entity type codes don't need translation
     business_purpose = translate_to_english(form_data.get("businessPurpose", ""))
@@ -457,8 +479,15 @@ def map_data_to_ss4_fields(form_data):
         # For LLC, S-Corp, Partnership, and other entity types, just return the base name
         return base_name
     
+    # Ensure Line 1 only contains company name (no address) and limit length
+    # Line 1 should only be the company name, max ~60 characters to fit on one line
+    company_name_clean = company_name.strip()
+    if len(company_name_clean) > 60:
+        # Truncate if too long (shouldn't happen, but safety check)
+        company_name_clean = company_name_clean[:60].strip()
+    
     mapped_data = {
-        "Line 1": to_upper(company_name),  # Legal name of entity (FULL NAME including LLC/L.L.C. suffix) - ALL CAPS
+        "Line 1": to_upper(company_name_clean),  # Legal name of entity (FULL NAME including LLC/L.L.C. suffix) - ALL CAPS, NO ADDRESS
         "Line 2": "",  # Trade name (if different, usually empty)
         "Line 3": to_upper(company_street_line1),  # Mailing address line 1 (same as street address)
         "Line 4a": "12550 BISCAYNE BLVD STE 110",  # Mailing address line 2 (Avenida Legal address) - HARDCODED
