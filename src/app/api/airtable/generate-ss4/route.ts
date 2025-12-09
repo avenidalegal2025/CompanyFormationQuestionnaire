@@ -85,8 +85,8 @@ Return ONLY a brief summary of what the business does (e.g., "General architectu
     // Remove any quotes if present
     finalSummary = finalSummary.replace(/^["']|["']$/g, '');
     // Ensure max 40 characters
-    if (finalSummary.length > 45) {
-      finalSummary = finalSummary.substring(0, 45).trim();
+    if (finalSummary.length > 40) {
+      finalSummary = finalSummary.substring(0, 40).trim();
     }
     
     const upperSummary = finalSummary.toUpperCase();
