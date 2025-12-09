@@ -568,39 +568,56 @@ def map_data_to_ss4_fields(form_data):
         mapped_data["8b"] = ""  # Empty for non-LLC entities
     
     # Line 9a: Type of entity (Checkboxes)
-    # Position depends on whether it's a sole proprietor or not
-    # Sole proprietor: 1 member/shareholder with 100% ownership -> move 15 pixels up (64, 511)
-    # Not sole proprietor: -> stays where it is (64, 496)
-    entity_type_upper = entity_type.upper()
-    checkbox_position = "9a_sole" if is_sole_proprietor else "9a"
+    # IMPORTANT: Check entity types in priority order:
+    # 1. Corporation (C-Corp or S-Corp) - check Corporation checkbox (even if sole proprietor)
+    # 2. LLC - check LLC checkbox (even if sole proprietor)
+    # 3. Partnership - check Partnership checkbox (only for actual partnerships, not LLCs or Corps)
+    # 4. Sole proprietor - only check "Sole proprietor" if NOT a Corporation, LLC, or Partnership
     
-    # IMPORTANT: If sole proprietor (single member with 100% ownership), check "Sole proprietor" checkbox
-    # For sole proprietors, we check "Sole proprietor" regardless of entity type (LLC, C-Corp, etc.)
-    if is_sole_proprietor:
+    entity_type_upper = entity_type.upper()
+    
+    # Check Corporation FIRST (even if sole proprietor)
+    if is_corp:
+        # Corporation: Check Corporation checkbox
+        # If sole proprietor, use sole proprietor position, otherwise use regular position
+        if is_sole_proprietor:
+            # Sole proprietor corporation: use 9a_corp_sole position
+            mapped_data["Checks"]["9a_corp_sole"] = CHECK_COORDS["9a_corp_sole"]
+            # Determine form number (1120 for C-Corp, 1120-S for S-Corp)
+            if "S-CORP" in entity_type_upper or "S CORP" in entity_type_upper:
+                mapped_data["9a_corp_sole_form_number"] = "1120-S"
+            else:
+                mapped_data["9a_corp_sole_form_number"] = "1120"
+            print(f"===> Sole proprietor corporation, checking 9a_corp_sole at {CHECK_COORDS['9a_corp_sole']}")
+        else:
+            # Regular corporation: use regular position
+            mapped_data["Checks"]["9a_corp"] = CHECK_COORDS["9a"]
+            # Determine form number (1120 for C-Corp, 1120-S for S-Corp)
+            if "S-CORP" in entity_type_upper or "S CORP" in entity_type_upper:
+                mapped_data["9a_corp_form_number"] = "1120-S"
+            else:
+                mapped_data["9a_corp_form_number"] = "1120"
+            print(f"===> Regular corporation, checking 9a_corp at {CHECK_COORDS['9a']}")
+        
+        # Line 9b: State of incorporation (ALL CAPS from Formation State column in Airtable)
+        mapped_data["9b"] = (formation_state or "FL").upper()
+    elif is_llc:
+        # LLC checkbox (even if sole proprietor)
+        mapped_data["Checks"]["9a_llc"] = CHECK_COORDS["9a"]
+        print(f"===> LLC, checking 9a_llc at {CHECK_COORDS['9a']}")
+    elif is_partnership:
+        # Partnership checkbox (should NOT be used for LLCs or Corporations)
+        mapped_data["Checks"]["9a_partnership"] = CHECK_COORDS["9a"]
+        print(f"===> Partnership, checking 9a_partnership at {CHECK_COORDS['9a']}")
+    elif is_sole_proprietor:
+        # True sole proprietorship (not LLC, not Corp, not Partnership)
         # Check "Sole proprietor" checkbox
         mapped_data["Checks"]["9a_sole"] = CHECK_COORDS["9a_sole"]
-    elif is_llc:
-        # LLC checkbox (only if NOT sole proprietor)
-        mapped_data["Checks"]["9a_llc"] = CHECK_COORDS["9a"]
-    elif "CORP" in entity_type_upper or "INC" in entity_type_upper or "C-CORP" in entity_type_upper:
-        # C-Corp: Corporation checkbox (only if NOT sole proprietor)
-        mapped_data["Checks"]["9a_corp"] = CHECK_COORDS["9a"]
-        mapped_data["9a_corp_form_number"] = "1120"  # Form number for C-Corp (75px to the right of checkbox)
-        # Line 9b: State of incorporation (ALL CAPS from Formation State column in Airtable)
-        mapped_data["9b"] = (formation_state or "FL").upper()
-    elif "S-CORP" in entity_type_upper or "S CORP" in entity_type_upper:
-        # S-Corp: S Corporation checkbox (only if NOT sole proprietor)
-        mapped_data["Checks"]["9a_scorp"] = CHECK_COORDS["9a"]
-        # Add form number "1120-S" for S-Corp (75px to the right of checkbox)
-        mapped_data["9a_corp_form_number"] = "1120-S"  # Form number for S-Corp
-        # Line 9b: State of incorporation (ALL CAPS from Formation State column in Airtable)
-        mapped_data["9b"] = (formation_state or "FL").upper()
-    elif "PARTNERSHIP" in entity_type_upper:
-        # Partnership checkbox (only if NOT sole proprietor)
-        mapped_data["Checks"]["9a_partnership"] = CHECK_COORDS["9a"]
+        print(f"===> True sole proprietorship, checking 9a_sole at {CHECK_COORDS['9a_sole']}")
     else:
-        # Other entity type (only if NOT sole proprietor)
+        # Other entity type
         mapped_data["Checks"]["9a_other"] = CHECK_COORDS["9a"]
+        print(f"===> Other entity type, checking 9a_other at {CHECK_COORDS['9a']}")
     
     # Line 9a: If sole proprietor AND it's a true sole proprietorship (not Corp/LLC/Partnership),
     # add SSN to the field next to the "Sole proprietor" checkbox
