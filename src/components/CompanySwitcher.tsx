@@ -86,7 +86,7 @@ export default function CompanySwitcher({ userEmail, selectedCompanyId, onCompan
           // Payment was just completed, select the newest company (first in list, sorted by Payment Date desc)
           const newestCompanyId = companiesList[0].id;
           console.log('✅ Payment completed, selecting newest company:', newestCompanyId);
-          console.log('📋 Available companies:', companiesList.map(c => ({ id: c.id, name: c.companyName })));
+          console.log('📋 Available companies:', companiesList.map((c: Company) => ({ id: c.id, name: c.companyName })));
           onCompanyChange(newestCompanyId);
           localStorage.removeItem('paymentCompleted'); // Clear the flag
           localStorage.setItem('selectedCompanyId', newestCompanyId); // Save to localStorage
@@ -96,7 +96,7 @@ export default function CompanySwitcher({ userEmail, selectedCompanyId, onCompan
           onCompanyChange(companiesList[0].id);
         } else if (selectedCompanyId) {
           // Company is already selected, verify it still exists in the list
-          const companyExists = companiesList.some(c => c.id === selectedCompanyId);
+          const companyExists = companiesList.some((c: Company) => c.id === selectedCompanyId);
           if (!companyExists && companiesList.length > 0) {
             // Selected company no longer exists, select the newest
             console.log('⚠️ Selected company no longer exists, selecting newest:', companiesList[0].id);
