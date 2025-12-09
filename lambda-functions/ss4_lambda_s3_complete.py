@@ -317,6 +317,7 @@ def map_data_to_ss4_fields(form_data):
     # DO NOT translate signature name - keep original format
     signature_name = form_data.get("signatureName", "")
     print(f"===> Signature name from form_data: '{signature_name}'")
+    print(f"===> Responsible party officer role: '{form_data.get('responsiblePartyOfficerRole', 'NOT FOUND')}'")
     
     # Owner information
     owner_count = form_data.get("ownerCount", 1)
