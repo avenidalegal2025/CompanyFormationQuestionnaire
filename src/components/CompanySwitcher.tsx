@@ -80,27 +80,36 @@ export default function CompanySwitcher({ userEmail, selectedCompanyId, onCompan
         const companiesList = data.companies || [];
         setCompanies(companiesList);
         
-        // Check if payment was just completed - if so, select the newest company
+        // Always consider the newest company (sorted by Payment Date desc)
+        const newestCompany = companiesList[0];
         const paymentCompleted = localStorage.getItem('paymentCompleted');
-        if (paymentCompleted === 'true' && companiesList.length > 0) {
-          // Payment was just completed, select the newest company (first in list, sorted by Payment Date desc)
-          const newestCompanyId = companiesList[0].id;
-          console.log('✅ Payment completed, selecting newest company:', newestCompanyId);
+
+        // Helper to select and persist newest
+        const selectNewest = () => {
+          if (!newestCompany) return;
+          console.log('✅ Selecting newest company:', newestCompany.id);
           console.log('📋 Available companies:', companiesList.map((c: Company) => ({ id: c.id, name: c.companyName })));
-          onCompanyChange(newestCompanyId);
-          localStorage.removeItem('paymentCompleted'); // Clear the flag
-          localStorage.setItem('selectedCompanyId', newestCompanyId); // Save to localStorage
-        } else if (!selectedCompanyId && companiesList.length > 0) {
-          // No company selected and we have companies, select the first one (newest)
-          console.log('📋 No company selected, selecting newest:', companiesList[0].id);
-          onCompanyChange(companiesList[0].id);
-        } else if (selectedCompanyId) {
-          // Company is already selected, verify it still exists in the list
-          const companyExists = companiesList.some((c: Company) => c.id === selectedCompanyId);
-          if (!companyExists && companiesList.length > 0) {
-            // Selected company no longer exists, select the newest
-            console.log('⚠️ Selected company no longer exists, selecting newest:', companiesList[0].id);
-            onCompanyChange(companiesList[0].id);
+          onCompanyChange(newestCompany.id);
+          localStorage.setItem('selectedCompanyId', newestCompany.id);
+          localStorage.removeItem('paymentCompleted');
+        };
+
+        // If payment just completed OR no selection OR selection missing OR selection older than newest -> pick newest
+        if (newestCompany) {
+          const selectedCompany = companiesList.find((c: Company) => c.id === selectedCompanyId);
+          const selectedIsOld =
+            selectedCompany &&
+            newestCompany &&
+            new Date(selectedCompany.createdAt).getTime() < new Date(newestCompany.createdAt).getTime();
+
+          if (paymentCompleted === 'true') {
+            selectNewest();
+          } else if (!selectedCompanyId) {
+            selectNewest();
+          } else if (!selectedCompany) {
+            selectNewest();
+          } else if (selectedIsOld) {
+            selectNewest();
           }
         }
       } else {
