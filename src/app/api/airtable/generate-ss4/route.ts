@@ -589,35 +589,47 @@ async function mapAirtableToSS4(record: any): Promise<any> {
   // ownerCount for signature name calculation
   const ownerCount = fields['Owner Count'] || 1;
   
-    // Signature Name: Same as Line 7a
-    // For C-Corp: Add officer title (e.g., ",PRESIDENT")
-    // For LLC: Add ",SOLE MEMBER" if single member, or ",MEMBER" if multiple members
-    // IMPORTANT: Ensure responsiblePartyName is not empty before creating signatureName
-    const baseName = responsiblePartyName || `${responsiblePartyFirstName} ${responsiblePartyLastName}`.trim();
-    let signatureName = baseName;
-    
-    if (!baseName) {
-      console.error(`❌ ERROR: responsiblePartyName is empty! Cannot create signature name.`);
-      console.error(`   responsiblePartyFirstName: "${responsiblePartyFirstName}"`);
-      console.error(`   responsiblePartyLastName: "${responsiblePartyLastName}"`);
+  // Log responsible party selection results
+  console.log(`📋 Responsible party selection results:`);
+  console.log(`   Name: "${responsiblePartyName}"`);
+  console.log(`   First Name: "${responsiblePartyFirstName}"`);
+  console.log(`   Last Name: "${responsiblePartyLastName}"`);
+  console.log(`   SSN: "${responsiblePartySSN}"`);
+  console.log(`   Officer Role: "${responsiblePartyOfficerRole}"`);
+  console.log(`   Entity Type: "${entityType}"`);
+  console.log(`   Is Corp: ${isCorp}`);
+  console.log(`   Is LLC: ${isLLC}`);
+  
+  // Signature Name: Same as Line 7a
+  // For C-Corp: Add officer title (e.g., ",PRESIDENT")
+  // For LLC: Add ",SOLE MEMBER" if single member, or ",MEMBER" if multiple members
+  // IMPORTANT: Ensure responsiblePartyName is not empty before creating signatureName
+  const baseName = responsiblePartyName || `${responsiblePartyFirstName} ${responsiblePartyLastName}`.trim();
+  let signatureName = baseName;
+  
+  if (!baseName) {
+    console.error(`❌ ERROR: responsiblePartyName is empty! Cannot create signature name.`);
+    console.error(`   responsiblePartyFirstName: "${responsiblePartyFirstName}"`);
+    console.error(`   responsiblePartyLastName: "${responsiblePartyLastName}"`);
+    console.error(`   This is a critical error - responsible party must be selected!`);
+  }
+  
+  if (isCorp && entityType === 'C-Corp') {
+    // For C-Corp, add officer role to signature name
+    if (responsiblePartyOfficerRole) {
+      signatureName = `${baseName},${responsiblePartyOfficerRole.toUpperCase()}`;
+    } else {
+      signatureName = `${baseName},PRESIDENT`; // Default to President
     }
-    
-    if (isCorp && entityType === 'C-Corp') {
-      // For C-Corp, add officer role to signature name
-      if (responsiblePartyOfficerRole) {
-        signatureName = `${baseName},${responsiblePartyOfficerRole.toUpperCase()}`;
-      } else {
-        signatureName = `${baseName},PRESIDENT`; // Default to President
-      }
-    } else if (isLLC) {
-      if (ownerCount === 1) {
-        signatureName = `${baseName},SOLE MEMBER`;
-      } else {
-        signatureName = `${baseName},MEMBER`;
-      }
+  } else if (isLLC) {
+    if (ownerCount === 1) {
+      signatureName = `${baseName},SOLE MEMBER`;
+    } else {
+      signatureName = `${baseName},MEMBER`;
     }
-    
-    console.log(`📝 Signature name formatted: "${signatureName}" (base: "${baseName}")`);
+  }
+  
+  console.log(`📝 Signature name formatted: "${signatureName}" (base: "${baseName}")`);
   
   return {
     // Line 1: Legal name of entity
