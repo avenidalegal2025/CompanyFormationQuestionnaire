@@ -686,8 +686,9 @@ async function mapAirtableToSS4(record: any): Promise<any> {
   
   if (isCorp && entityType === 'C-Corp') {
     // For C-Corp, add officer role to signature name - use ACTUAL role, NOT hardcoded to President
+    // Format: "NAME, ROLE" (with space after comma)
     if (responsiblePartyOfficerRole && responsiblePartyOfficerRole.trim() !== '') {
-      signatureName = `${baseName},${responsiblePartyOfficerRole.toUpperCase()}`;
+      signatureName = `${baseName}, ${responsiblePartyOfficerRole.toUpperCase()}`;
       console.log(`✅ Using actual officer role in signature: "${responsiblePartyOfficerRole.toUpperCase()}"`);
     } else {
       console.warn(`⚠️ No officer role found for ${baseName} - signature name will NOT include role (not defaulting to President)`);
