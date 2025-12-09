@@ -290,13 +290,29 @@ def map_data_to_ss4_fields(form_data):
     sole_proprietor_ssn = None
     # Check ownership percentage if available
     owners = form_data.get("owners", [])
+    print(f"===> Sole proprietor check: owner_count={owner_count}, owners array length={len(owners) if owners else 0}")
     if owners and len(owners) == 1:
         owner = owners[0]
         owner_ownership = owner.get("ownership", 100)
         # Convert to number if it's a string percentage
         if isinstance(owner_ownership, str):
             owner_ownership = float(owner_ownership.replace("%", ""))
-        is_sole_proprietor = (owner_ownership == 100)
+        # Handle both decimal format (0.01 = 1%) and percentage format (1 = 1%, 100 = 100%)
+        # Airtable stores percentages as decimals (0.01 = 1%, 1.0 = 100%)
+        # If ownership is between 0 and 1 (exclusive), it's a decimal, so multiply by 100
+        if 0 < owner_ownership < 1:
+            owner_ownership = owner_ownership * 100
+        # Also handle case where it's exactly 1.0 - this could be 1% (decimal) or 100% (if already multiplied)
+        # For sole proprietor, we expect 100% ownership
+        # If ownership is 1.0, check if it's likely 100% (sole proprietor) or 1% (not sole proprietor)
+        # Since we're checking for sole proprietor, if owner_count == 1 and ownership == 1.0, 
+        # it's most likely 100% (1.0 = 100% in decimal format)
+        if owner_ownership == 1.0 and owner_count == 1:
+            # Assume it's 100% (1.0 in decimal format) for sole proprietor
+            owner_ownership = 100
+        # Check if ownership equals 100% (sole proprietor)
+        is_sole_proprietor = (owner_ownership == 100 or owner_ownership >= 99.99)
+        print(f"===> Owner ownership: {owner_ownership}%, is_sole_proprietor={is_sole_proprietor}")
         # Get SSN if available
         if is_sole_proprietor:
             sole_proprietor_ssn = owner.get("ssn", "") or owner.get("taxId", "")
@@ -306,6 +322,9 @@ def map_data_to_ss4_fields(form_data):
                 # Validate it's not empty, "N/A", or "FOREIGN"
                 if sole_proprietor_ssn.upper() in ['N/A', 'FOREIGN', '']:
                     sole_proprietor_ssn = None
+    else:
+        print(f"===> No owners array or multiple owners, using owner_count check: is_sole_proprietor={is_sole_proprietor}")
+    print(f"===> Final is_sole_proprietor={is_sole_proprietor}, entity_type={entity_type}")
     
     # Date business started (use payment date or current date)
     date_business_started = form_data.get("dateBusinessStarted", datetime.now().strftime("%m/%d/%Y"))
