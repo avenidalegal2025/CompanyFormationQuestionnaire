@@ -529,7 +529,7 @@ def map_data_to_ss4_fields(form_data):
         "8b": "",  # Will be set to member count if LLC, or date if not LLC
         "8b_date": date_business_started,  # Date business started (for non-LLC)
         "9b": to_upper(formation_state or "FL"),  # Closing month / State of incorporation - ALL CAPS
-        "10": to_upper(translate_to_english(form_data.get("summarizedBusinessPurpose", business_purpose or "General business operations"))[:45].trim()),  # Summarized Business Purpose (max 45 chars, ALL CAPS) - translated from Spanish - TRUNCATE to 45 chars
+        "10": to_upper(translate_to_english(form_data.get("summarizedBusinessPurpose", business_purpose or "General business operations"))[:40].strip()),  # Summarized Business Purpose (max 40 chars, ALL CAPS) - translated from Spanish - TRUNCATE to 40 chars
         "11": format_payment_date(form_data.get("dateBusinessStarted", form_data.get("paymentDate", ""))),  # Date business started in (month, day, year) format - use paymentDate as fallback
         "12": "DECEMBER",  # Closing month of accounting year - always DECEMBER
         "13": {
