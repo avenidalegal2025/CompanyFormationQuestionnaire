@@ -750,7 +750,12 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
                   </p>
                   
                   {Array.from({ length: watch("ownersCount") || 1 }).map((_, idx) => {
-                    const ownerName = watch(fp(`owners.${idx}.fullName`)) as string;
+                    // Get owner name - try firstName + lastName first, then fullName, then fallback
+                    const ownerFirstName = watch(fp(`owners.${idx}.firstName`)) as string;
+                    const ownerLastName = watch(fp(`owners.${idx}.lastName`)) as string;
+                    const ownerFullName = watch(fp(`owners.${idx}.fullName`)) as string;
+                    const ownerName = `${ownerFirstName || ""} ${ownerLastName || ""}`.trim() || ownerFullName || `Accionista ${idx + 1}`;
+                    
                     return (
                       <div
                         key={idx}
@@ -759,7 +764,7 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
                         <div>
                           <label className="label">Accionista {idx + 1}</label>
                           <div className="text-gray-700 font-medium">
-                            {ownerName || `Accionista ${idx + 1}`}
+                            {ownerName}
                           </div>
                         </div>
                         <div>
