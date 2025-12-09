@@ -19,7 +19,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://company-formation-
 const base = new Airtable({ apiKey: AIRTABLE_API_KEY }).base(AIRTABLE_BASE_ID);
 
 /**
- * Summarize Business Purpose using OpenAI API to max 40 characters
+ * Summarize Business Purpose using OpenAI API to max 35 characters
  */
 async function summarizeBusinessPurpose(businessPurpose: string): Promise<string> {
   if (!businessPurpose || businessPurpose.trim() === '') {
@@ -45,17 +45,17 @@ async function summarizeBusinessPurpose(businessPurpose: string): Promise<string
         messages: [
           {
             role: 'system',
-            content: 'You are a helpful assistant that summarizes business purposes concisely for IRS Form SS-4, Line 10. Return only a brief summary, maximum 40 characters, no labels or explanations.',
+            content: 'You are a helpful assistant that summarizes business purposes concisely for IRS Form SS-4, Line 10. Return only a brief summary, maximum 35 characters, no labels or explanations.',
           },
           {
             role: 'user',
             content: `This is for IRS Form SS-4, Line 10 "Reason for applying" - the text field next to the "Started new business" checkbox.
 
-Summarize this business purpose from the Airtable Formations table "Business Purpose" column into a SHORT, ONE-LINE summary (maximum 40 characters).
+Summarize this business purpose from the Airtable Formations table "Business Purpose" column into a SHORT, ONE-LINE summary (maximum 35 characters).
 
 Business Purpose: "${businessPurpose}"
 
-Return ONLY a brief summary of what the business does (e.g., "General architectural services", "Real estate development", "Retail clothing sales"). Maximum 40 characters. No labels, no prefixes, no explanations. Be concise and specific.`,
+Return ONLY a brief summary of what the business does (e.g., "General architectural services", "Real estate development", "Retail clothing sales"). Maximum 35 characters. No labels, no prefixes, no explanations. Be concise and specific.`,
           },
         ],
         max_tokens: 50,
@@ -80,13 +80,13 @@ Return ONLY a brief summary of what the business does (e.g., "General architectu
       return 'STARTED NEW BUSINESS';
     }
 
-    // Ensure it's max 40 characters and clean it up
+    // Ensure it's max 35 characters and clean it up
     let finalSummary = summary.trim();
     // Remove any quotes if present
     finalSummary = finalSummary.replace(/^["']|["']$/g, '');
-    // Ensure max 40 characters
-    if (finalSummary.length > 40) {
-      finalSummary = finalSummary.substring(0, 40).trim();
+    // Ensure max 35 characters
+    if (finalSummary.length > 35) {
+      finalSummary = finalSummary.substring(0, 35).trim();
     }
     
     const upperSummary = finalSummary.toUpperCase();
@@ -776,7 +776,7 @@ async function mapAirtableToSS4(record: any): Promise<any> {
     // Also pass formationState directly (Lambda uses this for Line 9b)
     // formationState is already set above, but ensure it's uppercase for Lambda
     
-    // Line 10: Summarized Business Purpose (max 40 characters, ALL CAPS)
+    // Line 10: Summarized Business Purpose (max 35 characters, ALL CAPS)
     // This will be set after OpenAI summarization
     
     // Line 11: Date business started (use Payment Date from Airtable)
