@@ -65,11 +65,20 @@ export default function CompanySwitcher({ userEmail, selectedCompanyId, onCompan
       const response = await fetch(`/api/companies?email=${encodeURIComponent(userEmail)}`);
       if (response.ok) {
         const data = await response.json();
-        setCompanies(data.companies || []);
+        const companiesList = data.companies || [];
+        setCompanies(companiesList);
         
-        // If no company is selected and we have companies, select the first one
-        if (!selectedCompanyId && data.companies && data.companies.length > 0) {
-          onCompanyChange(data.companies[0].id);
+        // Check if payment was just completed - if so, select the newest company
+        const paymentCompleted = localStorage.getItem('paymentCompleted');
+        if (paymentCompleted === 'true' && companiesList.length > 0) {
+          // Payment was just completed, select the newest company (first in list, sorted by Payment Date desc)
+          const newestCompanyId = companiesList[0].id;
+          console.log('✅ Payment completed, selecting newest company:', newestCompanyId);
+          onCompanyChange(newestCompanyId);
+          localStorage.removeItem('paymentCompleted'); // Clear the flag
+        } else if (!selectedCompanyId && companiesList.length > 0) {
+          // No company selected and we have companies, select the first one (newest)
+          onCompanyChange(companiesList[0].id);
         }
       } else {
         console.error('Failed to fetch companies');

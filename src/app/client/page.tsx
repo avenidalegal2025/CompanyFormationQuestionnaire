@@ -132,15 +132,15 @@ export default function ClientPage() {
   // Refetch companies when userEmail changes (e.g., after payment)
   useEffect(() => {
     if (userEmail) {
-      // Trigger a refresh of the CompanySwitcher by forcing a re-render
-      // The CompanySwitcher will handle the actual fetch
+      // Check if payment was just completed
       const checkPaymentCompleted = localStorage.getItem('paymentCompleted');
       if (checkPaymentCompleted === 'true') {
-        // Clear the flag and wait a bit for webhook to process
+        // Wait a bit for webhook to process and create the Airtable record
+        // The CompanySwitcher will automatically select the newest company
         setTimeout(() => {
-          localStorage.removeItem('paymentCompleted');
-          // Force a page refresh to show new company
-          window.location.reload();
+          // Don't clear paymentCompleted here - let CompanySwitcher handle it
+          // This ensures the newest company is selected
+          console.log('💳 Payment completed, waiting for new company to appear...');
         }, 3000);
       }
     }
