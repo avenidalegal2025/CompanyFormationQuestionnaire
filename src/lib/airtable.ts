@@ -372,7 +372,6 @@ export interface AirtableFormationRecord {
   
   // Officers (C-Corp)
   'Officers Count'?: number;
-  'Officers All Owners'?: 'Yes' | 'No';
   'Officer 1 Name'?: string;
   'Officer 1 First Name'?: string;
   'Officer 1 Last Name'?: string;
@@ -877,7 +876,8 @@ export function mapQuestionnaireToAirtable(
     const officersCount = admin.officersCount || 0;
     const officersAllOwners = admin.officersAllOwners === 'Yes' || admin.officersAllOwners === true;
     record['Officers Count'] = officersCount;
-    record['Officers All Owners'] = officersAllOwners ? 'Yes' : 'No';
+    // Note: 'Officers All Owners' field doesn't exist in Airtable, so we don't save it
+    // The logic can determine this by checking if Officer fields are populated vs using owner names
     
     // Officers are stored as dynamic keys: officer1FirstName, officer1LastName, officer1Address, officer1Role, etc.
     // OR if officersAllOwners === "Yes", use shareholderOfficer${i}Role and owner names
