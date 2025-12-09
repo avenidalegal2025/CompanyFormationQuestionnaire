@@ -598,7 +598,7 @@ async function mapAirtableToSS4(record: any): Promise<any> {
     for (let i = 1; i <= 6; i++) {
       const ownerName = fields[`Owner ${i} Name`] || '';
       if (ownerName && ownerName.trim() !== '') {
-        actualOwnerCount = i; // Track the highest index with a name
+        actualOwnerCount++; // Count actual owners, not just track highest index
       }
     }
     const ownerCount = actualOwnerCount || fields['Owner Count'] || 1;
@@ -642,11 +642,12 @@ async function mapAirtableToSS4(record: any): Promise<any> {
   const rpAddressParts = parseAddress(responsiblePartyAddress);
   
   // ownerCount for signature name calculation - count actual owners
+  // Use the same calculation as above (for LLCs) to ensure consistency
   let actualOwnerCount = 0;
   for (let i = 1; i <= 6; i++) {
     const ownerName = fields[`Owner ${i} Name`] || '';
     if (ownerName && ownerName.trim() !== '') {
-      actualOwnerCount = i; // Track the highest index with a name
+      actualOwnerCount++; // Count actual owners, not just track highest index
     }
   }
   const ownerCount = actualOwnerCount || fields['Owner Count'] || 1;
@@ -798,7 +799,14 @@ async function mapAirtableToSS4(record: any): Promise<any> {
     isLLC: isLLC ? 'Yes' : 'No',
     
     // Line 8b: Number of LLC members
-    llcMemberCount: isLLC ? ownerCount : undefined,
+    // Use the actual owner count (counted from Owner ${i} Name fields) for LLCs
+    llcMemberCount: (() => {
+      const count = isLLC ? ownerCount : undefined;
+      if (isLLC) {
+        console.log(`📊 Line 8b - Setting LLC Member Count: ${count} (ownerCount: ${ownerCount}, actualOwnerCount: ${actualOwnerCount})`);
+      }
+      return count;
+    })(),
     
     // Line 9a: Type of entity (checkbox)
     entityTypeCode: getEntityTypeCode(entityType),
