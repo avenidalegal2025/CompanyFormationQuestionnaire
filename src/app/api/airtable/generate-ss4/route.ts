@@ -651,6 +651,16 @@ async function mapAirtableToSS4(record: any): Promise<any> {
   }
   const ownerCount = actualOwnerCount || fields['Owner Count'] || 1;
   console.log(`📊 Final owner count for signature: ${ownerCount} (from actual count: ${actualOwnerCount}, from Airtable field: ${fields['Owner Count'] || 'NOT SET'})`);
+  
+  // Determine if sole proprietor: 1 owner with 100% ownership
+  let isSoleProprietor = false;
+  if (ownerCount === 1) {
+    const owner1Ownership = fields['Owner 1 Ownership %'] || 0;
+    // Airtable stores ownership as percentage (100 = 100%, 1 = 1%)
+    // Check if ownership is 100% (could be 100 or 1.0 depending on format)
+    isSoleProprietor = (owner1Ownership === 100 || owner1Ownership === 1.0 || owner1Ownership >= 99.99);
+    console.log(`📊 Sole proprietor check: ownerCount=${ownerCount}, Owner 1 Ownership %=${owner1Ownership}, isSoleProprietor=${isSoleProprietor}`);
+  }
 
   // Fallback: if we still don't have a valid SSN, try to pick the first owner with SSN
   if (!responsiblePartySSN || responsiblePartySSN === 'N/A-FOREIGN') {
@@ -713,19 +723,25 @@ async function mapAirtableToSS4(record: any): Promise<any> {
   if (isCorp && entityType === 'C-Corp') {
     // For C-Corp, add officer role to signature name - use ACTUAL role, NOT hardcoded to President
     // Format: "NAME, ROLE" (with space after comma)
-    if (responsiblePartyOfficerRole && responsiblePartyOfficerRole.trim() !== '') {
+    // BUT: If it's a sole proprietor (1 owner with 100%), use ",SOLE MEMBER" instead
+    if (isSoleProprietor) {
+      signatureName = `${baseName},SOLE MEMBER`;
+      console.log(`✅ Sole proprietor C-Corp, using ",SOLE MEMBER" in signature`);
+    } else if (responsiblePartyOfficerRole && responsiblePartyOfficerRole.trim() !== '') {
       signatureName = `${baseName}, ${responsiblePartyOfficerRole.toUpperCase()}`;
       console.log(`✅ Using actual officer role in signature: "${responsiblePartyOfficerRole.toUpperCase()}"`);
     } else {
       console.warn(`⚠️ No officer role found for ${baseName} - signature name will NOT include role (not defaulting to President)`);
       signatureName = baseName; // Don't add role if not found, don't default to President
     }
+  } else if (isSoleProprietor) {
+    // Sole proprietor (1 owner with 100% ownership) - use ",SOLE MEMBER" for all entity types
+    signatureName = `${baseName},SOLE MEMBER`;
+    console.log(`✅ Sole proprietor detected, using ",SOLE MEMBER" in signature`);
   } else if (isLLC) {
-    if (ownerCount === 1) {
-      signatureName = `${baseName},SOLE MEMBER`;
-    } else {
-      signatureName = `${baseName},MEMBER`;
-    }
+    // Multi-member LLC
+    signatureName = `${baseName},MEMBER`;
+    console.log(`✅ Multi-member LLC, using ",MEMBER" in signature`);
   }
   
   console.log(`📝 Signature name formatted: "${signatureName}" (base: "${baseName}")`);
