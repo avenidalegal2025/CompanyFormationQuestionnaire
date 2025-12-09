@@ -531,13 +531,19 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
         
         // Use internal API endpoint to generate SS-4 from Airtable
         // In production, this will use the deployed URL; in dev, it uses localhost
+        // IMPORTANT: Use absolute URL for internal API calls in Vercel
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
                        (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
         
-        console.log(`🔗 Calling SS-4 generation endpoint: ${baseUrl}/api/airtable/generate-ss4`);
+        const apiUrl = `${baseUrl}/api/airtable/generate-ss4`;
+        console.log(`🔗 Calling SS-4 generation endpoint: ${apiUrl}`);
+        console.log(`📋 Airtable Record ID: ${airtableRecordId}`);
+        console.log(`📋 Base URL: ${baseUrl}`);
+        console.log(`📋 VERCEL_URL env: ${process.env.VERCEL_URL || 'NOT SET'}`);
+        console.log(`📋 NEXT_PUBLIC_BASE_URL env: ${process.env.NEXT_PUBLIC_BASE_URL || 'NOT SET'}`);
         
         console.log(`📤 Calling SS-4 generation API with recordId: ${airtableRecordId}`);
-        const generateSS4Response = await fetch(`${baseUrl}/api/airtable/generate-ss4`, {
+        const generateSS4Response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
