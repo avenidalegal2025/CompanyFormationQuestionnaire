@@ -500,12 +500,21 @@ async function mapAirtableToSS4(record: any): Promise<any> {
                   responsiblePartySSN = ownerSSN;
                   responsiblePartyAddress = fields[`Officer ${i} Address`] || fields[`Owner ${j} Address`] || '';
                   // Get officer role - IMPORTANT: Get the ACTUAL role from Officer ${i} Role field, NOT hardcoded to President
+                  // Log all officer-related fields for debugging
+                  console.log(`🔍 DEBUG: Checking Officer ${i} fields for ${officerName}:`);
+                  console.log(`   Officer ${i} Name: "${fields[`Officer ${i} Name`] || 'NOT FOUND'}"`);
+                  console.log(`   Officer ${i} Role: "${fields[`Officer ${i} Role`] || 'NOT FOUND'}"`);
+                  console.log(`   All fields containing "Officer ${i}":`, Object.keys(fields).filter(k => k.includes(`Officer ${i}`)));
+                  
                   responsiblePartyOfficerRole = fields[`Officer ${i} Role`] || '';
-                  console.log(`🔍 Officer ${i} Role field value: "${fields[`Officer ${i} Role`] || 'EMPTY'}"`);
+                  console.log(`🔍 Officer ${i} Role field value: "${responsiblePartyOfficerRole || 'EMPTY'}"`);
+                  
                   if (!responsiblePartyOfficerRole || responsiblePartyOfficerRole.trim() === '') {
                     console.warn(`⚠️ Officer ${i} Role is empty for ${officerName}, trying to find role from shareholder/officer mapping`);
                     // Try to find role from shareholder/officer mapping if available
                     const shareholderRole = fields[`Shareholder ${j} Officer Role`] || fields[`Owner ${j} Officer Role`] || fields[`admin.shareholderOfficer${j}Role`] || '';
+                    console.log(`   Shareholder ${j} Officer Role: "${fields[`Shareholder ${j} Officer Role`] || 'NOT FOUND'}"`);
+                    console.log(`   Owner ${j} Officer Role: "${fields[`Owner ${j} Officer Role`] || 'NOT FOUND'}"`);
                     if (shareholderRole && shareholderRole.trim() !== '') {
                       responsiblePartyOfficerRole = shareholderRole;
                       console.log(`✅ Found role from shareholder/officer mapping: ${responsiblePartyOfficerRole}`);
@@ -1072,7 +1081,12 @@ export async function POST(request: NextRequest) {
       line17PrincipalMerchandise: ss4Data.line17PrincipalMerchandise,
       applicantPhone: ss4Data.applicantPhone,
       signatureName: ss4Data.signatureName,
+      responsiblePartyOfficerRole: ss4Data.responsiblePartyOfficerRole, // Pass officer role to Lambda
     });
+    
+    // Log the officer role being sent to Lambda
+    console.log(`🔍 DEBUG: responsiblePartyOfficerRole being sent to Lambda: "${ss4Data.responsiblePartyOfficerRole || 'NOT SET'}"`);
+    console.log(`🔍 DEBUG: signatureName being sent to Lambda: "${ss4Data.signatureName || 'NOT SET'}"`);
     
     // Log ALL keys to verify nothing is missing
     console.log('📋 All ss4Data keys:', Object.keys(ss4Data).sort().join(', '));
