@@ -349,10 +349,14 @@ def map_data_to_ss4_fields(form_data):
     sole_proprietor_ssn = None
     # Check ownership percentage if available
     owners = form_data.get("owners", [])
-    print(f"===> Sole proprietor check: owner_count={owner_count}, owners array length={len(owners) if owners else 0}")
+    print(f"===> ========== SOLE PROPRIETOR DETECTION ==========")
+    print(f"===> owner_count: {owner_count}")
+    print(f"===> owners array length: {len(owners) if owners else 0}")
+    print(f"===> Initial is_sole_proprietor (based on owner_count): {is_sole_proprietor}")
     if owners and len(owners) == 1:
         owner = owners[0]
         owner_ownership = owner.get("ownership", 100)
+        print(f"===> Owner ownership (raw): {owner_ownership} (type: {type(owner_ownership)})")
         # Convert to number if it's a string percentage
         if isinstance(owner_ownership, str):
             owner_ownership = float(owner_ownership.replace("%", ""))
@@ -361,6 +365,7 @@ def map_data_to_ss4_fields(form_data):
         # If ownership is between 0 and 1 (exclusive), it's a decimal, so multiply by 100
         if 0 < owner_ownership < 1:
             owner_ownership = owner_ownership * 100
+            print(f"===> Converted decimal to percentage: {owner_ownership}%")
         # Also handle case where it's exactly 1.0 - this could be 1% (decimal) or 100% (if already multiplied)
         # For sole proprietor, we expect 100% ownership
         # If ownership is 1.0, check if it's likely 100% (sole proprietor) or 1% (not sole proprietor)
@@ -369,9 +374,11 @@ def map_data_to_ss4_fields(form_data):
         if owner_ownership == 1.0 and owner_count == 1:
             # Assume it's 100% (1.0 in decimal format) for sole proprietor
             owner_ownership = 100
+            print(f"===> Interpreted 1.0 as 100% for sole proprietor")
         # Check if ownership equals 100% (sole proprietor)
         is_sole_proprietor = (owner_ownership == 100 or owner_ownership >= 99.99)
-        print(f"===> Owner ownership: {owner_ownership}%, is_sole_proprietor={is_sole_proprietor}")
+        print(f"===> Owner ownership (final): {owner_ownership}%")
+        print(f"===> is_sole_proprietor (after ownership check): {is_sole_proprietor}")
         # Get SSN if available
         if is_sole_proprietor:
             sole_proprietor_ssn = owner.get("ssn", "") or owner.get("taxId", "")
@@ -383,7 +390,9 @@ def map_data_to_ss4_fields(form_data):
                     sole_proprietor_ssn = None
     else:
         print(f"===> No owners array or multiple owners, using owner_count check: is_sole_proprietor={is_sole_proprietor}")
-    print(f"===> Final is_sole_proprietor={is_sole_proprietor}, entity_type={entity_type}")
+    print(f"===> Final is_sole_proprietor: {is_sole_proprietor}")
+    print(f"===> entity_type: {entity_type}")
+    print(f"===> ==============================================")
     
     # Date business started (use payment date or current date)
     date_business_started = form_data.get("dateBusinessStarted", datetime.now().strftime("%m/%d/%Y"))
@@ -590,6 +599,17 @@ def map_data_to_ss4_fields(form_data):
     
     entity_type_upper = entity_type.upper()
     
+    # Debug logging for entity type detection
+    print(f"===> ========== LINE 9A ENTITY TYPE DETECTION ==========")
+    print(f"===> entity_type: '{entity_type}'")
+    print(f"===> entity_type_upper: '{entity_type_upper}'")
+    print(f"===> is_corp: {is_corp}")
+    print(f"===> is_llc: {is_llc}")
+    print(f"===> is_partnership: {is_partnership}")
+    print(f"===> is_sole_proprietor: {is_sole_proprietor}")
+    print(f"===> owner_count: {owner_count}")
+    print(f"===> ==================================================")
+    
     # Check Corporation FIRST (even if sole proprietor)
     if is_corp:
         # Corporation: Check Corporation checkbox
@@ -602,7 +622,9 @@ def map_data_to_ss4_fields(form_data):
                 mapped_data["9a_corp_sole_form_number"] = "1120-S"
             else:
                 mapped_data["9a_corp_sole_form_number"] = "1120"
-            print(f"===> Sole proprietor corporation, checking 9a_corp_sole at {CHECK_COORDS['9a_corp_sole']}")
+            print(f"===> ✅ Sole proprietor corporation detected!")
+            print(f"===> ✅ Setting 9a_corp_sole checkbox at {CHECK_COORDS['9a_corp_sole']}")
+            print(f"===> ✅ Form number: {mapped_data.get('9a_corp_sole_form_number', 'NOT SET')}")
         else:
             # Regular corporation: use regular position
             mapped_data["Checks"]["9a_corp"] = CHECK_COORDS["9a"]
@@ -611,10 +633,14 @@ def map_data_to_ss4_fields(form_data):
                 mapped_data["9a_corp_form_number"] = "1120-S"
             else:
                 mapped_data["9a_corp_form_number"] = "1120"
-            print(f"===> Regular corporation, checking 9a_corp at {CHECK_COORDS['9a']}")
+            print(f"===> ✅ Regular corporation (not sole proprietor)")
+            print(f"===> ✅ Setting 9a_corp checkbox at {CHECK_COORDS['9a']}")
+            print(f"===> ✅ Form number: {mapped_data.get('9a_corp_form_number', 'NOT SET')}")
         
         # Line 9b: State of incorporation (ALL CAPS from Formation State column in Airtable)
         mapped_data["9b"] = (formation_state or "FL").upper()
+    else:
+        print(f"===> ⚠️ NOT a corporation (is_corp={is_corp}), skipping corporation checkbox")
     elif is_llc:
         # LLC checkbox (even if sole proprietor)
         mapped_data["Checks"]["9a_llc"] = CHECK_COORDS["9a"]
@@ -864,20 +890,31 @@ def create_overlay(data, path):
     # Position depends on whether it's a sole proprietor or not
     # The checkbox position is already set in the Checks dictionary with the correct coordinates
     # Just draw the X at the coordinates provided
+    print(f"===> ========== DRAWING LINE 9A CHECKBOXES ==========")
+    print(f"===> Available checkboxes in checks dict: {list(checks.keys())}")
+    print(f"===> Checking for 9a_llc: {'9a_llc' in checks}")
+    print(f"===> Checking for 9a_corp: {'9a_corp' in checks}")
+    print(f"===> Checking for 9a_corp_sole: {'9a_corp_sole' in checks}")
     if "9a_llc" in checks:
         coords = checks["9a_llc"]
         if isinstance(coords, list) and len(coords) >= 2:
             c.drawString(coords[0], coords[1], "X")
+            print(f"===> ✅ Drew 9a_llc checkbox at ({coords[0]}, {coords[1]})")
     elif "9a_corp" in checks:
         coords = checks["9a_corp"]
         if isinstance(coords, list) and len(coords) >= 2:
             c.drawString(coords[0], coords[1], "X")
-            print(f"===> Drawing X at ({coords[0]}, {coords[1]}) for 9a_corp")
+            print(f"===> ✅ Drew 9a_corp checkbox at ({coords[0]}, {coords[1]})")
     elif "9a_corp_sole" in checks:
         coords = checks["9a_corp_sole"]
         if isinstance(coords, list) and len(coords) >= 2:
             c.drawString(coords[0], coords[1], "X")
-            print(f"===> Drawing X at ({coords[0]}, {coords[1]}) for 9a_corp_sole")
+            print(f"===> ✅ Drew 9a_corp_sole checkbox at ({coords[0]}, {coords[1]})")
+        else:
+            print(f"===> ⚠️ 9a_corp_sole found but coords invalid: {coords}")
+    else:
+        print(f"===> ⚠️ No 9a checkbox found in checks dict!")
+    print(f"===> =================================================")
     elif "9a_scorp" in checks:
         coords = checks["9a_scorp"]
         if isinstance(coords, list) and len(coords) >= 2:
