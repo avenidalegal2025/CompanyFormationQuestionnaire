@@ -50,7 +50,8 @@ CHECK_COORDS = {
     "8a_yes": [257, 545],     # Is this a LLC? (Yes)
     "8a_no": [300, 545],      # Is this a LLC? (No) - 43 pixels to the right (257 + 43 = 300)
     "8c_yes": [495, 533],
-    "9a": [64, 496],          # Entity type checkbox (non-sole proprietor - stays where it is)
+    "9a": [64, 496],          # Partnership / default position
+    "9a_corp": [64, 471],     # Corporation (non-sole proprietor) - 25px below partnership box
     "9a_sole": [64, 509],     # Entity type checkbox (sole proprietor) - 13 pixels up (496 + 13 = 509)
     "9a_corp_sole": [64, 484], # Corporation checkbox (sole proprietor) - 25 pixels below Partnership sole (509 - 25 = 484)
     "9a_corp_form_number": (139, 496),  # Form number input field (1120 or 1120-S) - 75px to the right of Corporation checkbox (64 + 75 = 139)
@@ -626,21 +627,19 @@ def map_data_to_ss4_fields(form_data):
             print(f"===> ✅ Setting 9a_corp_sole checkbox at {CHECK_COORDS['9a_corp_sole']}")
             print(f"===> ✅ Form number: {mapped_data.get('9a_corp_sole_form_number', 'NOT SET')}")
         else:
-            # Regular corporation: use regular position
-            mapped_data["Checks"]["9a_corp"] = CHECK_COORDS["9a"]
+            # Regular corporation: use dedicated corporation position
+            mapped_data["Checks"]["9a_corp"] = CHECK_COORDS["9a_corp"]
             # Determine form number (1120 for C-Corp, 1120-S for S-Corp)
             if "S-CORP" in entity_type_upper or "S CORP" in entity_type_upper:
                 mapped_data["9a_corp_form_number"] = "1120-S"
             else:
                 mapped_data["9a_corp_form_number"] = "1120"
             print(f"===> ✅ Regular corporation (not sole proprietor)")
-            print(f"===> ✅ Setting 9a_corp checkbox at {CHECK_COORDS['9a']}")
+            print(f"===> ✅ Setting 9a_corp checkbox at {CHECK_COORDS['9a_corp']}")
             print(f"===> ✅ Form number: {mapped_data.get('9a_corp_form_number', 'NOT SET')}")
         
         # Line 9b: State of incorporation (ALL CAPS from Formation State column in Airtable)
         mapped_data["9b"] = (formation_state or "FL").upper()
-    else:
-        print(f"===> ⚠️ NOT a corporation (is_corp={is_corp}), skipping corporation checkbox")
     elif is_llc:
         # LLC checkbox (even if sole proprietor)
         mapped_data["Checks"]["9a_llc"] = CHECK_COORDS["9a"]
@@ -912,9 +911,6 @@ def create_overlay(data, path):
             print(f"===> ✅ Drew 9a_corp_sole checkbox at ({coords[0]}, {coords[1]})")
         else:
             print(f"===> ⚠️ 9a_corp_sole found but coords invalid: {coords}")
-    else:
-        print(f"===> ⚠️ No 9a checkbox found in checks dict!")
-    print(f"===> =================================================")
     elif "9a_scorp" in checks:
         coords = checks["9a_scorp"]
         if isinstance(coords, list) and len(coords) >= 2:
