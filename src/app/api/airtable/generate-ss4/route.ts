@@ -593,7 +593,16 @@ async function mapAirtableToSS4(record: any): Promise<any> {
   } else {
     // For LLC, use owner/manager logic - MUST prioritize members/owners with SSN
     // Do NOT use Customer Name or Manager Name unless they are owners
-    const ownerCount = fields['Owner Count'] || 1;
+    // Count actual owners by checking Owner ${i} Name fields (more reliable than Owner Count field)
+    let actualOwnerCount = 0;
+    for (let i = 1; i <= 6; i++) {
+      const ownerName = fields[`Owner ${i} Name`] || '';
+      if (ownerName && ownerName.trim() !== '') {
+        actualOwnerCount = i; // Track the highest index with a name
+      }
+    }
+    const ownerCount = actualOwnerCount || fields['Owner Count'] || 1;
+    console.log(`📊 Owner count: ${ownerCount} (from actual count: ${actualOwnerCount}, from Airtable field: ${fields['Owner Count'] || 'NOT SET'})`);
     
     // First, find the first owner/member with a valid SSN
     for (let i = 1; i <= Math.min(ownerCount, 6); i++) {
@@ -632,8 +641,16 @@ async function mapAirtableToSS4(record: any): Promise<any> {
   // Parse responsible party address
   const rpAddressParts = parseAddress(responsiblePartyAddress);
   
-  // ownerCount for signature name calculation
-  const ownerCount = fields['Owner Count'] || 1;
+  // ownerCount for signature name calculation - count actual owners
+  let actualOwnerCount = 0;
+  for (let i = 1; i <= 6; i++) {
+    const ownerName = fields[`Owner ${i} Name`] || '';
+    if (ownerName && ownerName.trim() !== '') {
+      actualOwnerCount = i; // Track the highest index with a name
+    }
+  }
+  const ownerCount = actualOwnerCount || fields['Owner Count'] || 1;
+  console.log(`📊 Final owner count for signature: ${ownerCount} (from actual count: ${actualOwnerCount}, from Airtable field: ${fields['Owner Count'] || 'NOT SET'})`);
 
   // Fallback: if we still don't have a valid SSN, try to pick the first owner with SSN
   if (!responsiblePartySSN || responsiblePartySSN === 'N/A-FOREIGN') {

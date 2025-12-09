@@ -665,9 +665,15 @@ def map_data_to_ss4_fields(form_data):
         # Line 9b: State of incorporation (ALL CAPS from Formation State column in Airtable)
         mapped_data["9b"] = (formation_state or "FL").upper()
     elif is_llc:
-        # LLC checkbox (even if sole proprietor)
-        mapped_data["Checks"]["9a_llc"] = CHECK_COORDS["9a"]
-        print(f"===> LLC, checking 9a_llc at {CHECK_COORDS['9a']}")
+        # LLC checkbox - but if sole proprietor (single member), check "Sole proprietor" instead
+        if is_sole_proprietor:
+            # Single-member LLC: check "Sole proprietor" checkbox
+            mapped_data["Checks"]["9a_sole"] = CHECK_COORDS["9a_sole"]
+            print(f"===> Single-member LLC (sole proprietor), checking 9a_sole at {CHECK_COORDS['9a_sole']}")
+        else:
+            # Multi-member LLC: check LLC checkbox
+            mapped_data["Checks"]["9a_llc"] = CHECK_COORDS["9a"]
+            print(f"===> Multi-member LLC, checking 9a_llc at {CHECK_COORDS['9a']}")
     elif is_partnership:
         # Partnership checkbox (should NOT be used for LLCs or Corporations)
         mapped_data["Checks"]["9a_partnership"] = CHECK_COORDS["9a"]
@@ -682,15 +688,22 @@ def map_data_to_ss4_fields(form_data):
         mapped_data["Checks"]["9a_other"] = CHECK_COORDS["9a"]
         print(f"===> Other entity type, checking 9a_other at {CHECK_COORDS['9a']}")
     
-    # Line 9a: If sole proprietor AND it's a true sole proprietorship (not Corp/LLC/Partnership),
+    # Line 9a: If sole proprietor (true sole proprietorship OR single-member LLC),
     # add SSN to the field next to the "Sole proprietor" checkbox
     # Use same SSN as Line 7b (or "N/A-FOREIGN" if no SSN) - formatted as XXX-XX-XXXX
-    # NOTE: This only applies to true sole proprietorships, NOT to single-owner Corporations or LLCs
-    if is_sole_proprietor and not is_corp and not is_llc and not is_partnership:
+    # This applies to:
+    # 1. True sole proprietorships (not Corp/LLC/Partnership)
+    # 2. Single-member LLCs (sole proprietor)
+    if is_sole_proprietor and (not is_corp and not is_partnership):
+        # For LLCs, we already checked 9a_sole above if it's a single-member LLC
+        # For true sole proprietorships, we also checked 9a_sole above
+        # In both cases, add the SSN from Line 7b
         if responsible_ssn and responsible_ssn.upper() not in ['N/A-FOREIGN', 'N/A', '']:
             mapped_data["9a_sole_ssn"] = format_ssn(responsible_ssn)  # Formatted as XXX-XX-XXXX
+            print(f"===> ✅ Adding SSN to 9a_sole_ssn: {mapped_data['9a_sole_ssn']} (from Line 7b: {responsible_ssn})")
         else:
             mapped_data["9a_sole_ssn"] = "N/A-FOREIGN"  # Same as Line 7b when no SSN
+            print(f"===> ⚠️ No SSN available, setting 9a_sole_ssn to 'N/A-FOREIGN'")
     
     # Line 10: Reason for applying (Checkbox - "Started new business")
     mapped_data["Checks"]["10_started"] = CHECK_COORDS["10"]
