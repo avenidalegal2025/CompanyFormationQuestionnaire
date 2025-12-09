@@ -397,10 +397,16 @@ async function mapAirtableToSS4(record: any): Promise<any> {
                   responsiblePartyLastName = fields[`Officer ${i} Last Name`] || fields[`Owner ${j} Last Name`] || '';
                   responsiblePartySSN = ownerSSN;
                   responsiblePartyAddress = fields[`Officer ${i} Address`] || fields[`Owner ${j} Address`] || '';
-                  // Get officer role
-                  responsiblePartyOfficerRole = fields[`Officer ${i} Role`] || 'President';
+                  // Get officer role - use ACTUAL role, not hardcoded to President
+                  responsiblePartyOfficerRole = fields[`Officer ${i} Role`] || '';
+                  console.log(`🔍 Tax owner Officer ${i} Role field value: "${fields[`Officer ${i} Role`] || 'EMPTY'}"`);
+                  if (!responsiblePartyOfficerRole || responsiblePartyOfficerRole.trim() === '') {
+                    console.warn(`⚠️ Tax owner Officer ${i} Role is empty - leaving empty (NOT defaulting to President)`);
+                  } else {
+                    console.log(`✅ Using actual officer role for tax owner: "${responsiblePartyOfficerRole}"`);
+                  }
                   taxOwnerHasSSN = true;
-                  console.log(`✅ Tax owner ${taxOwnerName} has SSN, using them`);
+                  console.log(`✅ Tax owner ${taxOwnerName} has SSN, using them with role: "${responsiblePartyOfficerRole || 'NOT SET'}")`);
                   break;
                 } else {
                   console.log(`⚠️ Tax owner ${taxOwnerName} does NOT have SSN, will search for other officer with SSN`);
@@ -442,20 +448,26 @@ async function mapAirtableToSS4(record: any): Promise<any> {
             responsiblePartyLastName = fields[`Owner ${i} Last Name`] || '';
             responsiblePartySSN = ownerSSN;
             responsiblePartyAddress = fields[`Owner ${i} Address`] || '';
-            // Find officer role - if all owners are officers, find the role
+            // Find officer role - if all owners are officers, find the ACTUAL role
             for (let k = 1; k <= Math.min(officersCount, 6); k++) {
               const officerName = fields[`Officer ${k} Name`] || '';
               // Case-insensitive name matching
               if (officerName && responsiblePartyName && 
                   officerName.trim().toLowerCase() === responsiblePartyName.trim().toLowerCase()) {
-                responsiblePartyOfficerRole = fields[`Officer ${k} Role`] || 'President';
-                console.log(`    Matched to Officer ${k} with role: ${responsiblePartyOfficerRole}`);
+                responsiblePartyOfficerRole = fields[`Officer ${k} Role`] || '';
+                console.log(`    Matched to Officer ${k} with role: "${responsiblePartyOfficerRole || 'EMPTY'}"`);
+                if (responsiblePartyOfficerRole && responsiblePartyOfficerRole.trim() !== '') {
+                  console.log(`✅ Found actual officer role: "${responsiblePartyOfficerRole}"`);
+                } else {
+                  console.warn(`⚠️ Officer ${k} Role is empty for ${officerName}`);
+                }
                 break;
               }
             }
-            // If not found, default to President
-            if (!responsiblePartyOfficerRole) {
-              responsiblePartyOfficerRole = 'President';
+            // If not found, leave empty - don't default to President
+            if (!responsiblePartyOfficerRole || responsiblePartyOfficerRole.trim() === '') {
+              console.warn(`⚠️ No officer role found for ${responsiblePartyName} - leaving empty (NOT defaulting to President)`);
+              responsiblePartyOfficerRole = '';
             }
             console.log(`✅ Selected responsible party: ${responsiblePartyName} (Owner ${i}, Officer with SSN, role: ${responsiblePartyOfficerRole})`);
             break;
@@ -487,9 +499,24 @@ async function mapAirtableToSS4(record: any): Promise<any> {
                   responsiblePartyLastName = fields[`Officer ${i} Last Name`] || fields[`Owner ${j} Last Name`] || '';
                   responsiblePartySSN = ownerSSN;
                   responsiblePartyAddress = fields[`Officer ${i} Address`] || fields[`Owner ${j} Address`] || '';
-                  // Get officer role
-                  responsiblePartyOfficerRole = fields[`Officer ${i} Role`] || 'President';
-                  console.log(`✅ Selected responsible party: ${responsiblePartyName} (Officer ${i}, Owner ${j} with SSN, role: ${responsiblePartyOfficerRole})`);
+                  // Get officer role - IMPORTANT: Get the ACTUAL role from Officer ${i} Role field, NOT hardcoded to President
+                  responsiblePartyOfficerRole = fields[`Officer ${i} Role`] || '';
+                  console.log(`🔍 Officer ${i} Role field value: "${fields[`Officer ${i} Role`] || 'EMPTY'}"`);
+                  if (!responsiblePartyOfficerRole || responsiblePartyOfficerRole.trim() === '') {
+                    console.warn(`⚠️ Officer ${i} Role is empty for ${officerName}, trying to find role from shareholder/officer mapping`);
+                    // Try to find role from shareholder/officer mapping if available
+                    const shareholderRole = fields[`Shareholder ${j} Officer Role`] || fields[`Owner ${j} Officer Role`] || fields[`admin.shareholderOfficer${j}Role`] || '';
+                    if (shareholderRole && shareholderRole.trim() !== '') {
+                      responsiblePartyOfficerRole = shareholderRole;
+                      console.log(`✅ Found role from shareholder/officer mapping: ${responsiblePartyOfficerRole}`);
+                    } else {
+                      console.warn(`⚠️ No role found for ${officerName} - will use empty role (NOT defaulting to President)`);
+                      responsiblePartyOfficerRole = ''; // Leave empty, don't default to President
+                    }
+                  } else {
+                    console.log(`✅ Using actual officer role from Airtable: "${responsiblePartyOfficerRole}"`);
+                  }
+                  console.log(`✅ Selected responsible party: ${responsiblePartyName} (Officer ${i}, Owner ${j} with SSN, role: "${responsiblePartyOfficerRole || 'NOT SET'}")`);
                   break;
                 }
               }
@@ -511,18 +538,23 @@ async function mapAirtableToSS4(record: any): Promise<any> {
         responsiblePartyLastName = fields['Owner 1 Last Name'] || '';
         responsiblePartySSN = 'N/A-FOREIGN';
         responsiblePartyAddress = fields['Owner 1 Address'] || '';
-        // Find officer role
+        // Find officer role - get ACTUAL role, not hardcoded to President
         for (let k = 1; k <= Math.min(officersCount, 6); k++) {
           const officerName = fields[`Officer ${k} Name`] || '';
           // Case-insensitive name matching
           if (officerName && responsiblePartyName && 
               officerName.trim().toLowerCase() === responsiblePartyName.trim().toLowerCase()) {
-            responsiblePartyOfficerRole = fields[`Officer ${k} Role`] || 'President';
+            responsiblePartyOfficerRole = fields[`Officer ${k} Role`] || '';
+            console.log(`    Matched to Officer ${k} with role: "${responsiblePartyOfficerRole || 'EMPTY'}"`);
+            if (responsiblePartyOfficerRole && responsiblePartyOfficerRole.trim() !== '') {
+              console.log(`✅ Found actual officer role: "${responsiblePartyOfficerRole}"`);
+            }
             break;
           }
         }
-        if (!responsiblePartyOfficerRole) {
-          responsiblePartyOfficerRole = 'President';
+        if (!responsiblePartyOfficerRole || responsiblePartyOfficerRole.trim() === '') {
+          console.warn(`⚠️ No officer role found for ${responsiblePartyName} - leaving empty (NOT defaulting to President)`);
+          responsiblePartyOfficerRole = '';
         }
         console.log(`✅ Using Owner 1 as responsible party: ${responsiblePartyName} (role: ${responsiblePartyOfficerRole})`);
       } else if (officersCount > 0) {
@@ -532,8 +564,11 @@ async function mapAirtableToSS4(record: any): Promise<any> {
         responsiblePartyLastName = fields['Officer 1 Last Name'] || '';
         responsiblePartySSN = 'N/A-FOREIGN';
         responsiblePartyAddress = fields['Officer 1 Address'] || '';
-        responsiblePartyOfficerRole = fields['Officer 1 Role'] || 'President';
-        console.log(`✅ Using Officer 1 as responsible party: ${responsiblePartyName} (role: ${responsiblePartyOfficerRole})`);
+        responsiblePartyOfficerRole = fields['Officer 1 Role'] || '';
+        console.log(`✅ Using Officer 1 as responsible party: ${responsiblePartyName} (role: "${responsiblePartyOfficerRole || 'NOT SET'}")`);
+        if (!responsiblePartyOfficerRole || responsiblePartyOfficerRole.trim() === '') {
+          console.warn(`⚠️ Officer 1 Role is empty - leaving empty (NOT defaulting to President)`);
+        }
       } else {
         // No officers found - this shouldn't happen for C-Corp, but handle it
         console.error(`❌ ERROR: C-Corp but no officers found! Using Owner 1 as fallback.`);
@@ -542,7 +577,8 @@ async function mapAirtableToSS4(record: any): Promise<any> {
         responsiblePartyLastName = fields['Owner 1 Last Name'] || '';
         responsiblePartySSN = 'N/A-FOREIGN';
         responsiblePartyAddress = fields['Owner 1 Address'] || '';
-        responsiblePartyOfficerRole = 'President';
+        responsiblePartyOfficerRole = ''; // Don't hardcode to President - try to find actual role
+        console.warn(`⚠️ C-Corp but no officers found! Using Owner 1 as fallback. Role: "${responsiblePartyOfficerRole || 'NOT SET'}"`);
       }
     }
   } else {
@@ -605,11 +641,19 @@ async function mapAirtableToSS4(record: any): Promise<any> {
         responsiblePartyLastName = fields[`Owner ${i} Last Name`] || responsiblePartyLastName;
         responsiblePartySSN = ownerSSN;
         responsiblePartyAddress = fields[`Owner ${i} Address`] || responsiblePartyAddress;
-        // If we don't have an officer role yet, default to President (for C-Corp)
+        // For C-Corp, try to find officer role from owner/officer mapping
         if (!responsiblePartyOfficerRole && isCorp) {
-          responsiblePartyOfficerRole = 'President';
+          // Try to find role from shareholder/officer mapping
+          const shareholderRole = fields[`Shareholder ${i} Officer Role`] || fields[`Owner ${i} Officer Role`] || fields[`admin.shareholderOfficer${i}Role`] || '';
+          if (shareholderRole && shareholderRole.trim() !== '') {
+            responsiblePartyOfficerRole = shareholderRole;
+            console.log(`✅ Found officer role from shareholder mapping: "${responsiblePartyOfficerRole}"`);
+          } else {
+            console.warn(`⚠️ No officer role found for Owner ${i} - leaving empty (NOT defaulting to President)`);
+            responsiblePartyOfficerRole = '';
+          }
         }
-        console.log(`✅ Fallback: using Owner ${i} for responsible party with SSN ${ownerSSN}`);
+        console.log(`✅ Fallback: using Owner ${i} for responsible party with SSN ${ownerSSN}, role: "${responsiblePartyOfficerRole || 'NOT SET'}")`);
         break;
       }
     }
@@ -641,11 +685,13 @@ async function mapAirtableToSS4(record: any): Promise<any> {
   }
   
   if (isCorp && entityType === 'C-Corp') {
-    // For C-Corp, add officer role to signature name
-    if (responsiblePartyOfficerRole) {
+    // For C-Corp, add officer role to signature name - use ACTUAL role, NOT hardcoded to President
+    if (responsiblePartyOfficerRole && responsiblePartyOfficerRole.trim() !== '') {
       signatureName = `${baseName},${responsiblePartyOfficerRole.toUpperCase()}`;
+      console.log(`✅ Using actual officer role in signature: "${responsiblePartyOfficerRole.toUpperCase()}"`);
     } else {
-      signatureName = `${baseName},PRESIDENT`; // Default to President
+      console.warn(`⚠️ No officer role found for ${baseName} - signature name will NOT include role (not defaulting to President)`);
+      signatureName = baseName; // Don't add role if not found, don't default to President
     }
   } else if (isLLC) {
     if (ownerCount === 1) {
