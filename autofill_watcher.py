@@ -48,8 +48,21 @@ def get_pending_records():
         {Formation Status} != 'Completed'
     )"""
     
-    records = table.all(formula=formula, sort=["-Payment Date"])
-    return records
+    try:
+        records = table.all(formula=formula, sort=["-Payment Date"])
+        print(f"🔍 Formula query returned {len(records)} record(s)")
+        if records:
+            for r in records:
+                company_name = r['fields'].get('Company Name', 'Unknown')
+                status = r['fields'].get('Formation Status', 'NOT SET')
+                autofill = r['fields'].get('Autofill', 'NOT SET')
+                print(f"   📋 Found: {company_name} (Status: {status}, Autofill: {autofill})")
+        return records
+    except Exception as e:
+        print(f"❌ Error querying Airtable: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
 
 def mark_as_processing(record_id):
     """Mark record as being processed to avoid duplicate runs"""
@@ -101,9 +114,14 @@ def main():
             new_records = []
             for r in records:
                 status = r['fields'].get('Formation Status', '')
+                company_name = r['fields'].get('Company Name', 'Unknown')
+                autofill = r['fields'].get('Autofill', 'NOT SET')
                 # Only process if status is Pending, or In Progress (for manual retries)
                 if status in ['Pending', 'In Progress']:
                     new_records.append(r)
+                    print(f"   ✅ {company_name} meets all conditions (Status: {status}, Autofill: {autofill})")
+                else:
+                    print(f"   ⚠️ {company_name} skipped (Status: {status}, not Pending/In Progress)")
             
             if new_records:
                 print(f"\n[{timestamp}] 📋 Found {len(new_records)} new record(s) to process!")
