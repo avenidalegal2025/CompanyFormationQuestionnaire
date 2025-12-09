@@ -346,7 +346,8 @@ def map_data_to_ss4_fields(form_data):
     llc_member_count = form_data.get("llcMemberCount", owner_count if is_llc else None)
     
     # Check if sole proprietor: one member/shareholder with 100% ownership
-    is_sole_proprietor = (owner_count == 1)
+    # For LLCs, also check llc_member_count
+    is_sole_proprietor = (owner_count == 1) or (is_llc and llc_member_count == 1)
     sole_proprietor_ssn = None
     # Check ownership percentage if available
     owners = form_data.get("owners", [])
@@ -585,7 +586,7 @@ def map_data_to_ss4_fields(form_data):
             "Other": "0"
         },
         "15": "N/A",  # First date wages paid - always N/A
-        "17": to_upper(translate_to_english(form_data.get("line17PrincipalMerchandise", ""))[:168]),  # Principal line of merchandise/construction/products/services (max 168 chars, ALL CAPS) - translated from Spanish
+        "17": to_upper(translate_to_english(form_data.get("line17PrincipalMerchandise", ""))[:80]),  # Principal line of merchandise/construction/products/services (max 80 chars, ALL CAPS) - translated from Spanish
         "Designee Name": format_designee_name(form_data, entity_type),  # ALL CAPS - includes officer title for C-Corp only
         "Designee Address": "10634 NE 11 AVE, MIAMI, FL, 33138",  # ALL CAPS
         "Designee Phone": format_phone("(786) 512-0434"),  # Updated phone number - formatted as xxx-xxx-xxxx
@@ -666,10 +667,13 @@ def map_data_to_ss4_fields(form_data):
         mapped_data["9b"] = (formation_state or "FL").upper()
     elif is_llc:
         # LLC checkbox - but if sole proprietor (single member), check "Sole proprietor" instead
-        if is_sole_proprietor:
+        # For LLCs, check if it's a single-member LLC (owner_count == 1 or llc_member_count == 1)
+        is_single_member_llc = (owner_count == 1) or (llc_member_count == 1) or is_sole_proprietor
+        if is_single_member_llc:
             # Single-member LLC: check "Sole proprietor" checkbox
             mapped_data["Checks"]["9a_sole"] = CHECK_COORDS["9a_sole"]
             print(f"===> Single-member LLC (sole proprietor), checking 9a_sole at {CHECK_COORDS['9a_sole']}")
+            print(f"===>   owner_count: {owner_count}, llc_member_count: {llc_member_count}, is_sole_proprietor: {is_sole_proprietor}")
         else:
             # Multi-member LLC: check LLC checkbox
             mapped_data["Checks"]["9a_llc"] = CHECK_COORDS["9a"]
@@ -694,10 +698,9 @@ def map_data_to_ss4_fields(form_data):
     # This applies to:
     # 1. True sole proprietorships (not Corp/LLC/Partnership)
     # 2. Single-member LLCs (sole proprietor)
-    if is_sole_proprietor and (not is_corp and not is_partnership):
-        # For LLCs, we already checked 9a_sole above if it's a single-member LLC
-        # For true sole proprietorships, we also checked 9a_sole above
-        # In both cases, add the SSN from Line 7b
+    # Check if 9a_sole checkbox was set (either for LLC sole proprietor or true sole proprietorship)
+    if "9a_sole" in mapped_data.get("Checks", {}):
+        # Add the SSN from Line 7b (responsible_ssn) - ALWAYS use responsible_ssn from Line 7b
         if responsible_ssn and responsible_ssn.upper() not in ['N/A-FOREIGN', 'N/A', '']:
             mapped_data["9a_sole_ssn"] = format_ssn(responsible_ssn)  # Formatted as XXX-XX-XXXX
             print(f"===> ✅ Adding SSN to 9a_sole_ssn: {mapped_data['9a_sole_ssn']} (from Line 7b: {responsible_ssn})")
@@ -830,8 +833,8 @@ def create_overlay(data, path):
                 # Convert to uppercase for SS-4 (all content must be ALL CAPS)
                 value_str = str(value).upper()
                 # Truncate long values to fit in field (but allow longer for specific fields)
-                if field == "17":  # Line 17 can be up to 168 chars
-                    max_length = 168
+                if field == "17":  # Line 17 can be up to 80 chars
+                    max_length = 80
                 elif field == "10":  # Line 10 can be up to 45 chars
                     max_length = 45
                 elif field in ["Line 1", "Line 3", "Line 5a", "Line 5b", "Designee Address"]:  # Longer fields

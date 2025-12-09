@@ -216,7 +216,7 @@ function categorizeByKeywords(businessPurpose: string): { category: string; othe
 
 /**
  * Analyze Business Purpose and generate Line 17 content (principal line of merchandise/construction/products/services)
- * Max 168 characters, ALL CAPS
+ * Max 80 characters, ALL CAPS
  */
 async function analyzeBusinessPurposeForLine17(businessPurpose: string): Promise<string> {
   if (!businessPurpose || businessPurpose.trim() === '') {
@@ -226,7 +226,7 @@ async function analyzeBusinessPurposeForLine17(businessPurpose: string): Promise
   // If no OpenAI API key, fallback to truncation
   if (!OPENAI_API_KEY) {
     console.warn('⚠️ OpenAI API key not configured, using truncation fallback for Line 17');
-    return businessPurpose.substring(0, 168).toUpperCase();
+    return businessPurpose.substring(0, 80).toUpperCase();
   }
 
   try {
@@ -245,7 +245,7 @@ async function analyzeBusinessPurposeForLine17(businessPurpose: string): Promise
           },
           {
             role: 'user',
-            content: `Analyze this business purpose and indicate the principal line of merchandise sold, specific construction work done, products produced, or services provided. Be specific and concise. Maximum 168 characters. Return only the description, no labels or prefixes: "${businessPurpose}"`,
+            content: `Analyze this business purpose and indicate the principal line of merchandise sold, specific construction work done, products produced, or services provided. Be specific and concise. Maximum 80 characters. Return only the description, no labels or prefixes: "${businessPurpose}"`,
           },
         ],
         max_tokens: 200,
@@ -257,26 +257,26 @@ async function analyzeBusinessPurposeForLine17(businessPurpose: string): Promise
       const errorText = await response.text();
       console.warn(`⚠️ OpenAI API error for Line 17: ${response.status} - ${errorText}`);
       // Fallback to truncation
-      return businessPurpose.substring(0, 168).toUpperCase();
+      return businessPurpose.substring(0, 80).toUpperCase();
     }
 
     const data = await response.json();
     const analysis = data.choices?.[0]?.message?.content?.trim() || '';
     
     if (!analysis) {
-      return businessPurpose.substring(0, 168).toUpperCase();
+      return businessPurpose.substring(0, 80).toUpperCase();
     }
 
-    // Ensure it's max 168 characters
-    const finalAnalysis = analysis.length > 168 
-      ? analysis.substring(0, 168).trim()
+    // Ensure it's max 80 characters
+    const finalAnalysis = analysis.length > 80 
+      ? analysis.substring(0, 80).trim()
       : analysis.trim();
     
     return finalAnalysis.toUpperCase();
   } catch (error: any) {
     console.error('❌ Error calling OpenAI API for Line 17:', error);
     // Fallback to truncation
-    return businessPurpose.substring(0, 168).toUpperCase();
+    return businessPurpose.substring(0, 80).toUpperCase();
   }
 }
 
