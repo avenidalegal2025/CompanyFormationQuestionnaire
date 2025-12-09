@@ -335,7 +335,11 @@ async function mapAirtableToSS4(record: any): Promise<any> {
     const officersAllOwners = fields['Officers All Owners'] === 'Yes' || fields['Officers All Owners'] === true;
     
     // If tax owner is specified, try to find them in officers
+    // BUT: Only use them if they have a valid SSN, otherwise find another officer with SSN
     if (taxOwnerName) {
+      console.log(`🔍 Tax owner specified: ${taxOwnerName}`);
+      let taxOwnerHasSSN = false;
+      
       if (officersAllOwners) {
         // All owners are officers, search in owners
         const ownerCount = fields['Owner Count'] || 1;
@@ -343,14 +347,23 @@ async function mapAirtableToSS4(record: any): Promise<any> {
           const ownerName = fields[`Owner ${i} Name`] || '';
           if (ownerName === taxOwnerName) {
             const ownerSSN = fields[`Owner ${i} SSN`] || '';
-            responsiblePartyName = ownerName;
-            responsiblePartyFirstName = fields[`Owner ${i} First Name`] || '';
-            responsiblePartyLastName = fields[`Owner ${i} Last Name`] || '';
-            responsiblePartySSN = (ownerSSN && ownerSSN.trim() !== '' && 
-                                   ownerSSN.toUpperCase() !== 'N/A' && 
-                                   !ownerSSN.toUpperCase().includes('FOREIGN')) 
-                                   ? ownerSSN : 'N/A-FOREIGN';
-            responsiblePartyAddress = fields[`Owner ${i} Address`] || '';
+            const hasValidSSN = ownerSSN && ownerSSN.trim() !== '' && 
+                               ownerSSN.toUpperCase() !== 'N/A' && 
+                               !ownerSSN.toUpperCase().includes('FOREIGN');
+            
+            if (hasValidSSN) {
+              // Tax owner has SSN, use them
+              responsiblePartyName = ownerName;
+              responsiblePartyFirstName = fields[`Owner ${i} First Name`] || '';
+              responsiblePartyLastName = fields[`Owner ${i} Last Name`] || '';
+              responsiblePartySSN = ownerSSN;
+              responsiblePartyAddress = fields[`Owner ${i} Address`] || '';
+              taxOwnerHasSSN = true;
+              console.log(`✅ Tax owner ${taxOwnerName} has SSN, using them`);
+              break;
+            } else {
+              console.log(`⚠️ Tax owner ${taxOwnerName} does NOT have SSN, will search for other officer with SSN`);
+            }
             break;
           }
         }
@@ -366,22 +379,37 @@ async function mapAirtableToSS4(record: any): Promise<any> {
               const ownerName = fields[`Owner ${j} Name`] || '';
               if (ownerName === officerName) {
                 const ownerSSN = fields[`Owner ${j} SSN`] || '';
-                responsiblePartyName = officerName;
-                responsiblePartyFirstName = fields[`Officer ${i} First Name`] || fields[`Owner ${j} First Name`] || '';
-                responsiblePartyLastName = fields[`Officer ${i} Last Name`] || fields[`Owner ${j} Last Name`] || '';
-                responsiblePartySSN = (ownerSSN && ownerSSN.trim() !== '' && 
-                                     ownerSSN.toUpperCase() !== 'N/A' && 
-                                     !ownerSSN.toUpperCase().includes('FOREIGN')) 
-                                     ? ownerSSN : 'N/A-FOREIGN';
-                responsiblePartyAddress = fields[`Officer ${i} Address`] || fields[`Owner ${j} Address`] || '';
-                // Get officer role
-                responsiblePartyOfficerRole = fields[`Officer ${i} Role`] || 'President';
-                break;
+                const hasValidSSN = ownerSSN && ownerSSN.trim() !== '' && 
+                                   ownerSSN.toUpperCase() !== 'N/A' && 
+                                   !ownerSSN.toUpperCase().includes('FOREIGN');
+                
+                if (hasValidSSN) {
+                  // Tax owner has SSN, use them
+                  responsiblePartyName = officerName;
+                  responsiblePartyFirstName = fields[`Officer ${i} First Name`] || fields[`Owner ${j} First Name`] || '';
+                  responsiblePartyLastName = fields[`Officer ${i} Last Name`] || fields[`Owner ${j} Last Name`] || '';
+                  responsiblePartySSN = ownerSSN;
+                  responsiblePartyAddress = fields[`Officer ${i} Address`] || fields[`Owner ${j} Address`] || '';
+                  // Get officer role
+                  responsiblePartyOfficerRole = fields[`Officer ${i} Role`] || 'President';
+                  taxOwnerHasSSN = true;
+                  console.log(`✅ Tax owner ${taxOwnerName} has SSN, using them`);
+                  break;
+                } else {
+                  console.log(`⚠️ Tax owner ${taxOwnerName} does NOT have SSN, will search for other officer with SSN`);
+                }
               }
             }
-            if (responsiblePartyName) break;
+            if (taxOwnerHasSSN) break;
           }
         }
+      }
+      
+      // If tax owner doesn't have SSN, don't use them - let the code below find an officer with SSN
+      if (!taxOwnerHasSSN) {
+        responsiblePartyName = '';
+        responsiblePartySSN = '';
+        console.log(`⚠️ Tax owner ${taxOwnerName} doesn't have SSN, searching for other officer with SSN`);
       }
     }
     
