@@ -372,6 +372,7 @@ export interface AirtableFormationRecord {
   
   // Officers (C-Corp)
   'Officers Count'?: number;
+  'Officers All Owners'?: 'Yes' | 'No';
   'Officer 1 Name'?: string;
   'Officer 1 First Name'?: string;
   'Officer 1 Last Name'?: string;
@@ -874,14 +875,44 @@ export function mapQuestionnaireToAirtable(
   // Map Officers (C-Corp)
   if (isCorp) {
     const officersCount = admin.officersCount || 0;
+    const officersAllOwners = admin.officersAllOwners === 'Yes' || admin.officersAllOwners === true;
     record['Officers Count'] = officersCount;
+    record['Officers All Owners'] = officersAllOwners ? 'Yes' : 'No';
     
     // Officers are stored as dynamic keys: officer1FirstName, officer1LastName, officer1Address, officer1Role, etc.
+    // OR if officersAllOwners === "Yes", use shareholderOfficer${i}Role and owner names
     for (let i = 1; i <= Math.min(officersCount, 6); i++) {
-      const officerFirstName = admin[`officer${i}FirstName`] || '';
-      const officerLastName = admin[`officer${i}LastName`] || '';
-      const officerName = admin[`officer${i}Name`] || `${officerFirstName} ${officerLastName}`.trim();
+      let officerFirstName = '';
+      let officerLastName = '';
+      let officerName = '';
+      let officerAddress = '';
+      let officerRole = '';
       
+      if (officersAllOwners) {
+        // All owners are officers - get name and role from owners/shareholders
+        // owners is an array, so access by index (i-1 because array is 0-indexed)
+        const ownerIndex = i - 1;
+        const owner = owners[ownerIndex] || {};
+        const ownerFirstName = owner.firstName || '';
+        const ownerLastName = owner.lastName || '';
+        const ownerFullName = owner.fullName || `${ownerFirstName} ${ownerLastName}`.trim();
+        officerName = ownerFullName || `${ownerFirstName} ${ownerLastName}`.trim();
+        officerFirstName = ownerFirstName;
+        officerLastName = ownerLastName;
+        officerAddress = owner.address || '';
+        // Get role from shareholderOfficer${i}Role (used when all owners are officers)
+        officerRole = admin[`shareholderOfficer${i}Role`] || '';
+        console.log(`📋 Officer ${i} (from Owner ${i}): Name="${officerName}", Role="${officerRole}" (from shareholderOfficer${i}Role)`);
+      } else {
+        // Specific officers - get from officer fields
+        officerFirstName = admin[`officer${i}FirstName`] || '';
+        officerLastName = admin[`officer${i}LastName`] || '';
+        officerName = admin[`officer${i}Name`] || `${officerFirstName} ${officerLastName}`.trim();
+        officerAddress = admin[`officer${i}Address`] || '';
+        officerRole = admin[`officer${i}Role`] || '';
+      }
+      
+      // Parse name if needed
       let finalFirstName = officerFirstName;
       let finalLastName = officerLastName;
       if (!officerFirstName && !officerLastName && officerName) {
@@ -893,8 +924,10 @@ export function mapQuestionnaireToAirtable(
       (record as any)[`Officer ${i} Name`] = officerName || `${finalFirstName} ${finalLastName}`.trim();
       (record as any)[`Officer ${i} First Name`] = finalFirstName;
       (record as any)[`Officer ${i} Last Name`] = finalLastName;
-      (record as any)[`Officer ${i} Address`] = admin[`officer${i}Address`];
-      (record as any)[`Officer ${i} Role`] = admin[`officer${i}Role`];
+      (record as any)[`Officer ${i} Address`] = officerAddress;
+      (record as any)[`Officer ${i} Role`] = officerRole;
+      
+      console.log(`📋 Mapping Officer ${i}: Name="${officerName || `${finalFirstName} ${finalLastName}`.trim()}", Role="${officerRole}", officersAllOwners=${officersAllOwners}`);
     }
   }
   
