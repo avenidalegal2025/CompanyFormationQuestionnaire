@@ -602,10 +602,11 @@ def map_data_to_ss4_fields(form_data):
         # Other entity type (only if NOT sole proprietor)
         mapped_data["Checks"]["9a_other"] = CHECK_COORDS["9a"]
     
-    # Line 9a: If sole proprietor, add SSN to the field next to the "Sole proprietor" checkbox
+    # Line 9a: If sole proprietor AND it's a true sole proprietorship (not Corp/LLC/Partnership),
+    # add SSN to the field next to the "Sole proprietor" checkbox
     # Use same SSN as Line 7b (or "N/A-FOREIGN" if no SSN) - formatted as XXX-XX-XXXX
-    # IMPORTANT: This applies to ALL sole proprietors, regardless of entity type (LLC, C-Corp, etc.)
-    if is_sole_proprietor:
+    # NOTE: This only applies to true sole proprietorships, NOT to single-owner Corporations or LLCs
+    if is_sole_proprietor and not is_corp and not is_llc and not is_partnership:
         if responsible_ssn and responsible_ssn.upper() not in ['N/A-FOREIGN', 'N/A', '']:
             mapped_data["9a_sole_ssn"] = format_ssn(responsible_ssn)  # Formatted as XXX-XX-XXXX
         else:
