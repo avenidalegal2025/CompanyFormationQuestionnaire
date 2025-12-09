@@ -385,17 +385,23 @@ async function mapAirtableToSS4(record: any): Promise<any> {
       }
     }
     
-    // If tax owner not found or not specified, find first officer with SSN
-    if (!responsiblePartyName) {
+    // If tax owner not found or not specified, OR if tax owner doesn't have SSN, find first officer with SSN
+    // IMPORTANT: Prioritize officers who are also owners and have SSN
+    if (!responsiblePartyName || !responsiblePartySSN || responsiblePartySSN === 'N/A-FOREIGN') {
+      console.log(`🔍 Searching for officer with SSN. Current: ${responsiblePartyName}, SSN: ${responsiblePartySSN}`);
+      
       if (officersAllOwners) {
         // All owners are officers, search for first owner with SSN
         const ownerCount = fields['Owner Count'] || 1;
         for (let i = 1; i <= Math.min(ownerCount, 6); i++) {
           const ownerSSN = fields[`Owner ${i} SSN`] || '';
+          const ownerName = fields[`Owner ${i} Name`] || '';
+          console.log(`  Checking Owner ${i}: ${ownerName}, SSN: ${ownerSSN ? 'YES' : 'NO'}`);
+          
           if (ownerSSN && ownerSSN.trim() !== '' && 
               ownerSSN.toUpperCase() !== 'N/A' && 
               !ownerSSN.toUpperCase().includes('FOREIGN')) {
-            responsiblePartyName = fields[`Owner ${i} Name`] || '';
+            responsiblePartyName = ownerName;
             responsiblePartyFirstName = fields[`Owner ${i} First Name`] || '';
             responsiblePartyLastName = fields[`Owner ${i} Last Name`] || '';
             responsiblePartySSN = ownerSSN;
@@ -412,20 +418,25 @@ async function mapAirtableToSS4(record: any): Promise<any> {
             if (!responsiblePartyOfficerRole) {
               responsiblePartyOfficerRole = 'President';
             }
+            console.log(`✅ Selected responsible party: ${responsiblePartyName} (Owner ${i}, Officer with SSN)`);
             break;
           }
         }
       } else {
         // Specific officers, find first officer with SSN (match to owner for SSN)
+        // IMPORTANT: Check ALL officers, prioritize those who are owners with SSN
         for (let i = 1; i <= Math.min(officersCount, 6); i++) {
           const officerName = fields[`Officer ${i} Name`] || '';
           if (officerName) {
+            console.log(`  Checking Officer ${i}: ${officerName}`);
             // Match officer to owner to get SSN
             const ownerCount = fields['Owner Count'] || 1;
             for (let j = 1; j <= Math.min(ownerCount, 6); j++) {
               const ownerName = fields[`Owner ${j} Name`] || '';
               if (ownerName === officerName) {
                 const ownerSSN = fields[`Owner ${j} SSN`] || '';
+                console.log(`    Matched to Owner ${j}, SSN: ${ownerSSN ? 'YES' : 'NO'}`);
+                
                 if (ownerSSN && ownerSSN.trim() !== '' && 
                     ownerSSN.toUpperCase() !== 'N/A' && 
                     !ownerSSN.toUpperCase().includes('FOREIGN')) {
@@ -436,11 +447,12 @@ async function mapAirtableToSS4(record: any): Promise<any> {
                   responsiblePartyAddress = fields[`Officer ${i} Address`] || fields[`Owner ${j} Address`] || '';
                   // Get officer role
                   responsiblePartyOfficerRole = fields[`Officer ${i} Role`] || 'President';
+                  console.log(`✅ Selected responsible party: ${responsiblePartyName} (Officer ${i}, Owner ${j} with SSN)`);
                   break;
                 }
               }
             }
-            if (responsiblePartySSN) break;
+            if (responsiblePartySSN && responsiblePartySSN !== 'N/A-FOREIGN') break;
           }
         }
       }
