@@ -137,6 +137,7 @@ def map_data_to_ss4_fields(form_data):
     # TypeScript sends flat structure from transformDataForSS4
     # Translate all text fields from Spanish to English
     company_name_raw = translate_to_english(form_data.get("companyName", ""))
+    print(f"===> Company name RAW (before cleaning): '{company_name_raw}'")
     # Clean company name: Remove any address that might be concatenated
     # Common patterns: "Company Name 123 Street" or "Company Name, 123 Street" or "Company Name 1150 BROADWAY"
     # AGGRESSIVE cleaning: Remove any part that looks like an address
@@ -173,6 +174,8 @@ def map_data_to_ss4_fields(form_data):
         
         # Clean up any extra spaces
         company_name = re.sub(r'\s+', ' ', company_name).strip()
+    
+    print(f"===> Company name CLEANED (after removing addresses): '{company_name}'")
     
     company_name_base = translate_to_english(form_data.get("companyNameBase", company_name))
     entity_type = form_data.get("entityType", "")  # Entity type codes don't need translation
@@ -504,7 +507,7 @@ def map_data_to_ss4_fields(form_data):
     mapped_data = {
         "Line 1": to_upper(company_name_clean),  # Legal name of entity (FULL NAME including LLC/L.L.C. suffix) - ALL CAPS, NO ADDRESS
         "Line 2": "",  # Trade name (if different, usually empty)
-        "Line 3": to_upper(company_street_line1),  # Mailing address line 1 (same as street address)
+        "Line 3": "",  # Executor, administrator, trustee, "care of" name - Usually empty, should NOT contain address
         "Line 4a": "12550 BISCAYNE BLVD STE 110",  # Mailing address line 2 (Avenida Legal address) - HARDCODED
         "Line 4b": "MIAMI FL, 33181",  # City, State, ZIP (mailing - Avenida Legal) - HARDCODED - Note: No comma after MIAMI
         "Line 5a": to_upper(company_street_line1) if company_street_line1 else "",  # Street address line 1 (ONLY street address, NOT full address)
