@@ -138,26 +138,41 @@ def map_data_to_ss4_fields(form_data):
     # Translate all text fields from Spanish to English
     company_name_raw = translate_to_english(form_data.get("companyName", ""))
     # Clean company name: Remove any address that might be concatenated
-    # Common patterns: "Company Name 123 Street" or "Company Name, 123 Street"
-    # Split by common address indicators and take only the first part (company name)
+    # Common patterns: "Company Name 123 Street" or "Company Name, 123 Street" or "Company Name 1150 BROADWAY"
+    # AGGRESSIVE cleaning: Remove any part that looks like an address
     company_name = company_name_raw
-    # Remove any trailing address patterns (numbers followed by street names, or common address keywords)
-    # Split by comma, newline, or common address separators and take first part
     if company_name:
-        # Split by comma and take first part (company name usually comes before address)
+        import re
+        # First, split by comma and take only the first part if second part looks like an address
         parts = company_name.split(',')
         if len(parts) > 1:
-            # Check if second part looks like an address (contains numbers or street keywords)
-            second_part = parts[1].strip().upper()
-            if any(keyword in second_part for keyword in ['STREET', 'ST', 'AVE', 'AVENUE', 'BLVD', 'BOULEVARD', 'DR', 'DRIVE', 'RD', 'ROAD', 'LN', 'LANE', 'CT', 'COURT', 'PL', 'PLACE', 'WAY', 'CIRCLE', 'CIR']):
-                # Second part is likely an address, use only first part
-                company_name = parts[0].strip()
-        # Also check for addresses without comma (e.g., "Company Name 123 Street")
-        # Remove trailing patterns that look like addresses (number + street name)
-        import re
-        # Pattern: number followed by street name at the end
-        address_pattern = r'\s+\d+\s+(STREET|ST|AVE|AVENUE|BLVD|BOULEVARD|DR|DRIVE|RD|ROAD|LN|LANE|CT|COURT|PL|PLACE|WAY|CIRCLE|CIR|BROADWAY)\s*$'
-        company_name = re.sub(address_pattern, '', company_name, flags=re.IGNORECASE).strip()
+            # Check if any part after the first looks like an address
+            for i in range(1, len(parts)):
+                part = parts[i].strip().upper()
+                # Check if this part contains address indicators
+                if re.search(r'\d+.*(STREET|ST|AVE|AVENUE|BLVD|BOULEVARD|DR|DRIVE|RD|ROAD|LN|LANE|CT|COURT|PL|PLACE|WAY|CIRCLE|CIR|BROADWAY)', part):
+                    # This part is an address, use only parts before it
+                    company_name = ','.join(parts[:i]).strip()
+                    break
+        
+        # Remove any standalone address patterns anywhere in the string
+        # Pattern 1: Number followed by street name (e.g., "1150 BROADWAY", "123 MAIN STREET")
+        # This matches: optional space, number, optional space, street name
+        address_patterns = [
+            r'\s+\d+\s+(STREET|ST|AVE|AVENUE|BLVD|BOULEVARD|DR|DRIVE|RD|ROAD|LN|LANE|CT|COURT|PL|PLACE|WAY|CIRCLE|CIR|BROADWAY)\s*$',  # At end
+            r'\s+\d+\s+(STREET|ST|AVE|AVENUE|BLVD|BOULEVARD|DR|DRIVE|RD|ROAD|LN|LANE|CT|COURT|PL|PLACE|WAY|CIRCLE|CIR|BROADWAY)\s+',  # In middle
+            r'^\s*\d+\s+(STREET|ST|AVE|AVENUE|BLVD|BOULEVARD|DR|DRIVE|RD|ROAD|LN|LANE|CT|COURT|PL|PLACE|WAY|CIRCLE|CIR|BROADWAY)\s+',  # At start
+        ]
+        for pattern in address_patterns:
+            company_name = re.sub(pattern, ' ', company_name, flags=re.IGNORECASE).strip()
+        
+        # Also check for patterns like "1150 BROADWAY" (number + space + street name, no comma)
+        # This is more specific: match a number followed by a street name word
+        standalone_address = r'\s+\d+\s+(BROADWAY|STREET|ST|AVE|AVENUE|BLVD|BOULEVARD|DR|DRIVE|RD|ROAD|LN|LANE|CT|COURT|PL|PLACE|WAY|CIRCLE|CIR)\s*'
+        company_name = re.sub(standalone_address, ' ', company_name, flags=re.IGNORECASE).strip()
+        
+        # Clean up any extra spaces
+        company_name = re.sub(r'\s+', ' ', company_name).strip()
     
     company_name_base = translate_to_english(form_data.get("companyNameBase", company_name))
     entity_type = form_data.get("entityType", "")  # Entity type codes don't need translation
