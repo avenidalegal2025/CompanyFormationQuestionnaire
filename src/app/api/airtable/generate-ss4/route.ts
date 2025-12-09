@@ -701,12 +701,8 @@ async function mapAirtableToSS4(record: any): Promise<any> {
     // Line 17: Has applicant applied for EIN before?
     appliedBefore: 'No',
     
-    // Line 18: Third Party Designee (Antonio Regojo)
-    // For C-Corp, add officer title; for LLC and others, just "ANTONIO REGOJO"
-    // Lambda will convert to uppercase, but we ensure it's formatted correctly
-    designeeName: isCorp && entityType === 'C-Corp' && responsiblePartyOfficerRole 
-      ? `Antonio Regojo, ${responsiblePartyOfficerRole}` 
-      : 'Antonio Regojo',
+  // Line 18: Third Party Designee (always just ANTONIO REGOJO; officer title belongs in Signature Name)
+  designeeName: 'Antonio Regojo',
     designeeAddress: '10634 NE 11 AVE, MIAMI, FL, 33138',
     designeePhone: '(786) 512-0434',  // Updated phone number
     designeeFax: '866-496-4957',
