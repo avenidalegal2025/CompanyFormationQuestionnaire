@@ -496,6 +496,34 @@ def map_data_to_ss4_fields(form_data):
         # If not 10 digits, return cleaned version (might be international or invalid)
         return phone_clean
     
+    # Helper function to format signature name from signature_name or responsible_name
+    def format_signature_name_from_data(signature_name, responsible_name, is_llc, owner_count, form_data, entity_type, is_corp):
+        # If signature_name is provided and already has a role suffix (contains comma), use it
+        if signature_name and "," in signature_name and len(signature_name.split(",")) >= 2:
+            print(f"===> Using signature_name with existing role: '{signature_name}'")
+            return to_upper(signature_name)
+        
+        # If we have responsible_name, format it with the appropriate suffix
+        if responsible_name:
+            print(f"===> Formatting signature name from responsible_name: '{responsible_name}'")
+            return format_signature_name(responsible_name, is_llc, owner_count, form_data, entity_type)
+        
+        # If signature_name exists but doesn't have a role, try to add the role from form_data
+        if signature_name:
+            name_upper = to_upper(signature_name)
+            # For C-Corp, try to add officer role from form_data
+            if is_corp and form_data:
+                officer_role = form_data.get("responsiblePartyOfficerRole", "")
+                if officer_role and officer_role.strip() != "":
+                    print(f"===> Adding officer role to signature_name: '{name_upper}, {to_upper(officer_role)}'")
+                    return f"{name_upper}, {to_upper(officer_role)}"
+            print(f"===> Using signature_name without role: '{name_upper}'")
+            return name_upper
+        
+        # Fallback: return empty string
+        print(f"===> ⚠️ No signature name available")
+        return ""
+    
     # Helper function to format signature name with member designation or officer title
     def format_signature_name(name, is_llc, owner_count, form_data=None, entity_type=""):
         name_upper = to_upper(name)
@@ -564,15 +592,7 @@ def map_data_to_ss4_fields(form_data):
         "Designee Fax": "866-496-4957",  # Updated fax number
         "Applicant Phone": format_phone(form_data.get("applicantPhone", "")),  # Business Phone from Airtable - formatted as xxx-xxx-xxxx
         "Applicant Fax": "",  # Usually empty
-        "Signature Name": (
-            # If signature_name is provided and already has a suffix (MEMBER, PRESIDENT, SECRETARY, etc.), use it
-            # Check if signature_name contains a comma followed by text (indicating a role suffix)
-            to_upper(signature_name) if signature_name and ("," in signature_name and len(signature_name.split(",")) >= 2)
-            # Otherwise, if we have responsible_name, format it with the appropriate suffix
-            else format_signature_name(responsible_name, is_llc, owner_count, form_data, entity_type) if responsible_name
-            # If no responsible_name and signature_name doesn't have suffix, use signature_name as-is (might be just a title, which is wrong but better than empty)
-            else (to_upper(signature_name) if signature_name else "")
-        ),  # Always ensure ",MEMBER", ",SOLE MEMBER", or officer title suffix - but only if we have a base name
+        "Signature Name": format_signature_name_from_data(signature_name, responsible_name, is_llc, owner_count, form_data, entity_type, is_corp),
         "Checks": {}
     }
     
