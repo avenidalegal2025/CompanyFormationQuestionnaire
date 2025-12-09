@@ -23,13 +23,11 @@ const base = new Airtable({ apiKey: AIRTABLE_API_KEY }).base(AIRTABLE_BASE_ID);
  */
 async function summarizeBusinessPurpose(businessPurpose: string): Promise<string> {
   if (!businessPurpose || businessPurpose.trim() === '') {
-    return 'GENERAL BUSINESS OPERATIONS';
+    return 'STARTED NEW BUSINESS';
   }
 
-  // If already short enough, just return uppercase
-  if (businessPurpose.length <= 45) {
-    return businessPurpose.toUpperCase();
-  }
+  // For most new businesses, default to "Started new business"
+  // Only use OpenAI if we need to determine a specific reason
 
   // If no OpenAI API key, fallback to truncation
   if (!OPENAI_API_KEY) {
@@ -49,11 +47,22 @@ async function summarizeBusinessPurpose(businessPurpose: string): Promise<string
         messages: [
           {
             role: 'system',
-            content: 'You are a helpful assistant that summarizes business purposes concisely. Return only the summary, no explanations.',
+            content: 'You are a helpful assistant that generates reasons for applying for an EIN on IRS Form SS-4, Line 10. Return only the reason text, no labels or explanations.',
           },
           {
             role: 'user',
-            content: `Summarize this business purpose to a maximum of 45 characters: "${businessPurpose}"`,
+            content: `This is for IRS Form SS-4, Line 10 "Reason for applying". Generate a brief reason using standard IRS reasons such as:
+- "Started new business"
+- "Hired employees"
+- "Opened bank account"
+- "Changed type of organization"
+- "Purchased going business"
+- "Created a trust"
+- "Other"
+
+Based on this business purpose: "${businessPurpose}"
+
+Generate the reason for applying. Maximum 45 characters. Return ONLY the reason text (e.g., "Started new business"), no labels, no prefixes, no explanations. For most new businesses, use "Started new business".`,
           },
         ],
         max_tokens: 50,
