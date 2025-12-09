@@ -773,11 +773,11 @@ def create_overlay(data, path):
             c.drawString(coord[0], coord[1], other_specify)
     
     # Handle Line 9a form number field (1120 for C-Corp, 1120-S for S-Corp)
+    checks = data.get("Checks", {})
+    
+    # Check for regular corporation form number
     if "9a_corp_form_number" in data:
         form_number = str(data["9a_corp_form_number"]).upper()
-        # Determine Y coordinate based on whether it's sole proprietor or not
-        # Check if 9a_corp checkbox is at sole position (484) or regular position (496)
-        checks = data.get("Checks", {})
         if "9a_corp" in checks:
             corp_coords = checks["9a_corp"]
             if isinstance(corp_coords, (list, tuple)) and len(corp_coords) >= 2:
@@ -786,6 +786,7 @@ def create_overlay(data, path):
                 form_x = corp_coords[0] + 75
                 form_y = corp_y
                 c.drawString(form_x, form_y, form_number)
+                print(f"===> Drawing form number {form_number} at ({form_x}, {form_y}) for regular corporation")
         elif "9a_scorp" in checks:
             scorp_coords = checks["9a_scorp"]
             if isinstance(scorp_coords, (list, tuple)) and len(scorp_coords) >= 2:
@@ -794,6 +795,20 @@ def create_overlay(data, path):
                 form_x = scorp_coords[0] + 75
                 form_y = scorp_y
                 c.drawString(form_x, form_y, form_number)
+                print(f"===> Drawing form number {form_number} at ({form_x}, {form_y}) for S-Corp")
+    
+    # Check for sole proprietor corporation form number
+    if "9a_corp_sole_form_number" in data:
+        form_number = str(data["9a_corp_sole_form_number"]).upper()
+        if "9a_corp_sole" in checks:
+            corp_sole_coords = checks["9a_corp_sole"]
+            if isinstance(corp_sole_coords, (list, tuple)) and len(corp_sole_coords) >= 2:
+                corp_sole_y = corp_sole_coords[1]
+                # Form number is 75px to the right of checkbox
+                form_x = corp_sole_coords[0] + 75
+                form_y = corp_sole_y
+                c.drawString(form_x, form_y, form_number)
+                print(f"===> Drawing form number {form_number} at ({form_x}, {form_y}) for sole proprietor corporation")
     
     # Line 8b is handled in the main field loop above (FIELD_COORDS["8b"])
     # It will show LLC member count for LLCs, or be empty for non-LLCs
@@ -825,14 +840,22 @@ def create_overlay(data, path):
         coords = checks["9a_corp"]
         if isinstance(coords, list) and len(coords) >= 2:
             c.drawString(coords[0], coords[1], "X")
+            print(f"===> Drawing X at ({coords[0]}, {coords[1]}) for 9a_corp")
+    elif "9a_corp_sole" in checks:
+        coords = checks["9a_corp_sole"]
+        if isinstance(coords, list) and len(coords) >= 2:
+            c.drawString(coords[0], coords[1], "X")
+            print(f"===> Drawing X at ({coords[0]}, {coords[1]}) for 9a_corp_sole")
     elif "9a_scorp" in checks:
         coords = checks["9a_scorp"]
         if isinstance(coords, list) and len(coords) >= 2:
             c.drawString(coords[0], coords[1], "X")
+            print(f"===> Drawing X at ({coords[0]}, {coords[1]}) for 9a_scorp")
     elif "9a_partnership" in checks:
         coords = checks["9a_partnership"]
         if isinstance(coords, list) and len(coords) >= 2:
             c.drawString(coords[0], coords[1], "X")
+            print(f"===> Drawing X at ({coords[0]}, {coords[1]}) for 9a_partnership")
     elif "9a_other" in checks:
         coords = checks["9a_other"]
         if isinstance(coords, list) and len(coords) >= 2:
