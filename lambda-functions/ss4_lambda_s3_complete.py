@@ -381,6 +381,18 @@ def map_data_to_ss4_fields(form_data):
             print(f"===> ⚠️ Error formatting date '{date_str}': {e}")
             return ""
     
+    # Helper function to format SSN as XXX-XX-XXXX
+    def format_ssn(ssn):
+        if not ssn or not isinstance(ssn, str):
+            return ssn
+        # Remove all non-digits
+        ssn_clean = ''.join(filter(str.isdigit, ssn))
+        # Format as XXX-XX-XXXX if we have 9 digits
+        if len(ssn_clean) == 9:
+            return f"{ssn_clean[:3]}-{ssn_clean[3:5]}-{ssn_clean[5:]}"
+        # If already formatted or invalid, return as is
+        return ssn
+    
     # Helper function to format signature name with member designation
     def format_signature_name(name, is_llc, owner_count):
         name_upper = to_upper(name)
@@ -421,7 +433,7 @@ def map_data_to_ss4_fields(form_data):
         "Line 5b": to_upper(f"{company_city}, {company_state} {company_zip}".strip()) if (company_city or company_state or company_zip) else "",  # City, State, ZIP (from Company Address column in Airtable)
         "Line 6": to_upper(f"{company_city}, {company_state}".strip(", ")) if company_city and company_state else to_upper(company_city_state_zip),  # City, State (Company's US City and State)
         "Line 7a": to_upper(responsible_name),  # Responsible party name - ALL CAPS
-        "Line 7b": to_upper(responsible_ssn),  # Responsible party SSN/ITIN/EIN
+        "Line 7b": format_ssn(responsible_ssn),  # Responsible party SSN/ITIN/EIN - formatted as XXX-XX-XXXX
         "8b": "",  # Will be set to member count if LLC, or date if not LLC
         "8b_date": date_business_started,  # Date business started (for non-LLC)
         "9b": to_upper(formation_state or "FL"),  # Closing month / State of incorporation - ALL CAPS
@@ -470,39 +482,40 @@ def map_data_to_ss4_fields(form_data):
     entity_type_upper = entity_type.upper()
     checkbox_position = "9a_sole" if is_sole_proprietor else "9a"
     
-    if is_llc:
-        # LLC checkbox
-        mapped_data["Checks"]["9a_llc"] = CHECK_COORDS[checkbox_position]
+    # IMPORTANT: If sole proprietor (single member with 100% ownership), check "Sole proprietor" checkbox
+    # For sole proprietors, we check "Sole proprietor" regardless of entity type (LLC, C-Corp, etc.)
+    if is_sole_proprietor:
+        # Check "Sole proprietor" checkbox
+        mapped_data["Checks"]["9a_sole"] = CHECK_COORDS["9a_sole"]
+    elif is_llc:
+        # LLC checkbox (only if NOT sole proprietor)
+        mapped_data["Checks"]["9a_llc"] = CHECK_COORDS["9a"]
     elif "CORP" in entity_type_upper or "INC" in entity_type_upper or "C-CORP" in entity_type_upper:
-        # C-Corp: Corporation checkbox - 25 pixels below Partnership position (only for sole proprietor)
-        if is_sole_proprietor:
-            mapped_data["Checks"]["9a_corp"] = CHECK_COORDS["9a_corp_sole"]
-            mapped_data["9a_corp_form_number"] = "1120"  # Form number for C-Corp (75px to the right of checkbox)
-        else:
-            # For non-sole proprietor, use the regular position (same as Partnership)
-            mapped_data["Checks"]["9a_corp"] = CHECK_COORDS["9a"]
-            mapped_data["9a_corp_form_number"] = "1120"  # Form number for C-Corp (75px to the right of checkbox)
+        # C-Corp: Corporation checkbox (only if NOT sole proprietor)
+        mapped_data["Checks"]["9a_corp"] = CHECK_COORDS["9a"]
+        mapped_data["9a_corp_form_number"] = "1120"  # Form number for C-Corp (75px to the right of checkbox)
         # Line 9b: State of incorporation (ALL CAPS from Formation State column in Airtable)
         mapped_data["9b"] = (formation_state or "FL").upper()
     elif "S-CORP" in entity_type_upper or "S CORP" in entity_type_upper:
-        # S-Corp: S Corporation checkbox
-        mapped_data["Checks"]["9a_scorp"] = CHECK_COORDS[checkbox_position]
+        # S-Corp: S Corporation checkbox (only if NOT sole proprietor)
+        mapped_data["Checks"]["9a_scorp"] = CHECK_COORDS["9a"]
         # Add form number "1120-S" for S-Corp (75px to the right of checkbox)
         mapped_data["9a_corp_form_number"] = "1120-S"  # Form number for S-Corp
         # Line 9b: State of incorporation (ALL CAPS from Formation State column in Airtable)
         mapped_data["9b"] = (formation_state or "FL").upper()
     elif "PARTNERSHIP" in entity_type_upper:
-        # Partnership checkbox
-        mapped_data["Checks"]["9a_partnership"] = CHECK_COORDS[checkbox_position]
+        # Partnership checkbox (only if NOT sole proprietor)
+        mapped_data["Checks"]["9a_partnership"] = CHECK_COORDS["9a"]
     else:
-        # Other entity type
-        mapped_data["Checks"]["9a_other"] = CHECK_COORDS[checkbox_position]
+        # Other entity type (only if NOT sole proprietor)
+        mapped_data["Checks"]["9a_other"] = CHECK_COORDS["9a"]
     
-    # If sole proprietor (single member LLC), add SSN to the field next to the checkbox
-    # Use same SSN as Line 7b (or "N/A-FOREIGN" if no SSN)
-    if is_sole_proprietor and is_llc:
+    # Line 9a: If sole proprietor, add SSN to the field next to the "Sole proprietor" checkbox
+    # Use same SSN as Line 7b (or "N/A-FOREIGN" if no SSN) - formatted as XXX-XX-XXXX
+    # IMPORTANT: This applies to ALL sole proprietors, regardless of entity type (LLC, C-Corp, etc.)
+    if is_sole_proprietor:
         if responsible_ssn and responsible_ssn.upper() not in ['N/A-FOREIGN', 'N/A', '']:
-            mapped_data["9a_sole_ssn"] = responsible_ssn  # Same SSN as Line 7b
+            mapped_data["9a_sole_ssn"] = format_ssn(responsible_ssn)  # Formatted as XXX-XX-XXXX
         else:
             mapped_data["9a_sole_ssn"] = "N/A-FOREIGN"  # Same as Line 7b when no SSN
     
