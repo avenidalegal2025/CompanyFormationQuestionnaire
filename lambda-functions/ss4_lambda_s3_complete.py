@@ -314,14 +314,25 @@ def map_data_to_ss4_fields(form_data):
     # Owner information
     owner_count = form_data.get("ownerCount", 1)
     # Determine if entity is LLC - check both isLLC field and entityType
+    # IMPORTANT: Check for Corporation FIRST before checking LLC or Partnership
+    entity_type_upper = entity_type.upper()
+    is_corp = (
+        "CORP" in entity_type_upper or 
+        "INC" in entity_type_upper or 
+        "C-CORP" in entity_type_upper or
+        "S-CORP" in entity_type_upper or
+        "S CORP" in entity_type_upper
+    )
+    is_partnership = "PARTNERSHIP" in entity_type_upper
+    
     is_llc = (
         form_data.get("isLLC", "").upper() == "YES" or 
-        entity_type.upper() == "LLC" or 
-        "LLC" in entity_type.upper() or
-        "L.L.C." in entity_type.upper()
+        entity_type_upper == "LLC" or 
+        "LLC" in entity_type_upper or
+        "L.L.C." in entity_type_upper
     )
-    # If entity type contains "PARTNERSHIP", it's not an LLC
-    if "PARTNERSHIP" in entity_type.upper():
+    # If entity type is Corporation or Partnership, it's not an LLC
+    if is_corp or is_partnership:
         is_llc = False
     llc_member_count = form_data.get("llcMemberCount", owner_count if is_llc else None)
     
@@ -518,7 +529,7 @@ def map_data_to_ss4_fields(form_data):
         "8b": "",  # Will be set to member count if LLC, or date if not LLC
         "8b_date": date_business_started,  # Date business started (for non-LLC)
         "9b": to_upper(formation_state or "FL"),  # Closing month / State of incorporation - ALL CAPS
-        "10": to_upper(translate_to_english(form_data.get("summarizedBusinessPurpose", business_purpose or "General business operations"))[:45]),  # Summarized Business Purpose (max 45 chars, ALL CAPS) - translated from Spanish
+        "10": to_upper(translate_to_english(form_data.get("summarizedBusinessPurpose", business_purpose or "General business operations"))[:45].trim()),  # Summarized Business Purpose (max 45 chars, ALL CAPS) - translated from Spanish - TRUNCATE to 45 chars
         "11": format_payment_date(form_data.get("dateBusinessStarted", form_data.get("paymentDate", ""))),  # Date business started in (month, day, year) format - use paymentDate as fallback
         "12": "DECEMBER",  # Closing month of accounting year - always DECEMBER
         "13": {
