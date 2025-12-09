@@ -245,10 +245,21 @@ async function analyzeBusinessPurposeForLine17(businessPurpose: string): Promise
           },
           {
             role: 'user',
-            content: `Analyze this business purpose and indicate the principal line of merchandise sold, specific construction work done, products produced, or services provided. Be specific and concise. Maximum 80 characters. Return only the description, no labels or prefixes: "${businessPurpose}"`,
+            content: `Analyze this business purpose and create a CONCISE SUMMARY (not a truncation) of the principal line of merchandise sold, specific construction work done, products produced, or services provided. 
+
+IMPORTANT: The summary MUST be exactly 80 characters or less. Use abbreviations and short phrases if needed. Do NOT truncate words - instead, summarize the key business activity in fewer words.
+
+Examples:
+- "Marine transport and logistics" (instead of "Marine transport and logistics, including the transport of goods by sea and supply")
+- "Real estate development" (instead of "Real estate development and property management services")
+- "Retail clothing sales" (instead of "Retail sale of clothing, accessories, and fashion items")
+
+Business Purpose: "${businessPurpose}"
+
+Return ONLY the concise summary (max 80 characters), no labels or prefixes:`,
           },
         ],
-        max_tokens: 200,
+        max_tokens: 100, // Reduced to encourage more concise responses
         temperature: 0.3,
       }),
     });
@@ -267,10 +278,36 @@ async function analyzeBusinessPurposeForLine17(businessPurpose: string): Promise
       return businessPurpose.substring(0, 80).toUpperCase();
     }
 
-    // Ensure it's max 80 characters
-    const finalAnalysis = analysis.length > 80 
-      ? analysis.substring(0, 80).trim()
-      : analysis.trim();
+    // Ensure it's max 80 characters - if still too long, try to intelligently shorten it
+    let finalAnalysis = analysis.trim();
+    if (finalAnalysis.length > 80) {
+      // Try to find a natural break point (comma, period, or space) near 80 characters
+      const targetLength = 80;
+      let cutPoint = targetLength;
+      
+      // Look for a comma or period before the limit
+      const commaIndex = finalAnalysis.lastIndexOf(',', targetLength);
+      const periodIndex = finalAnalysis.lastIndexOf('.', targetLength);
+      const spaceIndex = finalAnalysis.lastIndexOf(' ', targetLength);
+      
+      // Prefer comma, then period, then space
+      if (commaIndex > targetLength * 0.7) { // Only use if it's not too early
+        cutPoint = commaIndex;
+      } else if (periodIndex > targetLength * 0.7) {
+        cutPoint = periodIndex;
+      } else if (spaceIndex > targetLength * 0.7) {
+        cutPoint = spaceIndex;
+      }
+      
+      finalAnalysis = finalAnalysis.substring(0, cutPoint).trim();
+      
+      // If still too long, hard truncate (shouldn't happen with better prompt, but safety net)
+      if (finalAnalysis.length > 80) {
+        finalAnalysis = finalAnalysis.substring(0, 80).trim();
+      }
+      
+      console.warn(`⚠️ Line 17 summary was ${analysis.length} chars, shortened to ${finalAnalysis.length} chars`);
+    }
     
     return finalAnalysis.toUpperCase();
   } catch (error: any) {
