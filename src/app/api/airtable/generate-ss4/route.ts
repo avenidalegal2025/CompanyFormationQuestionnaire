@@ -588,6 +588,31 @@ async function mapAirtableToSS4(record: any): Promise<any> {
   
   // ownerCount for signature name calculation
   const ownerCount = fields['Owner Count'] || 1;
+
+  // Fallback: if we still don't have a valid SSN, try to pick the first owner with SSN
+  if (!responsiblePartySSN || responsiblePartySSN === 'N/A-FOREIGN') {
+    for (let i = 1; i <= Math.min(ownerCount, 6); i++) {
+      const ownerSSN = (fields[`Owner ${i} SSN`] || '').trim();
+      const ownerName = fields[`Owner ${i} Name`] || '';
+      if (
+        ownerSSN &&
+        ownerSSN.toUpperCase() !== 'N/A' &&
+        !ownerSSN.toUpperCase().includes('FOREIGN')
+      ) {
+        responsiblePartyName = ownerName || responsiblePartyName;
+        responsiblePartyFirstName = fields[`Owner ${i} First Name`] || responsiblePartyFirstName;
+        responsiblePartyLastName = fields[`Owner ${i} Last Name`] || responsiblePartyLastName;
+        responsiblePartySSN = ownerSSN;
+        responsiblePartyAddress = fields[`Owner ${i} Address`] || responsiblePartyAddress;
+        // If we don't have an officer role yet, default to President (for C-Corp)
+        if (!responsiblePartyOfficerRole && isCorp) {
+          responsiblePartyOfficerRole = 'President';
+        }
+        console.log(`✅ Fallback: using Owner ${i} for responsible party with SSN ${ownerSSN}`);
+        break;
+      }
+    }
+  }
   
   // Log responsible party selection results
   console.log(`📋 Responsible party selection results:`);
