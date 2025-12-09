@@ -845,6 +845,35 @@ export function mapQuestionnaireToAirtable(
     }
   });
   
+  // Clear fields for owners that no longer exist (beyond the current owner count)
+  // This ensures that when the number of owners is reduced, old owner data is removed
+  // Airtable requires null (not undefined) to clear fields
+  const currentOwnerCount = owners.length;
+  for (let num = currentOwnerCount + 1; num <= 6; num++) {
+    // Clear all owner fields for owners beyond the current count
+    (record as any)[`Owner ${num} Type`] = null;
+    (record as any)[`Owner ${num} Ownership %`] = null;
+    (record as any)[`Owner ${num} Name`] = null;
+    (record as any)[`Owner ${num} First Name`] = null;
+    (record as any)[`Owner ${num} Last Name`] = null;
+    (record as any)[`Owner ${num} Address`] = null;
+    (record as any)[`Owner ${num} SSN`] = null;
+    (record as any)[`Owner ${num} ID Document URL`] = null;
+    (record as any)[`Owner ${num} Company Name`] = null;
+    (record as any)[`Owner ${num} Company Address`] = null;
+    (record as any)[`Owner ${num} Nested Owners Count`] = null;
+    
+    // Clear nested owner fields (1-6)
+    for (let nestedNum = 1; nestedNum <= 6; nestedNum++) {
+      (record as any)[`Owner ${num} Nested Owner ${nestedNum} Name`] = null;
+      (record as any)[`Owner ${num} Nested Owner ${nestedNum} First Name`] = null;
+      (record as any)[`Owner ${num} Nested Owner ${nestedNum} Last Name`] = null;
+      (record as any)[`Owner ${num} Nested Owner ${nestedNum} Address`] = null;
+      (record as any)[`Owner ${num} Nested Owner ${nestedNum} SSN`] = null;
+      (record as any)[`Owner ${num} Nested Owner ${nestedNum} ID Document URL`] = null;
+    }
+  }
+  
   // Map Directors (C-Corp)
   if (isCorp) {
     const directorsCount = admin.directorsCount || 0;
