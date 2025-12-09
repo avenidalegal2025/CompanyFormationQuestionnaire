@@ -448,6 +448,15 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
         if (successCount === 0) {
           console.error('⚠️ WARNING: No tax forms were generated successfully!');
           console.error('⚠️ This may indicate Lambda function issues or data transformation problems');
+          console.error('⚠️ Will attempt to generate SS-4 from Airtable in Step 8');
+        }
+        
+        // Log SS-4 generation status specifically
+        if (!taxForms.ss4.success) {
+          console.error('❌ Initial SS-4 generation failed - will try Airtable-based generation');
+          console.error('❌ SS-4 error:', taxForms.ss4.error);
+        } else {
+          console.log('✅ Initial SS-4 generation succeeded (will be replaced by Airtable-based generation)');
         }
       } catch (pdfError: any) {
         console.error('❌ Failed to generate tax forms:', pdfError.message);

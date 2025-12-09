@@ -793,10 +793,12 @@ async function callSS4Lambda(formData: any, s3Bucket: string, s3Key: string): Pr
   
   if (!response.ok) {
     const errorText = await response.text();
+    console.error(`❌ Lambda error response: ${errorText}`);
     throw new Error(`Lambda failed: ${response.status} - ${errorText}`);
   }
   
   const arrayBuffer = await response.arrayBuffer();
+  console.log(`✅ Received PDF from Lambda: ${arrayBuffer.byteLength} bytes`);
   return Buffer.from(arrayBuffer);
 }
 
