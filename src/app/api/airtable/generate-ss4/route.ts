@@ -592,21 +592,32 @@ async function mapAirtableToSS4(record: any): Promise<any> {
     // Signature Name: Same as Line 7a
     // For C-Corp: Add officer title (e.g., ",PRESIDENT")
     // For LLC: Add ",SOLE MEMBER" if single member, or ",MEMBER" if multiple members
-    let signatureName = responsiblePartyName || `${responsiblePartyFirstName} ${responsiblePartyLastName}`.trim();
+    // IMPORTANT: Ensure responsiblePartyName is not empty before creating signatureName
+    const baseName = responsiblePartyName || `${responsiblePartyFirstName} ${responsiblePartyLastName}`.trim();
+    let signatureName = baseName;
+    
+    if (!baseName) {
+      console.error(`❌ ERROR: responsiblePartyName is empty! Cannot create signature name.`);
+      console.error(`   responsiblePartyFirstName: "${responsiblePartyFirstName}"`);
+      console.error(`   responsiblePartyLastName: "${responsiblePartyLastName}"`);
+    }
+    
     if (isCorp && entityType === 'C-Corp') {
       // For C-Corp, add officer role to signature name
       if (responsiblePartyOfficerRole) {
-        signatureName = `${signatureName},${responsiblePartyOfficerRole.toUpperCase()}`;
+        signatureName = `${baseName},${responsiblePartyOfficerRole.toUpperCase()}`;
       } else {
-        signatureName = `${signatureName},PRESIDENT`; // Default to President
+        signatureName = `${baseName},PRESIDENT`; // Default to President
       }
     } else if (isLLC) {
       if (ownerCount === 1) {
-        signatureName = `${signatureName},SOLE MEMBER`;
+        signatureName = `${baseName},SOLE MEMBER`;
       } else {
-        signatureName = `${signatureName},MEMBER`;
+        signatureName = `${baseName},MEMBER`;
       }
     }
+    
+    console.log(`📝 Signature name formatted: "${signatureName}" (base: "${baseName}")`);
   
   return {
     // Line 1: Legal name of entity

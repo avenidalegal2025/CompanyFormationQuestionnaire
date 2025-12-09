@@ -307,9 +307,16 @@ def map_data_to_ss4_fields(form_data):
     responsible_zip = form_data.get("responsiblePartyZip", "")
     responsible_country = form_data.get("responsiblePartyCountry", "USA")
     
+    # Debug logging for responsible party
+    print(f"===> Responsible party from form_data:")
+    print(f"===>   Name: '{responsible_name}'")
+    print(f"===>   SSN: '{responsible_ssn}'")
+    print(f"===>   Address: '{responsible_address}'")
+    
     # Signature name - use pre-formatted signatureName if provided, otherwise format it
     # DO NOT translate signature name - keep original format
     signature_name = form_data.get("signatureName", "")
+    print(f"===> Signature name from form_data: '{signature_name}'")
     
     # Owner information
     owner_count = form_data.get("ownerCount", 1)
@@ -1063,6 +1070,8 @@ def lambda_handler(event, context):
         print(f"===> Line 12: '{ss4_fields.get('12', 'NOT FOUND')}'")
         print(f"===> Line 15: '{ss4_fields.get('15', 'NOT FOUND')}'")
         print(f"===> Line 17: '{ss4_fields.get('17', 'NOT FOUND')}'")
+        print(f"===> Line 7a (Responsible Party Name): '{ss4_fields.get('Line 7a', 'NOT FOUND')}'")
+        print(f"===> Line 7b (Responsible Party SSN): '{ss4_fields.get('Line 7b', 'NOT FOUND')}'")
         print(f"===> Designee Name: '{ss4_fields.get('Designee Name', 'NOT FOUND')}'")
         print(f"===> Designee Address: '{ss4_fields.get('Designee Address', 'NOT FOUND')}'")
         print(f"===> Designee Phone: '{ss4_fields.get('Designee Phone', 'NOT FOUND')}'")
