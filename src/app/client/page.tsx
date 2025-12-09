@@ -94,10 +94,19 @@ export default function ClientPage() {
     const email = localStorage.getItem('userEmail') || '';
     setUserEmail(email);
 
-    // Get selected company ID from localStorage
-    const savedCompanyId = localStorage.getItem('selectedCompanyId');
-    if (savedCompanyId) {
-      setSelectedCompanyId(savedCompanyId);
+    // Check if payment was just completed - if so, clear selectedCompanyId to force selection of newest company
+    const paymentCompleted = localStorage.getItem('paymentCompleted');
+    if (paymentCompleted === 'true') {
+      // Clear selectedCompanyId so CompanySwitcher can select the newest company
+      localStorage.removeItem('selectedCompanyId');
+      setSelectedCompanyId(null);
+      console.log('💳 Payment completed - cleared selectedCompanyId to select newest company');
+    } else {
+      // Get selected company ID from localStorage (only if payment wasn't just completed)
+      const savedCompanyId = localStorage.getItem('selectedCompanyId');
+      if (savedCompanyId) {
+        setSelectedCompanyId(savedCompanyId);
+      }
     }
 
     // Get company data from localStorage (for backward compatibility)

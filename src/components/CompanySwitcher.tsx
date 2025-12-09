@@ -32,13 +32,25 @@ export default function CompanySwitcher({ userEmail, selectedCompanyId, onCompan
   }, [userEmail]);
 
   // Also refetch when component mounts to catch newly created companies
+  // And refetch when paymentCompleted flag is detected
   useEffect(() => {
     if (userEmail) {
-      // Small delay to ensure webhook has processed
-      const timer = setTimeout(() => {
-        fetchCompanies();
-      }, 2000);
-      return () => clearTimeout(timer);
+      const paymentCompleted = localStorage.getItem('paymentCompleted');
+      if (paymentCompleted === 'true') {
+        // Payment was just completed, wait a bit for webhook to process
+        // Then refetch to get the new company
+        console.log('💳 Payment completed detected, will refetch companies in 3 seconds...');
+        const timer = setTimeout(() => {
+          fetchCompanies();
+        }, 3000);
+        return () => clearTimeout(timer);
+      } else {
+        // No payment, just do a quick refetch to ensure we have latest data
+        const timer = setTimeout(() => {
+          fetchCompanies();
+        }, 2000);
+        return () => clearTimeout(timer);
+      }
     }
   }, []);
 
@@ -74,11 +86,22 @@ export default function CompanySwitcher({ userEmail, selectedCompanyId, onCompan
           // Payment was just completed, select the newest company (first in list, sorted by Payment Date desc)
           const newestCompanyId = companiesList[0].id;
           console.log('✅ Payment completed, selecting newest company:', newestCompanyId);
+          console.log('📋 Available companies:', companiesList.map(c => ({ id: c.id, name: c.companyName })));
           onCompanyChange(newestCompanyId);
           localStorage.removeItem('paymentCompleted'); // Clear the flag
+          localStorage.setItem('selectedCompanyId', newestCompanyId); // Save to localStorage
         } else if (!selectedCompanyId && companiesList.length > 0) {
           // No company selected and we have companies, select the first one (newest)
+          console.log('📋 No company selected, selecting newest:', companiesList[0].id);
           onCompanyChange(companiesList[0].id);
+        } else if (selectedCompanyId) {
+          // Company is already selected, verify it still exists in the list
+          const companyExists = companiesList.some(c => c.id === selectedCompanyId);
+          if (!companyExists && companiesList.length > 0) {
+            // Selected company no longer exists, select the newest
+            console.log('⚠️ Selected company no longer exists, selecting newest:', companiesList[0].id);
+            onCompanyChange(companiesList[0].id);
+          }
         }
       } else {
         console.error('Failed to fetch companies');
