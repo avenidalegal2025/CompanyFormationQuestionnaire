@@ -530,8 +530,8 @@ def map_data_to_ss4_fields(form_data):
         "Line 5a": to_upper(company_street_line1) if company_street_line1 else "",  # Street address line 1 (ONLY street address, NOT full address)
         "Line 5b": to_upper(f"{company_city}, {company_state} {company_zip}".strip()) if (company_city or company_state or company_zip) else "",  # City, State, ZIP (from Company Address column in Airtable)
         "Line 6": to_upper(f"{company_city}, {company_state}".strip(", ")) if company_city and company_state else to_upper(company_city_state_zip),  # City, State (Company's US City and State)
-        "Line 7a": to_upper(responsible_name),  # Responsible party name - ALL CAPS
-        "Line 7b": format_ssn(responsible_ssn),  # Responsible party SSN/ITIN/EIN - formatted as XXX-XX-XXXX
+        "Line 7a": to_upper(responsible_name) if responsible_name else "",  # Responsible party name - ALL CAPS
+        "Line 7b": format_ssn(responsible_ssn) if responsible_ssn and responsible_ssn.upper() not in ['N/A-FOREIGN', 'N/A', ''] else "N/A-FOREIGN",  # Responsible party SSN/ITIN/EIN - formatted as XXX-XX-XXXX
         "8b": "",  # Will be set to member count if LLC, or date if not LLC
         "8b_date": date_business_started,  # Date business started (for non-LLC)
         "9b": to_upper(formation_state or "FL"),  # Closing month / State of incorporation - ALL CAPS
@@ -551,7 +551,7 @@ def map_data_to_ss4_fields(form_data):
         "Designee Fax": "866-496-4957",  # Updated fax number
         "Applicant Phone": format_phone(form_data.get("applicantPhone", "")),  # Business Phone from Airtable - formatted as xxx-xxx-xxxx
         "Applicant Fax": "",  # Usually empty
-        "Signature Name": format_signature_name(responsible_name, is_llc, owner_count, form_data, entity_type) if not signature_name else (to_upper(signature_name) if (",MEMBER" in signature_name.upper() or ",SOLE MEMBER" in signature_name.upper() or ",PRESIDENT" in signature_name.upper() or any(role.upper() in signature_name.upper() for role in ["VICE-PRESIDENT", "TREASURER", "SECRETARY"])) else format_signature_name(responsible_name, is_llc, owner_count, form_data, entity_type)),  # Always ensure ",MEMBER", ",SOLE MEMBER", or officer title suffix
+        "Signature Name": (to_upper(signature_name) if signature_name and (",MEMBER" in signature_name.upper() or ",SOLE MEMBER" in signature_name.upper() or ",PRESIDENT" in signature_name.upper() or any(role.upper() in signature_name.upper() for role in ["VICE-PRESIDENT", "TREASURER", "SECRETARY"])) else format_signature_name(responsible_name, is_llc, owner_count, form_data, entity_type)) if responsible_name else (to_upper(signature_name) if signature_name else ""),  # Always ensure ",MEMBER", ",SOLE MEMBER", or officer title suffix - but only if we have a base name
         "Checks": {}
     }
     
