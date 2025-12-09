@@ -4,7 +4,7 @@ import { headers } from 'next/headers';
 import { saveDomainRegistration, type DomainRegistration, saveBusinessPhone, saveGoogleWorkspace, type GoogleWorkspaceRecord, saveUserDocuments, type DocumentRecord, saveVaultMetadata, type VaultMetadata, getFormData, addUserDocument } from '@/lib/dynamo';
 import { createVaultStructure, copyTemplateToVault, getFormDataSnapshot } from '@/lib/s3-vault';
 import { createFormationRecord, mapQuestionnaireToAirtable } from '@/lib/airtable';
-import { generateAllTaxForms } from '@/lib/pdf-filler';
+import { generate2848PDF, generate8821PDF } from '@/lib/pdf-filler';
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 
 // SES client for email notifications
@@ -361,9 +361,9 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
         managersCount: formData.admin?.managersCount,
       });
       
-      // Step 5: Generate tax forms (SS-4, 2848, 8821)
+      // Step 5: Generate tax forms (2848, 8821) - NOTE: SS-4 is generated from Airtable in Step 8
       try {
-        console.log('📄 Generating tax forms (SS-4, 2848, 8821)...');
+        console.log('📄 Generating tax forms (2848, 8821)...');
         console.log('📋 FormData for PDF generation:', {
           companyName: formData.company?.companyName,
           entityType: formData.company?.entityType,
@@ -373,40 +373,26 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
         console.log('📁 Vault path:', vaultPath);
         console.log('🏢 Company name:', companyName);
         console.log('🔗 Lambda URLs configured:', {
-          ss4: !!process.env.LAMBDA_SS4_URL,
           form2848: !!process.env.LAMBDA_2848_URL,
           form8821: !!process.env.LAMBDA_8821_URL,
         });
+        console.log('ℹ️ SS-4 will be generated from Airtable data in Step 8 (after Airtable record is created)');
         
-        const taxForms = await generateAllTaxForms(
-          vaultPath,
-          companyName,
-          formData
-        );
+        // Generate only 2848 and 8821 - SS-4 will be generated from Airtable
+        const form2848Result = await generate2848PDF(vaultPath, companyName, formData);
+        const form8821Result = await generate8821PDF(vaultPath, companyName, formData);
+        
+        const taxForms = {
+          ss4: { success: false, error: 'SS-4 will be generated from Airtable in Step 8' },
+          form2848: form2848Result,
+          form8821: form8821Result,
+        };
         
         console.log('📊 Tax forms generation results:', {
-          ss4: { success: taxForms.ss4.success, error: taxForms.ss4.error, s3Key: taxForms.ss4.s3Key },
+          ss4: { success: false, note: 'Will be generated from Airtable in Step 8' },
           form2848: { success: taxForms.form2848.success, error: taxForms.form2848.error, s3Key: taxForms.form2848.s3Key },
           form8821: { success: taxForms.form8821.success, error: taxForms.form8821.error, s3Key: taxForms.form8821.s3Key },
         });
-        
-        // Add successfully generated PDFs to documents array
-        if (taxForms.ss4.success && taxForms.ss4.s3Key) {
-          const doc = {
-            id: 'ss4-ein-application',
-            name: 'SS-4 EIN Application',
-            type: 'tax' as const,
-            s3Key: taxForms.ss4.s3Key,
-            status: 'generated' as const,
-            createdAt: new Date().toISOString(),
-            size: taxForms.ss4.size,
-          };
-          documents.push(doc);
-          console.log('✅ SS-4 PDF added to documents array:', JSON.stringify(doc, null, 2));
-        } else {
-          console.error('❌ SS-4 generation failed:', taxForms.ss4.error);
-          console.error('❌ SS-4 failure details:', JSON.stringify(taxForms.ss4, null, 2));
-        }
         
         if (taxForms.form2848.success && taxForms.form2848.s3Key) {
           const doc = {
@@ -538,8 +524,7 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
       console.log(`✅ Company "${airtableRecord['Company Name']}" is now visible in the dashboard`);
       
       // Step 8: Generate SS-4 from Airtable data (after payment confirmation)
-      // This ensures SS-4 is generated from the canonical Airtable source after payment
-      // The initial SS-4 generation (from formData) serves as a fallback
+      // This is the ONLY place SS-4 is generated - ensures it uses canonical Airtable data
       try {
         console.log('📄 Generating SS-4 from Airtable record (post-payment confirmation)...');
         console.log(`📋 Airtable Record ID: ${airtableRecordId}`);
@@ -603,14 +588,14 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
           const errorText = await generateSS4Response.text();
           console.error(`❌ Failed to generate SS-4 from Airtable: ${generateSS4Response.status}`);
           console.error(`❌ Error details: ${errorText}`);
-          console.log('⚠️ Using initial SS-4 generation (from formData) as fallback');
-          // Don't fail the entire process - initial SS-4 generation is still available
+          console.error('❌ SS-4 was NOT generated - check logs above for details');
+          // Don't fail the entire process, but SS-4 will be missing
         }
       } catch (ss4Error: any) {
         console.error('❌ Error generating SS-4 from Airtable:', ss4Error.message);
         console.error('❌ SS-4 generation error stack:', ss4Error.stack);
-        console.log('⚠️ Using initial SS-4 generation (from formData) as fallback');
-        // Don't fail the entire process - initial SS-4 generation is still available
+        console.error('❌ SS-4 was NOT generated - check logs above for details');
+        // Don't fail the entire process, but SS-4 will be missing
       }
       
       // Send email notification for approval
