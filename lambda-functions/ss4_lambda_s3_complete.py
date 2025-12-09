@@ -552,7 +552,14 @@ def map_data_to_ss4_fields(form_data):
         "Designee Fax": "866-496-4957",  # Updated fax number
         "Applicant Phone": format_phone(form_data.get("applicantPhone", "")),  # Business Phone from Airtable - formatted as xxx-xxx-xxxx
         "Applicant Fax": "",  # Usually empty
-        "Signature Name": (to_upper(signature_name) if signature_name and (",MEMBER" in signature_name.upper() or ",SOLE MEMBER" in signature_name.upper() or ",PRESIDENT" in signature_name.upper() or any(role.upper() in signature_name.upper() for role in ["VICE-PRESIDENT", "TREASURER", "SECRETARY"])) else format_signature_name(responsible_name, is_llc, owner_count, form_data, entity_type)) if responsible_name else (to_upper(signature_name) if signature_name else ""),  # Always ensure ",MEMBER", ",SOLE MEMBER", or officer title suffix - but only if we have a base name
+        "Signature Name": (
+            # If signature_name is provided and already has a suffix (MEMBER, PRESIDENT, etc.), use it
+            to_upper(signature_name) if signature_name and (",MEMBER" in signature_name.upper() or ",SOLE MEMBER" in signature_name.upper() or ",PRESIDENT" in signature_name.upper() or any(role.upper() in signature_name.upper() for role in ["VICE-PRESIDENT", "TREASURER", "SECRETARY"]))
+            # Otherwise, if we have responsible_name, format it with the appropriate suffix
+            else format_signature_name(responsible_name, is_llc, owner_count, form_data, entity_type) if responsible_name
+            # If no responsible_name and signature_name doesn't have suffix, use signature_name as-is (might be just a title, which is wrong but better than empty)
+            else (to_upper(signature_name) if signature_name else "")
+        ),  # Always ensure ",MEMBER", ",SOLE MEMBER", or officer title suffix - but only if we have a base name
         "Checks": {}
     }
     
