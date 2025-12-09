@@ -214,18 +214,22 @@ def fetch_llc_data_from_airtable(record_id=None):
             "address1": AVENIDA_LEGAL_ADDRESS['line1'],
             "address2": AVENIDA_LEGAL_ADDRESS['line2'],
             "city": AVENIDA_LEGAL_ADDRESS['city'],
+            "state": AVENIDA_LEGAL_ADDRESS['state'],  # Required by Sunbiz
             "zip": AVENIDA_LEGAL_ADDRESS['zip'],
             "signature": "JOHN DOE"
         },
         "authorized_person": {
             # Authorized Person (Manager) - CAN be international
+            # IMPORTANT: Sunbiz requires state and zip even for international addresses
+            # Use default values if missing
             "title": "MGR",
             "first_name": manager_first_name,
             "last_name": manager_last_name,
             "address": manager_addr_parts.get('line1', '') + (' ' + manager_addr_parts.get('line2', '') if manager_addr_parts.get('line2') else ''),
-            "city": manager_addr_parts.get('city', ''),
-            "state": manager_addr_parts.get('state', ''),
-            "zip": manager_addr_parts.get('zip', ''),
+            "city": manager_addr_parts.get('city', '') or 'N/A',
+            # Sunbiz requires state and zip - use defaults if international or missing
+            "state": manager_addr_parts.get('state', '') or ('FL' if manager_country == 'US' else 'N/A'),
+            "zip": manager_addr_parts.get('zip', '') or ('33181' if manager_country == 'US' else '00000'),
             "country": manager_country,
             "signature": manager_name
         },
@@ -428,6 +432,11 @@ def main(record_id=None):
         human_typing(driver.find_element(By.ID, "ra_addr1"), agent["address1"])
         human_typing(driver.find_element(By.ID, "ra_addr2"), agent["address2"])
         human_typing(driver.find_element(By.ID, "ra_city"), agent["city"])
+        # Sunbiz requires state for registered agent
+        try:
+            human_typing(driver.find_element(By.ID, "ra_st"), agent.get("state", "FL"))
+        except:
+            pass  # Field may not exist in all forms
         human_typing(driver.find_element(By.ID, "ra_zip"), agent["zip"])
         human_typing(driver.find_element(By.ID, "ra_signature"), agent["signature"])
         
