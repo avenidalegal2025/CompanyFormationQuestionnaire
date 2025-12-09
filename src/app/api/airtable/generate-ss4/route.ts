@@ -45,24 +45,17 @@ async function summarizeBusinessPurpose(businessPurpose: string): Promise<string
         messages: [
           {
             role: 'system',
-            content: 'You are a helpful assistant that generates brief, one-line reasons for applying for an EIN on IRS Form SS-4, Line 10. Return only a short reason text, maximum 45 characters, no labels or explanations.',
+            content: 'You are a helpful assistant that summarizes business purposes concisely for IRS Form SS-4, Line 10. Return only a brief summary, maximum 45 characters, no labels or explanations.',
           },
           {
             role: 'user',
             content: `This is for IRS Form SS-4, Line 10 "Reason for applying" - the text field next to the "Started new business" checkbox.
 
-Generate a SHORT, ONE-LINE reason (maximum 45 characters). Use standard brief reasons such as:
-- "Started new business"
-- "Hired employees"  
-- "Opened bank account"
-- "Changed organization type"
-- "Purchased business"
-- "Created trust"
-- "Other"
+Summarize this business purpose from the Airtable Formations table "Business Purpose" column into a SHORT, ONE-LINE summary (maximum 45 characters).
 
-Based on this business purpose: "${businessPurpose}"
+Business Purpose: "${businessPurpose}"
 
-Return ONLY a short one-line reason (e.g., "Started new business" or "Opened bank account"). Maximum 45 characters. No labels, no prefixes, no explanations. For most new businesses, return just "Started new business".`,
+Return ONLY a brief summary of what the business does (e.g., "General architectural services", "Real estate development", "Retail clothing sales"). Maximum 45 characters. No labels, no prefixes, no explanations. Be concise and specific.`,
           },
         ],
         max_tokens: 50,
