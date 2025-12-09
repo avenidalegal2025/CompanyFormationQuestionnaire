@@ -26,13 +26,11 @@ async function summarizeBusinessPurpose(businessPurpose: string): Promise<string
     return 'STARTED NEW BUSINESS';
   }
 
-  // For most new businesses, default to "Started new business"
-  // Only use OpenAI if we need to determine a specific reason
-
-  // If no OpenAI API key, fallback to truncation
+  // ALWAYS use OpenAI API if available to generate proper reason
+  // If no OpenAI API key, fallback to default
   if (!OPENAI_API_KEY) {
-    console.warn('⚠️ OpenAI API key not configured, using truncation fallback');
-    return businessPurpose.substring(0, 45).toUpperCase();
+    console.warn('⚠️ OpenAI API key not configured, using default "Started new business"');
+    return 'STARTED NEW BUSINESS';
   }
 
   try {
@@ -47,22 +45,24 @@ async function summarizeBusinessPurpose(businessPurpose: string): Promise<string
         messages: [
           {
             role: 'system',
-            content: 'You are a helpful assistant that generates reasons for applying for an EIN on IRS Form SS-4, Line 10. Return only the reason text, no labels or explanations.',
+            content: 'You are a helpful assistant that generates brief, one-line reasons for applying for an EIN on IRS Form SS-4, Line 10. Return only a short reason text, maximum 45 characters, no labels or explanations.',
           },
           {
             role: 'user',
-            content: `This is for IRS Form SS-4, Line 10 "Reason for applying". Generate a brief reason using standard IRS reasons such as:
+            content: `This is for IRS Form SS-4, Line 10 "Reason for applying" - the text field next to the "Started new business" checkbox.
+
+Generate a SHORT, ONE-LINE reason (maximum 45 characters). Use standard brief reasons such as:
 - "Started new business"
-- "Hired employees"
+- "Hired employees"  
 - "Opened bank account"
-- "Changed type of organization"
-- "Purchased going business"
-- "Created a trust"
+- "Changed organization type"
+- "Purchased business"
+- "Created trust"
 - "Other"
 
 Based on this business purpose: "${businessPurpose}"
 
-Generate the reason for applying. Maximum 45 characters. Return ONLY the reason text (e.g., "Started new business"), no labels, no prefixes, no explanations. For most new businesses, use "Started new business".`,
+Return ONLY a short one-line reason (e.g., "Started new business" or "Opened bank account"). Maximum 45 characters. No labels, no prefixes, no explanations. For most new businesses, return just "Started new business".`,
           },
         ],
         max_tokens: 50,
@@ -73,27 +73,36 @@ Generate the reason for applying. Maximum 45 characters. Return ONLY the reason 
     if (!response.ok) {
       const errorText = await response.text();
       console.warn(`⚠️ OpenAI API error: ${response.status} - ${errorText}`);
-      // Fallback to truncation
-      return businessPurpose.substring(0, 45).toUpperCase();
+      // Fallback to default reason
+      return 'STARTED NEW BUSINESS';
     }
 
     const data = await response.json();
     const summary = data.choices?.[0]?.message?.content?.trim() || '';
     
-    if (!summary) {
-      return businessPurpose.substring(0, 45).toUpperCase();
+    console.log(`📝 OpenAI generated Line 10 reason: "${summary}"`);
+    
+    if (!summary || summary.length === 0) {
+      console.warn('⚠️ OpenAI returned empty response, using default');
+      return 'STARTED NEW BUSINESS';
     }
 
-    // Ensure it's max 45 characters
-    const finalSummary = summary.length > 45 
-      ? summary.substring(0, 45).trim()
-      : summary.trim();
+    // Ensure it's max 45 characters and clean it up
+    let finalSummary = summary.trim();
+    // Remove any quotes if present
+    finalSummary = finalSummary.replace(/^["']|["']$/g, '');
+    // Ensure max 45 characters
+    if (finalSummary.length > 45) {
+      finalSummary = finalSummary.substring(0, 45).trim();
+    }
     
-    return finalSummary.toUpperCase();
+    const upperSummary = finalSummary.toUpperCase();
+    console.log(`✅ Final Line 10 reason (${upperSummary.length} chars): "${upperSummary}"`);
+    return upperSummary;
   } catch (error: any) {
     console.error('❌ Error calling OpenAI API:', error);
-    // Fallback to truncation
-    return businessPurpose.substring(0, 45).toUpperCase();
+    // Fallback to default reason
+    return 'STARTED NEW BUSINESS';
   }
 }
 
