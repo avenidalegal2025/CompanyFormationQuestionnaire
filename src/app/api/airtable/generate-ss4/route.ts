@@ -473,31 +473,37 @@ async function mapAirtableToSS4(record: any): Promise<any> {
       }
     }
   } else {
-    // For LLC, use owner/manager logic (existing code)
+    // For LLC, use owner/manager logic - MUST prioritize members/owners with SSN
+    // Do NOT use Customer Name or Manager Name unless they are owners
     const ownerCount = fields['Owner Count'] || 1;
+    
+    // First, find the first owner/member with a valid SSN
     for (let i = 1; i <= Math.min(ownerCount, 6); i++) {
       const ownerSSN = fields[`Owner ${i} SSN`] || '';
       // Check if SSN is valid (not empty, not N/A, not FOREIGN)
       if (ownerSSN && ownerSSN.trim() !== '' && 
           ownerSSN.toUpperCase() !== 'N/A' && 
           !ownerSSN.toUpperCase().includes('FOREIGN')) {
-        // Found an owner with valid SSN - use this one
+        // Found an owner/member with valid SSN - use this one
         responsiblePartyName = fields[`Owner ${i} Name`] || '';
         responsiblePartyFirstName = fields[`Owner ${i} First Name`] || '';
         responsiblePartyLastName = fields[`Owner ${i} Last Name`] || '';
         responsiblePartySSN = ownerSSN;
         responsiblePartyAddress = fields[`Owner ${i} Address`] || '';
+        console.log(`✅ Found owner/member with SSN: ${responsiblePartyName} (Owner ${i})`);
         break; // Use the first owner with valid SSN
       }
     }
     
     // If no owner has a valid SSN, use Owner 1's name but set SSN to "N/A-FOREIGN"
+    // IMPORTANT: Do NOT use Customer Name or Manager Name - only use actual owners
     if (!responsiblePartySSN) {
-      responsiblePartyName = fields['Owner 1 Name'] || fields['Manager 1 Name'] || fields['Customer Name'] || '';
-      responsiblePartyFirstName = fields['Owner 1 First Name'] || fields['Manager 1 First Name'] || '';
-      responsiblePartyLastName = fields['Owner 1 Last Name'] || fields['Manager 1 Last Name'] || '';
+      responsiblePartyName = fields['Owner 1 Name'] || '';
+      responsiblePartyFirstName = fields['Owner 1 First Name'] || '';
+      responsiblePartyLastName = fields['Owner 1 Last Name'] || '';
       responsiblePartySSN = 'N/A-FOREIGN'; // Set to N/A-FOREIGN if no one has SSN
       responsiblePartyAddress = fields['Owner 1 Address'] || '';
+      console.log(`⚠️ No owner with SSN found, using Owner 1: ${responsiblePartyName}`);
     }
   }
   
