@@ -412,6 +412,21 @@ def map_data_to_ss4_fields(form_data):
         # If already formatted or invalid, return as is
         return ssn
     
+    # Helper function to format phone number as xxx-xxx-xxxx (without +1 prefix)
+    def format_phone(phone):
+        if not phone or not isinstance(phone, str):
+            return phone
+        # Remove all non-digits
+        phone_clean = ''.join(filter(str.isdigit, phone))
+        # Remove leading +1 or 1 if present (US country code)
+        if phone_clean.startswith('1') and len(phone_clean) == 11:
+            phone_clean = phone_clean[1:]  # Remove leading 1
+        # Format as xxx-xxx-xxxx if we have 10 digits
+        if len(phone_clean) == 10:
+            return f"{phone_clean[:3]}-{phone_clean[3:6]}-{phone_clean[6:]}"
+        # If not 10 digits, return cleaned version (might be international or invalid)
+        return phone_clean
+    
     # Helper function to format signature name with member designation
     def format_signature_name(name, is_llc, owner_count):
         name_upper = to_upper(name)
@@ -470,7 +485,7 @@ def map_data_to_ss4_fields(form_data):
         "Designee Address": "10634 NE 11 AVE, MIAMI, FL, 33138",  # ALL CAPS
         "Designee Phone": "(786) 512-0434",  # Updated phone number
         "Designee Fax": "866-496-4957",  # Updated fax number
-        "Applicant Phone": to_upper(form_data.get("applicantPhone", "")),  # Business Phone from Airtable - ALL CAPS
+        "Applicant Phone": format_phone(form_data.get("applicantPhone", "")),  # Business Phone from Airtable - formatted as xxx-xxx-xxxx
         "Applicant Fax": "",  # Usually empty
         "Signature Name": format_signature_name(responsible_name, is_llc, owner_count) if not signature_name else (to_upper(signature_name) if ",MEMBER" in signature_name.upper() or ",SOLE MEMBER" in signature_name.upper() else format_signature_name(responsible_name, is_llc, owner_count)),  # Always ensure ",MEMBER" or ",SOLE MEMBER" suffix
         "Checks": {}
