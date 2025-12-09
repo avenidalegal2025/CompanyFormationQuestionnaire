@@ -126,11 +126,12 @@ async function categorizeBusinessPurposeForLine16(businessPurpose: string): Prom
         messages: [
           {
             role: 'system',
-            content: 'You are a helpful assistant that categorizes business purposes. Return only a JSON object with "category" (one of: construction, rental, transportation, healthcare, accommodation, wholesale_broker, wholesale_other, retail, real_estate, manufacturing, finance, other) and optionally "otherSpecify" (max 45 chars) if category is "other".',
+            content:
+              'You are a concise classifier. Return only JSON with keys: "category" and optional "otherSpecify" (max 45 chars, ALL CAPS) if category is "other". Allowed categories: construction, rental, transportation, healthcare, accommodation, wholesale_broker, wholesale_other, retail, real_estate, manufacturing, finance, other. Choose the best fit. If it is about restaurants, hotels, lodging, catering, bars, cafes, food delivery: use accommodation. If it is about selling goods to end customers (shops, ecommerce, stores): use retail. If it is about renting/leasing: rental. If none matches, set category=other and describe in otherSpecify.',
           },
           {
             role: 'user',
-            content: `Categorize this business purpose into one of these categories: Construction, Rental & leasing, Transportation & warehousing, Health care & social assistance, Accommodation & food service, Wholesale—agent/broker, Wholesale—other, Retail, Real estate, Manufacturing, Finance & insurance, or Other. If "Other", provide a 45-character max description of the category. Return JSON only: "${businessPurpose}"`,
+            content: `Categorize this business purpose into EXACTLY ONE of these categories: Construction; Rental & leasing; Transportation & warehousing; Health care & social assistance; Accommodation & food service (restaurants, hotels, catering, bars, cafes, food delivery); Wholesale—agent/broker; Wholesale—other; Retail (stores, shops, ecommerce to end customers); Real estate; Manufacturing; Finance & insurance; Other. If "Other", provide a 45-character max description of the category (ALL CAPS). Return ONLY JSON. Business Purpose: "${businessPurpose}"`,
           },
         ],
         max_tokens: 100,
