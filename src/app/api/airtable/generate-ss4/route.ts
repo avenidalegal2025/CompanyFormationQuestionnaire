@@ -10,7 +10,7 @@ const AIRTABLE_TABLE_NAME = process.env.AIRTABLE_TABLE_NAME?.trim() || 'Formatio
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY?.trim() || '';
 
 // Lambda and S3 configuration
-const LAMBDA_SS4_URL = process.env.LAMBDA_SS4_URL || 'https://rgkqsugoslrjh4kqq2kzwqfnry0ndryd.lambda-url.us-west-1.on.aws/';
+const LAMBDA_SS4_URL = process.env.LAMBDA_SS4_URL || 'https://sk5p2uuxrdubzaf2uh7vvqc2bu0kcaoz.lambda-url.us-west-1.on.aws/';
 const TEMPLATE_SS4_URL = process.env.TEMPLATE_SS4_URL || 'https://ss4-template-bucket-043206426879.s3.us-west-1.amazonaws.com/fss4.pdf';
 const S3_BUCKET = process.env.S3_DOCUMENTS_BUCKET || 'avenida-legal-documents';
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://company-formation-questionnaire.vercel.app';
@@ -522,10 +522,12 @@ async function mapAirtableToSS4(record: any): Promise<any> {
     
     // Entity information
     entityType: entityType,
-    formationState: fields['Formation State'] || 'Florida',
+    formationState: (fields['Formation State'] || 'Florida').toUpperCase(), // Lambda expects uppercase for Line 9b
     
-    // Line 4a-4b: Mailing address (company address)
-    companyAddress: companyAddress,
+    // Line 4a-4b: Mailing address (Avenida Legal address - hardcoded)
+    // Line 5a-5b: Street address (Company Address from Airtable)
+    // Pass the full Company Address string so Lambda can parse it for Line 5a (street) and Line 5b (city, state, zip)
+    companyAddress: companyAddress, // Full address string: "Street, City, State ZIP"
     mailingAddressLine1: addressParts.line1,
     mailingAddressLine2: addressParts.line2,
     mailingCity: addressParts.city,
@@ -533,8 +535,8 @@ async function mapAirtableToSS4(record: any): Promise<any> {
     mailingZip: addressParts.zip,
     mailingCountry: addressParts.country || 'US',
     
-    // Line 5a-5b: Street address (use same as mailing if not different)
-    streetAddressLine1: addressParts.line1,
+    // Line 5a-5b: Street address (Company Address from Airtable - Lambda will parse this)
+    streetAddressLine1: addressParts.line1, // For reference, but Lambda uses companyAddress
     streetAddressLine2: addressParts.line2,
     streetCity: addressParts.city,
     streetState: addressParts.state,
@@ -567,14 +569,18 @@ async function mapAirtableToSS4(record: any): Promise<any> {
     // Line 9a: Type of entity (checkbox)
     entityTypeCode: getEntityTypeCode(entityType),
     
-    // Line 9b: State of incorporation (for corps) - ALL CAPS from Formation State column
+    // Line 9b: State of incorporation (for corps) or Formation State (for LLCs) - ALL CAPS from Formation State column
+    // Lambda uses formationState for Line 9b for all entity types
     stateOfIncorporation: isCorp ? ((fields['Formation State'] || 'FL').toUpperCase()) : undefined,
+    // Also pass formationState directly (Lambda uses this for Line 9b)
+    // formationState is already set above, but ensure it's uppercase for Lambda
     
     // Line 10: Summarized Business Purpose (max 45 characters, ALL CAPS)
     // This will be set after OpenAI summarization
     
-    // Line 11: Date business started
+    // Line 11: Date business started (use Payment Date from Airtable)
     dateBusinessStarted: fields['Payment Date'] || new Date().toISOString().split('T')[0],
+    paymentDate: fields['Payment Date'] || new Date().toISOString().split('T')[0], // Also pass as paymentDate for Lambda fallback
     
     // Line 12: Closing month of accounting year (usually December)
     closingMonth: 'December',
@@ -600,9 +606,13 @@ async function mapAirtableToSS4(record: any): Promise<any> {
     appliedBefore: 'No',
     
     // Line 18: Third Party Designee (Antonio Regojo)
-    designeeName: 'Antonio Regojo',
+    // For C-Corp, add officer title; for LLC and others, just "ANTONIO REGOJO"
+    // Lambda will convert to uppercase, but we ensure it's formatted correctly
+    designeeName: isCorp && entityType === 'C-Corp' && responsiblePartyOfficerRole 
+      ? `Antonio Regojo, ${responsiblePartyOfficerRole}` 
+      : 'Antonio Regojo',
     designeeAddress: '10634 NE 11 AVE, MIAMI, FL, 33138',
-    designeePhone: '(305) 123-4567',
+    designeePhone: '(786) 512-0434',  // Updated phone number
     designeeFax: '866-496-4957',
     
     // Signature information
@@ -746,6 +756,22 @@ async function updateAirtableWithSS4Url(recordId: string, s3Key: string): Promis
 async function callSS4Lambda(formData: any, s3Bucket: string, s3Key: string): Promise<Buffer> {
   console.log('📞 Calling SS-4 Lambda...');
   console.log('📋 Form data keys:', Object.keys(formData).join(', '));
+  console.log('📋 Critical fields:', {
+    companyName: formData.companyName,
+    companyAddress: formData.companyAddress,
+    entityType: formData.entityType,
+    isLLC: formData.isLLC,
+    llcMemberCount: formData.llcMemberCount,
+    responsiblePartyName: formData.responsiblePartyName,
+    responsiblePartySSN: formData.responsiblePartySSN,
+    paymentDate: formData.paymentDate,
+    dateBusinessStarted: formData.dateBusinessStarted,
+    summarizedBusinessPurpose: formData.summarizedBusinessPurpose,
+    line16Category: formData.line16Category,
+    line17PrincipalMerchandise: formData.line17PrincipalMerchandise,
+    applicantPhone: formData.applicantPhone,
+    signatureName: formData.signatureName,
+  });
   
   const payload = {
     form_data: formData,
@@ -809,6 +835,18 @@ export async function POST(request: NextRequest) {
     const fields = record.fields;
     
     console.log(`✅ Found record: ${fields['Company Name']}`);
+    console.log(`📋 Airtable fields check:`, {
+      companyName: fields['Company Name'] || 'MISSING',
+      companyAddress: fields['Company Address'] || 'MISSING',
+      entityType: fields['Entity Type'] || 'MISSING',
+      formationState: fields['Formation State'] || 'MISSING',
+      businessPurpose: fields['Business Purpose'] ? `${fields['Business Purpose'].substring(0, 50)}...` : 'MISSING',
+      paymentDate: fields['Payment Date'] || 'MISSING',
+      businessPhone: fields['Business Phone'] || 'MISSING',
+      ownerCount: fields['Owner Count'] || 'MISSING',
+      owner1Name: fields['Owner 1 Name'] || 'MISSING',
+      owner1SSN: fields['Owner 1 SSN'] || 'MISSING',
+    });
     
     // Step 2: Map Airtable fields to SS-4 format (async - includes OpenAI summarization)
     const ss4Data = await mapAirtableToSS4(record);
@@ -828,11 +866,24 @@ export async function POST(request: NextRequest) {
     
     console.log('📋 Mapped SS-4 data:', {
       companyName: ss4Data.companyName,
+      companyAddress: ss4Data.companyAddress,
       responsibleParty: ss4Data.responsiblePartyName,
+      responsiblePartySSN: ss4Data.responsiblePartySSN,
       entityType: ss4Data.entityType,
-      summarizedBusinessPurpose: summarizedBusinessPurpose,
-      line17Content: line17Content,
+      isLLC: ss4Data.isLLC,
+      llcMemberCount: ss4Data.llcMemberCount,
+      paymentDate: ss4Data.paymentDate,
+      dateBusinessStarted: ss4Data.dateBusinessStarted,
+      summarizedBusinessPurpose: ss4Data.summarizedBusinessPurpose,
+      line16Category: ss4Data.line16Category,
+      line16OtherSpecify: ss4Data.line16OtherSpecify,
+      line17PrincipalMerchandise: ss4Data.line17PrincipalMerchandise,
+      applicantPhone: ss4Data.applicantPhone,
+      signatureName: ss4Data.signatureName,
     });
+    
+    // Log ALL keys to verify nothing is missing
+    console.log('📋 All ss4Data keys:', Object.keys(ss4Data).sort().join(', '));
     
     // Step 3: Determine S3 path
     const vaultPath = fields['Vault Path'] || sanitizeCompanyName(fields['Company Name'] || 'unknown');

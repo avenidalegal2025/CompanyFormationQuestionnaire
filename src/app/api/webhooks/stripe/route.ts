@@ -542,6 +542,7 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
         
         console.log(`🔗 Calling SS-4 generation endpoint: ${baseUrl}/api/airtable/generate-ss4`);
         
+        console.log(`📤 Calling SS-4 generation API with recordId: ${airtableRecordId}`);
         const generateSS4Response = await fetch(`${baseUrl}/api/airtable/generate-ss4`, {
           method: 'POST',
           headers: {
@@ -553,11 +554,14 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
           }),
         });
         
+        console.log(`📡 SS-4 generation API response status: ${generateSS4Response.status} ${generateSS4Response.statusText}`);
+        
         if (generateSS4Response.ok) {
           const ss4Result = await generateSS4Response.json();
           console.log(`✅ SS-4 generated from Airtable successfully`);
           console.log(`📁 SS-4 S3 Key: ${ss4Result.s3Key}`);
           console.log(`🔗 SS-4 View URL: ${ss4Result.viewUrl}`);
+          console.log(`📊 SS-4 Result:`, JSON.stringify(ss4Result, null, 2));
           
           // Update the documents array with the SS-4 from Airtable (replaces initial generation)
           const existingSS4Index = documents.findIndex(d => d.id === 'ss4-ein-application');

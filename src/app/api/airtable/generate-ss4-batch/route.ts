@@ -10,7 +10,7 @@ const AIRTABLE_TABLE_NAME = process.env.AIRTABLE_TABLE_NAME?.trim() || 'Formatio
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY?.trim() || '';
 
 // Lambda and S3 configuration
-const LAMBDA_SS4_URL = process.env.LAMBDA_SS4_URL || 'https://rgkqsugoslrjh4kqq2kzwqfnry0ndryd.lambda-url.us-west-1.on.aws/';
+const LAMBDA_SS4_URL = process.env.LAMBDA_SS4_URL || 'https://sk5p2uuxrdubzaf2uh7vvqc2bu0kcaoz.lambda-url.us-west-1.on.aws/';
 const TEMPLATE_SS4_URL = process.env.TEMPLATE_SS4_URL || 'https://ss4-template-bucket-043206426879.s3.us-west-1.amazonaws.com/fss4.pdf';
 const S3_BUCKET = process.env.S3_DOCUMENTS_BUCKET || 'avenida-legal-documents';
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://company-formation-questionnaire.vercel.app';
@@ -531,6 +531,7 @@ async function mapAirtableToSS4(record: any): Promise<any> {
     // Line 10: Summarized Business Purpose (will be set after OpenAI summarization)
     reasonForApplying: 'Started new business',
     dateBusinessStarted: fields['Payment Date'] || new Date().toISOString().split('T')[0],
+    paymentDate: fields['Payment Date'] || new Date().toISOString().split('T')[0], // Also pass as paymentDate for Lambda fallback
     closingMonth: 'December',
     expectedEmployees: { agricultural: '0', household: '0', other: '0' },
     firstWagesDate: 'N/A',
@@ -544,7 +545,7 @@ async function mapAirtableToSS4(record: any): Promise<any> {
       : 'Antonio Regojo',
     responsiblePartyOfficerRole: responsiblePartyOfficerRole || '',
     designeeAddress: '10634 NE 11 AVE, MIAMI, FL, 33138',
-    designeePhone: '(305) 123-4567',
+    designeePhone: '(786) 512-0434',  // Updated phone number
     designeeFax: '866-496-4957',
     // Signature information
     signatureName: signatureName,

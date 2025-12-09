@@ -686,11 +686,34 @@ export function mapQuestionnaireToAirtable(
     // Company Details
     // If user doesn't have US address, assign Avenida Legal's address
     // Check both hasUsaAddress and hasUsAddress for backward compatibility
+    // Build full address including street, city, state, and zip
     'Company Address': (company.hasUsaAddress === 'No' || company.hasUsAddress === 'No' || 
                         company.hasUsaAddress === false || company.hasUsAddress === false ||
                         stripeSession.metadata?.hasUsAddress === 'false')
       ? '12550 Biscayne Blvd Ste 110, North Miami, FL 33181'
-      : (company.address || company.addressLine1 || company.fullAddress || ''),
+      : (() => {
+          // Build full address from components
+          const street = company.addressLine1 || company.address || company.fullAddress || '';
+          const city = company.city || '';
+          const state = company.state || '';
+          const zip = company.postalCode || company.zipCode || '';
+          
+          // If we have a full address already, use it
+          if (company.fullAddress || company.address) {
+            return company.fullAddress || company.address || '';
+          }
+          
+          // Otherwise, build from components
+          const parts = [street];
+          if (city || state || zip) {
+            const cityStateZip = [city, state, zip].filter(Boolean).join(' ');
+            if (cityStateZip) {
+              parts.push(cityStateZip);
+            }
+          }
+          
+          return parts.filter(Boolean).join(', ') || '';
+        })(),
     'Business Purpose': company.businessPurpose || '',
     'Number of Shares': (isCorp || entityType === 'S-Corp') ? (company.numberOfShares || 0) : undefined,
     'Vault Path': vaultPath,

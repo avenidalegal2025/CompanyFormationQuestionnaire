@@ -1,0 +1,32 @@
+{
+  "form_data": {
+    "companyName": "777 WORKS Limited Liability Company",
+    "companyNameBase": "777 WORKS",
+    "entityType": "LLC",
+    "formationState": "FLORIDA",
+    "businessPurpose": "Empresa de servicios, está redefiniendo la eficiencia operativa mediante la integración de inteligencia artificial y aprendizaje automático",
+    "companyAddress": "123 William St, New York, NY 10038, USA",
+    "responsiblePartyName": "John Doe",
+    "responsiblePartySSN": "454545454",
+    "responsiblePartyAddress": "123 Main St, Miami, FL 33101",
+    "responsiblePartyCity": "Miami",
+    "responsiblePartyState": "FL",
+    "responsiblePartyZip": "33101",
+    "ownerCount": 1,
+    "isLLC": "Yes",
+    "llcMemberCount": 1,
+    "dateBusinessStarted": "2024-01-15",
+    "paymentDate": "2024-01-15",
+    "summarizedBusinessPurpose": "AI-POWERED BUSINESS SERVICES",
+    "line16Category": "other",
+    "line16OtherSpecify": "BUSINESS SERVICES",
+    "line17PrincipalMerchandise": "PROVIDING AI-POWERED BUSINESS SERVICES AND CONSULTING TO IMPROVE OPERATIONAL EFFICIENCY",
+    "applicantPhone": "(305) 555-1234",
+    "signatureName": "JOHN DOE,SOLE MEMBER"
+  },
+  "s3_bucket": "avenida-legal-documents",
+  "s3_key": "test-verification/SS-4_777WORKS_Test.pdf",
+  "templateUrl": "https://ss4-template-bucket-043206426879.s3.us-west-1.amazonaws.com/fss4.pdf",
+  "return_pdf": true
+}
+

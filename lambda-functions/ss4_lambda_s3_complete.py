@@ -4,10 +4,14 @@ import tempfile
 from reportlab.pdfgen import canvas
 from PyPDF2 import PdfReader, PdfWriter
 import boto3
+import re
 
 # Constants
 BUCKET_NAME = os.environ.get('BUCKET_NAME', 'ss4-template-bucket-043206426879')
 OUTPUT_BUCKET = os.environ.get('OUTPUT_BUCKET', 'avenida-legal-documents')
+
+# Initialize AWS Translate client
+translate_client = boto3.client('translate', region_name='us-west-1')
 
 # SS-4 Form Field Coordinates
 FIELD_COORDS = {
@@ -23,11 +27,11 @@ FIELD_COORDS = {
     "Line 7b": (342, 570),    # Responsible party SSN
     "8b": (500, 542),        # Number of LLC members (if LLC) or date business started (if non-LLC)
     "9a_sole_ssn": (164, 509), # Sole proprietor SSN (100 pixels to the right of 9a_sole checkbox at 64)
-    "9b": (290, 414),        # Closing month
+    "9b": (290, 414),        # Closing month / State of incorporation
     "16_other_specify": (400, 196),  # Other (specify) text field - same position as healthcare checkbox (where the category description goes)
-    "10": (65, 375),         # Highest number of employees
-    "11": (115, 317),        # Principal activity
-    "12": (485, 327),        # Principal activity code
+    "10": (65, 375),         # Reason for applying - text field (summarized business purpose)
+    "11": (115, 317),        # Date business started in (month, day, year) format
+    "12": (495, 327),        # Closing month of accounting year (DECEMBER) - 15px more right (480+15=495), 10px down (337-10=327)
     "13_Ag": (100, 257),     # Agricultural
     "13_Hh": (180, 257),     # Household
     "13_Ot": (280, 257),     # Other
@@ -71,6 +75,47 @@ CHECK_COORDS = {
     "18_no": [402, 160]  # Has applicant applied for EIN before? (No) - 1 pixel right, 1 pixel up (401 + 1 = 402, 159 + 1 = 160)
 }
 
+def translate_to_english(text):
+    """
+    Translate Spanish text to English using AWS Translate.
+    Returns the original text if translation fails or if text is already in English.
+    """
+    if not text or not isinstance(text, str) or len(text.strip()) == 0:
+        return text
+    
+    # Skip translation for very short text or if it looks like it's already in English
+    # (contains mostly ASCII characters and common English words)
+    text_clean = text.strip()
+    if len(text_clean) < 3:
+        return text
+    
+    # Check if text contains Spanish characters (á, é, í, ó, ú, ñ, etc.) or common Spanish words
+    spanish_indicators = [
+        r'[áéíóúñÁÉÍÓÚÑ]',  # Spanish accented characters
+        r'\b(y|el|la|los|las|de|del|en|con|por|para|que|es|son|un|una|uno|dos|tres)\b',  # Common Spanish words
+    ]
+    
+    has_spanish = any(re.search(pattern, text_clean, re.IGNORECASE) for pattern in spanish_indicators)
+    
+    if not has_spanish:
+        # Likely already in English
+        return text
+    
+    try:
+        # Use AWS Translate to translate from Spanish to English
+        response = translate_client.translate_text(
+            Text=text_clean,
+            SourceLanguageCode='es',
+            TargetLanguageCode='en'
+        )
+        translated = response['TranslatedText']
+        print(f"===> Translated: '{text_clean[:50]}...' -> '{translated[:50]}...'")
+        return translated
+    except Exception as e:
+        # If translation fails, return original text
+        print(f"===> Translation failed for '{text_clean[:50]}...': {e}")
+        return text
+
 def map_data_to_ss4_fields(form_data):
     """
     Map TypeScript form data format to SS-4 form field format.
@@ -90,17 +135,130 @@ def map_data_to_ss4_fields(form_data):
     from datetime import datetime
     
     # TypeScript sends flat structure from transformDataForSS4
-    company_name = form_data.get("companyName", "")
-    company_name_base = form_data.get("companyNameBase", company_name)
-    entity_type = form_data.get("entityType", "")
-    business_purpose = form_data.get("businessPurpose", "")
-    formation_state = form_data.get("formationState", "")
+    # Translate all text fields from Spanish to English
+    company_name = translate_to_english(form_data.get("companyName", ""))
+    company_name_base = translate_to_english(form_data.get("companyNameBase", company_name))
+    entity_type = form_data.get("entityType", "")  # Entity type codes don't need translation
+    business_purpose = translate_to_english(form_data.get("businessPurpose", ""))
+    formation_state = form_data.get("formationState", "")  # State names are usually in English
     
-    # Company address
+    # Company address - parse from Company Address field (should include full address: street, city, state, zip)
+    # DO NOT translate addresses - keep original format
     company_address = form_data.get("companyAddress", "")
-    address_parts = company_address.split(",") if company_address else []
+    
+    # Parse company address for Line 5a (street address) and Line 5b (city, state, zip)
+    # Expected format: "Street Address, City, State ZIP" or "Street Address, City State ZIP"
+    company_street_line1 = ""
+    company_street_line2 = ""
+    company_city_state_zip = ""
+    
+    if company_address:
+        # Split by comma to separate street from city/state/zip
+        address_parts = [p.strip() for p in company_address.split(",")]
+        
+        # Handle different address formats
+        # Common formats:
+        # 1. "Street, City, State ZIP" (3 parts)
+        # 2. "Street, City, State ZIP, Country" (4 parts)
+        # 3. "Street, City State ZIP" (2 parts)
+        # 4. "Street, City State ZIP, Country" (3 parts, but last is country)
+        
+        if len(address_parts) >= 4:
+            # Format: "Street, City, State ZIP, Country" or "Street, Suite, City, State ZIP"
+            # Check if last part looks like a country (USA, US, etc.)
+            last_part = address_parts[-1].strip().upper()
+            if last_part in ['USA', 'US', 'UNITED STATES', 'UNITED STATES OF AMERICA']:
+                # Last part is country, so everything before it is address
+                company_street_line1 = address_parts[0].strip()
+                # Join middle parts as city, state, zip (everything except first and last)
+                if len(address_parts) > 4:
+                    # "Street, Suite, City, State ZIP, Country"
+                    company_street_line2 = address_parts[1].strip()  # Suite
+                    company_city_state_zip = ", ".join(address_parts[2:-1]).strip()  # City, State ZIP
+                else:
+                    # "Street, City, State ZIP, Country" (4 parts)
+                    company_city_state_zip = ", ".join(address_parts[1:-1]).strip()  # City, State ZIP
+            else:
+                # "Street, Suite, City, State ZIP" (no country)
+                company_street_line1 = address_parts[0].strip()
+                company_street_line2 = address_parts[1].strip() if len(address_parts) > 3 else ""
+                company_city_state_zip = ", ".join(address_parts[-2:]).strip()  # City, State ZIP
+        elif len(address_parts) == 3:
+            # Format: "Street, City, State ZIP" or "Street, City State ZIP, Country"
+            # Check if last part looks like a country
+            last_part = address_parts[-1].strip().upper()
+            if last_part in ['USA', 'US', 'UNITED STATES', 'UNITED STATES OF AMERICA']:
+                # "Street, City State ZIP, Country"
+                company_street_line1 = address_parts[0].strip()
+                company_city_state_zip = address_parts[1].strip()  # City State ZIP
+            else:
+                # "Street, City, State ZIP"
+                company_street_line1 = address_parts[0].strip()
+                company_city_state_zip = ", ".join(address_parts[1:]).strip()  # City, State ZIP
+        elif len(address_parts) == 2:
+            # Format: "Street, City State ZIP" or "Street, State ZIP"
+            company_street_line1 = address_parts[0].strip()
+            # Last part is city, state, zip
+            company_city_state_zip = address_parts[-1].strip()
+        elif len(address_parts) == 1:
+            # Only one part - assume it's just the street address
+            company_street_line1 = address_parts[0].strip()
+    
+    # Parse city, state, zip from company_city_state_zip
+    # Format: "City State ZIP" or "City, State ZIP" or "City State, ZIP"
+    company_city = ""
+    company_state = ""
+    company_zip = ""
+    if company_city_state_zip:
+        # Try to parse: "City State ZIP" or "City, State ZIP"
+        # First, try splitting by comma
+        city_state_parts = company_city_state_zip.split(",")
+        if len(city_state_parts) >= 2:
+            # Format: "City, State ZIP"
+            company_city = city_state_parts[0].strip()
+            state_zip = city_state_parts[1].strip().split()
+            if len(state_zip) >= 2:
+                company_state = state_zip[0]
+                company_zip = state_zip[1]
+            elif len(state_zip) == 1:
+                company_state = state_zip[0]
+        else:
+            # Format: "City State ZIP" - try to parse by spaces
+            # Assume last part is ZIP (5 digits), second to last is State (2 letters), rest is City
+            parts = company_city_state_zip.split()
+            if len(parts) >= 3:
+                # Last part is ZIP
+                company_zip = parts[-1]
+                # Second to last is State
+                company_state = parts[-2]
+                # Everything before is City
+                company_city = " ".join(parts[:-2])
+            elif len(parts) == 2:
+                # Could be "City State" or "State ZIP"
+                # If second part is 2 letters, it's State; otherwise assume it's ZIP
+                if len(parts[1]) == 2:
+                    company_city = parts[0]
+                    company_state = parts[1]
+                else:
+                    company_state = parts[0]
+                    company_zip = parts[1]
+            else:
+                # Single part - assume it's city
+                company_city = parts[0]
+    
+    # Debug: Print parsed address components
+    print(f"===> ========== ADDRESS PARSING ==========")
+    print(f"===> Original company_address: '{company_address}'")
+    print(f"===> Number of comma-separated parts: {len(address_parts) if company_address else 0}")
+    print(f"===> Parsed street_line1: '{company_street_line1}'")
+    print(f"===> Parsed city: '{company_city}'")
+    print(f"===> Parsed state: '{company_state}'")
+    print(f"===> Parsed zip: '{company_zip}'")
+    print(f"===> Parsed city_state_zip: '{company_city_state_zip}'")
+    print(f"===> =====================================")
     
     # Responsible party (primary owner)
+    # DO NOT translate names and addresses - keep original format
     responsible_name = form_data.get("responsiblePartyName", "")
     responsible_ssn = form_data.get("responsiblePartySSN", "")
     responsible_address = form_data.get("responsiblePartyAddress", "")
@@ -109,9 +267,22 @@ def map_data_to_ss4_fields(form_data):
     responsible_zip = form_data.get("responsiblePartyZip", "")
     responsible_country = form_data.get("responsiblePartyCountry", "USA")
     
+    # Signature name - use pre-formatted signatureName if provided, otherwise format it
+    # DO NOT translate signature name - keep original format
+    signature_name = form_data.get("signatureName", "")
+    
     # Owner information
     owner_count = form_data.get("ownerCount", 1)
-    is_llc = form_data.get("isLLC", "").upper() == "YES" or entity_type.upper() == "LLC"
+    # Determine if entity is LLC - check both isLLC field and entityType
+    is_llc = (
+        form_data.get("isLLC", "").upper() == "YES" or 
+        entity_type.upper() == "LLC" or 
+        "LLC" in entity_type.upper() or
+        "L.L.C." in entity_type.upper()
+    )
+    # If entity type contains "PARTNERSHIP", it's not an LLC
+    if "PARTNERSHIP" in entity_type.upper():
+        is_llc = False
     llc_member_count = form_data.get("llcMemberCount", owner_count if is_llc else None)
     
     # Check if sole proprietor: one member/shareholder with 100% ownership
@@ -151,34 +322,6 @@ def map_data_to_ss4_fields(form_data):
     if not responsible_city_state_zip or responsible_city_state_zip == ", ":
         responsible_city_state_zip = responsible_country
     
-    # Parse company address
-    # Line 4a: Default to Avenida Legal address for mailing
-    # Line 4b: Miami, FL, 33181
-    # Line 5a: Company's US street address
-    # Line 5b: Company's US City, State
-    # Line 6: Company's US City and State
-    
-    # Parse company address for street address (Line 5a, 5b, 6)
-    company_street_line1 = address_parts[0].strip() if address_parts else company_address
-    company_street_line2 = ", ".join([p.strip() for p in address_parts[1:-1]]) if len(address_parts) > 2 else ""
-    company_city_state_zip = address_parts[-1].strip() if len(address_parts) > 1 else ""
-    
-    # Parse city, state, zip from company_city_state_zip
-    # Format: "City, State ZIP" or "City, State, ZIP"
-    company_city = ""
-    company_state = ""
-    company_zip = ""
-    if company_city_state_zip:
-        city_state_parts = company_city_state_zip.split(",")
-        if len(city_state_parts) >= 2:
-            company_city = city_state_parts[0].strip()
-            state_zip = city_state_parts[1].strip().split()
-            if len(state_zip) >= 2:
-                company_state = state_zip[0]
-                company_zip = state_zip[1]
-            elif len(state_zip) == 1:
-                company_state = state_zip[0]
-    
     # Helper function to convert to uppercase
     def to_upper(text):
         return str(text).upper() if text else ""
@@ -188,23 +331,55 @@ def map_data_to_ss4_fields(form_data):
         if not date_str:
             return ""
         try:
+            from datetime import datetime
+            date_obj = None
+            
             # Handle different date formats
             if "-" in date_str:
-                # ISO format: YYYY-MM-DD
-                from datetime import datetime
-                date_obj = datetime.strptime(date_str.split("T")[0], "%Y-%m-%d")
-                return f"({date_obj.strftime('%m')}, {date_obj.strftime('%d')}, {date_obj.strftime('%Y')})"
+                # ISO format: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS
+                date_str_clean = date_str.split("T")[0]  # Remove time if present
+                try:
+                    date_obj = datetime.strptime(date_str_clean, "%Y-%m-%d")
+                except:
+                    # Try other ISO formats
+                    try:
+                        date_obj = datetime.fromisoformat(date_str_clean.replace("Z", "+00:00"))
+                    except:
+                        pass
             elif "/" in date_str:
-                # MM/DD/YYYY format
+                # MM/DD/YYYY or M/D/YYYY format
                 parts = date_str.split("/")
                 if len(parts) == 3:
-                    return f"({parts[0]}, {parts[1]}, {parts[2]})"
-            # If already in (month, day, year) format, return as is
-            if date_str.startswith("(") and date_str.endswith(")"):
+                    try:
+                        # Try MM/DD/YYYY first
+                        date_obj = datetime.strptime(date_str, "%m/%d/%Y")
+                    except:
+                        try:
+                            # Try M/D/YYYY
+                            date_obj = datetime.strptime(date_str, "%m/%d/%Y")
+                        except:
+                            # Manual parsing with zero-padding
+                            month = parts[0].zfill(2)
+                            day = parts[1].zfill(2)
+                            year = parts[2]
+                            date_obj = datetime(int(year), int(month), int(day))
+            elif date_str.startswith("(") and date_str.endswith(")"):
+                # Already in (month, day, year) format, return as is
                 return date_str
-            return date_str
-        except:
-            return date_str
+            
+            # Format as (MM, DD, YYYY) with proper zero-padding
+            if date_obj:
+                month = date_obj.strftime('%m')  # Zero-padded month (01-12)
+                day = date_obj.strftime('%d')    # Zero-padded day (01-31)
+                year = date_obj.strftime('%Y')   # Full year (YYYY)
+                return f"({month}, {day}, {year})"
+            
+            # If we couldn't parse it, return empty string
+            print(f"===> ⚠️ Could not parse date: '{date_str}'")
+            return ""
+        except Exception as e:
+            print(f"===> ⚠️ Error formatting date '{date_str}': {e}")
+            return ""
     
     # Helper function to format signature name with member designation
     def format_signature_name(name, is_llc, owner_count):
@@ -216,13 +391,14 @@ def map_data_to_ss4_fields(form_data):
                 return f"{name_upper},MEMBER"
         return name_upper
     
-    # Helper function to format designee name with officer title for C-Corp
+    # Helper function to format designee name with officer title for C-Corp only
     def format_designee_name(form_data, entity_type):
         base_name = "ANTONIO REGOJO"
         entity_type_upper = entity_type.upper() if entity_type else ""
         
-        # For C-Corp, add officer title (President or whoever has SSN)
-        if "C-CORP" in entity_type_upper or ("CORP" in entity_type_upper and "S-CORP" not in entity_type_upper):
+        # For C-Corp only, add officer title (President or whoever has SSN)
+        # For LLC, S-Corp, Partnership, etc., just use base name
+        if "C-CORP" in entity_type_upper and "S-CORP" not in entity_type_upper:
             # Get responsible party officer role from form_data
             officer_role = form_data.get("responsiblePartyOfficerRole", "")
             if officer_role:
@@ -232,25 +408,25 @@ def map_data_to_ss4_fields(form_data):
                 # Default to President if no role specified
                 return f"{base_name},PRESIDENT"
         
-        # For other entity types, just return the base name
+        # For LLC, S-Corp, Partnership, and other entity types, just return the base name
         return base_name
     
     mapped_data = {
         "Line 1": to_upper(company_name),  # Legal name of entity (FULL NAME including LLC/L.L.C. suffix) - ALL CAPS
         "Line 2": "",  # Trade name (if different, usually empty)
         "Line 3": to_upper(company_street_line1),  # Mailing address line 1 (same as street address)
-        "Line 4a": "12550 BISCAYNE BLVD STE 110",  # Mailing address line 2 (Avenida Legal address)
-        "Line 4b": "MIAMI, FL, 33181",  # City, State, ZIP (mailing - Avenida Legal)
-        "Line 5a": to_upper(company_street_line1),  # Street address line 1 (Company's US street address)
-        "Line 5b": to_upper(company_street_line2),  # Street address line 2 (if exists)
+        "Line 4a": "12550 BISCAYNE BLVD STE 110",  # Mailing address line 2 (Avenida Legal address) - HARDCODED
+        "Line 4b": "MIAMI FL, 33181",  # City, State, ZIP (mailing - Avenida Legal) - HARDCODED - Note: No comma after MIAMI
+        "Line 5a": to_upper(company_street_line1) if company_street_line1 else "",  # Street address line 1 (ONLY street address, NOT full address)
+        "Line 5b": to_upper(f"{company_city}, {company_state} {company_zip}".strip()) if (company_city or company_state or company_zip) else "",  # City, State, ZIP (from Company Address column in Airtable)
         "Line 6": to_upper(f"{company_city}, {company_state}".strip(", ")) if company_city and company_state else to_upper(company_city_state_zip),  # City, State (Company's US City and State)
         "Line 7a": to_upper(responsible_name),  # Responsible party name - ALL CAPS
         "Line 7b": to_upper(responsible_ssn),  # Responsible party SSN/ITIN/EIN
         "8b": "",  # Will be set to member count if LLC, or date if not LLC
         "8b_date": date_business_started,  # Date business started (for non-LLC)
         "9b": to_upper(formation_state or "FL"),  # Closing month / State of incorporation - ALL CAPS
-        "10": to_upper(form_data.get("summarizedBusinessPurpose", business_purpose or "General business operations")[:45]),  # Summarized Business Purpose (max 45 chars, ALL CAPS)
-        "11": format_payment_date(form_data.get("dateBusinessStarted", "")),  # Payment date in (month, day, year) format
+        "10": to_upper(translate_to_english(form_data.get("summarizedBusinessPurpose", business_purpose or "General business operations"))[:45]),  # Summarized Business Purpose (max 45 chars, ALL CAPS) - translated from Spanish
+        "11": format_payment_date(form_data.get("dateBusinessStarted", form_data.get("paymentDate", ""))),  # Date business started in (month, day, year) format - use paymentDate as fallback
         "12": "DECEMBER",  # Closing month of accounting year - always DECEMBER
         "13": {
             "Agricultural": "0",
@@ -258,14 +434,14 @@ def map_data_to_ss4_fields(form_data):
             "Other": "0"
         },
         "15": "N/A",  # First date wages paid - always N/A
-        "17": to_upper(form_data.get("line17PrincipalMerchandise", "")[:168]),  # Principal line of merchandise/construction/products/services (max 168 chars, ALL CAPS)
-        "Designee Name": "ANTONIO REGOJO",  # ALL CAPS
+        "17": to_upper(translate_to_english(form_data.get("line17PrincipalMerchandise", ""))[:168]),  # Principal line of merchandise/construction/products/services (max 168 chars, ALL CAPS) - translated from Spanish
+        "Designee Name": format_designee_name(form_data, entity_type),  # ALL CAPS - includes officer title for C-Corp only
         "Designee Address": "10634 NE 11 AVE, MIAMI, FL, 33138",  # ALL CAPS
-        "Designee Phone": "(305) 123-4567",
-        "Designee Fax": "866-496-4957",
-        "Applicant Phone": form_data.get("applicantPhone", ""),  # Business Phone from Airtable
-        "Applicant Fax": "",
-        "Signature Name": format_signature_name(responsible_name, is_llc, owner_count),  # Same as Line 7a with ",SOLE MEMBER" or ",MEMBER"
+        "Designee Phone": "(786) 512-0434",  # Updated phone number
+        "Designee Fax": "866-496-4957",  # Updated fax number
+        "Applicant Phone": to_upper(form_data.get("applicantPhone", "")),  # Business Phone from Airtable - ALL CAPS
+        "Applicant Fax": "",  # Usually empty
+        "Signature Name": format_signature_name(responsible_name, is_llc, owner_count) if not signature_name else (to_upper(signature_name) if ",MEMBER" in signature_name.upper() or ",SOLE MEMBER" in signature_name.upper() else format_signature_name(responsible_name, is_llc, owner_count)),  # Always ensure ",MEMBER" or ",SOLE MEMBER" suffix
         "Checks": {}
     }
     
@@ -369,21 +545,21 @@ def map_data_to_ss4_fields(form_data):
             # Use "Other" checkbox with custom specification
             mapped_data["Checks"]["16_other"] = CHECK_COORDS["16_other"]
             if line16_other_specify:
-                mapped_data["16_other_specify"] = to_upper(line16_other_specify[:45])  # Max 45 chars, ALL CAPS
+                mapped_data["16_other_specify"] = to_upper(translate_to_english(line16_other_specify)[:45])  # Max 45 chars, ALL CAPS - translated from Spanish
             else:
                 # Default specification if none provided
-                mapped_data["16_other_specify"] = to_upper((business_purpose or "GENERAL BUSINESS")[:45])
+                mapped_data["16_other_specify"] = to_upper(translate_to_english(business_purpose or "GENERAL BUSINESS")[:45])
         else:
             # Default to "Other" if category doesn't match any known category
             mapped_data["Checks"]["16_other"] = CHECK_COORDS["16_other"]
             if line16_other_specify:
-                mapped_data["16_other_specify"] = to_upper(line16_other_specify[:45])
+                mapped_data["16_other_specify"] = to_upper(translate_to_english(line16_other_specify)[:45])  # Translated from Spanish
             else:
-                mapped_data["16_other_specify"] = to_upper((business_purpose or "GENERAL BUSINESS")[:45])
+                mapped_data["16_other_specify"] = to_upper(translate_to_english(business_purpose or "GENERAL BUSINESS")[:45])
     elif line16_other_specify:
         # If only other_specify is provided, check "Other"
         mapped_data["Checks"]["16_other"] = CHECK_COORDS["16_other"]
-        mapped_data["16_other_specify"] = to_upper(line16_other_specify[:45])
+        mapped_data["16_other_specify"] = to_upper(translate_to_english(line16_other_specify)[:45])  # Translated from Spanish
     
     # Line 17: Has applicant applied for EIN before? (default to No)
     # No checkbox needed if answer is No
@@ -408,6 +584,9 @@ def create_overlay(data, path):
     c.setFont("Helvetica", 9)
     
     # Fill text fields
+    print(f"===> Starting to draw text fields. Total fields in FIELD_COORDS: {len(FIELD_COORDS)}")
+    print(f"===> Data keys available: {list(data.keys())}")
+    
     for field, coord in FIELD_COORDS.items():
         if field.startswith("13_"):
             # Line 13: Number of employees (Agricultural, Household, Other)
@@ -423,14 +602,63 @@ def create_overlay(data, path):
                 c.drawString(coord[0], coord[1], str(value))
         elif field in data:
             value = data[field]
-            if value:  # Only draw if value exists
+            # Draw if value exists and is not None (but allow empty strings for fields that should be empty)
+            # Special handling for fields that should always be drawn (like "15" which is "N/A")
+            should_draw = False
+            if value is not None:
+                if isinstance(value, str):
+                    # Draw if not empty, or if it's a field that should always be drawn (hardcoded fields)
+                    # Always draw hardcoded fields (Line 4a, 4b, 12, 15) even if empty
+                    if value.strip() or field in ["15", "Line 4a", "Line 4b", "12"]:  # Always draw hardcoded fields
+                        should_draw = True
+                    # For hardcoded fields, ensure we have a value
+                    if field in ["Line 4a", "Line 4b", "12", "15"] and not value.strip():
+                        # These should never be empty, but if they are, use default values
+                        if field == "Line 4a":
+                            value = "12550 BISCAYNE BLVD STE 110"
+                        elif field == "Line 4b":
+                            value = "MIAMI FL, 33181"
+                        elif field == "12":
+                            value = "DECEMBER"
+                        elif field == "15":
+                            value = "N/A"
+                        should_draw = True
+                else:
+                    # Non-string values (shouldn't happen, but handle it)
+                    should_draw = True
+            
+            if should_draw:
                 # Convert to uppercase for SS-4 (all content must be ALL CAPS)
                 value_str = str(value).upper()
-                # Truncate long values to fit in field
-                max_length = 50  # Adjust based on field width
+                # Truncate long values to fit in field (but allow longer for specific fields)
+                if field == "17":  # Line 17 can be up to 168 chars
+                    max_length = 168
+                elif field == "10":  # Line 10 can be up to 45 chars
+                    max_length = 45
+                elif field in ["Line 1", "Line 3", "Line 5a", "Line 5b", "Designee Address"]:  # Longer fields
+                    max_length = 80
+                else:
+                    max_length = 50  # Default max length
                 if len(value_str) > max_length:
                     value_str = value_str[:max_length]
-                c.drawString(coord[0], coord[1], value_str)
+                # Draw the text
+                try:
+                    c.drawString(coord[0], coord[1], value_str)
+                    print(f"===> ✅ Drew field '{field}' at {coord}: '{value_str[:50]}'")
+                except Exception as e:
+                    print(f"===> ❌ Error drawing field '{field}' at {coord}: {e}")
+                    print(f"===> Value: {value_str[:50]}...")
+            else:
+                # Always draw hardcoded fields even if empty
+                if field in ["Line 4a", "Line 4b", "15", "12"]:
+                    # These should always have values
+                    print(f"===> ⚠️ WARNING: Field '{field}' should have a value but is empty!")
+                else:
+                    print(f"===> ⚠️ Skipping field '{field}' - value is None or empty: '{value}'")
+        else:
+            # Field not in data - log important missing fields
+            if field in ["10", "11", "12", "15", "17", "Line 4a", "Line 4b", "Line 5a", "Line 5b", "Line 6", "Designee Name", "Designee Address", "Designee Phone", "Designee Fax", "Applicant Phone", "Signature Name", "8b", "9b"]:
+                print(f"===> ⚠️ Field '{field}' NOT FOUND in data")
     
     # Handle Line 16 "Other" specification text field (if present)
     if "16_other_specify" in data:
@@ -467,14 +695,18 @@ def create_overlay(data, path):
     
     # Fill checkboxes from Checks dictionary
     checks = data.get("Checks", {})
+    print(f"===> Drawing checkboxes. Total checks: {len(checks)}")
+    print(f"===> Checkbox keys: {list(checks.keys())}")
     for label, coords in checks.items():
         if isinstance(coords, list) and len(coords) >= 2:
             x, y = coords[0], coords[1]
             # Draw checkmark (X) for checkbox
             c.drawString(x, y, "X")
+            print(f"===> ✅ Drew checkbox '{label}' at ({x}, {y})")
         elif isinstance(coords, tuple) and len(coords) >= 2:
             x, y = coords[0], coords[1]
             c.drawString(x, y, "X")
+            print(f"===> ✅ Drew checkbox '{label}' at ({x}, {y})")
     
     # Special checkbox handling for entity types (Line 9a)
     # Position depends on whether it's a sole proprietor or not
@@ -514,16 +746,27 @@ def create_overlay(data, path):
     # Line 10: Reason for applying - Started new business
     if "10_started" in checks:
         c.drawString(CHECK_COORDS["10"][0], CHECK_COORDS["10"][1], "X")
+        print(f"===> ✅ Drew Line 10 checkbox at {CHECK_COORDS['10']}")
+    else:
+        print(f"===> ⚠️ Line 10 checkbox NOT FOUND in checks")
     
     # Line 14: First date wages paid - Will not have employees
     if "14_no_employees" in checks:
         c.drawString(CHECK_COORDS["14"][0], CHECK_COORDS["14"][1], "X")
+        print(f"===> ✅ Drew Line 14 checkbox at {CHECK_COORDS['14']}")
+    else:
+        print(f"===> ⚠️ Line 14 checkbox NOT FOUND in checks")
     
     # Line 18: Has applicant applied for EIN before? - Always "No" checked
     if "18_no" in checks:
         coords = checks["18_no"]
         if isinstance(coords, list) and len(coords) >= 2:
             c.drawString(coords[0], coords[1], "X")
+            print(f"===> ✅ Drew Line 18 checkbox at {coords}")
+        else:
+            print(f"===> ⚠️ Line 18 checkbox has invalid coordinates: {coords}")
+    else:
+        print(f"===> ⚠️ Line 18 checkbox NOT FOUND in checks")
     
     c.save()
     print("===> Overlay created")
@@ -643,8 +886,58 @@ def lambda_handler(event, context):
         # companyName, companyNameBase, entityType, formationState, businessPurpose, companyAddress
         # responsiblePartyName, responsiblePartySSN, responsiblePartyAddress, etc.
         print(f"===> Mapping form data to SS-4 fields...")
+        print(f"===> Form data keys: {list(form_data.keys())}")
+        print(f"===> Company name: {form_data.get('companyName', 'NOT FOUND')}")
+        print(f"===> Entity type: {form_data.get('entityType', 'NOT FOUND')}")
+        print(f"===> Is LLC: {form_data.get('isLLC', 'NOT FOUND')}")
+        print(f"===> Company address: {form_data.get('companyAddress', 'NOT FOUND')}")
+        print(f"===> Payment date: {form_data.get('paymentDate', form_data.get('dateBusinessStarted', 'NOT FOUND'))}")
+        print(f"===> Signature name: {form_data.get('signatureName', 'NOT FOUND')}")
         ss4_fields = map_data_to_ss4_fields(form_data)
         print(f"===> Mapped {len(ss4_fields)} fields")
+        print(f"===> Line 4a: {ss4_fields.get('Line 4a', 'NOT FOUND')}")
+        print(f"===> Line 4b: {ss4_fields.get('Line 4b', 'NOT FOUND')}")
+        print(f"===> Line 5a: {ss4_fields.get('Line 5a', 'NOT FOUND')}")
+        print(f"===> Line 5b: {ss4_fields.get('Line 5b', 'NOT FOUND')}")
+        print(f"===> Line 6: {ss4_fields.get('Line 6', 'NOT FOUND')}")
+        print(f"===> ========== ALL SS-4 FIELD VALUES ==========")
+        print(f"===> Line 1: '{ss4_fields.get('Line 1', 'NOT FOUND')}'")
+        print(f"===> Line 2: '{ss4_fields.get('Line 2', 'NOT FOUND')}'")
+        print(f"===> Line 3: '{ss4_fields.get('Line 3', 'NOT FOUND')}'")
+        print(f"===> Line 4a: '{ss4_fields.get('Line 4a', 'NOT FOUND')}'")
+        print(f"===> Line 4b: '{ss4_fields.get('Line 4b', 'NOT FOUND')}'")
+        print(f"===> Line 5a: '{ss4_fields.get('Line 5a', 'NOT FOUND')}'")
+        print(f"===> Line 5b: '{ss4_fields.get('Line 5b', 'NOT FOUND')}'")
+        print(f"===> Line 6: '{ss4_fields.get('Line 6', 'NOT FOUND')}'")
+        print(f"===> Line 7a: '{ss4_fields.get('Line 7a', 'NOT FOUND')}'")
+        print(f"===> Line 7b: '{ss4_fields.get('Line 7b', 'NOT FOUND')}'")
+        print(f"===> Line 8b: '{ss4_fields.get('8b', 'NOT FOUND')}'")
+        print(f"===> Line 9b: '{ss4_fields.get('9b', 'NOT FOUND')}'")
+        print(f"===> Line 10: '{ss4_fields.get('10', 'NOT FOUND')}'")
+        print(f"===> Line 11: '{ss4_fields.get('11', 'NOT FOUND')}'")
+        print(f"===> Line 12: '{ss4_fields.get('12', 'NOT FOUND')}'")
+        print(f"===> Line 15: '{ss4_fields.get('15', 'NOT FOUND')}'")
+        print(f"===> Line 17: '{ss4_fields.get('17', 'NOT FOUND')}'")
+        print(f"===> Designee Name: '{ss4_fields.get('Designee Name', 'NOT FOUND')}'")
+        print(f"===> Designee Address: '{ss4_fields.get('Designee Address', 'NOT FOUND')}'")
+        print(f"===> Designee Phone: '{ss4_fields.get('Designee Phone', 'NOT FOUND')}'")
+        print(f"===> Designee Fax: '{ss4_fields.get('Designee Fax', 'NOT FOUND')}'")
+        print(f"===> Applicant Phone: '{ss4_fields.get('Applicant Phone', 'NOT FOUND')}'")
+        print(f"===> Applicant Fax: '{ss4_fields.get('Applicant Fax', 'NOT FOUND')}'")
+        print(f"===> Signature Name: '{ss4_fields.get('Signature Name', 'NOT FOUND')}'")
+        print(f"===> ============================================")
+        checks = ss4_fields.get('Checks', {})
+        print(f"===> Checks found: {list(checks.keys())}")
+        print(f"===> Line 8a_yes: {'8a_yes' in checks}")
+        print(f"===> Line 8a_no: {'8a_no' in checks}")
+        print(f"===> Line 8c_yes: {'8c_yes' in checks}")
+        print(f"===> Line 9a_llc: {'9a_llc' in checks}")
+        print(f"===> Line 9a_partnership: {'9a_partnership' in checks}")
+        print(f"===> Line 10 checkbox: {'10_started' in checks}")
+        print(f"===> Line 14 checkbox: {'14_no_employees' in checks}")
+        print(f"===> Line 16 checkbox: {[k for k in checks.keys() if k.startswith('16_')]}")
+        print(f"===> Line 18 checkbox: {'18_no' in checks}")
+        print(f"===> All mapped data keys: {list(ss4_fields.keys())}")
         
         # Create overlay and merge
         create_overlay(ss4_fields, overlay_path)
