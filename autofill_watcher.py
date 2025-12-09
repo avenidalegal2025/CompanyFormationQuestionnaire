@@ -31,12 +31,21 @@ def get_pending_records():
     api = Api(AIRTABLE_API_KEY)
     table = api.table(AIRTABLE_BASE_ID, AIRTABLE_TABLE_NAME)
     
+    # Check for records with Autofill = 'Yes' that are either:
+    # 1. Pending (new records)
+    # 2. In Progress (retry if Autofill was changed back to Yes)
+    # This allows reprocessing if Autofill is manually set to Yes
     formula = """AND(
-        {Formation Status} = 'Pending',
+        OR(
+            {Formation Status} = 'Pending',
+            {Formation Status} = 'In Progress'
+        ),
         {Formation State} = 'Florida',
         {Stripe Payment ID} != '',
         {Entity Type} = 'LLC',
-        {Autofill} = 'Yes'
+        {Autofill} = 'Yes',
+        {Formation Status} != 'Filed',
+        {Formation Status} != 'Completed'
     )"""
     
     records = table.all(formula=formula, sort=["-Payment Date"])
@@ -76,14 +85,25 @@ def main():
 ╚══════════════════════════════════════════════════════════════╝
     """)
     
-    processed_ids = set()  # Track processed records to avoid duplicates
+    # Don't use processed_ids set - instead rely on Formation Status
+    # This allows reprocessing if Autofill is manually changed back to Yes
+    # and Formation Status is reset to Pending or In Progress
     
     while True:
         try:
             timestamp = datetime.now().strftime("%H:%M:%S")
             
             records = get_pending_records()
-            new_records = [r for r in records if r['id'] not in processed_ids]
+            
+            # Filter out records that are already "In Progress" (being processed by another instance)
+            # or "Filed" (already completed)
+            # But allow "In Progress" records if they have Autofill = 'Yes' (manual retry)
+            new_records = []
+            for r in records:
+                status = r['fields'].get('Formation Status', '')
+                # Only process if status is Pending, or In Progress (for manual retries)
+                if status in ['Pending', 'In Progress']:
+                    new_records.append(r)
             
             if new_records:
                 print(f"\n[{timestamp}] 📋 Found {len(new_records)} new record(s) to process!")
@@ -105,13 +125,13 @@ def main():
                             print(f"[{timestamp}] ✅ Completed: {company_name}")
                         else:
                             print(f"[{timestamp}] ⚠️ Autofill returned non-zero for: {company_name}")
-                        
-                        # Mark as processed regardless
-                        processed_ids.add(record_id)
+                            # Don't mark as processed if it failed - allow retry
+                            # The Formation Status will remain "In Progress" for manual review
                         
                     except Exception as e:
                         print(f"[{timestamp}] ❌ Error processing {company_name}: {e}")
-                        processed_ids.add(record_id)  # Don't retry failed records
+                        # Don't mark as processed on error - allow retry
+                        # The Formation Status will remain "In Progress" for manual review
             else:
                 print(f"[{timestamp}] 👀 Watching... (no new records)", end='\r')
             
