@@ -483,7 +483,7 @@ def map_data_to_ss4_fields(form_data):
         "17": to_upper(translate_to_english(form_data.get("line17PrincipalMerchandise", ""))[:168]),  # Principal line of merchandise/construction/products/services (max 168 chars, ALL CAPS) - translated from Spanish
         "Designee Name": format_designee_name(form_data, entity_type),  # ALL CAPS - includes officer title for C-Corp only
         "Designee Address": "10634 NE 11 AVE, MIAMI, FL, 33138",  # ALL CAPS
-        "Designee Phone": "(786) 512-0434",  # Updated phone number
+        "Designee Phone": format_phone("(786) 512-0434"),  # Updated phone number - formatted as xxx-xxx-xxxx
         "Designee Fax": "866-496-4957",  # Updated fax number
         "Applicant Phone": format_phone(form_data.get("applicantPhone", "")),  # Business Phone from Airtable - formatted as xxx-xxx-xxxx
         "Applicant Fax": "",  # Usually empty
