@@ -1,0 +1,30 @@
+==========================================
+🚀 AUTOFILL FIX - Commands for EC2
+==========================================
+
+Copy and paste this SINGLE command into your EC2 terminal:
+
+cd /home/ubuntu/company-questionnaire && git pull origin main && bash fix_autofill_complete.sh
+
+==========================================
+OR run step by step:
+==========================================
+
+Step 1:
+cd /home/ubuntu/company-questionnaire
+
+(If directory doesn't exist, run this first:)
+cd /home/ubuntu && git clone https://github.com/avenidalegal2025/CompanyFormationQuestionnaire.git company-questionnaire && cd company-questionnaire
+
+Step 2:
+git pull origin main
+
+Step 3:
+bash fix_autofill_complete.sh
+
+==========================================
+After running, monitor logs:
+==========================================
+
+sudo journalctl -u autofill-watcher -f
+
