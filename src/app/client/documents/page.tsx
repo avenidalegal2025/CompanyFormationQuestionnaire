@@ -221,12 +221,15 @@ function DocumentsContent() {
 
       const result = await response.json();
       
-      // Update local documents state
+      // Update local documents state immediately with signed status
       setDocuments(prev => prev.map(doc => 
         doc.id === documentId 
-          ? { ...doc, ...result.document }
+          ? { ...doc, ...result.document, signedS3Key: result.document.signedS3Key, status: 'signed' }
           : doc
       ));
+
+      // Mark as downloaded and signed for UI updates
+      setDownloadedDocs(prev => new Set(prev).add(documentId));
 
       alert('Documento firmado subido exitosamente. Se actualizará en Airtable automáticamente.');
       
@@ -486,8 +489,12 @@ function DocumentsContent() {
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center">
                           <div>
-                          <h3 className="text-lg font-semibold text-gray-900">{doc.name}</h3>
-                            <p className="text-sm text-gray-500 mt-0.5">{doc.type}</p>
+                          <h3 className={`text-lg font-semibold ${category === 'firmado' ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
+                            {doc.name}
+                          </h3>
+                            <p className={`text-sm mt-0.5 ${category === 'firmado' ? 'text-gray-400 line-through' : 'text-gray-500'}`}>
+                              {doc.type}
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -516,15 +523,15 @@ function DocumentsContent() {
                             </span>
                           </div>
                           <div className="flex items-center space-x-2 text-sm">
-                            {isSigned ? (
+                            {isSigned || category === 'firmado' ? (
                               <CheckCircleIcon className="h-4 w-4 text-green-600" />
                             ) : (
                               <div className="h-4 w-4 border-2 border-gray-300 rounded" />
                             )}
-                            <span className={isSigned ? 'text-gray-600 line-through' : 'text-gray-900'}>
+                            <span className={isSigned || category === 'firmado' ? 'text-gray-600 line-through' : 'text-gray-900'}>
                               3. Subir
-                      </span>
-                    </div>
+                            </span>
+                          </div>
                         </div>
                       )}
 
