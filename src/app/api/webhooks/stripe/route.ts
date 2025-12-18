@@ -230,6 +230,9 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
   const userId = session.customer_details?.email || (session.customer_email as string) || '';
   const companyName = session.metadata?.companyName || 'Company';
   
+  // Declare airtableRecordId at function scope so it's accessible for phone provisioning
+  let airtableRecordId: string | null = null;
+  
   if (!userId) {
     console.error('❌ No user email found, cannot create vault');
     return;
@@ -512,9 +515,6 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
     // Step 7: Sync to Airtable CRM
     // IMPORTANT: Always try to create Airtable record, even if formData is missing
     // This ensures the company appears in the dashboard
-    // Declare airtableRecordId at function scope so it's accessible for phone provisioning
-    let airtableRecordId: string | null = null;
-    
     try {
       console.log('📊 Syncing formation data to Airtable...');
       
