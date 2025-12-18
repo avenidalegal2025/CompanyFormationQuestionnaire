@@ -642,36 +642,6 @@ function DocumentsContent() {
                 )}
               </div>
             )}
-                  <div className="p-6">
-                    <div className="flex items-start">
-                      <div className="flex-shrink-0">
-                        <ClockIcon className="h-8 w-8 text-blue-500" />
-                      </div>
-                      <div className="ml-4 flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900">
-                            EIN (Employer Identification Number)
-                          </h3>
-                          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
-                            En Proceso
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-600 mb-2">
-                          Requisito expedido por el IRS necesario para abrir una cuenta de banco.
-                        </p>
-                        <p className="text-sm text-gray-500 font-medium">
-                          ⏱️ Tiempo aproximado: 1 mes
-                        </p>
-                        <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                          <p className="text-sm text-blue-800">
-                            Este trámite está siendo procesado. No se requiere ninguna acción de tu parte.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-              </div>
-            )}
 
             {/* Empty State */}
             {!loading && filteredDocuments.length === 0 && activeTab !== 'en-proceso' && (
