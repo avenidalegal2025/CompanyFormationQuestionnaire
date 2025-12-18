@@ -63,13 +63,14 @@ function CheckoutSuccessContent() {
         setHasAgreementDoc(hasAgreement);
         
         // Count generated documents for progress
+        // Only update progress if it's higher than current (prevent going backwards)
         const generatedCount = documents.filter((doc: any) => 
           doc.s3Key || doc.status === 'generated' || doc.status === 'signed'
         ).length;
         
         const totalExpected = Math.max(documents.length, 3); // At least 3 key documents
         const progress = Math.min(100, Math.round((generatedCount / totalExpected) * 100));
-        setDocumentProgress(progress);
+        setDocumentProgress(prev => Math.max(prev, progress)); // Only go forward, never backward
         
         // Consider "ready" only if we have at least one key formation document
         return hasKeyDocuments;
@@ -125,35 +126,37 @@ function CheckoutSuccessContent() {
       
       setLoading(false);
       
-      // Animate progress bar: 0% -> 20% -> 40% -> 60% -> 80% -> 100% (slowly)
+      // Animate progress bar: 0% -> 20% -> 40% -> 60% -> 80% -> 100% (smoothly, one direction only)
+      // Use a separate animated progress that only goes forward
+      let animatedProgress = 0;
       const progressSteps = [20, 40, 60, 80, 100];
       let currentStep = 0;
       
       const animateProgress = () => {
         if (currentStep < progressSteps.length) {
           const targetProgress = progressSteps[currentStep];
-          const duration = currentStep === progressSteps.length - 1 ? 2000 : 800; // Slow for final step
-          
-          // Smooth transition to target progress
-          const startProgress = documentProgress;
+          const duration = currentStep === progressSteps.length - 1 ? 2000 : 600; // Slower for final step
+          const startProgress = animatedProgress;
           const startTime = Date.now();
           
           const updateProgress = () => {
             const elapsed = Date.now() - startTime;
             const progress = Math.min(elapsed / duration, 1);
-            const easedProgress = progress < 0.5 
-              ? 2 * progress * progress 
-              : 1 - Math.pow(-2 * progress + 2, 2) / 2; // Ease-in-out
-            const currentProgress = startProgress + (targetProgress - startProgress) * easedProgress;
+            // Simple ease-out for smooth animation
+            const easedProgress = 1 - Math.pow(1 - progress, 3); // Cubic ease-out
+            animatedProgress = Math.min(targetProgress, startProgress + (targetProgress - startProgress) * easedProgress);
             
-            setDocumentProgress(Math.round(currentProgress));
+            // Only update if animated progress is higher than current (prevent going backwards)
+            setDocumentProgress(prev => Math.max(prev, Math.round(animatedProgress)));
             
             if (progress < 1) {
               progressAnimationRef.current = setTimeout(updateProgress, 16); // ~60fps
             } else {
+              animatedProgress = targetProgress; // Ensure we reach the target
+              setDocumentProgress(targetProgress);
               currentStep++;
               if (currentStep < progressSteps.length) {
-                progressAnimationRef.current = setTimeout(animateProgress, 200);
+                progressAnimationRef.current = setTimeout(animateProgress, 300); // Small delay between steps
               }
             }
           };
@@ -163,7 +166,7 @@ function CheckoutSuccessContent() {
       };
       
       // Start animation immediately
-      animateProgress();
+      setTimeout(() => animateProgress(), 500); // Small initial delay
       
       // Start checking for documents after a short delay (give webhook time to process)
       startCheckTimeoutRef.current = setTimeout(() => {

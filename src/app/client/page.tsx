@@ -124,23 +124,23 @@ export default function ClientPage() {
       localStorage.removeItem('userSelectedCompanyId');
       setSelectedCompanyId(null);
       // Keep paymentCompleted flag for CompanySwitcher to detect
+      // Don't proceed with any other logic - let CompanySwitcher handle selection
+      return;
     }
     
     // Only set from localStorage if payment was NOT just completed
     // and user explicitly selected a company (not auto-selected)
-    if (paymentCompleted !== 'true') {
-      const userSelectedCompanyId = localStorage.getItem('userSelectedCompanyId');
-      const savedCompanyId = localStorage.getItem('selectedCompanyId');
-      
-      // Only use savedCompanyId if user explicitly selected it
-      if (savedCompanyId && userSelectedCompanyId === savedCompanyId) {
-        setSelectedCompanyId(savedCompanyId);
-        console.log('👤 User explicitly selected company, keeping selection:', savedCompanyId);
-      } else {
-        // No explicit user selection - let CompanySwitcher select newest
-        setSelectedCompanyId(null);
-        console.log('🔄 No explicit user selection - setting selectedCompanyId to null for auto-selection');
-      }
+    const userSelectedCompanyId = localStorage.getItem('userSelectedCompanyId');
+    const savedCompanyId = localStorage.getItem('selectedCompanyId');
+    
+    // Only use savedCompanyId if user explicitly selected it
+    if (savedCompanyId && userSelectedCompanyId === savedCompanyId) {
+      setSelectedCompanyId(savedCompanyId);
+      console.log('👤 User explicitly selected company, keeping selection:', savedCompanyId);
+    } else {
+      // No explicit user selection - let CompanySwitcher select newest
+      setSelectedCompanyId(null);
+      console.log('🔄 No explicit user selection - setting selectedCompanyId to null for auto-selection');
     }
 
     // Get company data from localStorage (for backward compatibility)
@@ -170,7 +170,7 @@ export default function ClientPage() {
 
     // Fetch real documents from API
     fetchDocuments();
-  }, [selectedCompanyId]);
+  }, []); // Only run once on mount - don't re-run when selectedCompanyId changes
 
   // Refetch companies when userEmail changes (e.g., after payment)
   useEffect(() => {
