@@ -1390,7 +1390,11 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                   } catch {}
                   setWantsAgreement(false);
                   setShowAgreementModal(false);
-                  setStep(9); // Go directly to checkout when skipping agreement
+                  // When skipping the agreement, go directly to the checkout step
+                  // within the 4-step base flow (Empresa, Propietarios, Admin,
+                  // Resumen, Checkout). This keeps the sidebar counter consistent
+                  // (5/5 instead of 9/5) and avoids jumping into the agreement flow.
+                  setStep(5);
                 }}
               >
                 Quiero continuar con el alto riesgo que esto conlleva
