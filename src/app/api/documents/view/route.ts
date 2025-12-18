@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
-import { getUserDocuments } from '@/lib/dynamo';
+import { getUserDocuments, getUserCompanyDocuments } from '@/lib/dynamo';
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || 'us-west-1',
@@ -51,6 +51,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const s3Key = searchParams.get('key');
     const documentId = searchParams.get('id'); // Optional: for client access by document ID
+    const companyId = searchParams.get('companyId') || undefined; // Optional: to scope documents to a specific company
 
     if (!s3Key && !documentId) {
       return NextResponse.json(
@@ -62,9 +63,14 @@ export async function GET(request: NextRequest) {
     let finalS3Key = s3Key;
 
     // If accessing by document ID (client dashboard), verify ownership
-    // Prefer signed version if available, otherwise use original
+    // Prefer signed version if available, otherwise use original.
+    // IMPORTANT: When companyId is provided we MUST scope the lookup to that
+    // company so documents from other formations (with the same doc.id) are
+    // not accidentally returned.
     if (documentId && !s3Key) {
-      const userDocuments = await getUserDocuments(userEmail);
+      const userDocuments = companyId
+        ? await getUserCompanyDocuments(userEmail, companyId)
+        : await getUserDocuments(userEmail);
       const document = userDocuments.find(doc => doc.id === documentId);
       
       if (!document) {

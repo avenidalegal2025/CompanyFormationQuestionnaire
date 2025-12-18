@@ -249,7 +249,9 @@ export default function ClientPage() {
 
   const handleDownload = async (documentId: string) => {
     try {
-      const viewUrl = `/api/documents/view?id=${encodeURIComponent(documentId)}`;
+      const companyIdForDocs = selectedCompanyId || localStorage.getItem('selectedCompanyId') || undefined;
+      const companyQuery = companyIdForDocs ? `&companyId=${encodeURIComponent(companyIdForDocs)}` : '';
+      const viewUrl = `/api/documents/view?id=${encodeURIComponent(documentId)}${companyQuery}`;
       window.open(viewUrl, '_blank');
       setDownloadedDocs(prev => new Set(prev).add(documentId));
     } catch (error) {

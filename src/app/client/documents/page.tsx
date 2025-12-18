@@ -124,7 +124,9 @@ function DocumentsContent() {
     try {
       // Use the new secure authenticated endpoint
       // This will stream the document through our server with auth checks
-      const viewUrl = `/api/documents/view?id=${encodeURIComponent(documentId)}`;
+      const selectedCompanyId = localStorage.getItem('selectedCompanyId') || undefined;
+      const companyQuery = selectedCompanyId ? `&companyId=${encodeURIComponent(selectedCompanyId)}` : '';
+      const viewUrl = `/api/documents/view?id=${encodeURIComponent(documentId)}${companyQuery}`;
       window.open(viewUrl, '_blank');
       
       // Mark document as downloaded to show upload button
