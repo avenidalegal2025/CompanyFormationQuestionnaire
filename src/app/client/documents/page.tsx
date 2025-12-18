@@ -271,11 +271,59 @@ function DocumentsContent() {
 
       alert('Documento firmado subido exitosamente. Se actualizará en Airtable automáticamente.');
       
-      // Refresh documents to get latest from server (this will confirm the update)
-      // Use a small delay to ensure the state update is processed first
+      // CRITICAL: Don't immediately fetch documents - it will overwrite our local state update
+      // The local state update is sufficient for immediate UI feedback
+      // Only refresh if user manually refreshes or navigates away and back
+      // Use a longer delay (2 seconds) to allow DynamoDB to propagate, and merge results instead of replacing
       setTimeout(async () => {
-        await fetchDocuments();
-      }, 500);
+        try {
+          const selectedCompanyId = localStorage.getItem('selectedCompanyId') || undefined;
+          const query = selectedCompanyId ? `?companyId=${encodeURIComponent(selectedCompanyId)}` : '';
+          const response = await fetch(`/api/documents${query}`);
+          if (response.ok) {
+            const data = await response.json();
+            const fetchedDocs = data.documents || [];
+            console.log('📥 Refreshing documents from server after upload...');
+            
+            // Merge with existing state - preserve our local update if server hasn't caught up yet
+            setDocuments(prev => {
+              const merged = fetchedDocs.map((serverDoc: any) => {
+                // If this is the document we just uploaded, check if server has the update
+                if (serverDoc.id === documentId) {
+                  // If server has signedS3Key, use server version (it's up to date)
+                  if (serverDoc.signedS3Key || serverDoc.status === 'signed') {
+                    console.log('✅ Server has updated document, using server version');
+                    return serverDoc;
+                  } else {
+                    // Server doesn't have update yet, keep our local update
+                    const localDoc = prev.find(d => d.id === documentId);
+                    if (localDoc && (localDoc.signedS3Key || localDoc.status === 'signed')) {
+                      console.log('⚠️ Server not updated yet, keeping local update');
+                      return localDoc;
+                    }
+                  }
+                }
+                return serverDoc;
+              });
+              
+              // If server doesn't have our document at all, add it from local state
+              const serverHasDoc = fetchedDocs.some((d: any) => d.id === documentId);
+              if (!serverHasDoc) {
+                const localDoc = prev.find(d => d.id === documentId);
+                if (localDoc) {
+                  console.log('⚠️ Document not in server response, adding from local state');
+                  merged.push(localDoc);
+                }
+              }
+              
+              return merged;
+            });
+          }
+        } catch (error) {
+          console.error('Error refreshing documents:', error);
+          // Don't show error to user - local state is already updated
+        }
+      }, 2000); // 2 second delay to allow DynamoDB propagation
     } catch (error: any) {
       console.error('Error uploading signed document:', error);
       alert(`Error al subir el documento firmado: ${error.message}`);
