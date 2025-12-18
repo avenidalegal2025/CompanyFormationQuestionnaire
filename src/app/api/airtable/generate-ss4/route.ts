@@ -1031,12 +1031,13 @@ async function mapAirtableToSS4(record: any): Promise<any> {
     streetZip: addressParts.zip,
     
     // Line 6: County and state where principal business is located
-    // Preferred: explicit county from Airtable, formatted "COUNTY, ST".
-    // Fallback (for old records where County is empty): use "City, ST"
-    // so we keep behavior roughly similar until County is populated.
+    // IMPORTANT: We never fabricate a county from the city here.
+    // - If Airtable has a County field, we send "COUNTY, ST"
+    // - Otherwise we send an empty string and let the Lambda derive the
+    //   county from city/state (city_to_county + Google Maps) or leave it blank.
     countyState: countyFromAirtable
       ? `${countyFromAirtable}, ${addressParts.state || 'FL'}`
-      : `${addressParts.city || ''}, ${addressParts.state || 'FL'}`,
+      : '',
     
     // Line 7a: Name of responsible party
     responsiblePartyName: responsiblePartyName || `${responsiblePartyFirstName} ${responsiblePartyLastName}`.trim(),

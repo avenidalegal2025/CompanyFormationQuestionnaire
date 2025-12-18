@@ -998,9 +998,10 @@ def map_data_to_ss4_fields(form_data):
                 print(f"===> ✅ Found county '{county_from_api}' for '{city}, {state}' via Google Maps API")
                 return f"{county_from_api.upper()}, {state_upper}"
             else:
-                # Final fallback: return city name if API call fails
-                print(f"===> ⚠️ Could not determine county for '{city}, {state}', using city name as fallback")
-                return f"{city_upper}, {state_upper}"
+                # Final fallback: we DO NOT pretend the city is the county.
+                # Leave Line 6 blank so we don't send incorrect data to the IRS.
+                print(f"===> ❌ Could not determine county for '{city}, {state}' (no map match, Google failed) – leaving Line 6 blank")
+                return ""
     
     # Helper function to format payment date as MM/DD/YYYY
     def format_payment_date(date_str):
