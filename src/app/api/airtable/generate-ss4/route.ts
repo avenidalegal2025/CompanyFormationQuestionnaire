@@ -966,8 +966,8 @@ async function mapAirtableToSS4(record: any): Promise<any> {
   console.log(`   Is LLC: ${isLLC}`);
   
   // Signature Name: Same as Line 7a
-  // For C-Corp: Add officer title (e.g., ",PRESIDENT")
-  // For LLC: Add ",SOLE MEMBER" if single member, or ",MEMBER" if multiple members
+  // For C-Corp/S-Corp: Add officer title (e.g., ", PRESIDENT")
+  // For LLC ONLY: Add ",SOLE MEMBER" if single member, or ",MEMBER" if multiple members
   // IMPORTANT: Ensure responsiblePartyName is not empty before creating signatureName
   const baseName = responsiblePartyName || `${responsiblePartyFirstName} ${responsiblePartyLastName}`.trim();
   let signatureName = baseName;
@@ -981,20 +981,16 @@ async function mapAirtableToSS4(record: any): Promise<any> {
   
   if (isCorp && (entityType === 'C-Corp' || entityType === 'S-Corp')) {
     // For C-Corp and S-Corp, add officer role to signature name - use ACTUAL role, NOT hardcoded to President
-    // Format: "NAME, ROLE" (with space after comma)
-    // BUT: If it's a sole proprietor (1 owner with 100%), use ",SOLE MEMBER" instead
-    if (isSoleProprietor) {
-      signatureName = `${baseName},SOLE MEMBER`;
-      console.log(`✅ Sole proprietor ${entityType}, using ",SOLE MEMBER" in signature`);
-    } else if (responsiblePartyOfficerRole && responsiblePartyOfficerRole.trim() !== '') {
+    // Format: "NAME, ROLE" (with space after comma). We NEVER use "SOLE MEMBER" for corporations.
+    if (responsiblePartyOfficerRole && responsiblePartyOfficerRole.trim() !== '') {
       signatureName = `${baseName}, ${responsiblePartyOfficerRole.toUpperCase()}`;
       console.log(`✅ Using actual officer role in signature for ${entityType}: "${responsiblePartyOfficerRole.toUpperCase()}"`);
     } else {
       console.warn(`⚠️ No officer role found for ${baseName} (${entityType}) - signature name will NOT include role (not defaulting to President)`);
       signatureName = baseName; // Don't add role if not found, don't default to President
     }
-  } else if (isSoleProprietor) {
-    // Sole proprietor (1 owner with 100% ownership) - use ",SOLE MEMBER" for all entity types
+  } else if (isSoleProprietor && isLLC) {
+    // Sole proprietor (1 owner with 100% ownership) - use ",SOLE MEMBER" for LLCs only
     signatureName = `${baseName},SOLE MEMBER`;
     console.log(`✅ Sole proprietor detected, using ",SOLE MEMBER" in signature`);
   } else if (isLLC) {
