@@ -87,7 +87,13 @@ function DocumentsContent() {
       const response = await fetch(`/api/documents${query}`);
       if (response.ok) {
         const data = await response.json();
-        setDocuments(data.documents || []);
+        const fetchedDocs = data.documents || [];
+        console.log('📥 Fetched documents from API:', fetchedDocs.length, 'documents');
+        fetchedDocs.forEach((d: any) => {
+          const category = categorizeDocument(d);
+          console.log(`  - ${d.name}: status=${d.status}, signedS3Key=${d.signedS3Key ? 'YES' : 'NO'}, category=${category}`);
+        });
+        setDocuments(fetchedDocs);
       } else {
         console.error('Failed to fetch documents');
       }
@@ -226,20 +232,50 @@ function DocumentsContent() {
 
       const result = await response.json();
       
+      console.log('✅ Upload successful, result:', result);
+      console.log('📋 Document after upload:', { 
+        id: documentId, 
+        signedS3Key: result.document.signedS3Key, 
+        status: result.document.status 
+      });
+      
       // Update local documents state immediately with signed status
-      setDocuments(prev => prev.map(doc => 
-        doc.id === documentId 
-          ? { ...doc, ...result.document, signedS3Key: result.document.signedS3Key, status: 'signed' }
-          : doc
-      ));
+      setDocuments(prev => {
+        const updated = prev.map(doc => {
+          if (doc.id === documentId) {
+            const updatedDoc = { 
+              ...doc, 
+              signedS3Key: result.document.signedS3Key, 
+              status: 'signed' as const,
+              signedAt: result.document.signedAt || new Date().toISOString()
+            };
+            console.log('🔄 Updated document in state:', updatedDoc);
+            // Check category using inline logic (same as categorizeDocument)
+            const hasSigned = updatedDoc.signedS3Key || updatedDoc.status === 'signed';
+            console.log('📂 Document is signed?', hasSigned, 'signedS3Key:', updatedDoc.signedS3Key, 'status:', updatedDoc.status);
+            return updatedDoc;
+          }
+          return doc;
+        });
+        return updated;
+      });
 
       // Mark as downloaded and signed for UI updates
       setDownloadedDocs(prev => new Set(prev).add(documentId));
 
+      // If user is on "por-firmar" tab, switch to "firmado" to show the completed document
+      if (activeTab === 'por-firmar') {
+        console.log('🔄 Switching to firmado tab to show completed document');
+        setTimeout(() => setActiveTab('firmado'), 100); // Small delay to ensure state is updated
+      }
+
       alert('Documento firmado subido exitosamente. Se actualizará en Airtable automáticamente.');
       
-      // Refresh documents to get latest from server
-      await fetchDocuments();
+      // Refresh documents to get latest from server (this will confirm the update)
+      // Use a small delay to ensure the state update is processed first
+      setTimeout(async () => {
+        await fetchDocuments();
+      }, 500);
     } catch (error: any) {
       console.error('Error uploading signed document:', error);
       alert(`Error al subir el documento firmado: ${error.message}`);
