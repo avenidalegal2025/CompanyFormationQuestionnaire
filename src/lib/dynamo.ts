@@ -416,15 +416,48 @@ export async function addUserCompanyDocument(
   return saveUserCompanyDocuments(userId, companyId, updatedDocs);
 }
 
+// Helper to fetch ALL documents across all companies for a user.
+// This is used for access checks and legacy views where we don't know companyId.
+export async function getAllUserDocuments(userId: string): Promise<DocumentRecord[]> {
+  const command = new GetCommand({
+    TableName: TABLE_NAME,
+    Key: buildUserKey(userId),
+    ProjectionExpression: 'companyDocuments, documents',
+  });
+  const res = await ddb.send(command);
+  const item: any = res.Item || {};
+
+  const all: DocumentRecord[] = [];
+
+  if (item.companyDocuments && typeof item.companyDocuments === 'object') {
+    for (const key of Object.keys(item.companyDocuments)) {
+      const arr = item.companyDocuments[key];
+      if (Array.isArray(arr)) {
+        all.push(...arr);
+      }
+    }
+  }
+
+  if (Array.isArray(item.documents)) {
+    all.push(...item.documents);
+  }
+
+  return all;
+}
+
 // Backwards‑compatibility shims: legacy per‑user document helpers
 // These keep existing admin APIs and scripts working while routing
-// everything through the new per‑company structure using "default".
+// everything through the new per‑company structure.
 export async function saveUserDocuments(userId: string, documents: DocumentRecord[]) {
+  // For legacy callers that save a flat list, we store it under "default"
+  // to keep behavior roughly similar.
   return saveUserCompanyDocuments(userId, 'default', documents);
 }
 
 export async function getUserDocuments(userId: string): Promise<DocumentRecord[]> {
-  return getUserCompanyDocuments(userId, 'default');
+  // Return ALL documents across companies so access checks and legacy
+  // viewers (like /api/documents/view) can see SS-4 and other files.
+  return getAllUserDocuments(userId);
 }
 
 export async function addUserDocument(userId: string, document: DocumentRecord) {
