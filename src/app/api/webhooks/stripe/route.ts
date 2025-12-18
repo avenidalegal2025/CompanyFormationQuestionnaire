@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
-import { saveDomainRegistration, type DomainRegistration, saveBusinessPhone, saveGoogleWorkspace, type GoogleWorkspaceRecord, saveUserCompanyDocuments, type DocumentRecord, saveVaultMetadata, type VaultMetadata, getFormData, addUserCompanyDocument } from '@/lib/dynamo';
+import { saveDomainRegistration, type DomainRegistration, saveBusinessPhone, saveGoogleWorkspace, type GoogleWorkspaceRecord, saveUserCompanyDocuments, type DocumentRecord, saveVaultMetadata, type VaultMetadata, getFormData, addUserCompanyDocument, getPaymentProcessingRecord, savePaymentProcessingRecord } from '@/lib/dynamo';
 import { createVaultStructure, copyTemplateToVault, getFormDataSnapshot } from '@/lib/s3-vault';
 import { createFormationRecord, mapQuestionnaireToAirtable } from '@/lib/airtable';
 import { generate2848PDF, generate8821PDF } from '@/lib/pdf-filler';
@@ -226,7 +226,7 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
     forwardPhoneE164
   });
   
-  // Get user ID (email) for vault creation
+  // Get user ID (email) for vault creation and idempotency tracking
   const userId = session.customer_details?.email || (session.customer_email as string) || '';
   const companyName = session.metadata?.companyName || 'Company';
   
@@ -236,6 +236,28 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
   if (!userId) {
     console.error('❌ No user email found, cannot create vault');
     return;
+  }
+
+  // Idempotency: if we've already fully processed this payment for this user,
+  // skip creating another company. We still allow retries after a partial
+  // failure (status === 'started').
+  try {
+    const existing = await getPaymentProcessingRecord(userId, session.id);
+    if (existing?.status === 'completed') {
+      console.log('🔁 Webhook retry detected for already-completed payment. Skipping duplicate company creation.', {
+        userId,
+        stripePaymentId: session.id,
+      });
+      return;
+    }
+    // Mark as started (or overwrite stale state) before heavy processing
+    await savePaymentProcessingRecord(userId, {
+      stripePaymentId: session.id,
+      status: 'started',
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (idempError) {
+    console.error('⚠️ Failed to read/write paymentProcessing idempotency record – continuing anyway:', idempError);
   }
 
   // Create S3 vault and copy template documents
@@ -688,6 +710,16 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
   }
   
   console.log('Company formation payment processed successfully');
+  // Mark idempotency record as completed so future retries don't create duplicates
+  try {
+    await savePaymentProcessingRecord(userId, {
+      stripePaymentId: session.id,
+      status: 'completed',
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (idempSaveError) {
+    console.error('⚠️ Failed to mark paymentProcessing record as completed:', idempSaveError);
+  }
 
   // Auto-provision phone if the package includes it (or user lacks US phone)
   try {

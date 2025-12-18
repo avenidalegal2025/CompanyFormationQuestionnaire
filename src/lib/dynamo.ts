@@ -97,6 +97,13 @@ export interface VaultMetadata {
   createdAt: string;
 }
 
+// Idempotent payment processing record (per user + Stripe payment/session id)
+export interface PaymentProcessingRecord {
+  stripePaymentId: string;
+  status: 'started' | 'completed';
+  updatedAt: string;
+}
+
 export async function saveBusinessPhone(userId: string, data: BusinessPhoneRecord) {
   const command = new UpdateCommand({
     TableName: TABLE_NAME,
@@ -437,4 +444,41 @@ export async function getFormData(userId: string): Promise<any | null> {
   });
   const res = await ddb.send(command);
   return (res.Item as any)?.formData ?? null;
+}
+
+// Payment processing idempotency helpers
+export async function getPaymentProcessingRecord(
+  userId: string,
+  stripePaymentId: string,
+): Promise<PaymentProcessingRecord | null> {
+  const command = new GetCommand({
+    TableName: TABLE_NAME,
+    Key: buildUserKey(userId),
+    ProjectionExpression: 'paymentProcessing',
+  });
+  const res = await ddb.send(command);
+  const map = (res.Item as any)?.paymentProcessing as
+    | Record<string, PaymentProcessingRecord>
+    | undefined;
+  if (!map) return null;
+  return map[stripePaymentId] ?? null;
+}
+
+export async function savePaymentProcessingRecord(
+  userId: string,
+  record: PaymentProcessingRecord,
+) {
+  const command = new UpdateCommand({
+    TableName: TABLE_NAME,
+    Key: buildUserKey(userId),
+    UpdateExpression: 'SET paymentProcessing.#pid = :rec',
+    ExpressionAttributeNames: {
+      '#pid': record.stripePaymentId,
+    },
+    ExpressionAttributeValues: {
+      ':rec': record,
+    },
+    ReturnValues: 'UPDATED_NEW',
+  });
+  return ddb.send(command);
 }
