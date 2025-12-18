@@ -208,6 +208,11 @@ function DocumentsContent() {
       const formData = new FormData();
       formData.append('documentId', documentId);
       formData.append('file', file);
+      // Include companyId so the API knows which company's documents to update
+      const selectedCompanyId = localStorage.getItem('selectedCompanyId');
+      if (selectedCompanyId) {
+        formData.append('companyId', selectedCompanyId);
+      }
 
       const response = await fetch('/api/documents/upload-signed', {
         method: 'POST',

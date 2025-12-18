@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { getUserDocuments, saveUserDocuments, getVaultMetadata } from '@/lib/dynamo';
+import { getUserDocuments, getUserCompanyDocuments, saveUserCompanyDocuments, getVaultMetadata } from '@/lib/dynamo';
 import { uploadDocument } from '@/lib/s3-vault';
 import { findFormationByEmail, updateFormationRecord } from '@/lib/airtable';
 
@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const documentId = formData.get('documentId') as string;
     const file = formData.get('file') as File;
+    const companyId = formData.get('companyId') as string | null; // Get companyId from request
 
     if (!documentId || !file) {
       return NextResponse.json(
@@ -29,9 +30,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify document ownership
-    const documents = await getUserDocuments(userId);
-    const document = documents.find(doc => doc.id === documentId);
+    // Try to find document in company-specific documents first, then fallback to all documents
+    let document: any = null;
+    let effectiveCompanyId = companyId || undefined;
+    
+    if (effectiveCompanyId) {
+      const companyDocs = await getUserCompanyDocuments(userId, effectiveCompanyId);
+      document = companyDocs.find(doc => doc.id === documentId);
+    }
+    
+    // If not found in company-specific, search all documents
+    if (!document) {
+      const allDocuments = await getUserDocuments(userId);
+      document = allDocuments.find(doc => doc.id === documentId);
+      
+      // Try to infer companyId from document's s3Key path if available
+      if (document?.s3Key && !effectiveCompanyId) {
+        // Extract company identifier from s3Key if possible
+        // Format: "vault-path/formation/document.pdf" - vault-path might contain company info
+        const s3KeyParts = document.s3Key.split('/');
+        if (s3KeyParts.length > 0) {
+          // The vault path might be the company identifier
+          // But we can't reliably extract it, so we'll use 'default' as fallback
+        }
+      }
+    }
 
     if (!document) {
       return NextResponse.json(
@@ -73,8 +96,13 @@ export async function POST(request: NextRequest) {
       file.type || 'application/pdf'
     );
 
+    // Get current documents for the specific company (or all if no companyId)
+    const currentDocuments = effectiveCompanyId 
+      ? await getUserCompanyDocuments(userId, effectiveCompanyId)
+      : await getUserDocuments(userId);
+    
     // Update document record with signed version
-    const updatedDocuments = documents.map(doc => {
+    const updatedDocuments = currentDocuments.map(doc => {
       if (doc.id === documentId) {
         return {
           ...doc,
@@ -86,7 +114,8 @@ export async function POST(request: NextRequest) {
       return doc;
     });
 
-    await saveUserDocuments(userId, updatedDocuments);
+    // Save using company-specific function to ensure it's stored in the right place
+    await saveUserCompanyDocuments(userId, effectiveCompanyId, updatedDocuments);
 
     console.log(`✅ Signed document uploaded: ${uploadResult.s3Key} for document ${documentId}`);
 
