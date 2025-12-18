@@ -276,7 +276,7 @@ def map_data_to_ss4_fields(form_data):
         city_state_parts = company_city_state_zip.split(",")
         if len(city_state_parts) >= 2:
             # Format: "City, State ZIP"
-            company_city = city_state_parts[0].strip()
+            company_city = city_state_parts[0].strip().strip(',').strip()  # Remove any leading/trailing commas
             state_zip = city_state_parts[1].strip().split()
             if len(state_zip) >= 2:
                 company_state = state_zip[0]
@@ -293,19 +293,19 @@ def map_data_to_ss4_fields(form_data):
                 # Second to last is State
                 company_state = parts[-2]
                 # Everything before is City
-                company_city = " ".join(parts[:-2])
+                company_city = " ".join(parts[:-2]).strip(',').strip()  # Remove any leading/trailing commas
             elif len(parts) == 2:
                 # Could be "City State" or "State ZIP"
                 # If second part is 2 letters, it's State; otherwise assume it's ZIP
                 if len(parts[1]) == 2:
-                    company_city = parts[0]
+                    company_city = parts[0].strip(',').strip()
                     company_state = parts[1]
                 else:
                     company_state = parts[0]
                     company_zip = parts[1]
             else:
                 # Single part - assume it's city
-                company_city = parts[0]
+                company_city = parts[0].strip(',').strip() if parts else ""
     
     # Debug: Print parsed address components
     print(f"===> ========== ADDRESS PARSING ==========")
@@ -426,9 +426,12 @@ def map_data_to_ss4_fields(form_data):
         except:
             pass
     
-    # Build city/state/zip strings
-    responsible_city_state_zip = f"{responsible_city}, {responsible_state} {responsible_zip}".strip(", ")
-    if not responsible_city_state_zip or responsible_city_state_zip == ", ":
+    # Build city/state/zip strings - ensure no leading/trailing commas
+    # Clean city and state to remove any leading/trailing commas
+    responsible_city_clean = responsible_city.strip().strip(',').strip() if responsible_city else ""
+    responsible_state_clean = responsible_state.strip().strip(',').strip() if responsible_state else ""
+    responsible_city_state_zip = f"{responsible_city_clean}, {responsible_state_clean} {responsible_zip}".strip()
+    if not responsible_city_state_zip or responsible_city_state_zip == ",":
         responsible_city_state_zip = responsible_country
     
     # Helper function to convert to uppercase
@@ -1187,9 +1190,9 @@ def map_data_to_ss4_fields(form_data):
         "Line 2": "",  # Trade name (if different, usually empty)
         "Line 3": "",  # Executor, administrator, trustee, "care of" name - Usually empty, should NOT contain address
         "Line 4a": "12550 BISCAYNE BLVD STE 110",  # Mailing address line 2 (Avenida Legal address) - HARDCODED
-        "Line 4b": "MIAMI FL, 33181",  # City, State, ZIP (mailing - Avenida Legal) - HARDCODED - Note: No comma after MIAMI
+        "Line 4b": "MIAMI, FL 33181",  # City, State, ZIP (mailing - Avenida Legal) - HARDCODED - Format: "CITY, STATE ZIP"
         "Line 5a": "" if is_avenida_legal_address else (to_upper(company_street_line1) if company_street_line1 else ""),  # Street address line 1 (ONLY street address, NOT full address) - BLANK if US Address service purchased
-        "Line 5b": "" if is_avenida_legal_address else (to_upper(f"{company_city}, {company_state} {company_zip}".strip()) if (company_city or company_state or company_zip) else ""),  # City, State, ZIP (from Company Address column in Airtable) - BLANK if US Address service purchased
+        "Line 5b": "" if is_avenida_legal_address else (to_upper(f"{company_city}, {company_state} {company_zip}".strip(", ")) if (company_city or company_state or company_zip) else ""),  # City, State, ZIP (from Company Address column in Airtable) - BLANK if US Address service purchased - Format: "CITY, STATE ZIP"
         "Line 6": (
             to_upper(county_state_from_ts)
             if county_state_from_ts

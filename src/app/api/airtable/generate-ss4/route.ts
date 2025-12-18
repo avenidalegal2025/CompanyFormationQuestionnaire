@@ -980,14 +980,15 @@ async function mapAirtableToSS4(record: any): Promise<any> {
   }
   
   if (isCorp && (entityType === 'C-Corp' || entityType === 'S-Corp')) {
-    // For C-Corp and S-Corp, add officer role to signature name - use ACTUAL role, NOT hardcoded to President
+    // For C-Corp and S-Corp, add officer role to signature name - default to PRESIDENT if no role found
     // Format: "NAME, ROLE" (with space after comma). We NEVER use "SOLE MEMBER" for corporations.
     if (responsiblePartyOfficerRole && responsiblePartyOfficerRole.trim() !== '') {
       signatureName = `${baseName}, ${responsiblePartyOfficerRole.toUpperCase()}`;
       console.log(`✅ Using actual officer role in signature for ${entityType}: "${responsiblePartyOfficerRole.toUpperCase()}"`);
     } else {
-      console.warn(`⚠️ No officer role found for ${baseName} (${entityType}) - signature name will NOT include role (not defaulting to President)`);
-      signatureName = baseName; // Don't add role if not found, don't default to President
+      // For Corporations and S-Corps, default to PRESIDENT if no role is found
+      signatureName = `${baseName}, PRESIDENT`;
+      console.log(`⚠️ No officer role found for ${baseName} (${entityType}) - defaulting to PRESIDENT`);
     }
   } else if (isSoleProprietor && isLLC) {
     // Sole proprietor (1 owner with 100% ownership) - use ",SOLE MEMBER" for LLCs only
@@ -1001,10 +1002,20 @@ async function mapAirtableToSS4(record: any): Promise<any> {
   
   console.log(`📝 Signature name formatted: "${signatureName}" (base: "${baseName}")`);
   
+  // Ensure company name matches entity type - remove incorrect suffixes
+  let companyName = fields['Company Name'] || '';
+  if (isCorp && (entityType === 'C-Corp' || entityType === 'S-Corp')) {
+    // For Corporations, remove LLC/L.L.C. suffixes if present
+    companyName = companyName.replace(/\s+(LLC|L\.L\.C\.|Limited Liability Company)$/i, '').trim();
+  } else if (isLLC) {
+    // For LLCs, remove Corp/Inc/Corporation suffixes if present
+    companyName = companyName.replace(/\s+(Inc|Corp|Corporation|Incorporated)$/i, '').trim();
+  }
+  
   return {
     // Line 1: Legal name of entity
-    companyName: fields['Company Name'] || '',
-    companyNameBase: (fields['Company Name'] || '').replace(/\s+(LLC|Inc|Corp|Corporation|L\.L\.C\.|Incorporated)$/i, '').trim(),
+    companyName: companyName,
+    companyNameBase: companyName.replace(/\s+(LLC|Inc|Corp|Corporation|L\.L\.C\.|Incorporated)$/i, '').trim(),
     
     // Line 2: Trade name (usually same as company name)
     tradeName: '',
