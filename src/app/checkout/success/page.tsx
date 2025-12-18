@@ -23,6 +23,7 @@ function CheckoutSuccessContent() {
   const [checkingDocuments, setCheckingDocuments] = useState(false);
   const [documentProgress, setDocumentProgress] = useState(0);
   const [entityType, setEntityType] = useState<'LLC' | 'C-Corp' | 'S-Corp' | null>(null);
+  const [documentsTimedOut, setDocumentsTimedOut] = useState(false);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const maxWaitTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const startCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -56,8 +57,8 @@ function CheckoutSuccessContent() {
         const progress = Math.min(100, Math.round((generatedCount / totalExpected) * 100));
         setDocumentProgress(progress);
         
-        // Consider ready if we have at least one key document OR if we have any documents at all
-        return hasKeyDocuments || documents.length > 0;
+        // Consider "ready" only if we have at least one key formation document
+        return hasKeyDocuments;
       }
       return false;
     } catch (error) {
@@ -149,8 +150,10 @@ function CheckoutSuccessContent() {
               clearInterval(pollIntervalRef.current);
               pollIntervalRef.current = null;
             }
-            // Even if documents aren't fully ready, allow user to proceed
-            setDocumentsReady(true);
+            // Documents are taking longer than expected – mark timeout so UI
+            // can show a "still processing" state instead of claiming
+            // everything is ready.
+            setDocumentsTimedOut(true);
             setCheckingDocuments(false);
           }
         }, 60000);
@@ -249,6 +252,43 @@ function CheckoutSuccessContent() {
                   <span className="inline-block animate-pulse">⏳</span> Generando documentos de formación...
                 </p>
               </div>
+            </div>
+          </>
+        ) : !documentsReady && documentsTimedOut ? (
+          <>
+            <div className="mb-6">
+              <div className="w-20 h-20 mx-auto mb-4 relative">
+                <div className="absolute inset-0 rounded-full border-4 border-amber-200"></div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-2xl">⏳</span>
+                </div>
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Tu pago fue recibido correctamente</h1>
+              <p className="text-gray-600 mb-4">
+                Estamos terminando de procesar la formación de tu empresa y generando tus documentos.
+              </p>
+              <p className="text-sm text-gray-500 mb-6">
+                Esto puede tardar unos minutos adicionales. Te avisaremos por email cuando todo esté listo.
+              </p>
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-left">
+                <p className="text-sm text-amber-800">
+                  Puedes entrar a tu Hub Empresarial ahora, pero es posible que algunos documentos aún no aparezcan.
+                </p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <Link
+                href="/client"
+                className="block w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 px-6 rounded-lg hover:from-blue-700 hover:to-indigo-700 font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+              >
+                Ir a Mi Hub Empresarial →
+              </Link>
+              <Link
+                href="/landing"
+                className="block w-full bg-gray-200 text-gray-800 py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Ver Página Principal
+              </Link>
             </div>
           </>
         ) : (
