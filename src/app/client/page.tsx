@@ -126,44 +126,20 @@ export default function ClientPage() {
       // Keep paymentCompleted flag for CompanySwitcher to detect
     }
     
-    // Get user email from localStorage
-    const email = localStorage.getItem('userEmail') || '';
-    setUserEmail(email);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'client/page.tsx:115',message:'ClientPage useEffect entry',data:{paymentCompleted,savedCompanyId:localStorage.getItem('selectedCompanyId'),userSelectedCompanyId:localStorage.getItem('userSelectedCompanyId')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-    // #endregion
-    
-    // CRITICAL FIX: Don't set selectedCompanyId from localStorage on initial load
-    // Let CompanySwitcher determine the newest company first, then it will call onCompanyChange
-    // Only respect localStorage if user explicitly selected a company (tracked by userSelectedCompanyId)
-    if (paymentCompleted === 'true') {
-      // Clear selectedCompanyId so CompanySwitcher can select the newest company
-      localStorage.removeItem('selectedCompanyId');
-      localStorage.removeItem('userSelectedCompanyId'); // Also clear user selection flag
-      setSelectedCompanyId(null);
-      console.log('💳 Payment completed - cleared selectedCompanyId to select newest company');
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'client/page.tsx:125',message:'Payment completed - cleared selectedCompanyId',data:{selectedCompanyIdAfterClear:localStorage.getItem('selectedCompanyId')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-      // #endregion
-    } else {
-      // Only set from localStorage if user explicitly selected it (not auto-selected)
-      // This prevents old selections from blocking newest company selection
+    // Only set from localStorage if payment was NOT just completed
+    // and user explicitly selected a company (not auto-selected)
+    if (paymentCompleted !== 'true') {
       const userSelectedCompanyId = localStorage.getItem('userSelectedCompanyId');
       const savedCompanyId = localStorage.getItem('selectedCompanyId');
       
-      // Only use savedCompanyId if it matches userSelectedCompanyId (user explicitly selected it)
-      // Otherwise, let CompanySwitcher select the newest
+      // Only use savedCompanyId if user explicitly selected it
       if (savedCompanyId && userSelectedCompanyId === savedCompanyId) {
         setSelectedCompanyId(savedCompanyId);
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'client/page.tsx:135',message:'Set selectedCompanyId from localStorage (user explicitly selected)',data:{savedCompanyId,userSelectedCompanyId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-        // #endregion
+        console.log('👤 User explicitly selected company, keeping selection:', savedCompanyId);
       } else {
         // No explicit user selection - let CompanySwitcher select newest
         setSelectedCompanyId(null);
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'client/page.tsx:140',message:'No explicit user selection - setting selectedCompanyId to null',data:{savedCompanyId,userSelectedCompanyId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
+        console.log('🔄 No explicit user selection - setting selectedCompanyId to null for auto-selection');
       }
     }
 
