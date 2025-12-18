@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import { saveDomainRegistration, type DomainRegistration, saveBusinessPhone, saveGoogleWorkspace, type GoogleWorkspaceRecord, saveUserCompanyDocuments, type DocumentRecord, saveVaultMetadata, type VaultMetadata, getFormData, addUserCompanyDocument } from '@/lib/dynamo';
 import { createVaultStructure, copyTemplateToVault, getFormDataSnapshot } from '@/lib/s3-vault';
-import { createFormationRecord, mapQuestionnaireToAirtable, findFormationByStripeId } from '@/lib/airtable';
+import { createFormationRecord, mapQuestionnaireToAirtable } from '@/lib/airtable';
 import { generate2848PDF, generate8821PDF } from '@/lib/pdf-filler';
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 
@@ -205,26 +205,6 @@ async function handleDomainPurchase(session: Stripe.Checkout.Session) {
 
 async function handleCompanyFormation(session: Stripe.Checkout.Session) {
   console.log('Processing company formation payment:', session.id);
-
-  // 🔒 Idempotency guard: avoid creating duplicate Airtable companies
-  try {
-    const existing = await findFormationByStripeId(session.id);
-    if (existing) {
-      console.log(
-        '⚠️ Airtable formation with this Stripe Payment ID already exists. Skipping duplicate creation.',
-        {
-          stripePaymentId: session.id,
-          airtableRecordId: existing.id,
-          companyName: existing.get?.('Company Name'),
-        }
-      );
-      return;
-    }
-  } catch (idempotencyError) {
-    console.error('❌ Failed to check existing Airtable record for idempotency:', idempotencyError);
-    // Continue anyway – worst case Stripe retry might create a duplicate,
-    // but we don't want to fail the whole webhook on a read error.
-  }
   
   const entityType = session.metadata?.entityType || '';
   const state = session.metadata?.state || '';
