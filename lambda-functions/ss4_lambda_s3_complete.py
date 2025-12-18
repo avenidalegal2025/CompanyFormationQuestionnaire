@@ -1544,22 +1544,22 @@ def map_data_to_ss4_fields(form_data):
             if line16_other_specify:
                 # CRITICAL: Max 32 chars, truncate at word boundaries, never cut words
                 translated = translate_to_english(line16_other_specify)
-                mapped_data["16_other_specify"] = to_upper(truncate_at_word_boundary(translated, 32))
+                mapped_data["16_other_specify"] = to_upper(truncate_at_word_boundary(translated, 28))
             else:
                 # Default specification if none provided
                 translated = translate_to_english(business_purpose or "GENERAL BUSINESS")
-                mapped_data["16_other_specify"] = to_upper(truncate_at_word_boundary(translated, 32))
+                mapped_data["16_other_specify"] = to_upper(truncate_at_word_boundary(translated, 28))
         else:
             # Default to "Other" if category doesn't match any known category
             mapped_data["Checks"]["16_other"] = CHECK_COORDS["16_other"]
             if line16_other_specify:
                 # CRITICAL: Max 32 chars, truncate at word boundaries, never cut words
                 translated = translate_to_english(line16_other_specify)
-                mapped_data["16_other_specify"] = to_upper(truncate_at_word_boundary(translated, 32))
+                mapped_data["16_other_specify"] = to_upper(truncate_at_word_boundary(translated, 28))
             else:
                 # Default specification if none provided
                 translated = translate_to_english(business_purpose or "GENERAL BUSINESS")
-                mapped_data["16_other_specify"] = to_upper(truncate_at_word_boundary(translated, 32))
+                mapped_data["16_other_specify"] = to_upper(truncate_at_word_boundary(translated, 28))
     elif line16_other_specify:
         # If only other_specify is provided, check "Other"
         mapped_data["Checks"]["16_other"] = CHECK_COORDS["16_other"]
