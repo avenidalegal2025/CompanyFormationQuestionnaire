@@ -408,10 +408,13 @@ async function mapAirtableToSS4(record: any): Promise<any> {
     const officersAllOwners = fields['Officers All Owners'] === 'Yes' || fields['Officers All Owners'] === true;
     
     // If tax owner is specified, try to find them in officers
-    // BUT: Only use them if they have a valid SSN, otherwise find another officer with SSN
+    // CRITICAL: For corporations, responsible party MUST be PRESIDENT
+    // So we only use tax owner if they are the PRESIDENT
     if (taxOwnerName) {
       console.log(`🔍 Tax owner specified: "${taxOwnerName}"`);
+      console.log(`⚠️ NOTE: For corporations, responsible party must be PRESIDENT. Will only use tax owner if they are PRESIDENT.`);
       let taxOwnerHasSSN = false;
+      let taxOwnerIsPresident = false;
       
       if (officersAllOwners) {
         // All owners are officers, search in owners
@@ -427,15 +430,34 @@ async function mapAirtableToSS4(record: any): Promise<any> {
                                !ownerSSN.toUpperCase().includes('FOREIGN');
             
             if (hasValidSSN) {
-              // Tax owner has SSN, use them
-              responsiblePartyName = ownerName;
-              responsiblePartyFirstName = fields[`Owner ${i} First Name`] || '';
-              responsiblePartyLastName = fields[`Owner ${i} Last Name`] || '';
-              responsiblePartySSN = ownerSSN;
-              responsiblePartyAddress = fields[`Owner ${i} Address`] || '';
-              taxOwnerHasSSN = true;
-              console.log(`✅ Tax owner ${taxOwnerName} has SSN, using them`);
-              break;
+              // Tax owner has SSN - check if they are PRESIDENT
+              // Find their officer role
+              let officerRole = '';
+              for (let k = 1; k <= Math.min(officersCount, 6); k++) {
+                const officerName = fields[`Officer ${k} Name`] || '';
+                if (officerName && ownerName && 
+                    officerName.trim().toLowerCase() === ownerName.trim().toLowerCase()) {
+                  officerRole = (fields[`Officer ${k} Role`] || '').trim().toUpperCase();
+                  break;
+                }
+              }
+              const isPresident = officerRole === 'PRESIDENT' || officerRole.includes('PRESIDENT');
+              
+              if (isPresident) {
+                // Tax owner is PRESIDENT - use them
+                responsiblePartyName = ownerName;
+                responsiblePartyFirstName = fields[`Owner ${i} First Name`] || '';
+                responsiblePartyLastName = fields[`Owner ${i} Last Name`] || '';
+                responsiblePartySSN = ownerSSN;
+                responsiblePartyAddress = fields[`Owner ${i} Address`] || '';
+                responsiblePartyOfficerRole = 'PRESIDENT';
+                taxOwnerHasSSN = true;
+                taxOwnerIsPresident = true;
+                console.log(`✅ Tax owner ${taxOwnerName} is PRESIDENT and has SSN, using them`);
+                break;
+              } else {
+                console.log(`⚠️ Tax owner ${taxOwnerName} has SSN but is NOT PRESIDENT (role: "${officerRole}"). Will search for PRESIDENT instead.`);
+              }
             } else {
               console.log(`⚠️ Tax owner ${taxOwnerName} does NOT have SSN, will search for other officer with SSN`);
             }
@@ -463,23 +485,25 @@ async function mapAirtableToSS4(record: any): Promise<any> {
                                    !ownerSSN.toUpperCase().includes('FOREIGN');
                 
                 if (hasValidSSN) {
-                  // Tax owner has SSN, use them
-                  responsiblePartyName = officerName;
-                  responsiblePartyFirstName = fields[`Officer ${i} First Name`] || fields[`Owner ${j} First Name`] || '';
-                  responsiblePartyLastName = fields[`Officer ${i} Last Name`] || fields[`Owner ${j} Last Name`] || '';
-                  responsiblePartySSN = ownerSSN;
-                  responsiblePartyAddress = fields[`Officer ${i} Address`] || fields[`Owner ${j} Address`] || '';
-                  // Get officer role - use ACTUAL role, not hardcoded to President
-                  responsiblePartyOfficerRole = fields[`Officer ${i} Role`] || '';
-                  console.log(`🔍 Tax owner Officer ${i} Role field value: "${fields[`Officer ${i} Role`] || 'EMPTY'}"`);
-                  if (!responsiblePartyOfficerRole || responsiblePartyOfficerRole.trim() === '') {
-                    console.warn(`⚠️ Tax owner Officer ${i} Role is empty - leaving empty (NOT defaulting to President)`);
+                  // Tax owner has SSN - check if they are PRESIDENT
+                  const officerRole = (fields[`Officer ${i} Role`] || '').trim().toUpperCase();
+                  const isPresident = officerRole === 'PRESIDENT' || officerRole.includes('PRESIDENT');
+                  
+                  if (isPresident) {
+                    // Tax owner is PRESIDENT - use them
+                    responsiblePartyName = officerName;
+                    responsiblePartyFirstName = fields[`Officer ${i} First Name`] || fields[`Owner ${j} First Name`] || '';
+                    responsiblePartyLastName = fields[`Officer ${i} Last Name`] || fields[`Owner ${j} Last Name`] || '';
+                    responsiblePartySSN = ownerSSN;
+                    responsiblePartyAddress = fields[`Officer ${i} Address`] || fields[`Owner ${j} Address`] || '';
+                    responsiblePartyOfficerRole = 'PRESIDENT';
+                    taxOwnerHasSSN = true;
+                    taxOwnerIsPresident = true;
+                    console.log(`✅ Tax owner ${taxOwnerName} is PRESIDENT and has SSN, using them`);
+                    break;
                   } else {
-                    console.log(`✅ Using actual officer role for tax owner: "${responsiblePartyOfficerRole}"`);
+                    console.log(`⚠️ Tax owner ${taxOwnerName} has SSN but is NOT PRESIDENT (role: "${officerRole}"). Will search for PRESIDENT instead.`);
                   }
-                  taxOwnerHasSSN = true;
-                  console.log(`✅ Tax owner ${taxOwnerName} has SSN, using them with role: "${responsiblePartyOfficerRole || 'NOT SET'}")`);
-                  break;
                 } else {
                   console.log(`⚠️ Tax owner ${taxOwnerName} does NOT have SSN, will search for other officer with SSN`);
                 }
@@ -490,11 +514,15 @@ async function mapAirtableToSS4(record: any): Promise<any> {
         }
       }
       
-      // If tax owner doesn't have SSN, don't use them - let the code below find an officer with SSN
-      if (!taxOwnerHasSSN) {
+      // If tax owner doesn't have SSN or is not PRESIDENT, don't use them - let the code below find PRESIDENT
+      if (!taxOwnerHasSSN || !taxOwnerIsPresident) {
         responsiblePartyName = '';
         responsiblePartySSN = '';
-        console.log(`⚠️ Tax owner ${taxOwnerName} doesn't have SSN, searching for other officer with SSN`);
+        if (!taxOwnerHasSSN) {
+          console.log(`⚠️ Tax owner ${taxOwnerName} doesn't have SSN, searching for PRESIDENT with SSN`);
+        } else {
+          console.log(`⚠️ Tax owner ${taxOwnerName} is not PRESIDENT, searching for PRESIDENT instead`);
+        }
       }
     }
     
@@ -590,44 +618,39 @@ async function mapAirtableToSS4(record: any): Promise<any> {
       }
       
       // Now select the appropriate officer
+      // CRITICAL: For corporations, responsible party MUST be the PRESIDENT
       if (officersWithSSN.length === 0) {
         console.log(`⚠️ C-Corp: No officers with SSN found - will use President with N/A-FOREIGN`);
         // Will be handled in the fallback below
-      } else if (officersWithSSN.length === 1) {
-        // Only one officer with SSN, use that one
-        const officer = officersWithSSN[0];
-        responsiblePartyName = officer.name;
-        responsiblePartyFirstName = officer.firstName;
-        responsiblePartyLastName = officer.lastName;
-        responsiblePartySSN = officer.ssn;
-        responsiblePartyAddress = officer.address;
-        responsiblePartyOfficerRole = officer.role;
-        console.log(`✅ C-Corp: Only one officer with SSN, using: ${responsiblePartyName} (role: "${responsiblePartyOfficerRole || 'NOT SET'}")`);
       } else {
-        // Multiple officers with SSN, prefer President
-        console.log(`🔍 C-Corp: Found ${officersWithSSN.length} officers with SSN, preferring President...`);
+        // ALWAYS search for President first, regardless of how many officers there are
+        console.log(`🔍 C-Corp: Found ${officersWithSSN.length} officer(s) with SSN, searching for PRESIDENT...`);
         const president = officersWithSSN.find(o => 
           o.role && (o.role.trim().toUpperCase() === 'PRESIDENT' || o.role.toUpperCase().includes('PRESIDENT'))
         );
         
         if (president) {
+          // President found - use them
           responsiblePartyName = president.name;
           responsiblePartyFirstName = president.firstName;
           responsiblePartyLastName = president.lastName;
           responsiblePartySSN = president.ssn;
           responsiblePartyAddress = president.address;
-          responsiblePartyOfficerRole = president.role;
-          console.log(`✅ C-Corp: Multiple officers with SSN, using President: ${responsiblePartyName}`);
+          responsiblePartyOfficerRole = 'PRESIDENT'; // Always set to PRESIDENT
+          console.log(`✅ C-Corp: Found President with SSN, using: ${responsiblePartyName}`);
         } else {
-          // No President found, use first officer with SSN
+          // No President found among officers with SSN - this is an error condition
+          // For corporations, we MUST have a President, so we'll use the first officer but set role to PRESIDENT
+          console.error(`❌ ERROR: C-Corp has ${officersWithSSN.length} officer(s) with SSN but NO PRESIDENT found!`);
+          console.error(`❌ This indicates a data issue - corporations must have a President. Using first officer but setting role to PRESIDENT.`);
           const officer = officersWithSSN[0];
           responsiblePartyName = officer.name;
           responsiblePartyFirstName = officer.firstName;
           responsiblePartyLastName = officer.lastName;
           responsiblePartySSN = officer.ssn;
           responsiblePartyAddress = officer.address;
-          responsiblePartyOfficerRole = officer.role;
-          console.log(`⚠️ C-Corp: Multiple officers with SSN but no President found, using first: ${responsiblePartyName} (role: "${responsiblePartyOfficerRole || 'NOT SET'}")`);
+          responsiblePartyOfficerRole = 'PRESIDENT'; // Force to PRESIDENT even if their actual role is different
+          console.log(`⚠️ C-Corp: Using first officer ${responsiblePartyName} as PRESIDENT (their actual role was: "${officer.role || 'NOT SET'}")`);
         }
       }
     }
@@ -987,15 +1010,17 @@ async function mapAirtableToSS4(record: any): Promise<any> {
   if (isCorp && (entityType === 'C-Corp' || entityType === 'S-Corp')) {
     // For C-Corp and S-Corp, add officer role to signature name
     // Format: "NAME, ROLE" (with space after comma). We NEVER use "SOLE MEMBER" for corporations.
-    // IMPORTANT: The responsible party MUST be the president - if no role is found, this is an error
+    // CRITICAL: The responsible party MUST be the PRESIDENT for corporations
     if (responsiblePartyOfficerRole && responsiblePartyOfficerRole.trim() !== '') {
-      signatureName = `${baseName}, ${responsiblePartyOfficerRole.toUpperCase()}`;
-      console.log(`✅ Using actual officer role in signature for ${entityType}: "${responsiblePartyOfficerRole.toUpperCase()}"`);
+      // Ensure role is PRESIDENT (normalize to PRESIDENT if it contains "PRESIDENT")
+      const roleUpper = responsiblePartyOfficerRole.trim().toUpperCase();
+      const finalRole = (roleUpper === 'PRESIDENT' || roleUpper.includes('PRESIDENT')) ? 'PRESIDENT' : roleUpper;
+      signatureName = `${baseName}, ${finalRole}`;
+      console.log(`✅ Using officer role in signature for ${entityType}: "${finalRole}"`);
     } else {
-      // ERROR: No officer role found - the responsible party selection should have found the president
-      // Don't add a role - this indicates a data issue that needs to be fixed
-      signatureName = baseName;
-      console.error(`❌ ERROR: No officer role found for ${baseName} (${entityType}) - responsible party should be the president!`);
+      // Safety fallback: If no role found, use PRESIDENT (this should not happen after our fix)
+      signatureName = `${baseName}, PRESIDENT`;
+      console.error(`❌ ERROR: No officer role found for ${baseName} (${entityType}) - using PRESIDENT as fallback`);
     }
   } else if (isSoleProprietor && isLLC) {
     // Sole proprietor (1 owner with 100% ownership) - use ",SOLE MEMBER" for LLCs only

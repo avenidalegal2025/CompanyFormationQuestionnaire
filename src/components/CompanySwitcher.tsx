@@ -74,24 +74,39 @@ export default function CompanySwitcher({ userEmail, selectedCompanyId, onCompan
   const fetchCompanies = async () => {
     try {
       setLoading(true);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:74',message:'fetchCompanies entry',data:{userEmail,selectedCompanyId,propSelectedCompanyId:selectedCompanyId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       const response = await fetch(`/api/companies?email=${encodeURIComponent(userEmail)}`);
       if (response.ok) {
         const data = await response.json();
         const companiesList = data.companies || [];
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:80',message:'Companies fetched from API',data:{count:companiesList.length,companies:companiesList.map((c:Company)=>({id:c.id,name:c.companyName,createdAt:c.createdAt}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
         setCompanies(companiesList);
         
         // Always consider the newest company (sorted by Payment Date desc)
         const newestCompany = companiesList[0];
         const paymentCompleted = localStorage.getItem('paymentCompleted');
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:86',message:'Before selection logic',data:{newestCompanyId:newestCompany?.id,newestCompanyName:newestCompany?.companyName,newestCreatedAt:newestCompany?.createdAt,selectedCompanyId,paymentCompleted,userSelectedCompanyId:localStorage.getItem('userSelectedCompanyId')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
 
         // Helper to select and persist newest
         const selectNewest = () => {
           if (!newestCompany) return;
           console.log('✅ Selecting newest company:', newestCompany.id);
           console.log('📋 Available companies:', companiesList.map((c: Company) => ({ id: c.id, name: c.companyName })));
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:88',message:'selectNewest called',data:{newestCompanyId:newestCompany.id,newestCompanyName:newestCompany.companyName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+          // #endregion
           onCompanyChange(newestCompany.id);
           localStorage.setItem('selectedCompanyId', newestCompany.id);
           localStorage.removeItem('paymentCompleted');
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:94',message:'selectNewest completed',data:{selectedCompanyIdSet:localStorage.getItem('selectedCompanyId')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+          // #endregion
         };
 
         // CRITICAL: Always default to newest company unless user has explicitly selected a different one
@@ -99,46 +114,80 @@ export default function CompanySwitcher({ userEmail, selectedCompanyId, onCompan
         // Only keep current selection if it exists AND is the newest OR user explicitly selected it (not auto-selected)
         if (newestCompany) {
           const selectedCompany = companiesList.find((c: Company) => c.id === selectedCompanyId);
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:101',message:'Company comparison',data:{selectedCompanyId,selectedCompanyFound:!!selectedCompany,selectedCompanyCreatedAt:selectedCompany?.createdAt,newestCompanyCreatedAt:newestCompany?.createdAt,selectedDateMs:selectedCompany?new Date(selectedCompany.createdAt).getTime():null,newestDateMs:new Date(newestCompany.createdAt).getTime()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+          // #endregion
           const selectedIsOld =
             selectedCompany &&
             newestCompany &&
             new Date(selectedCompany.createdAt).getTime() < new Date(newestCompany.createdAt).getTime();
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:105',message:'Age comparison result',data:{selectedIsOld},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+          // #endregion
 
           // Check if there's a user preference flag (set when user manually selects a company)
           const userSelectedCompany = localStorage.getItem('userSelectedCompanyId');
           const isUserSelected = userSelectedCompany === selectedCompanyId;
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:109',message:'User selection check',data:{userSelectedCompany,isUserSelected},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+          // #endregion
 
           // ALWAYS select newest on initial load unless user explicitly selected a different one
           if (paymentCompleted === 'true') {
             // Payment just completed - always select newest
             console.log('💳 Payment completed - selecting newest company');
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:113',message:'Branch: paymentCompleted',data:{willSelectNewest:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
             selectNewest();
             localStorage.removeItem('userSelectedCompanyId'); // Clear user selection flag
           } else if (!selectedCompanyId) {
             // No selection at all - select newest
             console.log('📋 No company selected - selecting newest');
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:119',message:'Branch: no selectedCompanyId',data:{willSelectNewest:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+            // #endregion
             selectNewest();
           } else if (!selectedCompany) {
             // Selected company doesn't exist anymore - select newest
             console.log('⚠️ Selected company not found - selecting newest');
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:123',message:'Branch: selectedCompany not found',data:{willSelectNewest:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
             selectNewest();
           } else if (selectedIsOld) {
             // Selected company is older than newest - ALWAYS select newest (unless user explicitly selected the old one)
             if (!isUserSelected) {
               console.log('🔄 Selected company is older than newest - selecting newest');
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:128',message:'Branch: selectedIsOld and not userSelected',data:{willSelectNewest:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+              // #endregion
               selectNewest();
             } else {
               console.log('👤 User explicitly selected older company, keeping selection');
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:131',message:'Branch: selectedIsOld but userSelected',data:{willSelectNewest:false},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+              // #endregion
             }
           } else if (selectedCompany.id === newestCompany.id) {
             // Already selected newest - ensure it's persisted
             console.log('✅ Already selected newest company');
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:135',message:'Branch: already newest',data:{willSelectNewest:false},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
             localStorage.setItem('selectedCompanyId', newestCompany.id);
           } else {
             // Selected company exists but is not newest - only keep if user explicitly selected it
             if (!isUserSelected) {
               console.log('🔄 Selected company is not newest - selecting newest');
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:141',message:'Branch: not newest and not userSelected',data:{willSelectNewest:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+              // #endregion
               selectNewest();
+            } else {
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:143',message:'Branch: not newest but userSelected',data:{willSelectNewest:false},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+              // #endregion
             }
           }
         }
