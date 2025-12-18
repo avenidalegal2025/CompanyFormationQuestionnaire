@@ -349,7 +349,6 @@ export async function getVaultMetadata(userId: string): Promise<VaultMetadata | 
 }
 
 // Document operations
-// NEW: Per‑company documents storage
 export async function saveUserCompanyDocuments(
   userId: string,
   companyId: string | undefined,
@@ -358,20 +357,31 @@ export async function saveUserCompanyDocuments(
   // Fallback key when no explicit companyId is provided (backwards compatibility)
   const effectiveCompanyId = companyId || 'default';
 
-  const command = new UpdateCommand({
+  // Read existing companyDocuments map (if any)
+  const getCommand = new GetCommand({
     TableName: TABLE_NAME,
     Key: buildUserKey(userId),
-    UpdateExpression: 'SET companyDocuments.#cid = :docs',
-    ExpressionAttributeNames: {
-      '#cid': effectiveCompanyId,
-    },
+    ProjectionExpression: 'companyDocuments',
+  });
+  const res = await ddb.send(getCommand);
+  const currentMap = ((res.Item as any)?.companyDocuments || {}) as Record<string, DocumentRecord[]>;
+
+  const nextMap: Record<string, DocumentRecord[]> = {
+    ...currentMap,
+    [effectiveCompanyId]: documents,
+  };
+
+  const updateCommand = new UpdateCommand({
+    TableName: TABLE_NAME,
+    Key: buildUserKey(userId),
+    UpdateExpression: 'SET companyDocuments = :docsMap',
     ExpressionAttributeValues: {
-      ':docs': documents,
+      ':docsMap': nextMap,
     },
     ReturnValues: 'UPDATED_NEW',
   });
 
-  return ddb.send(command);
+  return ddb.send(updateCommand);
 }
 
 export async function getUserCompanyDocuments(
@@ -446,39 +456,6 @@ export async function getFormData(userId: string): Promise<any | null> {
   return (res.Item as any)?.formData ?? null;
 }
 
-// Payment processing idempotency helpers
-export async function getPaymentProcessingRecord(
-  userId: string,
-  stripePaymentId: string,
-): Promise<PaymentProcessingRecord | null> {
-  const command = new GetCommand({
-    TableName: TABLE_NAME,
-    Key: buildUserKey(userId),
-    ProjectionExpression: 'paymentProcessing',
-  });
-  const res = await ddb.send(command);
-  const map = (res.Item as any)?.paymentProcessing as
-    | Record<string, PaymentProcessingRecord>
-    | undefined;
-  if (!map) return null;
-  return map[stripePaymentId] ?? null;
-}
-
-export async function savePaymentProcessingRecord(
-  userId: string,
-  record: PaymentProcessingRecord,
-) {
-  const command = new UpdateCommand({
-    TableName: TABLE_NAME,
-    Key: buildUserKey(userId),
-    UpdateExpression: 'SET paymentProcessing.#pid = :rec',
-    ExpressionAttributeNames: {
-      '#pid': record.stripePaymentId,
-    },
-    ExpressionAttributeValues: {
-      ':rec': record,
-    },
-    ReturnValues: 'UPDATED_NEW',
-  });
-  return ddb.send(command);
-}
+// (PaymentProcessingRecord type kept for potential future use, but the
+// helper functions are intentionally omitted for now – we rely on Airtable’s
+// Stripe Payment ID check for idempotency.)
