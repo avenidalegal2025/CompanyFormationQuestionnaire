@@ -399,6 +399,21 @@ export async function addUserCompanyDocument(
   return saveUserCompanyDocuments(userId, companyId, updatedDocs);
 }
 
+// Backwards‑compatibility shims: legacy per‑user document helpers
+// These keep existing admin APIs and scripts working while routing
+// everything through the new per‑company structure using "default".
+export async function saveUserDocuments(userId: string, documents: DocumentRecord[]) {
+  return saveUserCompanyDocuments(userId, 'default', documents);
+}
+
+export async function getUserDocuments(userId: string): Promise<DocumentRecord[]> {
+  return getUserCompanyDocuments(userId, 'default');
+}
+
+export async function addUserDocument(userId: string, document: DocumentRecord) {
+  return addUserCompanyDocument(userId, 'default', document);
+}
+
 // Form data storage (for Airtable sync)
 export async function saveFormData(userId: string, formData: any) {
   const command = new UpdateCommand({
