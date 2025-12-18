@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import ClientNavigation from '@/components/ClientNavigation';
 import Link from 'next/link';
 import {
@@ -43,28 +43,66 @@ function DocumentsContent() {
   };
 
   useEffect(() => {
-    // Get company data from localStorage
-    const savedData = localStorage.getItem('questionnaireData');
-    if (savedData) {
-      try {
-        const data = JSON.parse(savedData);
-        setCompanyData(data);
-      } catch (error) {
-        console.error('Error parsing saved data:', error);
-      }
-    }
-
     // Check for tab query parameter
     const tabParam = searchParams.get('tab');
     if (tabParam === 'por-firmar' || tabParam === 'firmado' || tabParam === 'en-proceso') {
       setActiveTab(tabParam);
     }
 
+    // Fetch company data from Airtable using selectedCompanyId
+    fetchCompanyData();
+    
     // Fetch documents from API
     fetchDocuments();
-  }, [searchParams]);
+  }, [searchParams, fetchCompanyData, fetchDocuments]);
 
-  const fetchDocuments = async () => {
+  // Debug: Log when companyData changes
+  useEffect(() => {
+    console.log('📊 companyData changed:', companyData);
+    if (companyData?.company) {
+      console.log('📋 Entity Type from companyData:', companyData.company.entityType);
+    }
+  }, [companyData]);
+
+  const fetchCompanyData = useCallback(async () => {
+    try {
+      const selectedCompanyId = localStorage.getItem('selectedCompanyId');
+      if (!selectedCompanyId) {
+        console.log('⚠️ No selectedCompanyId found');
+        return;
+      }
+      
+      console.log('🔍 Fetching company data for ID:', selectedCompanyId);
+      const response = await fetch(`/api/companies?companyId=${encodeURIComponent(selectedCompanyId)}`);
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📦 API response:', data);
+        if (data.company) {
+          // Set company data in the format expected by the component
+          const companyInfo = {
+            company: {
+              companyName: data.company.companyName,
+              entityType: data.company.entityType, // From Airtable Entity Type column
+              formationState: data.company.formationState,
+            }
+          };
+          setCompanyData(companyInfo);
+          console.log('✅ Fetched company data from Airtable:', data.company);
+          console.log('📋 Entity Type:', data.company.entityType);
+          console.log('🏢 Is Corporation?', data.company.entityType?.toLowerCase().includes('corp') || data.company.entityType?.toLowerCase().includes('inc'));
+        } else {
+          console.error('❌ No company data in response:', data);
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Failed to fetch company data from Airtable:', response.status, errorData);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching company data:', error);
+    }
+  }, []);
+
+  const fetchDocuments = useCallback(async () => {
     try {
       setLoading(true);
       const selectedCompanyId = localStorage.getItem('selectedCompanyId') || undefined;
@@ -76,12 +114,14 @@ function DocumentsContent() {
       } else {
         console.error('Failed to fetch documents');
       }
+      // Also fetch company data from Airtable (uses same selectedCompanyId)
+      await fetchCompanyData();
     } catch (error) {
       console.error('Error fetching documents:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [fetchCompanyData]);
 
   const getCompanyDisplayName = () => {
     if (!companyData?.company) return 'Mi Empresa';
@@ -106,18 +146,43 @@ function DocumentsContent() {
   };
 
   const getEntityType = () => {
-    if (!companyData?.company) return '';
-    return (companyData.company.entityType || '').toLowerCase();
+    if (!companyData?.company) {
+      return '';
+    }
+    // Get Entity Type directly from Airtable (Entity Type column)
+    const entityType = companyData.company.entityType || '';
+    return entityType.trim();
   };
 
   const isCorporation = () => {
     const entityType = getEntityType();
-    return entityType.includes('corp') || entityType.includes('inc') || entityType.includes('corporation');
+    if (!entityType) {
+      console.log('🔍 isCorporation: No entity type found');
+      return false;
+    }
+    const lower = entityType.toLowerCase();
+    const result = lower === 'c-corp' || 
+           lower === 's-corp' || 
+           lower.includes('corp') || 
+           lower.includes('inc') || 
+           lower.includes('corporation');
+    console.log('🔍 isCorporation:', { entityType, lower, result });
+    return result;
   };
 
   const isLLC = () => {
     const entityType = getEntityType();
-    return entityType.includes('llc') || entityType.includes('limited liability');
+    if (!entityType) {
+      console.log('🔍 isLLC: No entity type found');
+      return false;
+    }
+    const lower = entityType.toLowerCase();
+    const result = lower === 'llc' || 
+           lower === 'l.l.c.' ||
+           lower.includes('llc') || 
+           lower.includes('limited liability');
+    console.log('🔍 isLLC:', { entityType, lower, result });
+    return result;
   };
 
   const handleDownload = async (documentId: string) => {
@@ -249,8 +314,13 @@ function DocumentsContent() {
   });
 
   // Helper to know if lawyer has already uploaded EIN/Articles docs
-  const hasDoc = (id: string) =>
-    documents.some(d => (d.id || '').toLowerCase() === id && (d.s3Key || d.signedS3Key));
+  const hasDoc = (id: string) => {
+    const found = documents.some(d => {
+      const docId = (d.id || '').toLowerCase().trim();
+      return docId === id.toLowerCase().trim() && (d.s3Key || d.signedS3Key);
+    });
+    return found;
+  };
   const hasEin = hasDoc('ein-letter');
   const hasArticlesInc = hasDoc('articles-inc');
   const hasArticlesLlc = hasDoc('articles-llc');
@@ -605,7 +675,17 @@ function DocumentsContent() {
                 )}
 
                 {/* Articles of Incorporation Card (for Corporations) */}
-                {isCorporation() && !hasArticlesInc && (
+                {(() => {
+                  const corpCheck = isCorporation();
+                  const hasArticles = hasArticlesInc;
+                  console.log('🔍 Articles Inc Card Check:', { 
+                    isCorporation: corpCheck, 
+                    hasArticlesInc: hasArticles, 
+                    shouldShow: corpCheck && !hasArticles,
+                    companyData: companyData?.company
+                  });
+                  return corpCheck && !hasArticles;
+                })() && (
                   <div className="card border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow">
                     <div className="p-6">
                       <div className="flex items-start">
@@ -639,7 +719,17 @@ function DocumentsContent() {
                 )}
 
                 {/* Articles of Organization Card (for LLCs) */}
-                {isLLC() && !hasArticlesLlc && (
+                {(() => {
+                  const llcCheck = isLLC();
+                  const hasArticles = hasArticlesLlc;
+                  console.log('🔍 Articles LLC Card Check:', { 
+                    isLLC: llcCheck, 
+                    hasArticlesLlc: hasArticles, 
+                    shouldShow: llcCheck && !hasArticles,
+                    companyData: companyData?.company
+                  });
+                  return llcCheck && !hasArticles;
+                })() && (
                   <div className="card border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow">
                     <div className="p-6">
                       <div className="flex items-start">

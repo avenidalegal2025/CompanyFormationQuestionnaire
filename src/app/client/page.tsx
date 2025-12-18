@@ -528,10 +528,7 @@ export default function ClientPage() {
                       En Proceso
                     </h3>
                     <p className="text-sm font-semibold text-blue-700 mb-1">
-                      EIN (Employer Identification Number) y {getArticlesLabel()}
-                    </p>
-                    <p className="text-sm text-gray-600 mb-1">
-                      Requisito expedido por el IRS necesario para abrir una cuenta de banco, junto con el documento estatal que crea oficialmente tu empresa.
+                      EIN y {getArticlesLabel()}
                     </p>
                     <p className="text-sm text-gray-500 font-medium">
                       ⏱️ Tiempo aproximado: 1 mes

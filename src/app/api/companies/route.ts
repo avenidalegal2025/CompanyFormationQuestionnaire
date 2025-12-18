@@ -23,16 +23,53 @@ interface Company {
 
 /**
  * GET /api/companies
- * Fetches all companies for a user by email
+ * Fetches companies for a user by email, or a single company by ID
+ * 
+ * Query params:
+ * - email: Fetch all companies for this email
+ * - companyId: Fetch a single company by Airtable record ID
  */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const email = searchParams.get('email');
+    const companyId = searchParams.get('companyId');
+
+    // If companyId is provided, fetch that specific company
+    if (companyId) {
+      try {
+        const record = await base(AIRTABLE_TABLE_NAME).find(companyId);
+        const fields = record.fields;
+        
+        const company: Company = {
+          id: record.id,
+          companyName: (fields['Company Name'] as string) || 'Unknown Company',
+          entityType: (fields['Entity Type'] as string) || 'LLC',
+          formationState: (fields['Formation State'] as string) || '',
+          formationStatus: (fields['Formation Status'] as string) || 'Pending',
+          createdAt: (fields['Payment Date'] as string) || new Date().toISOString(),
+          customerEmail: (fields['Customer Email'] as string) || '',
+        };
+        
+        return NextResponse.json({
+          success: true,
+          company,
+        });
+      } catch (error: any) {
+        console.error('❌ Error fetching company by ID:', error);
+        return NextResponse.json(
+          {
+            error: 'Company not found',
+            details: error.message,
+          },
+          { status: 404 }
+        );
+      }
+    }
 
     if (!email) {
       return NextResponse.json(
-        { error: 'Email parameter is required' },
+        { error: 'Email or companyId parameter is required' },
         { status: 400 }
       );
     }
