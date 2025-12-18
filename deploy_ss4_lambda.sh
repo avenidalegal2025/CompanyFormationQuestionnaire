@@ -64,6 +64,15 @@ echo ""
 cd - > /dev/null
 rm -rf "$TEMP_DIR"
 
+# Get Google Maps API key from environment or prompt
+GOOGLE_MAPS_API_KEY="${GOOGLE_MAPS_API_KEY:-${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY:-}}"
+if [ -z "$GOOGLE_MAPS_API_KEY" ]; then
+    echo "⚠️  Warning: GOOGLE_MAPS_API_KEY not set in environment"
+    echo "   The Lambda will work but Google Maps API fallback for county lookup will be disabled"
+    echo "   Set GOOGLE_MAPS_API_KEY environment variable to enable it"
+    GOOGLE_MAPS_API_KEY=""
+fi
+
 # Check if function exists
 echo "🔍 Checking if Lambda function exists..."
 if aws lambda get-function --function-name "$FUNCTION_NAME" --region "$REGION" >/dev/null 2>&1; then
@@ -81,6 +90,21 @@ if aws lambda get-function --function-name "$FUNCTION_NAME" --region "$REGION" >
     aws lambda wait function-updated \
         --function-name "$FUNCTION_NAME" \
         --region "$REGION"
+    
+    # Update environment variables (including Google Maps API key if provided)
+    if [ -n "$GOOGLE_MAPS_API_KEY" ]; then
+        echo "🔧 Updating environment variables (including Google Maps API key)..."
+        ENV_VARS="BUCKET_NAME=ss4-template-bucket-043206426879,OUTPUT_BUCKET=avenida-legal-documents,GOOGLE_MAPS_API_KEY=$GOOGLE_MAPS_API_KEY"
+    else
+        echo "🔧 Updating environment variables (without Google Maps API key)..."
+        ENV_VARS="BUCKET_NAME=ss4-template-bucket-043206426879,OUTPUT_BUCKET=avenida-legal-documents"
+    fi
+    
+    aws lambda update-function-configuration \
+        --function-name "$FUNCTION_NAME" \
+        --region "$REGION" \
+        --environment "Variables={$ENV_VARS}" \
+        --output json > /dev/null
     
     echo "✅ Lambda function updated successfully!"
 else
@@ -173,7 +197,7 @@ EOF
         --memory-size "$MEMORY_SIZE" \
         --region "$REGION" \
         --description "SS-4 EIN Application PDF Generator" \
-        --environment "Variables={BUCKET_NAME=ss4-template-bucket-043206426879,OUTPUT_BUCKET=avenida-legal-documents}" \
+        --environment "Variables={BUCKET_NAME=ss4-template-bucket-043206426879,OUTPUT_BUCKET=avenida-legal-documents$(if [ -n "$GOOGLE_MAPS_API_KEY" ]; then echo ",GOOGLE_MAPS_API_KEY=$GOOGLE_MAPS_API_KEY"; fi)}" \
         --output json | jq -r '.FunctionArn'
     
     echo "✅ Lambda function created successfully!"

@@ -5,6 +5,8 @@ from reportlab.pdfgen import canvas
 from PyPDF2 import PdfReader, PdfWriter
 import boto3
 import re
+import urllib.request
+import urllib.parse
 
 # Constants
 BUCKET_NAME = os.environ.get('BUCKET_NAME', 'ss4-template-bucket-043206426879')
@@ -22,7 +24,7 @@ FIELD_COORDS = {
     "Line 4b": (65, 617),     # City, State, ZIP
     "Line 5a": (305, 640),    # Street address line 1
     "Line 5b": (315, 617),    # Street address line 2
-    "Line 6": (65, 594),      # City, State, ZIP (street address)
+    "Line 6": (65, 594),      # County, State (converted from city)
     "Line 7a": (65, 570),     # Responsible party name
     "Line 7b": (342, 570),    # Responsible party SSN
     "8b": (500, 542),        # Number of LLC members (if LLC) or date business started (if non-LLC)
@@ -30,7 +32,7 @@ FIELD_COORDS = {
     "9b": (290, 414),        # Closing month / State of incorporation
     "16_other_specify": (400, 196),  # Other (specify) text field - same position as healthcare checkbox (where the category description goes)
     "10": (65, 375),         # Reason for applying - text field (summarized business purpose)
-    "11": (115, 317),        # Date business started in (month, day, year) format
+    "11": (115, 317),        # Date business started in MM/DD/YYYY format
     "12": (495, 327),        # Closing month of accounting year (DECEMBER) - 15px more right (480+15=495), 10px down (337-10=327)
     "13_Ag": (100, 257),     # Agricultural
     "13_Hh": (180, 257),     # Household
@@ -186,6 +188,24 @@ def map_data_to_ss4_fields(form_data):
     # Company address - parse from Company Address field (should include full address: street, city, state, zip)
     # DO NOT translate addresses - keep original format
     company_address = form_data.get("companyAddress", "")
+    
+    # Check if company address is Avenida Legal's address (US Address service purchased)
+    # If so, Line 5a and 5b should be blank
+    # Avenida Legal address format: "12550 Biscayne Blvd Ste 110, North Miami, FL 33181"
+    is_avenida_legal_address = False
+    if company_address:
+        company_address_upper = company_address.upper()
+        # Check for Avenida Legal address by looking for key identifiers:
+        # - Street: "12550" and "BISCAYNE" (or "BISC")
+        # - City: "NORTH MIAMI" or "MIAMI" 
+        # - ZIP: "33181"
+        # Match if street contains 12550 and BISCAYNE, and address contains 33181
+        has_street = "12550" in company_address_upper and ("BISCAYNE" in company_address_upper or "BISC" in company_address_upper)
+        has_zip = "33181" in company_address
+        if has_street and has_zip:
+            is_avenida_legal_address = True
+            print(f"===> Detected Avenida Legal address (US Address service purchased): '{company_address}'")
+            print(f"===> Line 5a and 5b will be left blank")
     
     # Parse company address for Line 5a (street address) and Line 5b (city, state, zip)
     # Expected format: "Street Address, City, State ZIP" or "Street Address, City State ZIP"
@@ -415,7 +435,574 @@ def map_data_to_ss4_fields(form_data):
     def to_upper(text):
         return str(text).upper() if text else ""
     
-    # Helper function to format payment date as (month, day, year)
+    # Helper function to get county from Google Maps Geocoding API
+    def get_county_from_google_maps(city, state):
+        """
+        Use Google Maps Geocoding API to get county name for a city/state.
+        Returns county name or None if not found/error.
+        """
+        google_api_key = os.environ.get('GOOGLE_MAPS_API_KEY') or os.environ.get('NEXT_PUBLIC_GOOGLE_MAPS_API_KEY')
+        
+        if not google_api_key:
+            print(f"===> ⚠️ Google Maps API key not found in environment variables")
+            return None
+        
+        try:
+            # Build address query: "City, State, USA"
+            address_query = f"{city}, {state}, USA"
+            encoded_address = urllib.parse.quote(address_query)
+            
+            # Google Maps Geocoding API endpoint
+            url = f"https://maps.googleapis.com/maps/api/geocode/json?address={encoded_address}&key={google_api_key}"
+            
+            print(f"===> Calling Google Maps API: {url.replace(google_api_key, '***')}")
+            
+            # Make API request
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+                
+                if data.get('status') != 'OK':
+                    print(f"===> ⚠️ Google Maps API returned status: {data.get('status')}")
+                    return None
+                
+                results = data.get('results', [])
+                if not results:
+                    print(f"===> ⚠️ No results from Google Maps API")
+                    return None
+                
+                # Get the first result
+                result = results[0]
+                address_components = result.get('address_components', [])
+                
+                # Look for administrative_area_level_2 (county) in address components
+                for component in address_components:
+                    types = component.get('types', [])
+                    if 'administrative_area_level_2' in types:
+                        county_name = component.get('long_name', '')
+                        if county_name:
+                            # Remove "County" suffix if present (e.g., "Miami-Dade County" -> "Miami-Dade")
+                            county_name = county_name.replace(' County', '').replace(' county', '').strip()
+                            return county_name
+                
+                # If no county found, try to extract from formatted_address or other components
+                print(f"===> ⚠️ County not found in address components for '{city}, {state}'")
+                return None
+                
+        except urllib.error.URLError as e:
+            print(f"===> ⚠️ Error calling Google Maps API: {e}")
+            return None
+        except json.JSONDecodeError as e:
+            print(f"===> ⚠️ Error parsing Google Maps API response: {e}")
+            return None
+        except Exception as e:
+            print(f"===> ⚠️ Unexpected error calling Google Maps API: {e}")
+            return None
+    
+    # Helper function to convert city and state to county
+    # Returns "County, State" format (e.g., "MIAMI-DADE, FL")
+    def city_to_county(city, state):
+        """
+        Convert city name to county name for SS-4 Line 6.
+        Returns county name in format "COUNTY, STATE" or falls back to city if not found.
+        """
+        if not city or not state:
+            return ""
+        
+        # Normalize inputs
+        city_upper = city.upper().strip()
+        state_upper = state.upper().strip()
+        
+        # Comprehensive city-to-county mapping
+        # Format: (city_name, state): county_name
+        city_county_map = {
+            # Florida cities
+            ("MIAMI", "FL"): "MIAMI-DADE",
+            ("MIAMI BEACH", "FL"): "MIAMI-DADE",
+            ("MIAMI GARDENS", "FL"): "MIAMI-DADE",
+            ("CORAL GABLES", "FL"): "MIAMI-DADE",
+            ("HIALEAH", "FL"): "MIAMI-DADE",
+            ("NORTH MIAMI", "FL"): "MIAMI-DADE",
+            ("AVENTURA", "FL"): "MIAMI-DADE",
+            ("KEY BISCAYNE", "FL"): "MIAMI-DADE",
+            ("HOMESTEAD", "FL"): "MIAMI-DADE",
+            ("ORLANDO", "FL"): "ORANGE",
+            ("TAMPA", "FL"): "HILLSBOROUGH",
+            ("JACKSONVILLE", "FL"): "DUVAL",
+            ("FORT LAUDERDALE", "FL"): "BROWARD",
+            ("WEST PALM BEACH", "FL"): "PALM BEACH",
+            ("PALM BEACH", "FL"): "PALM BEACH",
+            ("BOCA RATON", "FL"): "PALM BEACH",
+            ("DELRAY BEACH", "FL"): "PALM BEACH",
+            ("ST. PETERSBURG", "FL"): "PINELLAS",
+            ("SAINT PETERSBURG", "FL"): "PINELLAS",
+            ("ST PETERSBURG", "FL"): "PINELLAS",
+            ("CLEARWATER", "FL"): "PINELLAS",
+            ("TALLAHASSEE", "FL"): "LEON",
+            ("GAINESVILLE", "FL"): "ALACHUA",
+            ("SARASOTA", "FL"): "SARASOTA",
+            ("NAPLES", "FL"): "COLLIER",
+            ("FORT MYERS", "FL"): "LEE",
+            ("PENSACOLA", "FL"): "ESCAMBIA",
+            ("DAYTONA BEACH", "FL"): "VOLUSIA",
+            ("MELBOURNE", "FL"): "BREVARD",
+            ("LAKELAND", "FL"): "POLK",
+            ("OCALA", "FL"): "MARION",
+            ("PORT ST. LUCIE", "FL"): "ST. LUCIE",
+            ("PORT SAINT LUCIE", "FL"): "ST. LUCIE",
+            ("PORT ST LUCIE", "FL"): "ST. LUCIE",
+            ("BOYNTON BEACH", "FL"): "PALM BEACH",
+            ("POMPANO BEACH", "FL"): "BROWARD",
+            ("HOLLYWOOD", "FL"): "BROWARD",
+            ("MIRAMAR", "FL"): "BROWARD",
+            ("PLANTATION", "FL"): "BROWARD",
+            ("SUNRISE", "FL"): "BROWARD",
+            ("KENDALL", "FL"): "MIAMI-DADE",
+            ("DORAL", "FL"): "MIAMI-DADE",
+            ("WESTON", "FL"): "BROWARD",
+            ("DELTONA", "FL"): "VOLUSIA",
+            ("PALM COAST", "FL"): "FLAGLER",
+            ("LARGO", "FL"): "PINELLAS",
+            ("DEERFIELD BEACH", "FL"): "BROWARD",
+            ("PEMBROKE PINES", "FL"): "BROWARD",
+            ("CAPE CORAL", "FL"): "LEE",
+            ("FORT PIERCE", "FL"): "ST. LUCIE",
+            ("STUART", "FL"): "MARTIN",
+            ("VERO BEACH", "FL"): "INDIAN RIVER",
+            ("SEBASTIAN", "FL"): "INDIAN RIVER",
+            ("JUPITER", "FL"): "PALM BEACH",
+            ("TEQUESTA", "FL"): "PALM BEACH",
+            ("WELLINGTON", "FL"): "PALM BEACH",
+            ("ROYAL PALM BEACH", "FL"): "PALM BEACH",
+            ("RIVIERA BEACH", "FL"): "PALM BEACH",
+            ("LAKE WORTH", "FL"): "PALM BEACH",
+            ("GREENACRES", "FL"): "PALM BEACH",
+            ("WEST PALM", "FL"): "PALM BEACH",
+            
+            # New York cities
+            ("NEW YORK", "NY"): "NEW YORK",
+            ("BROOKLYN", "NY"): "KINGS",
+            ("MANHATTAN", "NY"): "NEW YORK",
+            ("QUEENS", "NY"): "QUEENS",
+            ("BRONX", "NY"): "BRONX",
+            ("STATEN ISLAND", "NY"): "RICHMOND",
+            ("BUFFALO", "NY"): "ERIE",
+            ("ROCHESTER", "NY"): "MONROE",
+            ("ALBANY", "NY"): "ALBANY",
+            ("SYRACUSE", "NY"): "ONONDAGA",
+            ("YONKERS", "NY"): "WESTCHESTER",
+            
+            # California cities
+            ("LOS ANGELES", "CA"): "LOS ANGELES",
+            ("SAN FRANCISCO", "CA"): "SAN FRANCISCO",
+            ("SAN DIEGO", "CA"): "SAN DIEGO",
+            ("SAN JOSE", "CA"): "SANTA CLARA",
+            ("OAKLAND", "CA"): "ALAMEDA",
+            ("SACRAMENTO", "CA"): "SACRAMENTO",
+            ("FRESNO", "CA"): "FRESNO",
+            ("LONG BEACH", "CA"): "LOS ANGELES",
+            ("ANAHEIM", "CA"): "ORANGE",
+            ("SANTA ANA", "CA"): "ORANGE",
+            ("RIVERSIDE", "CA"): "RIVERSIDE",
+            ("STOCKTON", "CA"): "SAN JOAQUIN",
+            ("IRVINE", "CA"): "ORANGE",
+            ("CHULA VISTA", "CA"): "SAN DIEGO",
+            ("FREMONT", "CA"): "ALAMEDA",
+            ("SAN BERNARDINO", "CA"): "SAN BERNARDINO",
+            ("MODESTO", "CA"): "STANISLAUS",
+            ("FONTANA", "CA"): "SAN BERNARDINO",
+            ("OXNARD", "CA"): "VENTURA",
+            ("MORENO VALLEY", "CA"): "RIVERSIDE",
+            ("HUNTINGTON BEACH", "CA"): "ORANGE",
+            ("GLENDALE", "CA"): "LOS ANGELES",
+            ("SANTA CLARITA", "CA"): "LOS ANGELES",
+            ("GARDEN GROVE", "CA"): "ORANGE",
+            ("OCEANSIDE", "CA"): "SAN DIEGO",
+            ("RANCHO CUCAMONGA", "CA"): "SAN BERNARDINO",
+            ("SANTA ROSA", "CA"): "SONOMA",
+            ("ONTARIO", "CA"): "SAN BERNARDINO",
+            ("LANCASTER", "CA"): "LOS ANGELES",
+            ("ELK GROVE", "CA"): "SACRAMENTO",
+            ("CORONA", "CA"): "RIVERSIDE",
+            ("PALMDALE", "CA"): "LOS ANGELES",
+            ("SALINAS", "CA"): "MONTEREY",
+            ("POMONA", "CA"): "LOS ANGELES",
+            ("HAYWARD", "CA"): "ALAMEDA",
+            ("ESCONDIDO", "CA"): "SAN DIEGO",
+            ("TORRANCE", "CA"): "LOS ANGELES",
+            ("SUNNYVALE", "CA"): "SANTA CLARA",
+            ("ORANGE", "CA"): "ORANGE",
+            ("FULLERTON", "CA"): "ORANGE",
+            ("PASADENA", "CA"): "LOS ANGELES",
+            ("THOUSAND OAKS", "CA"): "VENTURA",
+            ("VISALIA", "CA"): "TULARE",
+            ("SIMI VALLEY", "CA"): "VENTURA",
+            ("CONCORD", "CA"): "CONTRA COSTA",
+            ("ROSEVILLE", "CA"): "PLACER",
+            ("VALLEJO", "CA"): "SOLANO",
+            ("VICTORVILLE", "CA"): "SAN BERNARDINO",
+            ("EL MONTE", "CA"): "LOS ANGELES",
+            ("BERKELEY", "CA"): "ALAMEDA",
+            ("DOWNEY", "CA"): "LOS ANGELES",
+            ("COSTA MESA", "CA"): "ORANGE",
+            ("INGLEWOOD", "CA"): "LOS ANGELES",
+            ("VENTURA", "CA"): "VENTURA",
+            ("WEST COVINA", "CA"): "LOS ANGELES",
+            ("NORWALK", "CA"): "LOS ANGELES",
+            ("CARLSBAD", "CA"): "SAN DIEGO",
+            ("FAIRFIELD", "CA"): "SOLANO",
+            ("RICHMOND", "CA"): "CONTRA COSTA",
+            ("MURRIETA", "CA"): "RIVERSIDE",
+            ("ANTIOCH", "CA"): "CONTRA COSTA",
+            ("DAILY CITY", "CA"): "SAN MATEO",
+            ("TEMECULA", "CA"): "RIVERSIDE",
+            ("SANTA MARIA", "CA"): "SANTA BARBARA",
+            ("EL CAJON", "CA"): "SAN DIEGO",
+            ("RIALTO", "CA"): "SAN BERNARDINO",
+            ("SAN MATEO", "CA"): "SAN MATEO",
+            ("COMPTON", "CA"): "LOS ANGELES",
+            ("JURUPA VALLEY", "CA"): "RIVERSIDE",
+            ("VISTA", "CA"): "SAN DIEGO",
+            ("SOUTH GATE", "CA"): "LOS ANGELES",
+            ("MISSION VIEJO", "CA"): "ORANGE",
+            ("VACAVILLE", "CA"): "SOLANO",
+            ("CARSON", "CA"): "LOS ANGELES",
+            ("HESPERIA", "CA"): "SAN BERNARDINO",
+            ("SANTA MONICA", "CA"): "LOS ANGELES",
+            ("WESTMINSTER", "CA"): "ORANGE",
+            ("REDDING", "CA"): "SHASTA",
+            ("SANTA BARBARA", "CA"): "SANTA BARBARA",
+            ("CHICO", "CA"): "BUTTE",
+            ("NEWPORT BEACH", "CA"): "ORANGE",
+            ("SAN LEANDRO", "CA"): "ALAMEDA",
+            ("HAWTHORNE", "CA"): "LOS ANGELES",
+            ("CITRUS HEIGHTS", "CA"): "SACRAMENTO",
+            ("ALHAMBRA", "CA"): "LOS ANGELES",
+            ("LAKE FOREST", "CA"): "ORANGE",
+            ("TRACY", "CA"): "SAN JOAQUIN",
+            ("REDWOOD CITY", "CA"): "SAN MATEO",
+            ("BELLFLOWER", "CA"): "LOS ANGELES",
+            ("CHINO HILLS", "CA"): "SAN BERNARDINO",
+            ("LAKEWOOD", "CA"): "LOS ANGELES",
+            ("HEMET", "CA"): "RIVERSIDE",
+            ("MERCADO", "CA"): "MERCED",
+            ("MENIFEE", "CA"): "RIVERSIDE",
+            ("LYNWOOD", "CA"): "LOS ANGELES",
+            ("MANTECA", "CA"): "SAN JOAQUIN",
+            ("NAPA", "CA"): "NAPA",
+            ("REDONDO BEACH", "CA"): "LOS ANGELES",
+            ("CHINO", "CA"): "SAN BERNARDINO",
+            ("TULARE", "CA"): "TULARE",
+            ("MADERA", "CA"): "MADERA",
+            ("SANTA CLARA", "CA"): "SANTA CLARA",
+            ("SAN BRUNO", "CA"): "SAN MATEO",
+            ("SAN RAFAEL", "CA"): "MARIN",
+            ("WHITTIER", "CA"): "LOS ANGELES",
+            ("NEWARK", "CA"): "ALAMEDA",
+            ("SOUTH SAN FRANCISCO", "CA"): "SAN MATEO",
+            ("ALAMEDA", "CA"): "ALAMEDA",
+            ("TURLOCK", "CA"): "STANISLAUS",
+            ("PERRIS", "CA"): "RIVERSIDE",
+            ("MILPITAS", "CA"): "SANTA CLARA",
+            ("MOUNTAIN VIEW", "CA"): "SANTA CLARA",
+            ("BUENA PARK", "CA"): "ORANGE",
+            ("PALO ALTO", "CA"): "SANTA CLARA",
+            ("HAYWARD", "CA"): "ALAMEDA",
+            ("SANTA CRUZ", "CA"): "SANTA CRUZ",
+            ("EUREKA", "CA"): "HUMBOLDT",
+            ("BARSTOW", "CA"): "SAN BERNARDINO",
+            ("YUBA CITY", "CA"): "SUTTER",
+            ("SAN LUIS OBISPO", "CA"): "SAN LUIS OBISPO",
+            ("HANFORD", "CA"): "KINGS",
+            ("MERCED", "CA"): "MERCED",
+            ("CHULA VISTA", "CA"): "SAN DIEGO",
+            ("CHULA VISTA", "CA"): "SAN DIEGO",
+            
+            # Texas cities
+            ("HOUSTON", "TX"): "HARRIS",
+            ("SAN ANTONIO", "TX"): "BEXAR",
+            ("DALLAS", "TX"): "DALLAS",
+            ("AUSTIN", "TX"): "TRAVIS",
+            ("FORT WORTH", "TX"): "TARRANT",
+            ("EL PASO", "TX"): "EL PASO",
+            ("ARLINGTON", "TX"): "TARRANT",
+            ("CORPUS CHRISTI", "TX"): "NUECES",
+            ("PLANO", "TX"): "COLLIN",
+            ("LAREDO", "TX"): "WEBB",
+            ("LUBBOCK", "TX"): "LUBBOCK",
+            ("GARLAND", "TX"): "DALLAS",
+            ("IRVING", "TX"): "DALLAS",
+            ("AMARILLO", "TX"): "POTTER",
+            ("GRAND PRAIRIE", "TX"): "DALLAS",
+            ("BROWNSVILLE", "TX"): "CAMERON",
+            ("MCKINNEY", "TX"): "COLLIN",
+            ("FRISCO", "TX"): "COLLIN",
+            ("PASADENA", "TX"): "HARRIS",
+            ("KILLEEN", "TX"): "BELL",
+            ("MESQUITE", "TX"): "DALLAS",
+            ("MCALLEN", "TX"): "HIDALGO",
+            ("CARROLLTON", "TX"): "DALLAS",
+            ("MIDLAND", "TX"): "MIDLAND",
+            ("DENTON", "TX"): "DENTON",
+            ("ABILENE", "TX"): "TAYLOR",
+            ("ROUND ROCK", "TX"): "WILLIAMSON",
+            ("ODESSA", "TX"): "ECTOR",
+            ("WACO", "TX"): "MCLENNAN",
+            ("RICHARDSON", "TX"): "DALLAS",
+            ("LEWISVILLE", "TX"): "DENTON",
+            ("TYLER", "TX"): "SMITH",
+            ("PEARLAND", "TX"): "BRAZORIA",
+            ("COLLEGE STATION", "TX"): "BRAZOS",
+            ("SAN ANGELO", "TX"): "TOM GREEN",
+            ("ALLEN", "TX"): "COLLIN",
+            ("SUGAR LAND", "TX"): "FORT BEND",
+            ("KILLEEN", "TX"): "BELL",
+            ("WICHITA FALLS", "TX"): "WICHITA",
+            ("LONGVIEW", "TX"): "GREGG",
+            ("MISSION", "TX"): "HIDALGO",
+            ("EDINBURG", "TX"): "HIDALGO",
+            ("BRYAN", "TX"): "BRAZOS",
+            ("BAYTOWN", "TX"): "HARRIS",
+            ("PHARR", "TX"): "HIDALGO",
+            ("TEMPLE", "TX"): "BELL",
+            ("MISSOURI CITY", "TX"): "FORT BEND",
+            ("FLOWER MOUND", "TX"): "DENTON",
+            ("HARLINGEN", "TX"): "CAMERON",
+            ("NORTH RICHLAND HILLS", "TX"): "TARRANT",
+            ("VICTORIA", "TX"): "VICTORIA",
+            ("CONROE", "TX"): "MONTGOMERY",
+            ("NEW BRAUNFELS", "TX"): "COMAL",
+            ("MANSFIELD", "TX"): "TARRANT",
+            ("ROWLETT", "TX"): "DALLAS",
+            ("WESLACO", "TX"): "HIDALGO",
+            ("PORT ARTHUR", "TX"): "JEFFERSON",
+            ("GALVESTON", "TX"): "GALVESTON",
+            ("BEAUMONT", "TX"): "JEFFERSON",
+            ("PORT ARTHUR", "TX"): "JEFFERSON",
+            ("ORANGE", "TX"): "ORANGE",
+            ("TEXAS CITY", "TX"): "GALVESTON",
+            ("LAKE JACKSON", "TX"): "BRAZORIA",
+            ("FRIENDSWOOD", "TX"): "GALVESTON",
+            ("LEAGUE CITY", "TX"): "GALVESTON",
+            ("PEARLAND", "TX"): "BRAZORIA",
+            ("ALVIN", "TX"): "BRAZORIA",
+            ("ANGLETON", "TX"): "BRAZORIA",
+            ("ROSENBERG", "TX"): "FORT BEND",
+            ("RICHMOND", "TX"): "FORT BEND",
+            ("SUGAR LAND", "TX"): "FORT BEND",
+            ("STAFFORD", "TX"): "FORT BEND",
+            ("MISSOURI CITY", "TX"): "FORT BEND",
+            ("FULSHEAR", "TX"): "FORT BEND",
+            ("KATY", "TX"): "HARRIS",
+            ("CYPRESS", "TX"): "HARRIS",
+            ("SPRING", "TX"): "HARRIS",
+            ("THE WOODLANDS", "TX"): "MONTGOMERY",
+            ("MAGNOLIA", "TX"): "MONTGOMERY",
+            ("TOMBALL", "TX"): "HARRIS",
+            ("HUMBLE", "TX"): "HARRIS",
+            ("KINGWOOD", "TX"): "HARRIS",
+            ("ATASCOCITA", "TX"): "HARRIS",
+            ("CLEAR LAKE", "TX"): "HARRIS",
+            ("WEBSTER", "TX"): "HARRIS",
+            ("SEABROOK", "TX"): "HARRIS",
+            ("KEMAH", "TX"): "GALVESTON",
+            ("DICKINSON", "TX"): "GALVESTON",
+            ("LA MARQUE", "TX"): "GALVESTON",
+            ("SANTA FE", "TX"): "GALVESTON",
+            ("ALVIN", "TX"): "BRAZORIA",
+            ("ANGLETON", "TX"): "BRAZORIA",
+            ("LAKE JACKSON", "TX"): "BRAZORIA",
+            ("CLUTE", "TX"): "BRAZORIA",
+            ("FREEPORT", "TX"): "BRAZORIA",
+            ("WEST COLUMBIA", "TX"): "BRAZORIA",
+            ("BRAZORIA", "TX"): "BRAZORIA",
+            ("DANBURY", "TX"): "BRAZORIA",
+            ("SURFSIDE BEACH", "TX"): "BRAZORIA",
+            ("QUINTANA", "TX"): "BRAZORIA",
+            ("BAILEY'S PRAIRIE", "TX"): "BRAZORIA",
+            ("BONNEY", "TX"): "BRAZORIA",
+            ("CLUTE", "TX"): "BRAZORIA",
+            ("DANBURY", "TX"): "BRAZORIA",
+            ("HILLCREST", "TX"): "BRAZORIA",
+            ("IOWA COLONY", "TX"): "BRAZORIA",
+            ("JONES CREEK", "TX"): "BRAZORIA",
+            ("LIVERPOOL", "TX"): "BRAZORIA",
+            ("MANVEL", "TX"): "BRAZORIA",
+            ("OLDEMAN", "TX"): "BRAZORIA",
+            ("RICHWOOD", "TX"): "BRAZORIA",
+            ("SANDY POINT", "TX"): "BRAZORIA",
+            ("SWEENY", "TX"): "BRAZORIA",
+            ("WEST COLUMBIA", "TX"): "BRAZORIA",
+            
+            # Illinois cities
+            ("CHICAGO", "IL"): "COOK",
+            ("AURORA", "IL"): "KANE",
+            ("NAPERVILLE", "IL"): "DUPAGE",
+            ("JOLIET", "IL"): "WILL",
+            ("ROCKFORD", "IL"): "WINNEBAGO",
+            ("ELGIN", "IL"): "KANE",
+            ("PEORIA", "IL"): "PEORIA",
+            ("CHAMPAGN", "IL"): "CHAMPAGN",
+            ("WAUKEGAN", "IL"): "LAKE",
+            ("CICERO", "IL"): "COOK",
+            ("BLOOMINGTON", "IL"): "MCLEAN",
+            ("ARLINGTON HEIGHTS", "IL"): "COOK",
+            ("EVANSTON", "IL"): "COOK",
+            ("DECATUR", "IL"): "MACON",
+            ("SCHAUMBURG", "IL"): "COOK",
+            ("BOLINGBROOK", "IL"): "WILL",
+            ("PALATINE", "IL"): "COOK",
+            ("SKOKIE", "IL"): "COOK",
+            ("DES PLAINES", "IL"): "COOK",
+            ("ORLAND PARK", "IL"): "COOK",
+            ("TINLEY PARK", "IL"): "COOK",
+            ("OAK LAWN", "IL"): "COOK",
+            ("BERWYN", "IL"): "COOK",
+            ("MOUNT PROSPECT", "IL"): "COOK",
+            ("NORMAL", "IL"): "MCLEAN",
+            ("WHEATON", "IL"): "DUPAGE",
+            ("HOFFMAN ESTATES", "IL"): "COOK",
+            ("OAK PARK", "IL"): "COOK",
+            ("DOWNERS GROVE", "IL"): "DUPAGE",
+            ("ELMHURST", "IL"): "DUPAGE",
+            ("GLENVIEW", "IL"): "COOK",
+            ("DEKALB", "IL"): "DEKALB",
+            ("LOMBARD", "IL"): "DUPAGE",
+            ("BUFFALO GROVE", "IL"): "COOK",
+            ("BARTLETT", "IL"): "DUPAGE",
+            ("URBANA", "IL"): "CHAMPAGN",
+            ("SCHAUMBURG", "IL"): "COOK",
+            ("CRYSTAL LAKE", "IL"): "MCHENRY",
+            ("PARK RIDGE", "IL"): "COOK",
+            ("PLAINFIELD", "IL"): "WILL",
+            ("HANOVER PARK", "IL"): "COOK",
+            ("CARPENTERSVILLE", "IL"): "KANE",
+            ("WHEELING", "IL"): "COOK",
+            ("NORTHBROOK", "IL"): "COOK",
+            ("ST. CHARLES", "IL"): "KANE",
+            ("ST CHARLES", "IL"): "KANE",
+            ("SAINT CHARLES", "IL"): "KANE",
+            ("GENEVA", "IL"): "KANE",
+            ("BATAVIA", "IL"): "KANE",
+            ("ELBURN", "IL"): "KANE",
+            ("SUGAR GROVE", "IL"): "KANE",
+            ("MAPLE PARK", "IL"): "KANE",
+            ("BURLINGTON", "IL"): "KANE",
+            ("BLACKBERRY", "IL"): "KANE",
+            ("CAMPTON HILLS", "IL"): "KANE",
+            ("VIRGIL", "IL"): "KANE",
+            ("BIG ROCK", "IL"): "KANE",
+            ("KANEVILLE", "IL"): "KANE",
+            ("LILY LAKE", "IL"): "KANE",
+            ("LA FOX", "IL"): "KANE",
+            ("MONTGOMERY", "IL"): "KENDALL",
+            ("OSWEGO", "IL"): "KENDALL",
+            ("PLANO", "IL"): "KENDALL",
+            ("YORKVILLE", "IL"): "KENDALL",
+            ("SANDWICH", "IL"): "DEKALB",
+            ("SYCAMORE", "IL"): "DEKALB",
+            ("GENOA", "IL"): "DEKALB",
+            ("KIRKLAND", "IL"): "DEKALB",
+            ("CORTLAND", "IL"): "DEKALB",
+            ("HINCKLEY", "IL"): "DEKALB",
+            ("MAPLE PARK", "IL"): "KANE",
+            ("MALTA", "IL"): "DEKALB",
+            ("SOMONAUK", "IL"): "DEKALB",
+            ("WATERMAN", "IL"): "DEKALB",
+            ("SHABBONA", "IL"): "DEKALB",
+            ("KINGSTON", "IL"): "DEKALB",
+            ("KIRKLAND", "IL"): "DEKALB",
+            ("CORTLAND", "IL"): "DEKALB",
+            ("HINCKLEY", "IL"): "DEKALB",
+            ("MAPLE PARK", "IL"): "KANE",
+            ("MALTA", "IL"): "DEKALB",
+            ("SOMONAUK", "IL"): "DEKALB",
+            ("WATERMAN", "IL"): "DEKALB",
+            ("SHABBONA", "IL"): "DEKALB",
+            ("KINGSTON", "IL"): "DEKALB",
+            
+            # Other major cities
+            ("PHOENIX", "AZ"): "MARICOPA",
+            ("TUCSON", "AZ"): "PIMA",
+            ("MESA", "AZ"): "MARICOPA",
+            ("CHANDLER", "AZ"): "MARICOPA",
+            ("SCOTTSDALE", "AZ"): "MARICOPA",
+            ("GLENDALE", "AZ"): "MARICOPA",
+            ("GILBERT", "AZ"): "MARICOPA",
+            ("TEMPE", "AZ"): "MARICOPA",
+            ("PEORIA", "AZ"): "MARICOPA",
+            ("SURPRISE", "AZ"): "MARICOPA",
+            ("YUMA", "AZ"): "YUMA",
+            ("FLAGSTAFF", "AZ"): "COCONINO",
+            ("SEDONA", "AZ"): "YAVAPAI",
+            ("PRESCOTT", "AZ"): "YAVAPAI",
+            ("LAKE HAVASU CITY", "AZ"): "MOHAVE",
+            ("BULLHEAD CITY", "AZ"): "MOHAVE",
+            ("KINGMAN", "AZ"): "MOHAVE",
+            ("NOGALES", "AZ"): "SANTA CRUZ",
+            ("SIERRA VISTA", "AZ"): "COCHISE",
+            ("DOUGLAS", "AZ"): "COCHISE",
+            ("BISBEE", "AZ"): "COCHISE",
+            ("CLIFTON", "AZ"): "GREENLEE",
+            ("SAFFORD", "AZ"): "GRAHAM",
+            ("PAYSON", "AZ"): "GILA",
+            ("GLOBE", "AZ"): "GILA",
+            ("SHOW LOW", "AZ"): "NAVAJO",
+            ("HOLBROOK", "AZ"): "NAVAJO",
+            ("WINSLOW", "AZ"): "NAVAJO",
+            ("PAGE", "AZ"): "COCONINO",
+            ("WILLIAMS", "AZ"): "COCONINO",
+            ("GRAND CANYON", "AZ"): "COCONINO",
+            ("TUBA CITY", "AZ"): "COCONINO",
+            ("KAYENTA", "AZ"): "NAVAJO",
+            ("CHINLE", "AZ"): "APACHE",
+            ("FORT DEFIANCE", "AZ"): "APACHE",
+            ("WINDOW ROCK", "AZ"): "APACHE",
+            ("SAINT JOHNS", "AZ"): "APACHE",
+            ("SAINT JOHNS", "AZ"): "APACHE",
+            ("EAGAR", "AZ"): "APACHE",
+            ("SPRINGERVILLE", "AZ"): "APACHE",
+            ("ALPINE", "AZ"): "APACHE",
+            ("VERNON", "AZ"): "APACHE",
+            ("CONCHO", "AZ"): "APACHE",
+            ("GREER", "AZ"): "APACHE",
+            ("MC NARY", "AZ"): "APACHE",
+            ("MC NARY", "AZ"): "APACHE",
+            ("NAZLINI", "AZ"): "APACHE",
+            ("LUPTON", "AZ"): "APACHE",
+            ("HOUCK", "AZ"): "APACHE",
+            ("SAINT MICHAELS", "AZ"): "APACHE",
+            ("SAWMILL", "AZ"): "APACHE",
+            ("TEEC NOS POS", "AZ"): "APACHE",
+            ("RED MESA", "AZ"): "APACHE",
+            ("ROCK POINT", "AZ"): "APACHE",
+            ("ROUND ROCK", "AZ"): "APACHE",
+            ("STEAMBOAT", "AZ"): "APACHE",
+            ("TSAILE", "AZ"): "APACHE",
+            ("WHITE RIVER", "AZ"): "APACHE",
+            ("WHITERIVER", "AZ"): "APACHE",
+            ("WIDE RUINS", "AZ"): "APACHE",
+        }
+        
+        # Look up city in mapping
+        lookup_key = (city_upper, state_upper)
+        county = city_county_map.get(lookup_key)
+        
+        if county:
+            return f"{county}, {state_upper}"
+        else:
+            # Fallback: Use Google Maps Geocoding API to get county
+            print(f"===> City '{city}' in state '{state}' not in local mapping, querying Google Maps API...")
+            county_from_api = get_county_from_google_maps(city, state)
+            
+            if county_from_api:
+                print(f"===> ✅ Found county '{county_from_api}' for '{city}, {state}' via Google Maps API")
+                return f"{county_from_api.upper()}, {state_upper}"
+            else:
+                # Final fallback: return city name if API call fails
+                print(f"===> ⚠️ Could not determine county for '{city}, {state}', using city name as fallback")
+                return f"{city_upper}, {state_upper}"
+    
+    # Helper function to format payment date as MM/DD/YYYY
     def format_payment_date(date_str):
         if not date_str:
             return ""
@@ -453,15 +1040,25 @@ def map_data_to_ss4_fields(form_data):
                             year = parts[2]
                             date_obj = datetime(int(year), int(month), int(day))
             elif date_str.startswith("(") and date_str.endswith(")"):
-                # Already in (month, day, year) format, return as is
-                return date_str
+                # Convert from (MM, DD, YYYY) format to MM/DD/YYYY
+                try:
+                    # Remove parentheses and split by comma
+                    content = date_str.strip("()")
+                    parts = [p.strip() for p in content.split(",")]
+                    if len(parts) == 3:
+                        month = parts[0].zfill(2)
+                        day = parts[1].zfill(2)
+                        year = parts[2].strip()
+                        date_obj = datetime(int(year), int(month), int(day))
+                except:
+                    pass
             
-            # Format as (MM, DD, YYYY) with proper zero-padding
+            # Format as MM/DD/YYYY with proper zero-padding
             if date_obj:
                 month = date_obj.strftime('%m')  # Zero-padded month (01-12)
                 day = date_obj.strftime('%d')    # Zero-padded day (01-31)
                 year = date_obj.strftime('%Y')   # Full year (YYYY)
-                return f"({month}, {day}, {year})"
+                return f"{month}/{day}/{year}"
             
             # If we couldn't parse it, return empty string
             print(f"===> ⚠️ Could not parse date: '{date_str}'")
@@ -569,16 +1166,16 @@ def map_data_to_ss4_fields(form_data):
         "Line 3": "",  # Executor, administrator, trustee, "care of" name - Usually empty, should NOT contain address
         "Line 4a": "12550 BISCAYNE BLVD STE 110",  # Mailing address line 2 (Avenida Legal address) - HARDCODED
         "Line 4b": "MIAMI FL, 33181",  # City, State, ZIP (mailing - Avenida Legal) - HARDCODED - Note: No comma after MIAMI
-        "Line 5a": to_upper(company_street_line1) if company_street_line1 else "",  # Street address line 1 (ONLY street address, NOT full address)
-        "Line 5b": to_upper(f"{company_city}, {company_state} {company_zip}".strip()) if (company_city or company_state or company_zip) else "",  # City, State, ZIP (from Company Address column in Airtable)
-        "Line 6": to_upper(f"{company_city}, {company_state}".strip(", ")) if company_city and company_state else to_upper(company_city_state_zip),  # City, State (Company's US City and State)
+        "Line 5a": "" if is_avenida_legal_address else (to_upper(company_street_line1) if company_street_line1 else ""),  # Street address line 1 (ONLY street address, NOT full address) - BLANK if US Address service purchased
+        "Line 5b": "" if is_avenida_legal_address else (to_upper(f"{company_city}, {company_state} {company_zip}".strip()) if (company_city or company_state or company_zip) else ""),  # City, State, ZIP (from Company Address column in Airtable) - BLANK if US Address service purchased
+        "Line 6": to_upper(city_to_county(company_city, company_state)) if company_city and company_state else "",  # County, State (converted from city) - e.g., "MIAMI-DADE, FL" or "KINGS, NY"
         "Line 7a": to_upper(responsible_name) if responsible_name else "",  # Responsible party name - ALL CAPS
         "Line 7b": format_ssn(responsible_ssn) if responsible_ssn and responsible_ssn.upper() not in ['N/A-FOREIGN', 'N/A', ''] else "N/A-FOREIGN",  # Responsible party SSN/ITIN/EIN - formatted as XXX-XX-XXXX
         "8b": "",  # Will be set to member count if LLC, or date if not LLC
         "8b_date": date_business_started,  # Date business started (for non-LLC)
         "9b": to_upper(formation_state or "FL"),  # Closing month / State of incorporation - ALL CAPS
         "10": to_upper(translate_to_english(form_data.get("summarizedBusinessPurpose", business_purpose or "General business operations"))[:35].strip()),  # Summarized Business Purpose (max 35 chars, ALL CAPS) - translated from Spanish - TRUNCATE to 35 chars
-        "11": format_payment_date(form_data.get("dateBusinessStarted", form_data.get("paymentDate", ""))),  # Date business started in (month, day, year) format - use paymentDate as fallback
+        "11": format_payment_date(form_data.get("dateBusinessStarted", form_data.get("paymentDate", ""))),  # Date business started in MM/DD/YYYY format - use paymentDate as fallback
         "12": "DECEMBER",  # Closing month of accounting year - always DECEMBER
         "13": {
             "Agricultural": "0",
