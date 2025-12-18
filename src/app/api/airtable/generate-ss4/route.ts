@@ -346,7 +346,28 @@ Return ONLY the concise summary (max 80 characters), no labels or prefixes:`,
  * - Line 18: Third Party Designee
  */
 async function mapAirtableToSS4(record: any): Promise<any> {
+  // CRITICAL: Ensure we're using a fresh copy of fields, not a reference
+  // Log the record structure to detect any issues
+  console.log(`🔍 mapAirtableToSS4 called with record:`, {
+    recordId: record.id || 'NO ID',
+    hasFields: !!record.fields,
+    fieldsKeys: record.fields ? Object.keys(record.fields).length : 0,
+  });
+  
   const fields = record.fields || record;
+  
+  // CRITICAL: Log what fields we're actually using - especially owner SSNs
+  console.log(`🔍 Fields being used in mapAirtableToSS4:`, {
+    companyName: fields['Company Name'] || 'MISSING',
+    entityType: fields['Entity Type'] || 'MISSING',
+    ownerCount: fields['Owner Count'] || 'MISSING',
+    owner1Name: fields['Owner 1 Name'] || 'MISSING',
+    owner1SSN: fields['Owner 1 SSN'] || 'MISSING',
+    owner2Name: fields['Owner 2 Name'] || 'MISSING',
+    owner2SSN: fields['Owner 2 SSN'] || 'MISSING',
+    owner3Name: fields['Owner 3 Name'] || 'MISSING',
+    owner3SSN: fields['Owner 3 SSN'] || 'MISSING',
+  });
   
   // Determine entity type first
   const entityType = fields['Entity Type'] || 'LLC';
@@ -356,12 +377,21 @@ async function mapAirtableToSS4(record: any): Promise<any> {
   // Find the responsible party for Line 7a and 7b
   // For C-Corp: Must be an officer
   // For LLC: Can be any owner/manager
+  // CRITICAL: Initialize all variables to empty strings to prevent data leakage
+  // This ensures that each request starts with a clean slate
   let responsiblePartyName = '';
   let responsiblePartyFirstName = '';
   let responsiblePartyLastName = '';
   let responsiblePartySSN = '';
   let responsiblePartyAddress = '';
   let responsiblePartyOfficerRole = ''; // Officer role for C-Corp (for designee name)
+  
+  console.log(`🔍 Initialized responsible party variables (all empty) for ${entityType}:`, {
+    responsiblePartyName,
+    responsiblePartySSN,
+    responsiblePartyAddress,
+    entityType,
+  });
   
   if (isCorp) {
     // For C-Corp, responsible party must be an officer
@@ -463,13 +493,26 @@ async function mapAirtableToSS4(record: any): Promise<any> {
       }
     }
     
-    // If tax owner not found or not specified, OR if tax owner doesn't have SSN, find first officer with SSN
-    // IMPORTANT: Prioritize officers who are also owners and have SSN
+    // If tax owner not found or not specified, OR if tax owner doesn't have SSN, find officers with SSN
+    // CRITICAL: C-Corp logic - More than one officer with SSN: prefer President. Only one: use that one. None: use N/A-FOREIGN
     if (!responsiblePartyName || !responsiblePartySSN || responsiblePartySSN === 'N/A-FOREIGN') {
-      console.log(`🔍 Searching for officer with SSN. Current: ${responsiblePartyName}, SSN: ${responsiblePartySSN}`);
+      console.log(`🔍 C-Corp: Searching for officers with SSN. Current: ${responsiblePartyName}, SSN: ${responsiblePartySSN}`);
+      
+      // Collect all officers with SSN
+      interface OfficerWithSSN {
+        officerIndex: number;
+        ownerIndex: number;
+        name: string;
+        firstName: string;
+        lastName: string;
+        ssn: string;
+        address: string;
+        role: string;
+      }
+      const officersWithSSN: OfficerWithSSN[] = [];
       
       if (officersAllOwners) {
-        // All owners are officers, search for first owner with SSN
+        // All owners are officers, search all owners for SSN
         const ownerCount = fields['Owner Count'] || 1;
         console.log(`🔍 Checking ${ownerCount} owners (all are officers) for SSN...`);
         for (let i = 1; i <= Math.min(ownerCount, 6); i++) {
@@ -480,49 +523,40 @@ async function mapAirtableToSS4(record: any): Promise<any> {
           if (ownerSSN && ownerSSN.trim() !== '' && 
               ownerSSN.toUpperCase() !== 'N/A' && 
               !ownerSSN.toUpperCase().includes('FOREIGN')) {
-            responsiblePartyName = ownerName;
-            responsiblePartyFirstName = fields[`Owner ${i} First Name`] || '';
-            responsiblePartyLastName = fields[`Owner ${i} Last Name`] || '';
-            responsiblePartySSN = ownerSSN;
-            responsiblePartyAddress = fields[`Owner ${i} Address`] || '';
-            // Find officer role - if all owners are officers, find the ACTUAL role
+            // Find officer role for this owner
+            let officerRole = '';
             for (let k = 1; k <= Math.min(officersCount, 6); k++) {
               const officerName = fields[`Officer ${k} Name`] || '';
-              // Case-insensitive name matching
-              if (officerName && responsiblePartyName && 
-                  officerName.trim().toLowerCase() === responsiblePartyName.trim().toLowerCase()) {
-                responsiblePartyOfficerRole = fields[`Officer ${k} Role`] || '';
-                console.log(`    Matched to Officer ${k} with role: "${responsiblePartyOfficerRole || 'EMPTY'}"`);
-                if (responsiblePartyOfficerRole && responsiblePartyOfficerRole.trim() !== '') {
-                  console.log(`✅ Found actual officer role: "${responsiblePartyOfficerRole}"`);
-                } else {
-                  console.warn(`⚠️ Officer ${k} Role is empty for ${officerName}`);
-                }
+              if (officerName && ownerName && 
+                  officerName.trim().toLowerCase() === ownerName.trim().toLowerCase()) {
+                officerRole = fields[`Officer ${k} Role`] || '';
                 break;
               }
             }
-            // If not found, leave empty - don't default to President
-            if (!responsiblePartyOfficerRole || responsiblePartyOfficerRole.trim() === '') {
-              console.warn(`⚠️ No officer role found for ${responsiblePartyName} - leaving empty (NOT defaulting to President)`);
-              responsiblePartyOfficerRole = '';
-            }
-            console.log(`✅ Selected responsible party: ${responsiblePartyName} (Owner ${i}, Officer with SSN, role: ${responsiblePartyOfficerRole})`);
-            break;
+            
+            officersWithSSN.push({
+              officerIndex: i,
+              ownerIndex: i,
+              name: ownerName,
+              firstName: fields[`Owner ${i} First Name`] || '',
+              lastName: fields[`Owner ${i} Last Name`] || '',
+              ssn: ownerSSN,
+              address: fields[`Owner ${i} Address`] || '',
+              role: officerRole,
+            });
           }
         }
       } else {
-        // Specific officers, find first officer with SSN (match to owner for SSN)
-        // IMPORTANT: Check ALL officers, prioritize those who are owners with SSN
+        // Specific officers, match to owners to get SSN
         console.log(`🔍 Checking ${officersCount} specific officers for SSN...`);
         const ownerCount = fields['Owner Count'] || 1;
         for (let i = 1; i <= Math.min(officersCount, 6); i++) {
           const officerName = fields[`Officer ${i} Name`] || '';
           if (officerName) {
             console.log(`  Checking Officer ${i}: "${officerName}"`);
-            // Match officer to owner to get SSN (case-insensitive matching)
+            // Match officer to owner to get SSN
             for (let j = 1; j <= Math.min(ownerCount, 6); j++) {
               const ownerName = fields[`Owner ${j} Name`] || '';
-              // Case-insensitive name matching
               if (ownerName && officerName && 
                   ownerName.trim().toLowerCase() === officerName.trim().toLowerCase()) {
                 const ownerSSN = fields[`Owner ${j} SSN`] || '';
@@ -531,143 +565,308 @@ async function mapAirtableToSS4(record: any): Promise<any> {
                 if (ownerSSN && ownerSSN.trim() !== '' && 
                     ownerSSN.toUpperCase() !== 'N/A' && 
                     !ownerSSN.toUpperCase().includes('FOREIGN')) {
-                  responsiblePartyName = officerName;
-                  responsiblePartyFirstName = fields[`Officer ${i} First Name`] || fields[`Owner ${j} First Name`] || '';
-                  responsiblePartyLastName = fields[`Officer ${i} Last Name`] || fields[`Owner ${j} Last Name`] || '';
-                  responsiblePartySSN = ownerSSN;
-                  responsiblePartyAddress = fields[`Officer ${i} Address`] || fields[`Owner ${j} Address`] || '';
-                  // Get officer role - IMPORTANT: Get the ACTUAL role from Officer ${i} Role field, NOT hardcoded to President
-                  // Log all officer-related fields for debugging
-                  console.log(`🔍 DEBUG: Checking Officer ${i} fields for ${officerName}:`);
-                  console.log(`   Officer ${i} Name: "${fields[`Officer ${i} Name`] || 'NOT FOUND'}"`);
-                  console.log(`   Officer ${i} Role: "${fields[`Officer ${i} Role`] || 'NOT FOUND'}"`);
-                  console.log(`   All fields containing "Officer ${i}":`, Object.keys(fields).filter(k => k.includes(`Officer ${i}`)));
-                  
-                  responsiblePartyOfficerRole = fields[`Officer ${i} Role`] || '';
-                  console.log(`🔍 Officer ${i} Role field value: "${responsiblePartyOfficerRole || 'EMPTY'}"`);
-                  
-                  if (!responsiblePartyOfficerRole || responsiblePartyOfficerRole.trim() === '') {
-                    console.warn(`⚠️ Officer ${i} Role is empty for ${officerName}, trying to find role from shareholder/officer mapping`);
-                    // Try to find role from shareholder/officer mapping if available
-                    const shareholderRole = fields[`Shareholder ${j} Officer Role`] || fields[`Owner ${j} Officer Role`] || fields[`admin.shareholderOfficer${j}Role`] || '';
-                    console.log(`   Shareholder ${j} Officer Role: "${fields[`Shareholder ${j} Officer Role`] || 'NOT FOUND'}"`);
-                    console.log(`   Owner ${j} Officer Role: "${fields[`Owner ${j} Officer Role`] || 'NOT FOUND'}"`);
-                    if (shareholderRole && shareholderRole.trim() !== '') {
-                      responsiblePartyOfficerRole = shareholderRole;
-                      console.log(`✅ Found role from shareholder/officer mapping: ${responsiblePartyOfficerRole}`);
-                    } else {
-                      console.warn(`⚠️ No role found for ${officerName} - will use empty role (NOT defaulting to President)`);
-                      responsiblePartyOfficerRole = ''; // Leave empty, don't default to President
-                    }
-                  } else {
-                    console.log(`✅ Using actual officer role from Airtable: "${responsiblePartyOfficerRole}"`);
-                  }
-                  console.log(`✅ Selected responsible party: ${responsiblePartyName} (Officer ${i}, Owner ${j} with SSN, role: "${responsiblePartyOfficerRole || 'NOT SET'}")`);
+                  const officerRole = fields[`Officer ${i} Role`] || '';
+                  officersWithSSN.push({
+                    officerIndex: i,
+                    ownerIndex: j,
+                    name: officerName,
+                    firstName: fields[`Officer ${i} First Name`] || fields[`Owner ${j} First Name`] || '',
+                    lastName: fields[`Officer ${i} Last Name`] || fields[`Owner ${j} Last Name`] || '',
+                    ssn: ownerSSN,
+                    address: fields[`Officer ${i} Address`] || fields[`Owner ${j} Address`] || '',
+                    role: officerRole,
+                  });
                   break;
                 }
               }
             }
-            if (responsiblePartySSN && responsiblePartySSN !== 'N/A-FOREIGN') break;
           }
+        }
+      }
+      
+      // Now select the appropriate officer
+      if (officersWithSSN.length === 0) {
+        console.log(`⚠️ C-Corp: No officers with SSN found - will use President with N/A-FOREIGN`);
+        // Will be handled in the fallback below
+      } else if (officersWithSSN.length === 1) {
+        // Only one officer with SSN, use that one
+        const officer = officersWithSSN[0];
+        responsiblePartyName = officer.name;
+        responsiblePartyFirstName = officer.firstName;
+        responsiblePartyLastName = officer.lastName;
+        responsiblePartySSN = officer.ssn;
+        responsiblePartyAddress = officer.address;
+        responsiblePartyOfficerRole = officer.role;
+        console.log(`✅ C-Corp: Only one officer with SSN, using: ${responsiblePartyName} (role: "${responsiblePartyOfficerRole || 'NOT SET'}")`);
+      } else {
+        // Multiple officers with SSN, prefer President
+        console.log(`🔍 C-Corp: Found ${officersWithSSN.length} officers with SSN, preferring President...`);
+        const president = officersWithSSN.find(o => 
+          o.role && (o.role.trim().toUpperCase() === 'PRESIDENT' || o.role.toUpperCase().includes('PRESIDENT'))
+        );
+        
+        if (president) {
+          responsiblePartyName = president.name;
+          responsiblePartyFirstName = president.firstName;
+          responsiblePartyLastName = president.lastName;
+          responsiblePartySSN = president.ssn;
+          responsiblePartyAddress = president.address;
+          responsiblePartyOfficerRole = president.role;
+          console.log(`✅ C-Corp: Multiple officers with SSN, using President: ${responsiblePartyName}`);
+        } else {
+          // No President found, use first officer with SSN
+          const officer = officersWithSSN[0];
+          responsiblePartyName = officer.name;
+          responsiblePartyFirstName = officer.firstName;
+          responsiblePartyLastName = officer.lastName;
+          responsiblePartySSN = officer.ssn;
+          responsiblePartyAddress = officer.address;
+          responsiblePartyOfficerRole = officer.role;
+          console.log(`⚠️ C-Corp: Multiple officers with SSN but no President found, using first: ${responsiblePartyName} (role: "${responsiblePartyOfficerRole || 'NOT SET'}")`);
         }
       }
     }
     
-    // If still no responsible party found, use first officer (even without SSN)
-    // IMPORTANT: NEVER use Customer Name (Stripe cardholder) - only use actual officers/owners
-    if (!responsiblePartyName) {
-      console.log(`⚠️ No responsible party found with SSN, using first officer/owner (without SSN)`);
+    // If still no responsible party found with SSN, use President with N/A-FOREIGN
+    // CRITICAL: For C-Corp, officers should have SSN. If none have SSN, use President with N/A-FOREIGN
+    if (!responsiblePartyName || !responsiblePartySSN || responsiblePartySSN === 'N/A-FOREIGN') {
+      console.log(`⚠️ C-Corp: No officer found with SSN, using President with N/A-FOREIGN`);
+      
+      // First, try to find an officer with "President" role
+      let presidentFound = false;
       if (officersAllOwners) {
-        // All owners are officers, use Owner 1
-        responsiblePartyName = fields['Owner 1 Name'] || '';
-        responsiblePartyFirstName = fields['Owner 1 First Name'] || '';
-        responsiblePartyLastName = fields['Owner 1 Last Name'] || '';
-        responsiblePartySSN = 'N/A-FOREIGN';
-        responsiblePartyAddress = fields['Owner 1 Address'] || '';
-        // Find officer role - get ACTUAL role, not hardcoded to President
+        // All owners are officers, search for President role in officers
         for (let k = 1; k <= Math.min(officersCount, 6); k++) {
-          const officerName = fields[`Officer ${k} Name`] || '';
-          // Case-insensitive name matching
-          if (officerName && responsiblePartyName && 
-              officerName.trim().toLowerCase() === responsiblePartyName.trim().toLowerCase()) {
-            responsiblePartyOfficerRole = fields[`Officer ${k} Role`] || '';
-            console.log(`    Matched to Officer ${k} with role: "${responsiblePartyOfficerRole || 'EMPTY'}"`);
-            if (responsiblePartyOfficerRole && responsiblePartyOfficerRole.trim() !== '') {
-              console.log(`✅ Found actual officer role: "${responsiblePartyOfficerRole}"`);
+          const officerRole = (fields[`Officer ${k} Role`] || '').trim().toUpperCase();
+          if (officerRole === 'PRESIDENT' || officerRole.includes('PRESIDENT')) {
+            const officerName = fields[`Officer ${k} Name`] || '';
+            if (officerName) {
+              // Match to owner to get name/address
+              const ownerCount = fields['Owner Count'] || 1;
+              for (let j = 1; j <= Math.min(ownerCount, 6); j++) {
+                const ownerName = fields[`Owner ${j} Name`] || '';
+                if (ownerName && officerName && 
+                    ownerName.trim().toLowerCase() === officerName.trim().toLowerCase()) {
+                  responsiblePartyName = officerName;
+                  responsiblePartyFirstName = fields[`Officer ${k} First Name`] || fields[`Owner ${j} First Name`] || '';
+                  responsiblePartyLastName = fields[`Officer ${k} Last Name`] || fields[`Owner ${j} Last Name`] || '';
+                  responsiblePartySSN = 'N/A-FOREIGN';
+                  responsiblePartyAddress = fields[`Officer ${k} Address`] || fields[`Owner ${j} Address`] || '';
+                  responsiblePartyOfficerRole = 'PRESIDENT';
+                  presidentFound = true;
+                  console.log(`✅ Found President: ${responsiblePartyName}`);
+                  break;
+                }
+              }
+              if (presidentFound) break;
             }
+          }
+        }
+      } else {
+        // Specific officers, search for President
+        for (let k = 1; k <= Math.min(officersCount, 6); k++) {
+          const officerRole = (fields[`Officer ${k} Role`] || '').trim().toUpperCase();
+          if (officerRole === 'PRESIDENT' || officerRole.includes('PRESIDENT')) {
+            responsiblePartyName = fields[`Officer ${k} Name`] || '';
+            responsiblePartyFirstName = fields[`Officer ${k} First Name`] || '';
+            responsiblePartyLastName = fields[`Officer ${k} Last Name`] || '';
+            responsiblePartySSN = 'N/A-FOREIGN';
+            responsiblePartyAddress = fields[`Officer ${k} Address`] || '';
+            responsiblePartyOfficerRole = 'PRESIDENT';
+            presidentFound = true;
+            console.log(`✅ Found President: ${responsiblePartyName}`);
             break;
           }
         }
-        if (!responsiblePartyOfficerRole || responsiblePartyOfficerRole.trim() === '') {
-          console.warn(`⚠️ No officer role found for ${responsiblePartyName} - leaving empty (NOT defaulting to President)`);
-          responsiblePartyOfficerRole = '';
+      }
+      
+      // If no President found, use Officer 1 (first officer) as President
+      if (!presidentFound) {
+        if (officersAllOwners) {
+          // All owners are officers, use Owner 1 as President
+          responsiblePartyName = fields['Owner 1 Name'] || '';
+          responsiblePartyFirstName = fields['Owner 1 First Name'] || '';
+          responsiblePartyLastName = fields['Owner 1 Last Name'] || '';
+          responsiblePartySSN = 'N/A-FOREIGN';
+          responsiblePartyAddress = fields['Owner 1 Address'] || '';
+          responsiblePartyOfficerRole = 'PRESIDENT';
+          console.log(`✅ Using Owner 1 as President: ${responsiblePartyName}`);
+        } else if (officersCount > 0) {
+          // Specific officers, use Officer 1 as President
+          responsiblePartyName = fields['Officer 1 Name'] || '';
+          responsiblePartyFirstName = fields['Officer 1 First Name'] || '';
+          responsiblePartyLastName = fields['Officer 1 Last Name'] || '';
+          responsiblePartySSN = 'N/A-FOREIGN';
+          responsiblePartyAddress = fields['Officer 1 Address'] || '';
+          responsiblePartyOfficerRole = 'PRESIDENT';
+          console.log(`✅ Using Officer 1 as President: ${responsiblePartyName}`);
+        } else {
+          // No officers found - this shouldn't happen for C-Corp, but handle it
+          console.error(`❌ ERROR: C-Corp but no officers found! Using Owner 1 as President fallback.`);
+          responsiblePartyName = fields['Owner 1 Name'] || '';
+          responsiblePartyFirstName = fields['Owner 1 First Name'] || '';
+          responsiblePartyLastName = fields['Owner 1 Last Name'] || '';
+          responsiblePartySSN = 'N/A-FOREIGN';
+          responsiblePartyAddress = fields['Owner 1 Address'] || '';
+          responsiblePartyOfficerRole = 'PRESIDENT';
+          console.warn(`⚠️ C-Corp but no officers found! Using Owner 1 as President fallback.`);
         }
-        console.log(`✅ Using Owner 1 as responsible party: ${responsiblePartyName} (role: ${responsiblePartyOfficerRole})`);
-      } else if (officersCount > 0) {
-        // Specific officers, use Officer 1
-        responsiblePartyName = fields['Officer 1 Name'] || '';
-        responsiblePartyFirstName = fields['Officer 1 First Name'] || '';
-        responsiblePartyLastName = fields['Officer 1 Last Name'] || '';
-        responsiblePartySSN = 'N/A-FOREIGN';
-        responsiblePartyAddress = fields['Officer 1 Address'] || '';
-        responsiblePartyOfficerRole = fields['Officer 1 Role'] || '';
-        console.log(`✅ Using Officer 1 as responsible party: ${responsiblePartyName} (role: "${responsiblePartyOfficerRole || 'NOT SET'}")`);
-        if (!responsiblePartyOfficerRole || responsiblePartyOfficerRole.trim() === '') {
-          console.warn(`⚠️ Officer 1 Role is empty - leaving empty (NOT defaulting to President)`);
-        }
-      } else {
-        // No officers found - this shouldn't happen for C-Corp, but handle it
-        console.error(`❌ ERROR: C-Corp but no officers found! Using Owner 1 as fallback.`);
-        responsiblePartyName = fields['Owner 1 Name'] || '';
-        responsiblePartyFirstName = fields['Owner 1 First Name'] || '';
-        responsiblePartyLastName = fields['Owner 1 Last Name'] || '';
-        responsiblePartySSN = 'N/A-FOREIGN';
-        responsiblePartyAddress = fields['Owner 1 Address'] || '';
-        responsiblePartyOfficerRole = ''; // Don't hardcode to President - try to find actual role
-        console.warn(`⚠️ C-Corp but no officers found! Using Owner 1 as fallback. Role: "${responsiblePartyOfficerRole || 'NOT SET'}"`);
       }
     }
   } else {
     // For LLC, use owner/manager logic - MUST prioritize members/owners with SSN
     // Do NOT use Customer Name or Manager Name unless they are owners
+    // CRITICAL: Explicitly reset responsiblePartySSN for LLCs to prevent data leakage
+    responsiblePartySSN = '';
+    responsiblePartyName = '';
+    responsiblePartyFirstName = '';
+    responsiblePartyLastName = '';
+    responsiblePartyAddress = '';
+    console.log(`🔍 LLC: Explicitly reset responsible party variables to prevent data leakage`);
+    
     // Count actual owners by checking Owner ${i} Name fields (more reliable than Owner Count field)
     let actualOwnerCount = 0;
     for (let i = 1; i <= 6; i++) {
-      const ownerName = fields[`Owner ${i} Name`] || '';
-      if (ownerName && ownerName.trim() !== '') {
+      const ownerName = (fields[`Owner ${i} Name`] || '').trim();
+      if (ownerName && ownerName !== '') {
         actualOwnerCount++; // Count actual owners, not just track highest index
       }
     }
     const ownerCount = actualOwnerCount || fields['Owner Count'] || 1;
     console.log(`📊 Owner count: ${ownerCount} (from actual count: ${actualOwnerCount}, from Airtable field: ${fields['Owner Count'] || 'NOT SET'})`);
     
-    // First, find the first owner/member with a valid SSN
+    // CRITICAL: LLC logic - More than one owner with SSN: prefer higher ownership %. Only one: use that one. None: use N/A-FOREIGN
+    console.log(`🔍 LLC: Searching for owners with SSN...`);
+    
+    // Collect all owners with SSN and their ownership percentages
+    interface OwnerWithSSN {
+      ownerIndex: number;
+      name: string;
+      firstName: string;
+      lastName: string;
+      ssn: string;
+      address: string;
+      ownershipPercent: number; // Ownership percentage (0-100)
+    }
+    const ownersWithSSN: OwnerWithSSN[] = [];
+    
     for (let i = 1; i <= Math.min(ownerCount, 6); i++) {
-      const ownerSSN = fields[`Owner ${i} SSN`] || '';
-      // Check if SSN is valid (not empty, not N/A, not FOREIGN)
-      if (ownerSSN && ownerSSN.trim() !== '' && 
-          ownerSSN.toUpperCase() !== 'N/A' && 
-          !ownerSSN.toUpperCase().includes('FOREIGN')) {
-        // Found an owner/member with valid SSN - use this one
-        responsiblePartyName = fields[`Owner ${i} Name`] || '';
-        responsiblePartyFirstName = fields[`Owner ${i} First Name`] || '';
-        responsiblePartyLastName = fields[`Owner ${i} Last Name`] || '';
-        responsiblePartySSN = ownerSSN;
-        responsiblePartyAddress = fields[`Owner ${i} Address`] || '';
-        console.log(`✅ Found owner/member with SSN: ${responsiblePartyName} (Owner ${i})`);
-        break; // Use the first owner with valid SSN
+      const ownerSSN = (fields[`Owner ${i} SSN`] || '').trim();
+      const ownerName = (fields[`Owner ${i} Name`] || '').trim();
+      
+      // CRITICAL: Only process if owner name exists (to avoid processing stale/empty owner slots)
+      if (!ownerName || ownerName === '') {
+        continue; // Skip empty owner slots
+      }
+      
+      // CRITICAL: Check if SSN is valid (not empty, not N/A, not FOREIGN, and actually looks like an SSN)
+      // Also ensure it's not from a previous company by checking it's not a stale value
+      const ssnUpper = ownerSSN.toUpperCase();
+      const isValidSSN = ownerSSN && 
+                         ownerSSN.trim() !== '' && 
+                         ssnUpper !== 'N/A' && 
+                         !ssnUpper.includes('FOREIGN') &&
+                         !ssnUpper.includes('N/A-FOREIGN') &&
+                         ownerSSN.length >= 9; // Basic SSN format check (at least 9 characters)
+      
+      if (isValidSSN) {
+        // Get ownership percentage (Airtable stores as 0-100 or 0-1, normalize to 0-100)
+        let ownershipPercent = fields[`Owner ${i} Ownership %`] || 0;
+        // Normalize: if less than 1, assume it's a decimal (0.5 = 50%), otherwise it's already a percentage
+        if (ownershipPercent < 1 && ownershipPercent > 0) {
+          ownershipPercent = ownershipPercent * 100;
+        }
+        
+        ownersWithSSN.push({
+          ownerIndex: i,
+          name: ownerName,
+          firstName: fields[`Owner ${i} First Name`] || '',
+          lastName: fields[`Owner ${i} Last Name`] || '',
+          ssn: ownerSSN,
+          address: fields[`Owner ${i} Address`] || '',
+          ownershipPercent: ownershipPercent,
+        });
+        console.log(`  Found Owner ${i} with SSN: ${ownerName}, Ownership: ${ownershipPercent}%`);
       }
     }
     
-    // If no owner has a valid SSN, use Owner 1's name but set SSN to "N/A-FOREIGN"
-    // IMPORTANT: Do NOT use Customer Name or Manager Name - only use actual owners
-    if (!responsiblePartySSN) {
-      responsiblePartyName = fields['Owner 1 Name'] || '';
-      responsiblePartyFirstName = fields['Owner 1 First Name'] || '';
-      responsiblePartyLastName = fields['Owner 1 Last Name'] || '';
-      responsiblePartySSN = 'N/A-FOREIGN'; // Set to N/A-FOREIGN if no one has SSN
-      responsiblePartyAddress = fields['Owner 1 Address'] || '';
-      console.log(`⚠️ No owner with SSN found, using Owner 1: ${responsiblePartyName}`);
+    // Now select the appropriate owner
+    if (ownersWithSSN.length === 0) {
+      // No owner has a valid SSN, use the owner with highest ownership percentage
+      console.log(`⚠️ LLC: No owner with SSN found, finding owner with highest ownership percentage...`);
+      
+      // Collect all owners with their ownership percentages
+      interface OwnerWithOwnership {
+        ownerIndex: number;
+        name: string;
+        firstName: string;
+        lastName: string;
+        address: string;
+        ownershipPercent: number;
+      }
+      const allOwners: OwnerWithOwnership[] = [];
+      
+      for (let i = 1; i <= Math.min(ownerCount, 6); i++) {
+        const ownerName = fields[`Owner ${i} Name`] || '';
+        if (ownerName && ownerName.trim() !== '') {
+          // Get ownership percentage (Airtable stores as 0-100 or 0-1, normalize to 0-100)
+          let ownershipPercent = fields[`Owner ${i} Ownership %`] || 0;
+          // Normalize: if less than 1, assume it's a decimal (0.5 = 50%), otherwise it's already a percentage
+          if (ownershipPercent < 1 && ownershipPercent > 0) {
+            ownershipPercent = ownershipPercent * 100;
+          }
+          
+          allOwners.push({
+            ownerIndex: i,
+            name: ownerName,
+            firstName: fields[`Owner ${i} First Name`] || '',
+            lastName: fields[`Owner ${i} Last Name`] || '',
+            address: fields[`Owner ${i} Address`] || '',
+            ownershipPercent: ownershipPercent,
+          });
+        }
+      }
+      
+      // Sort by ownership percentage (descending) and use the one with highest %
+      if (allOwners.length > 0) {
+        allOwners.sort((a, b) => b.ownershipPercent - a.ownershipPercent);
+        const owner = allOwners[0];
+        responsiblePartyName = owner.name;
+        responsiblePartyFirstName = owner.firstName;
+        responsiblePartyLastName = owner.lastName;
+        responsiblePartySSN = 'N/A-FOREIGN'; // Set to N/A-FOREIGN if no one has SSN
+        responsiblePartyAddress = owner.address;
+        console.log(`⚠️ LLC: No owner with SSN found, using owner with highest ownership: ${responsiblePartyName} (${owner.ownershipPercent}%), SSN set to N/A-FOREIGN`);
+      } else {
+        // Fallback: if no owners found at all, use Owner 1
+        responsiblePartyName = fields['Owner 1 Name'] || '';
+        responsiblePartyFirstName = fields['Owner 1 First Name'] || '';
+        responsiblePartyLastName = fields['Owner 1 Last Name'] || '';
+        responsiblePartySSN = 'N/A-FOREIGN';
+        responsiblePartyAddress = fields['Owner 1 Address'] || '';
+        console.log(`⚠️ LLC: No owners found, using Owner 1 as fallback: ${responsiblePartyName}, SSN set to N/A-FOREIGN`);
+      }
+    } else if (ownersWithSSN.length === 1) {
+      // Only one owner with SSN, use that one
+      const owner = ownersWithSSN[0];
+      responsiblePartyName = owner.name;
+      responsiblePartyFirstName = owner.firstName;
+      responsiblePartyLastName = owner.lastName;
+      responsiblePartySSN = owner.ssn;
+      responsiblePartyAddress = owner.address;
+      console.log(`✅ LLC: Only one owner with SSN, using: ${responsiblePartyName}, SSN: ${responsiblePartySSN}`);
+    } else {
+      // Multiple owners with SSN, prefer the one with higher ownership percentage
+      console.log(`🔍 LLC: Found ${ownersWithSSN.length} owners with SSN, preferring higher ownership percentage...`);
+      // Sort by ownership percentage (descending) and take the first one
+      ownersWithSSN.sort((a, b) => b.ownershipPercent - a.ownershipPercent);
+      const owner = ownersWithSSN[0];
+      responsiblePartyName = owner.name;
+      responsiblePartyFirstName = owner.firstName;
+      responsiblePartyLastName = owner.lastName;
+      responsiblePartySSN = owner.ssn;
+      responsiblePartyAddress = owner.address;
+      console.log(`✅ LLC: Multiple owners with SSN, using highest ownership: ${responsiblePartyName} (${owner.ownershipPercent}%), SSN: ${responsiblePartySSN}`);
     }
   }
   
@@ -700,8 +899,11 @@ async function mapAirtableToSS4(record: any): Promise<any> {
     console.log(`📊 Sole proprietor check: ownerCount=${ownerCount}, Owner 1 Ownership %=${owner1Ownership}, isSoleProprietor=${isSoleProprietor}`);
   }
 
-  // Fallback: if we still don't have a valid SSN, try to pick the first owner with SSN
-  if (!responsiblePartySSN || responsiblePartySSN === 'N/A-FOREIGN') {
+  // Fallback: ONLY for Corps - if we still don't have a valid SSN, try to pick the first owner with SSN
+  // CRITICAL: Do NOT run this fallback for LLCs - the LLC logic above already handles the no-SSN case
+  // Running this for LLCs can cause data leakage from previous companies
+  if (isCorp && (!responsiblePartySSN || responsiblePartySSN === 'N/A-FOREIGN')) {
+    console.log(`🔍 Fallback: Searching for owner with SSN (Corp only)`);
     for (let i = 1; i <= Math.min(ownerCount, 6); i++) {
       const ownerSSN = (fields[`Owner ${i} SSN`] || '').trim();
       const ownerName = fields[`Owner ${i} Name`] || '';
@@ -731,6 +933,10 @@ async function mapAirtableToSS4(record: any): Promise<any> {
         break;
       }
     }
+  } else if (isLLC && (!responsiblePartySSN || responsiblePartySSN === 'N/A-FOREIGN')) {
+    // For LLCs, if we still don't have an SSN after the LLC logic above, 
+    // it means no owner has an SSN - this is correct, do NOT search again
+    console.log(`✅ LLC: No owner with SSN found - correctly set to N/A-FOREIGN. Not running fallback to prevent data leakage.`);
   }
   
   // Log responsible party selection results
@@ -758,18 +964,18 @@ async function mapAirtableToSS4(record: any): Promise<any> {
     console.error(`   This is a critical error - responsible party must be selected!`);
   }
   
-  if (isCorp && entityType === 'C-Corp') {
-    // For C-Corp, add officer role to signature name - use ACTUAL role, NOT hardcoded to President
+  if (isCorp && (entityType === 'C-Corp' || entityType === 'S-Corp')) {
+    // For C-Corp and S-Corp, add officer role to signature name - use ACTUAL role, NOT hardcoded to President
     // Format: "NAME, ROLE" (with space after comma)
     // BUT: If it's a sole proprietor (1 owner with 100%), use ",SOLE MEMBER" instead
     if (isSoleProprietor) {
       signatureName = `${baseName},SOLE MEMBER`;
-      console.log(`✅ Sole proprietor C-Corp, using ",SOLE MEMBER" in signature`);
+      console.log(`✅ Sole proprietor ${entityType}, using ",SOLE MEMBER" in signature`);
     } else if (responsiblePartyOfficerRole && responsiblePartyOfficerRole.trim() !== '') {
       signatureName = `${baseName}, ${responsiblePartyOfficerRole.toUpperCase()}`;
-      console.log(`✅ Using actual officer role in signature: "${responsiblePartyOfficerRole.toUpperCase()}"`);
+      console.log(`✅ Using actual officer role in signature for ${entityType}: "${responsiblePartyOfficerRole.toUpperCase()}"`);
     } else {
-      console.warn(`⚠️ No officer role found for ${baseName} - signature name will NOT include role (not defaulting to President)`);
+      console.warn(`⚠️ No officer role found for ${baseName} (${entityType}) - signature name will NOT include role (not defaulting to President)`);
       signatureName = baseName; // Don't add role if not found, don't default to President
     }
   } else if (isSoleProprietor) {
@@ -1113,7 +1319,20 @@ export async function POST(request: NextRequest) {
     const record = await fetchAirtableRecord(recordId);
     const fields = record.fields;
     
+    // CRITICAL: Log ALL owner SSN fields to detect data leakage
+    console.log(`🔍 ========== DATA LEAKAGE INVESTIGATION ==========`);
+    console.log(`📋 Record ID: ${recordId}`);
+    console.log(`📋 Record Object ID: ${record.id}`);
     console.log(`✅ Found record: ${fields['Company Name']}`);
+    console.log(`📋 Owner Count: ${fields['Owner Count'] || 'MISSING'}`);
+    console.log(`🔍 ALL OWNER SSNs FROM AIRTABLE:`);
+    for (let i = 1; i <= 6; i++) {
+      const ownerName = fields[`Owner ${i} Name`] || '';
+      const ownerSSN = fields[`Owner ${i} SSN`] || '';
+      if (ownerName || ownerSSN) {
+        console.log(`  Owner ${i}: Name="${ownerName}", SSN="${ownerSSN}"`);
+      }
+    }
     console.log(`📋 Airtable fields check:`, {
       companyName: fields['Company Name'] || 'MISSING',
       companyAddress: fields['Company Address'] || 'MISSING',
@@ -1125,7 +1344,12 @@ export async function POST(request: NextRequest) {
       ownerCount: fields['Owner Count'] || 'MISSING',
       owner1Name: fields['Owner 1 Name'] || 'MISSING',
       owner1SSN: fields['Owner 1 SSN'] || 'MISSING',
+      owner2Name: fields['Owner 2 Name'] || 'MISSING',
+      owner2SSN: fields['Owner 2 SSN'] || 'MISSING',
+      owner3Name: fields['Owner 3 Name'] || 'MISSING',
+      owner3SSN: fields['Owner 3 SSN'] || 'MISSING',
     });
+    console.log(`🔍 ================================================`);
     
     // Step 2: Map Airtable fields to SS-4 format (async - includes OpenAI summarization)
     const ss4Data = await mapAirtableToSS4(record);

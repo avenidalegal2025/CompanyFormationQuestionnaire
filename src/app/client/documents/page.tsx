@@ -27,11 +27,19 @@ function DocumentsContent() {
   const [downloadedDocs, setDownloadedDocs] = useState<Set<string>>(new Set());
 
   const handleNewCompany = () => {
-    // Clear all localStorage data to start fresh
+    // Clear ALL localStorage data to start completely fresh
     localStorage.removeItem('questionnaireData');
     localStorage.removeItem('selectedCompanyId');
-    // Redirect to questionnaire
-    router.push('/');
+    localStorage.removeItem('draftId');
+    localStorage.removeItem('anonymousDraftId');
+    localStorage.removeItem('anonymousDraftData');
+    localStorage.removeItem('collabData');
+    localStorage.removeItem('collabDraftId');
+    localStorage.removeItem('paymentCompleted');
+    // Set flag to indicate new company creation
+    localStorage.setItem('newCompany', 'true');
+    // Redirect to questionnaire with a flag to indicate new company
+    router.push('/?newCompany=true');
   };
 
   useEffect(() => {

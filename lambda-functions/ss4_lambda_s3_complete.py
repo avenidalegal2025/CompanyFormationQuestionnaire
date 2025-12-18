@@ -1127,16 +1127,16 @@ def map_data_to_ss4_fields(form_data):
         name_upper = to_upper(name)
         entity_type_upper = entity_type.upper() if entity_type else ""
         
-        # For C-Corp, add officer title (use ACTUAL role, NOT hardcoded to President)
+        # For C-Corp and S-Corp, add officer title (use ACTUAL role, NOT hardcoded to President)
         # Format: "NAME, ROLE" (with space after comma)
-        if "C-CORP" in entity_type_upper and "S-CORP" not in entity_type_upper:
+        if "C-CORP" in entity_type_upper or "S-CORP" in entity_type_upper or "S CORP" in entity_type_upper:
             if form_data:
                 officer_role = form_data.get("responsiblePartyOfficerRole", "")
                 if officer_role and officer_role.strip() != "":
                     # Use the officer role (e.g., "President", "Vice-President", "Treasurer", "Secretary")
                     return f"{name_upper}, {to_upper(officer_role)}"
             # Don't default to President - return name without role if no role specified
-            print(f"===> ⚠️ No officer role found in form_data for {name_upper} - returning name without role (NOT defaulting to President)")
+            print(f"===> ⚠️ No officer role found in form_data for {name_upper} ({entity_type_upper}) - returning name without role (NOT defaulting to President)")
             return name_upper
         
         # For LLC, add member designation

@@ -26,21 +26,23 @@ function QuestionnaireContent() {
   const { data: session, status } = useSession();
   const isSignedUp = status === 'authenticated';
   
+  // Default form values - used for resetting
+  const defaultFormValues: AllSteps = {
+    profile: {},     // kept in schema but unused in UI (email comes from Auth0)
+    company: {},
+    owners: [],
+    ownersCount: undefined, // Start empty, will default to 1 for rendering
+    admin: {
+      officersAllOwners: "Yes", // Default to "Yes" so role assignment section shows on load
+      directorsAllOwners: "Yes", // Default to "Yes" for consistency
+    },
+    banking: {},
+    attachments: {},
+  };
   
   // Initialize form
   const form = useForm<AllSteps>({
-    defaultValues: {
-      profile: {},     // kept in schema but unused in UI (email comes from Auth0)
-      company: {},
-      owners: [],
-      ownersCount: undefined, // Start empty, will default to 1 for rendering
-      admin: {
-        officersAllOwners: "Yes", // Default to "Yes" so role assignment section shows on load
-        directorsAllOwners: "Yes", // Default to "Yes" for consistency
-      },
-      banking: {},
-      attachments: {},
-    },
+    defaultValues: defaultFormValues,
   });
 
   // We now have a 4-step flow (2, 3, 4, 5)
@@ -155,12 +157,90 @@ function QuestionnaireContent() {
     }
   }, [isSignedUp, form]);
 
+  // Check if this is a new company creation - if so, reset form completely
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    // Check for newCompany query parameter or localStorage flag
+    const urlParams = new URLSearchParams(window.location.search);
+    const isNewCompany = urlParams.get('newCompany') === 'true' || 
+                        localStorage.getItem('newCompany') === 'true';
+    
+    if (isNewCompany) {
+      console.log('🆕 New company creation detected - resetting form completely and clearing ALL cached data');
+      
+      // CRITICAL: Clear ALL possible localStorage items that might contain cached data
+      const keysToRemove = [
+        'questionnaireData',
+        'selectedCompanyId',
+        'draftId',
+        'anonymousDraftId',
+        'anonymousDraftData',
+        'collabData',
+        'collabDraftId',
+        'paymentCompleted',
+        'newCompany',
+        'authCallbackUrl',
+        // Clear any other potential cached data
+      ];
+      
+      keysToRemove.forEach(key => {
+        localStorage.removeItem(key);
+      });
+      
+      // Also clear any sessionStorage items
+      try {
+        sessionStorage.clear();
+      } catch (e) {
+        console.warn('Could not clear sessionStorage:', e);
+      }
+      
+      // Reset form to default values - use deep reset to ensure all nested fields are cleared
+      form.reset(defaultFormValues, {
+        keepDefaultValues: false, // Don't keep any default values
+        keepErrors: false, // Clear errors
+        keepDirty: false, // Clear dirty state
+        keepIsSubmitted: false, // Clear submitted state
+        keepTouched: false, // Clear touched state
+        keepIsValid: false, // Clear validation state
+        keepSubmitCount: false, // Clear submit count
+      });
+      
+      // Reset step to 1
+      setStep(1);
+      setWantsAgreement(false);
+      
+      // Generate new anonymous ID to prevent any ID collision
+      const newAnonymousId = crypto.randomUUID();
+      setAnonymousId(newAnonymousId);
+      
+      // Clear the flag
+      localStorage.removeItem('newCompany');
+      
+      // Remove newCompany from URL without reload
+      urlParams.delete('newCompany');
+      const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+      window.history.replaceState({}, '', newUrl);
+      
+      console.log('✅ Form completely reset - all cached data cleared');
+      return; // Don't load any draft data for new company
+    }
+  }, [form, defaultFormValues]);
+
   // If arriving from a short link, prefill the form from localStorage
   useEffect(() => {
     try {
       const collab = typeof window !== 'undefined' ? window.localStorage.getItem('collabData') : null;
       const collabDraftId = typeof window !== 'undefined' ? window.localStorage.getItem('collabDraftId') : null;
       const anonymousData = typeof window !== 'undefined' ? window.localStorage.getItem('anonymousDraftData') : null;
+      
+      // Skip loading draft data if this is a new company
+      const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const isNewCompany = urlParams?.get('newCompany') === 'true' || 
+                          (typeof window !== 'undefined' && localStorage.getItem('newCompany') === 'true');
+      if (isNewCompany) {
+        return; // Don't load any draft data for new company
+      }
       
       if (collab) {
         const parsed = JSON.parse(collab) as Partial<AllSteps>;

@@ -486,9 +486,20 @@ async function mapAirtableToSS4(record: any): Promise<any> {
   // ownerCount for signature name calculation
   const ownerCount = fields['Owner Count'] || 1;
   
-  // Signature Name: Same as Line 7a, add ",SOLE MEMBER" if single member LLC, or ",MEMBER" if multiple members
+  // Signature Name: Same as Line 7a, add officer role for C-Corp/S-Corp, or member designation for LLC
   let signatureName = responsiblePartyName || `${responsiblePartyFirstName} ${responsiblePartyLastName}`.trim();
-  if (isLLC) {
+  if (isCorp && (entityType === 'C-Corp' || entityType === 'S-Corp')) {
+    // For C-Corp and S-Corp, add officer role to signature name
+    // Format: "NAME, ROLE" (with space after comma)
+    if (responsiblePartyOfficerRole && responsiblePartyOfficerRole.trim() !== '') {
+      signatureName = `${signatureName}, ${responsiblePartyOfficerRole.toUpperCase()}`;
+      console.log(`✅ Using actual officer role in signature for ${entityType}: "${responsiblePartyOfficerRole.toUpperCase()}"`);
+    } else {
+      console.warn(`⚠️ No officer role found for ${signatureName} (${entityType}) - signature name will NOT include role`);
+      // Don't add role if not found
+    }
+  } else if (isLLC) {
+    // For LLC, add member designation
     if (ownerCount === 1) {
       signatureName = `${signatureName},SOLE MEMBER`;
     } else {
