@@ -873,6 +873,16 @@ async function mapAirtableToSS4(record: any): Promise<any> {
   // Parse company address
   const companyAddress = fields['Company Address'] || '';
   const addressParts = parseAddress(companyAddress);
+
+  // County for Line 6: prefer explicit county field from Airtable.
+  // We never invent a county; if no county is stored we fall back to
+  // the old behavior (city, state) to avoid leaving it totally blank,
+  // but the correct setup is to populate the "County" column in Airtable.
+  const countyFromAirtable =
+    (fields['County'] ||
+      fields['County Name'] ||
+      fields['Business County'] ||
+      '').toString().trim();
   
   // Parse responsible party address
   const rpAddressParts = parseAddress(responsiblePartyAddress);
@@ -1021,11 +1031,12 @@ async function mapAirtableToSS4(record: any): Promise<any> {
     streetZip: addressParts.zip,
     
     // Line 6: County and state where principal business is located
-    // We only reliably know the state from the address string; using the city
-    // name as if it were the county (e.g. "North Miami") is incorrect.
-    // To avoid wrong data, we pass just the state here. The Lambda can map
-    // this as needed, but we will NOT fabricate a county name.
-    countyState: addressParts.state || 'FL',
+    // Preferred: explicit county from Airtable, formatted "COUNTY, ST".
+    // Fallback (for old records where County is empty): use "City, ST"
+    // so we keep behavior roughly similar until County is populated.
+    countyState: countyFromAirtable
+      ? `${countyFromAirtable}, ${addressParts.state || 'FL'}`
+      : `${addressParts.city || ''}, ${addressParts.state || 'FL'}`,
     
     // Line 7a: Name of responsible party
     responsiblePartyName: responsiblePartyName || `${responsiblePartyFirstName} ${responsiblePartyLastName}`.trim(),
