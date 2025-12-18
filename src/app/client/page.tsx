@@ -178,6 +178,36 @@ export default function ClientPage() {
     }
   }, [userEmail]);
 
+  const fetchCompanyData = async () => {
+    try {
+      const selectedCompanyId = localStorage.getItem('selectedCompanyId');
+      if (!selectedCompanyId) {
+        console.log('⚠️ No selectedCompanyId found');
+        return;
+      }
+      
+      const response = await fetch(`/api/companies?companyId=${encodeURIComponent(selectedCompanyId)}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.company) {
+          // Set company data in the format expected by the component
+          setCompanyData({
+            company: {
+              companyName: data.company.companyName,
+              entityType: data.company.entityType, // From Airtable Entity Type column
+              formationState: data.company.formationState,
+            }
+          });
+          console.log('✅ Fetched company data from Airtable:', data.company);
+        }
+      } else {
+        console.error('Failed to fetch company data from Airtable');
+      }
+    } catch (error) {
+      console.error('Error fetching company data:', error);
+    }
+  };
+
   const fetchDocuments = async () => {
     try {
       setLoadingDocuments(true);
@@ -191,6 +221,8 @@ export default function ClientPage() {
       } else {
         console.error('Failed to fetch documents');
       }
+      // Also fetch company data from Airtable (uses same selectedCompanyId)
+      await fetchCompanyData();
     } catch (error) {
       console.error('Error fetching documents:', error);
     } finally {
@@ -538,6 +570,20 @@ export default function ClientPage() {
                 const showArticlesInc = isCorporation() && !hasArticlesInc;
                 const showArticlesLlc = isLLC() && !hasArticlesLlc;
                 const showCard = showEin || showArticlesInc || showArticlesLlc;
+                
+                console.log('🔍 Dashboard En Proceso Card Debug:', {
+                  showEin,
+                  showArticlesInc,
+                  showArticlesLlc,
+                  showCard,
+                  hasEin,
+                  hasArticlesInc,
+                  hasArticlesLlc,
+                  isCorp: isCorporation(),
+                  isLLC: isLLC(),
+                  entityType: getEntityType(),
+                  companyData: companyData?.company
+                });
                 
                 if (!showCard) return null;
                 
