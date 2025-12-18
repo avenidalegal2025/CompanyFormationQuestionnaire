@@ -506,6 +506,7 @@ def map_data_to_ss4_fields(form_data):
         Returns county name in format "COUNTY, STATE" or falls back to city if not found.
         """
         if not city or not state:
+            print(f"===> ⚠️ city_to_county called with empty city/state: city='{city}', state='{state}'")
             return ""
         
         # Normalize inputs
@@ -988,6 +989,7 @@ def map_data_to_ss4_fields(form_data):
         county = city_county_map.get(lookup_key)
         
         if county:
+            print(f"===> ✅ Found county '{county}' for '{city_upper}, {state_upper}' via local map")
             return f"{county}, {state_upper}"
         else:
             # Fallback: Use Google Maps Geocoding API to get county
@@ -1171,6 +1173,15 @@ def map_data_to_ss4_fields(form_data):
         # Truncate if too long (shouldn't happen, but safety check)
         company_name_clean = company_name_clean[:60].strip()
     
+    # If TypeScript already resolved county+state (from Airtable), prefer that
+    # and send it straight to Line 6. This avoids any mismatch between what
+    # the app shows and what the PDF prints, and Google/maps stay as a backup.
+    county_state_from_ts = form_data.get("countyState", "")
+    if county_state_from_ts:
+        print(f"===> Using countyState from TypeScript for Line 6: '{county_state_from_ts}'")
+    else:
+        print(f"===> No countyState from TypeScript; will derive county from city/state via city_to_county()")
+
     mapped_data = {
         "Line 1": to_upper(company_name_clean),  # Legal name of entity (FULL NAME including LLC/L.L.C. suffix) - ALL CAPS, NO ADDRESS
         "Line 2": "",  # Trade name (if different, usually empty)
@@ -1179,7 +1190,11 @@ def map_data_to_ss4_fields(form_data):
         "Line 4b": "MIAMI FL, 33181",  # City, State, ZIP (mailing - Avenida Legal) - HARDCODED - Note: No comma after MIAMI
         "Line 5a": "" if is_avenida_legal_address else (to_upper(company_street_line1) if company_street_line1 else ""),  # Street address line 1 (ONLY street address, NOT full address) - BLANK if US Address service purchased
         "Line 5b": "" if is_avenida_legal_address else (to_upper(f"{company_city}, {company_state} {company_zip}".strip()) if (company_city or company_state or company_zip) else ""),  # City, State, ZIP (from Company Address column in Airtable) - BLANK if US Address service purchased
-        "Line 6": to_upper(city_to_county(company_city, company_state)) if company_city and company_state else "",  # County, State (converted from city) - e.g., "MIAMI-DADE, FL" or "KINGS, NY"
+        "Line 6": (
+            to_upper(county_state_from_ts)
+            if county_state_from_ts
+            else (to_upper(city_to_county(company_city, company_state)) if company_city and company_state else "")
+        ),  # County, State (converted from city) - e.g., "MIAMI-DADE, FL" or "KINGS, NY"
         "Line 7a": to_upper(responsible_name) if responsible_name else "",  # Responsible party name - ALL CAPS
         "Line 7b": format_ssn(responsible_ssn) if responsible_ssn and responsible_ssn.upper() not in ['N/A-FOREIGN', 'N/A', ''] else "N/A-FOREIGN",  # Responsible party SSN/ITIN/EIN - formatted as XXX-XX-XXXX
         "8b": "",  # Will be set to member count if LLC, or date if not LLC
