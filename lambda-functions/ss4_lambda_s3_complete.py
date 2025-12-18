@@ -1372,7 +1372,7 @@ def map_data_to_ss4_fields(form_data):
         "8b": "",  # Will be set to member count if LLC, or date if not LLC
         "8b_date": date_business_started,  # Date business started (for non-LLC)
         "9b": to_upper(formation_state or "FL"),  # Closing month / State of incorporation - ALL CAPS
-        "10": to_upper(translate_to_english(form_data.get("summarizedBusinessPurpose", business_purpose or "General business operations"))[:35].strip()),  # Summarized Business Purpose (max 35 chars, ALL CAPS) - translated from Spanish - TRUNCATE to 35 chars
+        "10": to_upper(truncate_at_word_boundary(translate_to_english(form_data.get("summarizedBusinessPurpose", business_purpose or "General business operations")), 35).strip()),  # Summarized Business Purpose (max 35 chars, ALL CAPS) - translated from Spanish - TRUNCATE at word boundaries
         "11": format_payment_date(form_data.get("dateBusinessStarted", form_data.get("paymentDate", ""))),  # Date business started in MM/DD/YYYY format - use paymentDate as fallback
         "12": "DECEMBER",  # Closing month of accounting year - always DECEMBER
         "13": {
@@ -1639,14 +1639,18 @@ def create_overlay(data, path):
                 # Truncate long values to fit in field (but allow longer for specific fields)
                 if field == "17":  # Line 17 can be up to 80 chars
                     max_length = 80
-                elif field == "10":  # Line 10 can be up to 45 chars
-                    max_length = 45
+                elif field == "10":  # Line 10 can be up to 35 chars (truncate at word boundaries)
+                    max_length = 35
                 elif field in ["Line 1", "Line 3", "Line 5a", "Line 5b", "Designee Address"]:  # Longer fields
                     max_length = 80
                 else:
                     max_length = 50  # Default max length
                 if len(value_str) > max_length:
-                    value_str = value_str[:max_length]
+                    # For Field 10, use word-boundary truncation to avoid cutting words
+                    if field == "10":
+                        value_str = truncate_at_word_boundary(value_str, max_length)
+                    else:
+                        value_str = value_str[:max_length]
                 # Draw the text
                 try:
                     c.drawString(coord[0], coord[1], value_str)
