@@ -532,49 +532,59 @@ export default function ClientPage() {
                 </div>
               </Link>
 
-              {/* EIN Card */}
-              {!hasEin && (
-                <div className="card border-l-4 border-l-blue-500">
-                  <div className="flex items-start">
-                    <div className="flex-shrink-0">
-                      <ClockIcon className="h-8 w-8 text-blue-500" />
-                    </div>
-                    <div className="ml-4 flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                        En Proceso
-                      </h3>
-                      <p className="text-sm font-semibold text-blue-700 mb-1">
-                        EIN (Employer Identification Number)
-                      </p>
-                      <p className="text-sm text-gray-500 font-medium">
-                        ⏱️ Tiempo aproximado: 1 mes
-                      </p>
+              {/* En Proceso Card with Numbered List */}
+              {(() => {
+                const showEin = !hasEin;
+                const showArticlesInc = isCorporation() && !hasArticlesInc;
+                const showArticlesLlc = isLLC() && !hasArticlesLlc;
+                const showCard = showEin || showArticlesInc || showArticlesLlc;
+                
+                if (!showCard) return null;
+                
+                return (
+                  <div className="card border-l-4 border-l-blue-500">
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0">
+                        <ClockIcon className="h-8 w-8 text-blue-500" />
+                      </div>
+                      <div className="ml-4 flex-1">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                          En Proceso
+                        </h3>
+                        <ol className="space-y-2 text-sm text-gray-700 ml-4">
+                          {showEin && (
+                            <li className="flex items-start">
+                              <span className="font-semibold mr-2 min-w-[20px]">1.</span>
+                              <div>
+                                <span className="font-semibold">EIN (Employer Identification Number)</span>
+                                <span className="text-gray-500 ml-2">⏱️ Tiempo aproximado: 1 mes</span>
+                              </div>
+                            </li>
+                          )}
+                          {showArticlesInc && (
+                            <li className="flex items-start">
+                              <span className="font-semibold mr-2 min-w-[20px]">{showEin ? '2.' : '1.'}</span>
+                              <div>
+                                <span className="font-semibold">Articles of Incorporation</span>
+                                <span className="text-gray-500 ml-2">⏱️ Tiempo aproximado: 5-7 días hábiles</span>
+                              </div>
+                            </li>
+                          )}
+                          {showArticlesLlc && (
+                            <li className="flex items-start">
+                              <span className="font-semibold mr-2 min-w-[20px]">{showEin ? '2.' : '1.'}</span>
+                              <div>
+                                <span className="font-semibold">Articles of Organization</span>
+                                <span className="text-gray-500 ml-2">⏱️ Tiempo aproximado: 5-7 días hábiles</span>
+                              </div>
+                            </li>
+                          )}
+                        </ol>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-
-              {/* Articles Card */}
-              {((isCorporation() && !hasArticlesInc) || (isLLC() && !hasArticlesLlc)) && (
-                <div className="card border-l-4 border-l-blue-500">
-                  <div className="flex items-start">
-                    <div className="flex-shrink-0">
-                      <ClockIcon className="h-8 w-8 text-blue-500" />
-                    </div>
-                    <div className="ml-4 flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                        En Proceso
-                      </h3>
-                      <p className="text-sm font-semibold text-blue-700 mb-1">
-                        {getArticlesLabel()}
-                      </p>
-                      <p className="text-sm text-gray-500 font-medium">
-                        ⏱️ Tiempo aproximado: 5-7 días hábiles
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Signed Documents */}
               <Link href="/client/documents?tab=firmado" className="card hover:shadow-lg transition-shadow cursor-pointer block w-full h-full">
