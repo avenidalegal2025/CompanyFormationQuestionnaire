@@ -20,7 +20,9 @@ function CheckoutSuccessContent() {
   const [processingTime, setProcessingTime] = useState<string>('5-7 días');
   const [documentsReady, setDocumentsReady] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
-  const [checkingDocuments, setCheckingDocuments] = useState(false);
+  // Start in "checking" mode so we DON'T briefly show the final
+  // "¡Felicidades!" screen before the document check runs.
+  const [checkingDocuments, setCheckingDocuments] = useState(true);
   const [documentProgress, setDocumentProgress] = useState(0);
   const [entityType, setEntityType] = useState<'LLC' | 'C-Corp' | 'S-Corp' | null>(null);
   const [documentsTimedOut, setDocumentsTimedOut] = useState(false);
@@ -110,11 +112,9 @@ function CheckoutSuccessContent() {
       }
       
       setLoading(false);
-      setShowCelebration(true);
       
       // Start checking for documents after a short delay (give webhook time to process)
       startCheckTimeoutRef.current = setTimeout(() => {
-        setCheckingDocuments(true);
         let isReady = false;
         
         // Poll for documents every 2 seconds
@@ -131,6 +131,7 @@ function CheckoutSuccessContent() {
           if (ready) {
             isReady = true;
             setDocumentsReady(true);
+            setShowCelebration(true);
             setCheckingDocuments(false);
             if (pollIntervalRef.current) {
               clearInterval(pollIntervalRef.current);
