@@ -630,7 +630,7 @@ async function mapAirtableToSS4(record: any): Promise<any> {
         );
         
         if (president) {
-          // President found - use them
+          // President found - use them (this should always happen since President is mandatory)
           responsiblePartyName = president.name;
           responsiblePartyFirstName = president.firstName;
           responsiblePartyLastName = president.lastName;
@@ -639,18 +639,12 @@ async function mapAirtableToSS4(record: any): Promise<any> {
           responsiblePartyOfficerRole = 'PRESIDENT'; // Always set to PRESIDENT
           console.log(`✅ C-Corp: Found President with SSN, using: ${responsiblePartyName}`);
         } else {
-          // No President found among officers with SSN - this is an error condition
-          // For corporations, we MUST have a President, so we'll use the first officer but set role to PRESIDENT
-          console.error(`❌ ERROR: C-Corp has ${officersWithSSN.length} officer(s) with SSN but NO PRESIDENT found!`);
-          console.error(`❌ This indicates a data issue - corporations must have a President. Using first officer but setting role to PRESIDENT.`);
-          const officer = officersWithSSN[0];
-          responsiblePartyName = officer.name;
-          responsiblePartyFirstName = officer.firstName;
-          responsiblePartyLastName = officer.lastName;
-          responsiblePartySSN = officer.ssn;
-          responsiblePartyAddress = officer.address;
-          responsiblePartyOfficerRole = 'PRESIDENT'; // Force to PRESIDENT even if their actual role is different
-          console.log(`⚠️ C-Corp: Using first officer ${responsiblePartyName} as PRESIDENT (their actual role was: "${officer.role || 'NOT SET'}")`);
+          // CRITICAL ERROR: President is mandatory in questionnaire, so this should never happen
+          // This indicates a serious data issue - log error and throw
+          console.error(`❌ CRITICAL ERROR: C-Corp has ${officersWithSSN.length} officer(s) with SSN but NO PRESIDENT found!`);
+          console.error(`❌ President is MANDATORY in the questionnaire for corporations - this is a data integrity issue!`);
+          console.error(`❌ Available officers with SSN:`, officersWithSSN.map(o => ({ name: o.name, role: o.role })));
+          throw new Error(`CRITICAL: Corporation must have a PRESIDENT officer. Found ${officersWithSSN.length} officer(s) with SSN but none are PRESIDENT.`);
         }
       }
     }
@@ -708,37 +702,15 @@ async function mapAirtableToSS4(record: any): Promise<any> {
         }
       }
       
-      // If no President found, use Officer 1 (first officer) as President
+      // CRITICAL: President is mandatory in questionnaire, so this should never happen
       if (!presidentFound) {
-        if (officersAllOwners) {
-          // All owners are officers, use Owner 1 as President
-          responsiblePartyName = fields['Owner 1 Name'] || '';
-          responsiblePartyFirstName = fields['Owner 1 First Name'] || '';
-          responsiblePartyLastName = fields['Owner 1 Last Name'] || '';
-          responsiblePartySSN = 'N/A-FOREIGN';
-          responsiblePartyAddress = fields['Owner 1 Address'] || '';
-          responsiblePartyOfficerRole = 'PRESIDENT';
-          console.log(`✅ Using Owner 1 as President: ${responsiblePartyName}`);
-        } else if (officersCount > 0) {
-          // Specific officers, use Officer 1 as President
-          responsiblePartyName = fields['Officer 1 Name'] || '';
-          responsiblePartyFirstName = fields['Officer 1 First Name'] || '';
-          responsiblePartyLastName = fields['Officer 1 Last Name'] || '';
-          responsiblePartySSN = 'N/A-FOREIGN';
-          responsiblePartyAddress = fields['Officer 1 Address'] || '';
-          responsiblePartyOfficerRole = 'PRESIDENT';
-          console.log(`✅ Using Officer 1 as President: ${responsiblePartyName}`);
-        } else {
-          // No officers found - this shouldn't happen for C-Corp, but handle it
-          console.error(`❌ ERROR: C-Corp but no officers found! Using Owner 1 as President fallback.`);
-          responsiblePartyName = fields['Owner 1 Name'] || '';
-          responsiblePartyFirstName = fields['Owner 1 First Name'] || '';
-          responsiblePartyLastName = fields['Owner 1 Last Name'] || '';
-          responsiblePartySSN = 'N/A-FOREIGN';
-          responsiblePartyAddress = fields['Owner 1 Address'] || '';
-          responsiblePartyOfficerRole = 'PRESIDENT';
-          console.warn(`⚠️ C-Corp but no officers found! Using Owner 1 as President fallback.`);
-        }
+        console.error(`❌ CRITICAL ERROR: C-Corp has officers but NO PRESIDENT found!`);
+        console.error(`❌ President is MANDATORY in the questionnaire for corporations - this is a data integrity issue!`);
+        console.error(`❌ Available officers:`, Array.from({ length: Math.min(officersCount, 6) }, (_, i) => ({
+          name: fields[`Officer ${i + 1} Name`] || '',
+          role: fields[`Officer ${i + 1} Role`] || ''
+        })));
+        throw new Error(`CRITICAL: Corporation must have a PRESIDENT officer. Found ${officersCount} officer(s) but none are PRESIDENT.`);
       }
     }
   } else {
