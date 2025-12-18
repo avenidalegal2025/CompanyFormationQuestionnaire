@@ -634,7 +634,11 @@ function QuestionnaireContent() {
           {wantsAgreement && step === 8 && (
             <Step9Agreement4 form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} session={session} anonymousId={anonymousId} />
           )}
-          {step === 9 && (
+          {/* Checkout step: when user wants the agreement, it's step 9; when they skip it, it's step 5 */}
+          {(!wantsAgreement && step === 5) && (
+            <Step10Checkout form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} session={session} anonymousId={anonymousId} />
+          )}
+          {(wantsAgreement && step === 9) && (
             <Step10Checkout form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} session={session} anonymousId={anonymousId} />
           )}
         </form>
