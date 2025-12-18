@@ -104,12 +104,17 @@ export async function POST(request: NextRequest) {
     // Update document record with signed version
     const updatedDocuments = currentDocuments.map(doc => {
       if (doc.id === documentId) {
-        return {
-          ...doc,
+        const updated = {
+          ...doc, // Preserve all existing fields (name, type, s3Key, createdAt, etc.)
           signedS3Key: uploadResult.s3Key,
           status: 'signed' as const,
           signedAt: new Date().toISOString(),
         };
+        console.log(`📝 Updating document ${documentId}:`, {
+          before: { status: doc.status, signedS3Key: doc.signedS3Key },
+          after: { status: updated.status, signedS3Key: updated.signedS3Key }
+        });
+        return updated;
       }
       return doc;
     });
@@ -161,9 +166,12 @@ export async function POST(request: NextRequest) {
       // Don't fail the upload if Airtable update fails
     }
 
+    // Return the full updated document (not just the changed fields)
+    const updatedDoc = updatedDocuments.find(d => d.id === documentId);
+    
     return NextResponse.json({
       success: true,
-      document: {
+      document: updatedDoc || {
         id: document.id,
         signedS3Key: uploadResult.s3Key,
         status: 'signed',
