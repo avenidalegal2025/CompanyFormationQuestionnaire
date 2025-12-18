@@ -531,10 +531,16 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
     }
     
     // Step 6: Save all document metadata to DynamoDB (including generated PDFs)
-    // Use Airtable record ID when available as the per‑company key; otherwise fall back to "default"
-    const companyKey = airtableRecordId || 'default';
-    await saveUserCompanyDocuments(userId, companyKey, documents);
-    console.log(`✅ Document vault created at: ${vaultPath} with ${documents.length} documents (companyId=${companyKey})`);
+    // Use Airtable record ID when available as the per‑company key; otherwise fall back to "default".
+    // IMPORTANT: Failures here should NOT block Airtable company creation – they only affect
+    // the client documents view. So we catch and log any Dynamo validation issues.
+    try {
+      const companyKey = airtableRecordId || 'default';
+      await saveUserCompanyDocuments(userId, companyKey, documents);
+      console.log(`✅ Document vault created at: ${vaultPath} with ${documents.length} documents (companyId=${companyKey})`);
+    } catch (docsError) {
+      console.error('⚠️ Failed to save documents to DynamoDB (will still create Airtable company):', docsError);
+    }
     
     // Step 7: Sync to Airtable CRM
     // IMPORTANT: Always try to create Airtable record, even if formData is missing
