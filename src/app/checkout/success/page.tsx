@@ -26,6 +26,7 @@ function CheckoutSuccessContent() {
   const [documentProgress, setDocumentProgress] = useState(0);
   const [entityType, setEntityType] = useState<'LLC' | 'C-Corp' | 'S-Corp' | null>(null);
   const [documentsTimedOut, setDocumentsTimedOut] = useState(false);
+  const [hasAgreementDoc, setHasAgreementDoc] = useState(false);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const maxWaitTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const startCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -43,12 +44,22 @@ function CheckoutSuccessContent() {
         const keyDocuments = [
           'ss4-ein-application',
           'membership-registry',
+          'shareholder-registry',
           'organizational-resolution',
+          'bylaws',
         ];
         
         const hasKeyDocuments = keyDocuments.some(docId => 
-          documents.some((doc: any) => doc.id === docId && (doc.s3Key || doc.status === 'generated'))
+          documents.some((doc: any) => doc.id === docId && (doc.s3Key || doc.status === 'generated' || doc.status === 'signed'))
         );
+
+        // Track whether an agreement document exists (for checklist rendering)
+        const hasAgreement = documents.some(
+          (doc: any) =>
+            doc.id === 'operating-agreement' ||
+            doc.id === 'shareholder-agreement'
+        );
+        setHasAgreementDoc(hasAgreement);
         
         // Count generated documents for progress
         const generatedCount = documents.filter((doc: any) => 
@@ -214,6 +225,13 @@ function CheckoutSuccessContent() {
     ? 'Shareholder Agreement'
     : 'Operating Agreement';
 
+  const createdText =
+    entityType === 'LLC'
+      ? 'Tu LLC ha sido creada exitosamente'
+      : isCorp
+      ? 'Tu corporación ha sido creada exitosamente'
+      : 'Tu empresa ha sido creada exitosamente';
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden">
       <ConfettiCelebration active={showCelebration} duration={8000} />
@@ -298,7 +316,7 @@ function CheckoutSuccessContent() {
               <div className="text-6xl mb-4 animate-bounce">🎉</div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">¡Felicidades! 🎊</h1>
               <p className="text-lg text-gray-700 mb-2 font-semibold">
-                Tu empresa ha sido creada exitosamente
+                {createdText}
               </p>
               <p className="text-gray-600 mb-6">
                 Todos tus documentos están listos y disponibles en tu dashboard.
@@ -310,7 +328,7 @@ function CheckoutSuccessContent() {
               <ul className="text-sm text-blue-800 text-left space-y-1">
                 <li>✓ Formulario SS-4 (EIN Application)</li>
                 <li>✓ {registryLabel}</li>
-                <li>✓ {agreementLabel}</li>
+                {hasAgreementDoc && <li>✓ {agreementLabel}</li>}
                 <li>✓ Formularios 2848 y 8821</li>
               </ul>
             </div>
