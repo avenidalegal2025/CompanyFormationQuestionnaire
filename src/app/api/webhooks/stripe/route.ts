@@ -524,19 +524,7 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
       }
     }
     
-    // Step 6: Save all document metadata to DynamoDB (including generated PDFs)
-    // Use Airtable record ID when available as the per‑company key; otherwise fall back to "default".
-    // IMPORTANT: Failures here should NOT block Airtable company creation – they only affect
-    // the client documents view. So we catch and log any Dynamo validation issues.
-    try {
-      const companyKey = airtableRecordId || 'default';
-      await saveUserCompanyDocuments(userId, companyKey, documents);
-      console.log(`✅ Document vault created at: ${vaultPath} with ${documents.length} documents (companyId=${companyKey})`);
-    } catch (docsError) {
-      console.error('⚠️ Failed to save documents to DynamoDB (will still create Airtable company):', docsError);
-    }
-    
-    // Step 7: Sync to Airtable CRM
+    // Step 6: Sync to Airtable CRM (moved before document saving so we have airtableRecordId)
     // IMPORTANT: Always try to create Airtable record, even if formData is missing
     // This ensures the company appears in the dashboard
     try {
@@ -602,6 +590,17 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
       airtableRecordId = await createFormationRecord(airtableRecord);
       console.log(`✅ Airtable record created successfully: ${airtableRecordId}`);
       console.log(`✅ Company "${airtableRecord['Company Name']}" is now visible in the dashboard`);
+      
+      // Step 7: Save all document metadata to DynamoDB (AFTER Airtable record is created)
+      // Now we can use the Airtable record ID as the company key
+      // IMPORTANT: Failures here should NOT block the process – they only affect the client documents view.
+      try {
+        const companyKey = airtableRecordId || 'default';
+        await saveUserCompanyDocuments(userId, companyKey, documents);
+        console.log(`✅ Document vault saved to DynamoDB with ${documents.length} documents (companyId=${companyKey})`);
+      } catch (docsError) {
+        console.error('⚠️ Failed to save documents to DynamoDB (will continue anyway):', docsError);
+      }
       
       // Step 8: Generate SS-4 from Airtable data (after payment confirmation)
       // This is the ONLY place SS-4 is generated - ensures it uses canonical Airtable data

@@ -398,8 +398,37 @@ export async function getUserCompanyDocuments(
 
   // If new structure exists, read from it
   if (item.companyDocuments && typeof item.companyDocuments === 'object') {
-    const effectiveCompanyId = companyId || 'default';
-    return item.companyDocuments[effectiveCompanyId] || [];
+    // If companyId is provided, try to get documents for that specific company
+    if (companyId) {
+      const companyDocs = item.companyDocuments[companyId];
+      if (companyDocs && Array.isArray(companyDocs) && companyDocs.length > 0) {
+        return companyDocs;
+      }
+      // If specific companyId not found, fall back to 'default' (backwards compatibility)
+      const defaultDocs = item.companyDocuments['default'];
+      if (defaultDocs && Array.isArray(defaultDocs) && defaultDocs.length > 0) {
+        return defaultDocs;
+      }
+    } else {
+      // No companyId provided - try 'default' first (backwards compatibility)
+      const defaultDocs = item.companyDocuments['default'];
+      if (defaultDocs && Array.isArray(defaultDocs) && defaultDocs.length > 0) {
+        return defaultDocs;
+      }
+    }
+    
+    // If specific company not found and no default, return ALL documents from all companies
+    // This ensures users can see their documents even if companyId doesn't match
+    const allDocs: DocumentRecord[] = [];
+    for (const key of Object.keys(item.companyDocuments)) {
+      const arr = item.companyDocuments[key];
+      if (Array.isArray(arr)) {
+        allDocs.push(...arr);
+      }
+    }
+    if (allDocs.length > 0) {
+      return allDocs;
+    }
   }
 
   // Backwards‑compatibility: fall back to legacy flat `documents` array
