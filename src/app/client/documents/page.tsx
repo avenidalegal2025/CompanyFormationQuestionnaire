@@ -103,6 +103,21 @@ function DocumentsContent() {
     }
   };
 
+  const getEntityType = () => {
+    if (!companyData?.company) return '';
+    return (companyData.company.entityType || '').toLowerCase();
+  };
+
+  const isCorporation = () => {
+    const entityType = getEntityType();
+    return entityType.includes('corp') || entityType.includes('inc') || entityType.includes('corporation');
+  };
+
+  const isLLC = () => {
+    const entityType = getEntityType();
+    return entityType.includes('llc') || entityType.includes('limited liability');
+  };
+
   const handleDownload = async (documentId: string) => {
     try {
       // Use the new secure authenticated endpoint
@@ -179,15 +194,23 @@ function DocumentsContent() {
       return 'firmado';
     }
     
-    // Membership Registry, Organizational Resolution, and Shareholder Agreement should be in "por-firmar"
+    // Documents that should be in "por-firmar" (even if status is 'template')
+    // These are documents that users need to download, sign, and upload
     const docName = (doc.name || '').toLowerCase();
-    const isAgreementDoc = docName.includes('membership registry') || 
+    const docId = (doc.id || '').toLowerCase();
+    const isFormationDoc = docName.includes('membership registry') || 
+                          docName.includes('shareholder registry') ||
                           docName.includes('organizational resolution') || 
                           docName.includes('shareholder agreement') ||
-                          docName.includes('operating agreement');
+                          docName.includes('operating agreement') ||
+                          docName.includes('bylaws') ||
+                          docId === 'membership-registry' ||
+                          docId === 'shareholder-registry' ||
+                          docId === 'bylaws';
     
-    // If it's an agreement document, it should be in "por-firmar" (unless already signed)
-    if (isAgreementDoc) {
+    // If it's a formation document, it should be in "por-firmar" (unless already signed)
+    // This includes documents with status 'template' that need user action
+    if (isFormationDoc) {
       return 'por-firmar';
     }
     
@@ -197,6 +220,7 @@ function DocumentsContent() {
     }
     
     // En proceso: status is 'template' or 'processing' (nothing for user to do)
+    // Only for documents that are NOT formation documents
     if (doc.status === 'template' || doc.status === 'processing') {
       return 'en-proceso';
     }
@@ -213,10 +237,18 @@ function DocumentsContent() {
     return category === activeTab && matchesSearch;
   });
 
+  // Calculate additional cards for "En Proceso" tab
+  const getEnProcesoCardCount = () => {
+    let count = 1; // EIN card is always there
+    if (isCorporation()) count += 1; // Articles of Incorporation
+    if (isLLC()) count += 1; // Articles of Organization
+    return count;
+  };
+
   const tabCounts = {
     'firmado': documents.filter(doc => categorizeDocument(doc) === 'firmado').length,
     'por-firmar': documents.filter(doc => categorizeDocument(doc) === 'por-firmar').length,
-    'en-proceso': documents.filter(doc => categorizeDocument(doc) === 'en-proceso').length + 1, // +1 for EIN card
+    'en-proceso': documents.filter(doc => categorizeDocument(doc) === 'en-proceso').length + getEnProcesoCardCount(),
   };
 
   return (
@@ -489,38 +521,109 @@ function DocumentsContent() {
               </div>
             )}
 
-            {/* EIN Card for En Proceso tab */}
+            {/* En Proceso Cards */}
             {activeTab === 'en-proceso' && (
-              <div className="card border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow">
-                <div className="p-6">
-                  <div className="flex items-start">
-                    <div className="flex-shrink-0">
-                      <ClockIcon className="h-8 w-8 text-blue-500" />
-                    </div>
-                    <div className="ml-4 flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          EIN (Employer Identification Number)
-                        </h3>
-                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
-                          En Proceso
-                        </span>
+              <div className="space-y-6">
+                {/* EIN Card */}
+                <div className="card border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow">
+                  <div className="p-6">
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0">
+                        <ClockIcon className="h-8 w-8 text-blue-500" />
                       </div>
-                      <p className="text-sm text-gray-600 mb-2">
-                        Requisito expedido por el IRS necesario para abrir una cuenta de banco.
-                      </p>
-                      <p className="text-sm text-gray-500 font-medium">
-                        ⏱️ Tiempo aproximado: 1 mes
-                      </p>
-                      <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                        <p className="text-sm text-blue-800">
-                          Este trámite está siendo procesado. No se requiere ninguna acción de tu parte.
+                      <div className="ml-4 flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            EIN (Employer Identification Number)
+                          </h3>
+                          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                            En Proceso
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-2">
+                          Requisito expedido por el IRS necesario para abrir una cuenta de banco.
                         </p>
+                        <p className="text-sm text-gray-500 font-medium">
+                          ⏱️ Tiempo aproximado: 1 mes
+                        </p>
+                        <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                          <p className="text-sm text-blue-800">
+                            Este trámite está siendo procesado. No se requiere ninguna acción de tu parte.
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-            </div>
+
+                {/* Articles of Incorporation Card (for Corporations) */}
+                {isCorporation() && (
+                  <div className="card border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow">
+                    <div className="p-6">
+                      <div className="flex items-start">
+                        <div className="flex-shrink-0">
+                          <ClockIcon className="h-8 w-8 text-blue-500" />
+                        </div>
+                        <div className="ml-4 flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="text-lg font-semibold text-gray-900">
+                              Articles of Incorporation
+                            </h3>
+                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                              En Proceso
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 mb-2">
+                            Documento legal que establece la existencia de tu corporación ante el estado.
+                          </p>
+                          <p className="text-sm text-gray-500 font-medium">
+                            ⏱️ Tiempo aproximado: 5-7 días hábiles
+                          </p>
+                          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                            <p className="text-sm text-blue-800">
+                              Este documento está siendo procesado por el estado. No se requiere ninguna acción de tu parte.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Articles of Organization Card (for LLCs) */}
+                {isLLC() && (
+                  <div className="card border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow">
+                    <div className="p-6">
+                      <div className="flex items-start">
+                        <div className="flex-shrink-0">
+                          <ClockIcon className="h-8 w-8 text-blue-500" />
+                        </div>
+                        <div className="ml-4 flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="text-lg font-semibold text-gray-900">
+                              Articles of Organization
+                            </h3>
+                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                              En Proceso
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 mb-2">
+                            Documento legal que establece la existencia de tu LLC ante el estado.
+                          </p>
+                          <p className="text-sm text-gray-500 font-medium">
+                            ⏱️ Tiempo aproximado: 5-7 días hábiles
+                          </p>
+                          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                            <p className="text-sm text-blue-800">
+                              Este documento está siendo procesado por el estado. No se requiere ninguna acción de tu parte.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Empty State */}

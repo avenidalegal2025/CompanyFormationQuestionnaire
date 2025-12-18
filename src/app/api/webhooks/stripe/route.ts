@@ -253,21 +253,74 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
     // Step 3: Copy template documents
     const documents: DocumentRecord[] = [];
     
-    // Always copy Membership Registry
-    console.log('📄 Copying Membership Registry template...');
-    const membershipResult = await copyTemplateToVault(
-      vaultPath,
-      'membership-registry-template.docx',
-      'formation/membership-registry.docx'
-    );
-    documents.push({
-      id: 'membership-registry',
-      name: 'Membership Registry',
-      type: 'formation',
-      s3Key: membershipResult.s3Key,
-      status: 'template',
-      createdAt: new Date().toISOString(),
-    });
+    // Copy entity-specific registry documents
+    if (entityType === 'LLC') {
+      // LLC: Copy Membership Registry
+      console.log('📄 Copying Membership Registry template...');
+      try {
+        const membershipResult = await copyTemplateToVault(
+          vaultPath,
+          'membership-registry-template.docx',
+          'formation/membership-registry.docx'
+        );
+        documents.push({
+          id: 'membership-registry',
+          name: 'Membership Registry',
+          type: 'formation',
+          s3Key: membershipResult.s3Key,
+          status: 'template',
+          createdAt: new Date().toISOString(),
+        });
+        console.log('✅ Membership Registry template copied');
+      } catch (membershipError: any) {
+        console.error('⚠️ Failed to copy Membership Registry template:', membershipError.message);
+        console.log('⚠️ Continuing without Membership Registry template');
+      }
+    } else {
+      // Corporation: Copy Shareholder Registry
+      console.log('📄 Copying Shareholder Registry template...');
+      try {
+        const shareholderResult = await copyTemplateToVault(
+          vaultPath,
+          'shareholder-registry-template.docx',
+          'formation/shareholder-registry.docx'
+        );
+        documents.push({
+          id: 'shareholder-registry',
+          name: 'Shareholder Registry',
+          type: 'formation',
+          s3Key: shareholderResult.s3Key,
+          status: 'template',
+          createdAt: new Date().toISOString(),
+        });
+        console.log('✅ Shareholder Registry template copied');
+      } catch (shareholderError: any) {
+        console.error('⚠️ Failed to copy Shareholder Registry template:', shareholderError.message);
+        console.log('⚠️ Continuing without Shareholder Registry template');
+      }
+      
+      // Corporation: Copy Bylaws
+      console.log('📄 Copying Bylaws template...');
+      try {
+        const bylawsResult = await copyTemplateToVault(
+          vaultPath,
+          'bylaws-template.docx',
+          'formation/bylaws.docx'
+        );
+        documents.push({
+          id: 'bylaws',
+          name: 'Bylaws',
+          type: 'formation',
+          s3Key: bylawsResult.s3Key,
+          status: 'template',
+          createdAt: new Date().toISOString(),
+        });
+        console.log('✅ Bylaws template copied');
+      } catch (bylawsError: any) {
+        console.error('⚠️ Failed to copy Bylaws template:', bylawsError.message);
+        console.log('⚠️ Continuing without Bylaws template');
+      }
+    }
     
     // Always copy Organizational Resolution
     console.log('📄 Copying Organizational Resolution template...');
