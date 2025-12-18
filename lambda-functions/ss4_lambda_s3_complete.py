@@ -1379,21 +1379,21 @@ def map_data_to_ss4_fields(form_data):
             # Use "Other" checkbox with custom specification
             mapped_data["Checks"]["16_other"] = CHECK_COORDS["16_other"]
             if line16_other_specify:
-                mapped_data["16_other_specify"] = to_upper(translate_to_english(line16_other_specify)[:45])  # Max 45 chars, ALL CAPS - translated from Spanish
+                mapped_data["16_other_specify"] = to_upper(translate_to_english(line16_other_specify)[:32])  # Max 32 chars, ALL CAPS - translated from Spanish
             else:
                 # Default specification if none provided
-                mapped_data["16_other_specify"] = to_upper(translate_to_english(business_purpose or "GENERAL BUSINESS")[:45])
+                mapped_data["16_other_specify"] = to_upper(translate_to_english(business_purpose or "GENERAL BUSINESS")[:32])
         else:
             # Default to "Other" if category doesn't match any known category
             mapped_data["Checks"]["16_other"] = CHECK_COORDS["16_other"]
             if line16_other_specify:
-                mapped_data["16_other_specify"] = to_upper(translate_to_english(line16_other_specify)[:45])  # Translated from Spanish
+                mapped_data["16_other_specify"] = to_upper(translate_to_english(line16_other_specify)[:32])  # Translated from Spanish
             else:
-                mapped_data["16_other_specify"] = to_upper(translate_to_english(business_purpose or "GENERAL BUSINESS")[:45])
+                mapped_data["16_other_specify"] = to_upper(translate_to_english(business_purpose or "GENERAL BUSINESS")[:32])
     elif line16_other_specify:
         # If only other_specify is provided, check "Other"
         mapped_data["Checks"]["16_other"] = CHECK_COORDS["16_other"]
-        mapped_data["16_other_specify"] = to_upper(translate_to_english(line16_other_specify)[:45])  # Translated from Spanish
+        mapped_data["16_other_specify"] = to_upper(translate_to_english(line16_other_specify)[:32])  # Max 32 chars, ALL CAPS - Translated from Spanish
     
     # Line 17: Has applicant applied for EIN before? (default to No)
     # No checkbox needed if answer is No
@@ -1496,7 +1496,7 @@ def create_overlay(data, path):
     
     # Handle Line 16 "Other" specification text field (if present)
     if "16_other_specify" in data:
-        other_specify = str(data["16_other_specify"]).upper()[:45]  # Max 45 chars, ALL CAPS
+        other_specify = str(data["16_other_specify"]).upper()[:32]  # Max 32 chars, ALL CAPS
         if other_specify and "16_other_specify" in FIELD_COORDS:
             coord = FIELD_COORDS["16_other_specify"]
             c.drawString(coord[0], coord[1], other_specify)

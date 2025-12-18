@@ -223,6 +223,9 @@ async function analyzeBusinessPurposeForLine17(businessPurpose: string): Promise
     return '';
   }
 
+  // IMPORTANT: Translate from Spanish to English first before analyzing
+  // OpenAI will handle translation if the text is in Spanish
+
   // If no OpenAI API key, fallback to truncation
   if (!OPENAI_API_KEY) {
     console.warn('⚠️ OpenAI API key not configured, using truncation fallback for Line 17');
@@ -248,15 +251,17 @@ async function analyzeBusinessPurposeForLine17(businessPurpose: string): Promise
             content: `Analyze this business purpose and create a CONCISE SUMMARY (not a raw truncation) of the principal line of merchandise sold, specific construction work done, products produced, or services provided.
 
 CRITICAL RULES:
+- If the text is in Spanish, translate it to English first, then create the summary.
 - Base the summary ONLY on the actual business purpose text below.
 - Do NOT invent or assume a different industry than what is described.
 - The summary MUST be 80 characters or less.
 - Use abbreviations and short phrases if needed.
 - Do NOT cut words in half; shorten by rephrasing instead of chopping.
+- Return the summary in ALL CAPS English.
 
 Business Purpose: "${businessPurpose}"
 
-Return ONLY the concise summary (max 80 characters, ALL CAPS), no labels or prefixes:`,
+Return ONLY the concise summary (max 80 characters, ALL CAPS English), no labels or prefixes:`,
           },
         ],
         max_tokens: 100, // Reduced to encourage more concise responses

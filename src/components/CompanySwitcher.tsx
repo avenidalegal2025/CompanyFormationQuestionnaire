@@ -108,6 +108,7 @@ export default function CompanySwitcher({ userEmail, selectedCompanyId, onCompan
           const userSelectedCompany = localStorage.getItem('userSelectedCompanyId');
           const isUserSelected = userSelectedCompany === selectedCompanyId;
 
+          // ALWAYS select newest on initial load unless user explicitly selected a different one
           if (paymentCompleted === 'true') {
             // Payment just completed - always select newest
             console.log('💳 Payment completed - selecting newest company');
@@ -121,14 +122,24 @@ export default function CompanySwitcher({ userEmail, selectedCompanyId, onCompan
             // Selected company doesn't exist anymore - select newest
             console.log('⚠️ Selected company not found - selecting newest');
             selectNewest();
-          } else if (selectedIsOld && !isUserSelected) {
-            // Selected company is older than newest AND user didn't explicitly select it - select newest
-            console.log('🔄 Selected company is older than newest - selecting newest');
-            selectNewest();
+          } else if (selectedIsOld) {
+            // Selected company is older than newest - ALWAYS select newest (unless user explicitly selected the old one)
+            if (!isUserSelected) {
+              console.log('🔄 Selected company is older than newest - selecting newest');
+              selectNewest();
+            } else {
+              console.log('👤 User explicitly selected older company, keeping selection');
+            }
           } else if (selectedCompany.id === newestCompany.id) {
             // Already selected newest - ensure it's persisted
             console.log('✅ Already selected newest company');
             localStorage.setItem('selectedCompanyId', newestCompany.id);
+          } else {
+            // Selected company exists but is not newest - only keep if user explicitly selected it
+            if (!isUserSelected) {
+              console.log('🔄 Selected company is not newest - selecting newest');
+              selectNewest();
+            }
           }
         }
       } else {

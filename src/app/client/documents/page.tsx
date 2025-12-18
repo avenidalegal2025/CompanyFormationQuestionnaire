@@ -19,7 +19,6 @@ function DocumentsContent() {
   const searchParams = useSearchParams();
   const [currentTab, setCurrentTab] = useState('documents');
   const [activeTab, setActiveTab] = useState<'firmado' | 'por-firmar' | 'en-proceso'>('por-firmar');
-  const [searchTerm, setSearchTerm] = useState('');
   const [companyData, setCompanyData] = useState<any>(null);
   const [documents, setDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -306,11 +305,8 @@ function DocumentsContent() {
   };
 
   const filteredDocuments = documents.filter(doc => {
-    const matchesSearch = doc.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (doc.description && doc.description.toLowerCase().includes(searchTerm.toLowerCase()));
-    
     const category = categorizeDocument(doc);
-    return category === activeTab && matchesSearch;
+    return category === activeTab;
   });
 
   // Helper to know if lawyer has already uploaded EIN/Articles docs
@@ -429,20 +425,6 @@ function DocumentsContent() {
                 </nav>
               </div>
             </div>
-
-                {/* Search */}
-            <div className="card">
-                  <div className="relative">
-                    <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Buscar documentos..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                  className="input pl-10"
-                    />
-                  </div>
-                </div>
 
             {/* Checklist Info for Por Firmar */}
             {activeTab === 'por-firmar' && (
