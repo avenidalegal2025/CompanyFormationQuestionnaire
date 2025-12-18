@@ -132,15 +132,18 @@ export default function CompanySwitcher({ userEmail, selectedCompanyId, onCompan
           fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:109',message:'User selection check',data:{userSelectedCompany,isUserSelected},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
           // #endregion
 
-          // ALWAYS select newest on initial load unless user explicitly selected a different one
+          // CRITICAL: If payment completed, ALWAYS select newest company (highest priority)
           if (paymentCompleted === 'true') {
-            // Payment just completed - always select newest
-            console.log('💳 Payment completed - selecting newest company');
+            // Payment just completed - ALWAYS select newest, ignore any existing selection
+            console.log('💳 Payment completed - FORCING selection of newest company');
+            console.log('📋 Current selectedCompanyId:', selectedCompanyId);
+            console.log('📋 Newest company ID:', newestCompany.id);
             // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:113',message:'Branch: paymentCompleted',data:{willSelectNewest:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+            fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:113',message:'Branch: paymentCompleted - FORCING newest',data:{willSelectNewest:true,currentSelected:selectedCompanyId,newestId:newestCompany.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
             // #endregion
             selectNewest();
             localStorage.removeItem('userSelectedCompanyId'); // Clear user selection flag
+            return; // Exit early - don't check other conditions
           } else if (!selectedCompanyId) {
             // No selection at all - select newest
             console.log('📋 No company selected - selecting newest');
