@@ -113,12 +113,22 @@ export default function ClientPage() {
   };
 
   useEffect(() => {
+    // CRITICAL: Check paymentCompleted FIRST before anything else
+    // This ensures newest company is selected after payment
+    const paymentCompleted = localStorage.getItem('paymentCompleted');
+    
+    if (paymentCompleted === 'true') {
+      // Payment just completed - IMMEDIATELY clear ALL selection state
+      console.log('💳 Payment completed - IMMEDIATELY clearing ALL company selection state');
+      localStorage.removeItem('selectedCompanyId');
+      localStorage.removeItem('userSelectedCompanyId');
+      setSelectedCompanyId(null);
+      // Keep paymentCompleted flag for CompanySwitcher to detect
+    }
+    
     // Get user email from localStorage
     const email = localStorage.getItem('userEmail') || '';
     setUserEmail(email);
-
-    // Check if payment was just completed - if so, clear selectedCompanyId to force selection of newest company
-    const paymentCompleted = localStorage.getItem('paymentCompleted');
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'client/page.tsx:115',message:'ClientPage useEffect entry',data:{paymentCompleted,savedCompanyId:localStorage.getItem('selectedCompanyId'),userSelectedCompanyId:localStorage.getItem('userSelectedCompanyId')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
     // #endregion
