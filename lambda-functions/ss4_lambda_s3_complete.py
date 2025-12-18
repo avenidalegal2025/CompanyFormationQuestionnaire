@@ -1097,18 +1097,24 @@ def map_data_to_ss4_fields(form_data):
     
     # Helper function to format phone number as xxx-xxx-xxxx (without +1 prefix)
     def format_phone(phone):
-        if not phone or not isinstance(phone, str):
-            return phone
-        # Remove all non-digits
-        phone_clean = ''.join(filter(str.isdigit, phone))
-        # Remove leading +1 or 1 if present (US country code)
-        if phone_clean.startswith('1') and len(phone_clean) == 11:
-            phone_clean = phone_clean[1:]  # Remove leading 1
-        # Format as xxx-xxx-xxxx if we have 10 digits
-        if len(phone_clean) == 10:
-            return f"{phone_clean[:3]}-{phone_clean[3:6]}-{phone_clean[6:]}"
-        # If not 10 digits, return cleaned version (might be international or invalid)
-        return phone_clean
+        try:
+            if not phone:
+                return ""
+            # Convert to string if not already
+            phone_str = str(phone) if not isinstance(phone, str) else phone
+            # Remove all non-digits
+            phone_clean = ''.join(filter(str.isdigit, phone_str))
+            # Remove leading +1 or 1 if present (US country code)
+            if phone_clean.startswith('1') and len(phone_clean) == 11:
+                phone_clean = phone_clean[1:]  # Remove leading 1
+            # Format as xxx-xxx-xxxx if we have 10 digits
+            if len(phone_clean) == 10:
+                return f"{phone_clean[:3]}-{phone_clean[3:6]}-{phone_clean[6:]}"
+            # If not 10 digits, return cleaned version (might be international or invalid)
+            return phone_clean if phone_clean else ""
+        except Exception as e:
+            print(f"===> ⚠️ Error formatting phone '{phone}': {e}")
+            return str(phone) if phone else ""
     
     # Helper function to format signature name from signature_name or responsible_name
     def format_signature_name_from_data(signature_name, responsible_name, is_llc, owner_count, form_data, entity_type, is_corp):
@@ -1840,9 +1846,20 @@ def lambda_handler(event, context):
     except Exception as e:
         print(f"===> ERROR: {str(e)}")
         import traceback
-        traceback.print_exc()
-        return {
+        error_trace = traceback.format_exc()
+        print(f"===> ERROR TRACEBACK:\n{error_trace}")
+        # Return proper error response that Lambda Function URL can handle
+        error_response = {
             "statusCode": 500,
-            "body": json.dumps({"error": str(e)})
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": json.dumps({
+                "error": str(e),
+                "message": "Internal server error in SS-4 Lambda",
+                "traceback": error_trace if len(error_trace) < 1000 else error_trace[:1000] + "..."
+            })
         }
+        print(f"===> Returning error response: {json.dumps(error_response)}")
+        return error_response
 
