@@ -42,28 +42,6 @@ function DocumentsContent() {
     router.push('/?newCompany=true');
   };
 
-  useEffect(() => {
-    // Check for tab query parameter
-    const tabParam = searchParams.get('tab');
-    if (tabParam === 'por-firmar' || tabParam === 'firmado' || tabParam === 'en-proceso') {
-      setActiveTab(tabParam);
-    }
-
-    // Fetch company data from Airtable using selectedCompanyId
-    fetchCompanyData();
-    
-    // Fetch documents from API
-    fetchDocuments();
-  }, [searchParams, fetchCompanyData, fetchDocuments]);
-
-  // Debug: Log when companyData changes
-  useEffect(() => {
-    console.log('📊 companyData changed:', companyData);
-    if (companyData?.company) {
-      console.log('📋 Entity Type from companyData:', companyData.company.entityType);
-    }
-  }, [companyData]);
-
   const fetchCompanyData = useCallback(async () => {
     try {
       const selectedCompanyId = localStorage.getItem('selectedCompanyId');
@@ -122,6 +100,28 @@ function DocumentsContent() {
       setLoading(false);
     }
   }, [fetchCompanyData]);
+
+  useEffect(() => {
+    // Check for tab query parameter
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'por-firmar' || tabParam === 'firmado' || tabParam === 'en-proceso') {
+      setActiveTab(tabParam);
+    }
+
+    // Fetch company data from Airtable using selectedCompanyId
+    fetchCompanyData();
+    
+    // Fetch documents from API
+    fetchDocuments();
+  }, [searchParams, fetchCompanyData, fetchDocuments]);
+
+  // Debug: Log when companyData changes
+  useEffect(() => {
+    console.log('📊 companyData changed:', companyData);
+    if (companyData?.company) {
+      console.log('📋 Entity Type from companyData:', companyData.company.entityType);
+    }
+  }, [companyData]);
 
   const getCompanyDisplayName = () => {
     if (!companyData?.company) return 'Mi Empresa';
