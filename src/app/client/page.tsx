@@ -198,22 +198,37 @@ export default function ClientPage() {
     }
   };
 
-  // Categorize documents into three states (same logic as documents page)
+  // Categorize documents into three states (aligned with /client/documents)
   const categorizeDocument = (doc: any) => {
-    const docNameLower = doc.name?.toLowerCase();
-    
+    const docIdLower = (doc.id || '').toLowerCase();
+
+    // EIN + Articles uploaded by Avenida's lawyer should appear as "Completado"
+    if (docIdLower === 'ein-letter' || docIdLower === 'articles-inc' || docIdLower === 'articles-llc') {
+      return 'firmado';
+    }
+
     // Firmado: has signedS3Key OR status is 'signed'
     if (doc.signedS3Key || doc.status === 'signed') {
       return 'firmado';
     }
     
-    // Documents that should always be 'por-firmar' if not yet signed
-    if (
-      docNameLower?.includes('membership registry') ||
-      docNameLower?.includes('organizational resolution') ||
-      docNameLower?.includes('shareholder agreement') ||
-      docNameLower?.includes('operating agreement')
-    ) {
+    // Documents that should be in "por-firmar" (even if status is 'template')
+    // These are documents that users need to download, sign, and upload
+    const docName = (doc.name || '').toLowerCase();
+    const docId = docIdLower;
+    const isFormationDoc = docName.includes('membership registry') || 
+                           docName.includes('shareholder registry') ||
+                           docName.includes('organizational resolution') || 
+                           docName.includes('shareholder agreement') ||
+                           docName.includes('operating agreement') ||
+                           docName.includes('bylaws') ||
+                           docId === 'membership-registry' ||
+                           docId === 'shareholder-registry' ||
+                           docId === 'bylaws';
+    
+    // If it's a formation document, it should be in "por-firmar" (unless already signed)
+    // This includes documents with status 'template' that need user action
+    if (isFormationDoc) {
       return 'por-firmar';
     }
     
@@ -223,6 +238,7 @@ export default function ClientPage() {
     }
     
     // En proceso: status is 'template' or 'processing' (nothing for user to do)
+    // Only for documents that are NOT formation documents
     if (doc.status === 'template' || doc.status === 'processing') {
       return 'en-proceso';
     }

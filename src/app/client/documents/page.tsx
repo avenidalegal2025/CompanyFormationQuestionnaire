@@ -378,7 +378,7 @@ function DocumentsContent() {
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   📋 Pasos a completar para cada documento:
                 </h3>
-                <div className="space-y-2">
+                <div className="space-y-2 mb-4">
                   {[
                     { key: 'download', label: 'Descargar' },
                     { key: 'sign', label: 'Imprimir y firmar' },
@@ -391,6 +391,33 @@ function DocumentsContent() {
                       </span>
                     </div>
                   ))}
+                </div>
+
+                {/* Expected documents by entity type */}
+                <div className="mt-2 border-t border-blue-100 pt-3">
+                  <p className="text-sm font-semibold text-gray-900 mb-1">
+                    Documentos que verás en esta pestaña:
+                  </p>
+                  <ul className="list-disc list-inside text-sm text-gray-800 space-y-1">
+                    {isLLC() && (
+                      <>
+                        <li>Membership Registry</li>
+                        <li>Organizational Resolution</li>
+                        <li>Operating Agreement (si lo compraste)</li>
+                      </>
+                    )}
+                    {isCorporation() && (
+                      <>
+                        <li>Shareholder Registry</li>
+                        <li>Organizational Resolution</li>
+                        <li>Bylaws</li>
+                        <li>Shareholder Agreement (si lo compraste)</li>
+                      </>
+                    )}
+                    {!isLLC() && !isCorporation() && (
+                      <li>Documentos de formación y acuerdos internos de tu empresa</li>
+                    )}
+                  </ul>
                 </div>
               </div>
             )}
