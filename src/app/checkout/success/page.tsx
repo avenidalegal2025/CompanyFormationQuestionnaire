@@ -22,6 +22,7 @@ function CheckoutSuccessContent() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [checkingDocuments, setCheckingDocuments] = useState(false);
   const [documentProgress, setDocumentProgress] = useState(0);
+  const [entityType, setEntityType] = useState<'LLC' | 'C-Corp' | 'S-Corp' | null>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const maxWaitTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const startCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -97,6 +98,10 @@ function CheckoutSuccessContent() {
             const owners = formData?.owners || [];
             const hasSSN = hasOwnerWithSSN(owners);
             setProcessingTime(hasSSN ? '5-7 días' : '1 mes para tramitar el ITIN con el IRS');
+            const type = formData?.company?.entityType as 'LLC' | 'C-Corp' | 'S-Corp' | undefined;
+            if (type) {
+              setEntityType(type);
+            }
           } catch (error) {
             console.error('Error parsing saved data:', error);
           }
@@ -197,6 +202,14 @@ function CheckoutSuccessContent() {
     );
   }
 
+  const isCorp = entityType === 'C-Corp' || entityType === 'S-Corp';
+  const registryLabel = isCorp
+    ? 'Shareholder Registry / Organizational Resolution'
+    : 'Membership Registry / Organizational Resolution';
+  const agreementLabel = isCorp
+    ? 'Shareholder Agreement'
+    : 'Operating Agreement';
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden">
       <ConfettiCelebration active={showCelebration} duration={8000} />
@@ -255,8 +268,8 @@ function CheckoutSuccessContent() {
               <h2 className="font-semibold text-blue-900 mb-2">✅ Documentos Listos</h2>
               <ul className="text-sm text-blue-800 text-left space-y-1">
                 <li>✓ Formulario SS-4 (EIN Application)</li>
-                <li>✓ Membership Registry / Organizational Resolution</li>
-                <li>✓ Operating Agreement / Shareholder Agreement</li>
+                <li>✓ {registryLabel}</li>
+                <li>✓ {agreementLabel}</li>
                 <li>✓ Formularios 2848 y 8821</li>
               </ul>
             </div>
