@@ -701,7 +701,11 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
       console.error('❌ Company name:', session.metadata?.companyName || 'Unknown');
       console.error('❌ Customer email:', session.customer_details?.email || session.customer_email || 'Unknown');
       console.error('❌ Stripe Payment ID:', session.id);
-      // Don't fail the entire process if Airtable sync fails, but log it prominently
+      // IMPORTANT: propagate the error so Stripe treats this attempt as failed and retries.
+      // Combined with our Dynamo idempotency record, this guarantees that:
+      // - Exactly one Airtable company is ultimately created per successful payment
+      // - Transient Airtable errors don't silently drop the company.
+      throw airtableError;
     }
     
   } catch (vaultError) {
@@ -710,15 +714,20 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
   }
   
   console.log('Company formation payment processed successfully');
-  // Mark idempotency record as completed so future retries don't create duplicates
-  try {
-    await savePaymentProcessingRecord(userId, {
-      stripePaymentId: session.id,
-      status: 'completed',
-      updatedAt: new Date().toISOString(),
-    });
-  } catch (idempSaveError) {
-    console.error('⚠️ Failed to mark paymentProcessing record as completed:', idempSaveError);
+  // Mark idempotency record as completed so future retries don't create duplicates.
+  // Only do this if we successfully created an Airtable record.
+  if (airtableRecordId) {
+    try {
+      await savePaymentProcessingRecord(userId, {
+        stripePaymentId: session.id,
+        status: 'completed',
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (idempSaveError) {
+      console.error('⚠️ Failed to mark paymentProcessing record as completed:', idempSaveError);
+    }
+  } else {
+    console.warn('⚠️ Skipping paymentProcessing completion mark because Airtable record ID is missing.');
   }
 
   // Auto-provision phone if the package includes it (or user lacks US phone)
