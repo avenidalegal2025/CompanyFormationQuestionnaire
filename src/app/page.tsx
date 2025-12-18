@@ -369,6 +369,7 @@ function QuestionnaireContent() {
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [lastRemoteUpdatedAt, setLastRemoteUpdatedAt] = useState<number>(0);
+  // Collaborative editing notice (currently disabled to avoid false positives)
   const [collabNotice, setCollabNotice] = useState<string | null>(null);
   const noticeTimerRef = useRef<number | null>(null);
 
@@ -469,6 +470,9 @@ function QuestionnaireContent() {
   }, [draftId, form, saveState]);
 
   // Collaborative polling: refresh form if another user saved newer data (every 4s)
+  // NOTE: We keep the silent refresh behavior but disable the visible
+  // "Otro usuario está editando este cuestionario" banner to avoid
+  // confusing false positives when only a single user is active.
   useEffect(() => {
     if (!draftId) return;
     
@@ -492,18 +496,14 @@ function QuestionnaireContent() {
             // Only refresh if remote is newer than what we've seen and newer than our last local save
             const localLast = lastSavedAt ?? 0;
             const timeDiff = remoteUpdatedAt - lastRemoteUpdatedAt;
-            
-            // Only show notice if there's a significant time difference (more than 2 seconds)
-            // and it's not from our own recent save
+
             if (timeDiff > 2000 && remoteUpdatedAt > localLast) {
               form.reset(res.item.data);
               setLastRemoteUpdatedAt(remoteUpdatedAt);
-              // Show collaborator snackbar only if there's actual external editing
-              setCollabNotice("Otro usuario está editando este cuestionario en este momento.");
-              // Keep the notice visible as long as remote edits continue. Hide only after inactivity.
-              const INACTIVITY_MS = 30000; // 30s without remote updates hides the notice
-              if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
-              noticeTimerRef.current = window.setTimeout(() => setCollabNotice(null), INACTIVITY_MS);
+              // Previously we showed a "Otro usuario..." banner here, but in practice
+              // Stripe/webhook retries and autosaves made this fire even when no
+              // collaborator was present. To avoid confusing users, we now refresh
+              // silently without displaying the banner.
             }
           }
         } catch {
