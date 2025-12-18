@@ -1081,8 +1081,9 @@ async function mapAirtableToSS4(record: any): Promise<any> {
     firstWagesDate: 'N/A',
     
     // Line 15: Principal activity (full Business Purpose)
-    businessPurpose: fields['Business Purpose'] || 'General business operations',
-    principalActivity: fields['Business Purpose'] || 'General business operations',
+    // IMPORTANT: If questionnaire left this blank, keep it blank instead of inventing text.
+    businessPurpose: fields['Business Purpose'] || '',
+    principalActivity: fields['Business Purpose'] || '',
     
     // Line 16: Principal line of merchandise (if applicable)
     principalMerchandise: '',
@@ -1356,7 +1357,10 @@ export async function POST(request: NextRequest) {
     const ss4Data = await mapAirtableToSS4(record);
     
     // Step 2a: Summarize Business Purpose for Line 10, categorize for Line 16, and analyze for Line 17
-    const businessPurpose = fields['Business Purpose'] || 'General business operations';
+    // IMPORTANT: If the questionnaire didn't collect a business purpose, keep this truly empty.
+    // Do NOT inject a generic default like "General business operations" here,
+    // so that Line 17 can also remain blank when the questionnaire is empty.
+    const businessPurpose = fields['Business Purpose'] || '';
     const [summarizedBusinessPurpose, line16Category, line17Content] = await Promise.all([
       summarizeBusinessPurpose(businessPurpose),
       categorizeBusinessPurposeForLine16(businessPurpose),
