@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import { saveDomainRegistration, type DomainRegistration, saveBusinessPhone, saveGoogleWorkspace, type GoogleWorkspaceRecord, saveUserCompanyDocuments, type DocumentRecord, saveVaultMetadata, type VaultMetadata, getFormData, addUserCompanyDocument, getPaymentProcessingRecord, savePaymentProcessingRecord } from '@/lib/dynamo';
 import { createVaultStructure, copyTemplateToVault, getFormDataSnapshot } from '@/lib/s3-vault';
-import { createFormationRecord, mapQuestionnaireToAirtable } from '@/lib/airtable';
+import { createFormationRecord, mapQuestionnaireToAirtable, findFormationByStripeId } from '@/lib/airtable';
 import { generate2848PDF, generate8821PDF } from '@/lib/pdf-filler';
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 
@@ -236,6 +236,22 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
   if (!userId) {
     console.error('❌ No user email found, cannot create vault');
     return;
+  }
+
+  // Airtable-based idempotency: if this Stripe Payment ID already exists in the
+  // Formations table, this is a retry and we MUST NOT create another company.
+  try {
+    const existing = await findFormationByStripeId(session.id);
+    if (existing) {
+      console.log('🔁 Stripe retry detected – Airtable formation already exists. Skipping duplicate creation.', {
+        userId,
+        stripePaymentId: session.id,
+        airtableRecordId: existing.id,
+      });
+      return;
+    }
+  } catch (idempLookupError) {
+    console.error('⚠️ Failed to check Airtable for existing Stripe Payment ID (continuing anyway):', idempLookupError);
   }
 
   // Idempotency: if we've already fully processed this payment for this user,
