@@ -168,7 +168,10 @@ export default function ClientPage() {
   const fetchDocuments = async () => {
     try {
       setLoadingDocuments(true);
-      const response = await fetch('/api/documents');
+      // Important: always request documents for the currently selected company
+      const companyIdForDocs = selectedCompanyId || localStorage.getItem('selectedCompanyId') || undefined;
+      const query = companyIdForDocs ? `?companyId=${encodeURIComponent(companyIdForDocs)}` : '';
+      const response = await fetch(`/api/documents${query}`);
       if (response.ok) {
         const data = await response.json();
         setDocuments(data.documents || []);

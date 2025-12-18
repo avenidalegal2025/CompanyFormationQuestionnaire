@@ -67,7 +67,9 @@ function DocumentsContent() {
   const fetchDocuments = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/documents');
+      const selectedCompanyId = localStorage.getItem('selectedCompanyId') || undefined;
+      const query = selectedCompanyId ? `?companyId=${encodeURIComponent(selectedCompanyId)}` : '';
+      const response = await fetch(`/api/documents${query}`);
       if (response.ok) {
         const data = await response.json();
         setDocuments(data.documents || []);

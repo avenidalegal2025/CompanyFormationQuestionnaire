@@ -24,3 +24,4 @@ echo "cd /home/ubuntu/company-questionnaire && git pull origin main && bash fix_
 echo ""
 
 
+

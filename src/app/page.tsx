@@ -29,7 +29,13 @@ function QuestionnaireContent() {
   // Default form values - used for resetting
   const defaultFormValues: AllSteps = {
     profile: {},     // kept in schema but unused in UI (email comes from Auth0)
-    company: {},
+    company: {
+      // Pre-populate critical fields so dropdowns like the LLC suffix selector
+      // are usable immediately and never feel "stuck" on "Seleccionar".
+      entityType: "LLC",
+      entitySuffix: "LLC",
+      formationState: "Florida",
+    },
     owners: [],
     ownersCount: undefined, // Start empty, will default to 1 for rendering
     admin: {

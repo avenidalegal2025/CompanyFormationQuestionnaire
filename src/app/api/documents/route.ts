@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { getUserDocuments } from '@/lib/dynamo';
+import { getUserCompanyDocuments } from '@/lib/dynamo';
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,9 +16,11 @@ export async function GET(request: NextRequest) {
     }
 
     const userId = session.user.email;
+    const { searchParams } = new URL(request.url);
+    const companyId = searchParams.get('companyId') || undefined;
 
-    // Fetch documents from DynamoDB
-    const documents = await getUserDocuments(userId);
+    // Fetch documents for this specific company from DynamoDB
+    const documents = await getUserCompanyDocuments(userId, companyId);
 
     return NextResponse.json({
       success: true,

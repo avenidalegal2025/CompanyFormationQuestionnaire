@@ -342,37 +342,61 @@ export async function getVaultMetadata(userId: string): Promise<VaultMetadata | 
 }
 
 // Document operations
-export async function saveUserDocuments(userId: string, documents: DocumentRecord[]) {
+// NEW: Per‑company documents storage
+export async function saveUserCompanyDocuments(
+  userId: string,
+  companyId: string | undefined,
+  documents: DocumentRecord[],
+) {
+  // Fallback key when no explicit companyId is provided (backwards compatibility)
+  const effectiveCompanyId = companyId || 'default';
+
   const command = new UpdateCommand({
     TableName: TABLE_NAME,
     Key: buildUserKey(userId),
-    UpdateExpression: 'SET documents = :docs',
+    UpdateExpression: 'SET companyDocuments.#cid = :docs',
+    ExpressionAttributeNames: {
+      '#cid': effectiveCompanyId,
+    },
     ExpressionAttributeValues: {
       ':docs': documents,
     },
     ReturnValues: 'UPDATED_NEW',
   });
+
   return ddb.send(command);
 }
 
-export async function getUserDocuments(userId: string): Promise<DocumentRecord[]> {
+export async function getUserCompanyDocuments(
+  userId: string,
+  companyId?: string,
+): Promise<DocumentRecord[]> {
   const command = new GetCommand({
     TableName: TABLE_NAME,
     Key: buildUserKey(userId),
-    ProjectionExpression: 'documents',
+    ProjectionExpression: 'companyDocuments, documents',
   });
   const res = await ddb.send(command);
-  return (res.Item as any)?.documents ?? [];
+  const item: any = res.Item || {};
+
+  // If new structure exists, read from it
+  if (item.companyDocuments && typeof item.companyDocuments === 'object') {
+    const effectiveCompanyId = companyId || 'default';
+    return item.companyDocuments[effectiveCompanyId] || [];
+  }
+
+  // Backwards‑compatibility: fall back to legacy flat `documents` array
+  return item.documents ?? [];
 }
 
-export async function addUserDocument(userId: string, document: DocumentRecord) {
-  // Get existing documents
-  const existingDocs = await getUserDocuments(userId);
-  
-  // Add new document
+export async function addUserCompanyDocument(
+  userId: string,
+  companyId: string | undefined,
+  document: DocumentRecord,
+) {
+  const existingDocs = await getUserCompanyDocuments(userId, companyId);
   const updatedDocs = [...existingDocs, document];
-  
-  return saveUserDocuments(userId, updatedDocs);
+  return saveUserCompanyDocuments(userId, companyId, updatedDocs);
 }
 
 // Form data storage (for Airtable sync)
