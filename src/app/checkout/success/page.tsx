@@ -215,9 +215,9 @@ function CheckoutSuccessContent() {
                   <span className="text-2xl">📄</span>
                 </div>
               </div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">¡Felicidades! 🎉</h1>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Estamos preparando tus documentos…</h1>
               <p className="text-gray-600 mb-6">
-                Tu empresa está siendo formada. Estamos preparando tus documentos...
+                Tu pago fue recibido correctamente. Ahora estamos generando todos los documentos de tu empresa.
               </p>
               
               {/* Progress bar */}
