@@ -344,6 +344,27 @@ export default function ClientPage() {
     }
   };
 
+  const getEntityType = () => {
+    if (!companyData?.company) return '';
+    return (companyData.company.entityType || '').toLowerCase();
+  };
+
+  const isCorporation = () => {
+    const entityType = getEntityType();
+    return entityType.includes('corp') || entityType.includes('inc') || entityType.includes('corporation');
+  };
+
+  const isLLC = () => {
+    const entityType = getEntityType();
+    return entityType.includes('llc') || entityType.includes('limited liability');
+  };
+
+  const getArticlesLabel = () => {
+    if (isCorporation()) return 'Articles of Incorporation';
+    if (isLLC()) return 'Articles of Organization';
+    return 'documento de formación estatal';
+  };
+
   // Helper function to format document date
   const formatDocumentDate = (dateString: string | undefined) => {
     if (!dateString) return 'N/A';
@@ -507,10 +528,10 @@ export default function ClientPage() {
                       En Proceso
                     </h3>
                     <p className="text-sm font-semibold text-blue-700 mb-1">
-                      EIN (Employer Identification Number)
+                      EIN (Employer Identification Number) y {getArticlesLabel()}
                     </p>
                     <p className="text-sm text-gray-600 mb-1">
-                      Requisito expedido por el IRS necesario para abrir una cuenta de banco.
+                      Requisito expedido por el IRS necesario para abrir una cuenta de banco, junto con el documento estatal que crea oficialmente tu empresa.
                     </p>
                     <p className="text-sm text-gray-500 font-medium">
                       ⏱️ Tiempo aproximado: 1 mes
