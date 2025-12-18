@@ -501,14 +501,12 @@ export default function ClientPage() {
                     <ClockIcon className="h-8 w-8 text-blue-500" />
                   </div>
                   <div className="ml-4 flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        EIN
-                      </h3>
-                      <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
-                        En Proceso
-                      </span>
-                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                      En Proceso
+                    </h3>
+                    <p className="text-sm font-semibold text-blue-700 mb-1">
+                      EIN (Employer Identification Number)
+                    </p>
                     <p className="text-sm text-gray-600 mb-1">
                       Requisito expedido por el IRS necesario para abrir una cuenta de banco.
                     </p>
