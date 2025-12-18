@@ -644,6 +644,19 @@ function DocumentsContent() {
               const showArticlesLlc = isLLC() && !hasArticlesLlc;
               const showCard = showEin || showArticlesInc || showArticlesLlc;
               
+              console.log('🔍 En Proceso Card Debug:', {
+                showEin,
+                showArticlesInc,
+                showArticlesLlc,
+                showCard,
+                hasEin,
+                hasArticlesInc,
+                hasArticlesLlc,
+                isCorp: isCorporation(),
+                isLLC: isLLC(),
+                companyData: companyData?.company
+              });
+              
               if (!showCard) return null;
               
               return (
@@ -664,23 +677,32 @@ function DocumentsContent() {
                             </span>
                           </div>
                           
-                          <ol className="list-decimal list-inside space-y-3 text-sm text-gray-700">
+                          <ol className="space-y-3 text-sm text-gray-700 ml-4">
                             {showEin && (
-                              <li className="mb-3">
-                                <span className="font-semibold">EIN (Employer Identification Number)</span>
-                                <span className="text-gray-500 ml-2">⏱️ Tiempo aproximado: 1 mes</span>
+                              <li className="flex items-start">
+                                <span className="font-semibold mr-2 min-w-[20px]">1.</span>
+                                <div>
+                                  <span className="font-semibold">EIN (Employer Identification Number)</span>
+                                  <span className="text-gray-500 ml-2">⏱️ Tiempo aproximado: 1 mes</span>
+                                </div>
                               </li>
                             )}
                             {showArticlesInc && (
-                              <li className="mb-3">
-                                <span className="font-semibold">Articles of Incorporation</span>
-                                <span className="text-gray-500 ml-2">⏱️ Tiempo aproximado: 5-7 días hábiles</span>
+                              <li className="flex items-start">
+                                <span className="font-semibold mr-2 min-w-[20px]">{showEin ? '2.' : '1.'}</span>
+                                <div>
+                                  <span className="font-semibold">Articles of Incorporation</span>
+                                  <span className="text-gray-500 ml-2">⏱️ Tiempo aproximado: 5-7 días hábiles</span>
+                                </div>
                               </li>
                             )}
                             {showArticlesLlc && (
-                              <li className="mb-3">
-                                <span className="font-semibold">Articles of Organization</span>
-                                <span className="text-gray-500 ml-2">⏱️ Tiempo aproximado: 5-7 días hábiles</span>
+                              <li className="flex items-start">
+                                <span className="font-semibold mr-2 min-w-[20px]">{showEin ? '2.' : '1.'}</span>
+                                <div>
+                                  <span className="font-semibold">Articles of Organization</span>
+                                  <span className="text-gray-500 ml-2">⏱️ Tiempo aproximado: 5-7 días hábiles</span>
+                                </div>
                               </li>
                             )}
                           </ol>
