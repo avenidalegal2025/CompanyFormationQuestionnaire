@@ -79,7 +79,7 @@ function DocumentsContent() {
     }
   }, []);
 
-  const fetchDocuments = useCallback(async () => {
+  const fetchDocuments = useCallback(async (preserveLocalUpdates = false) => {
     try {
       setLoading(true);
       const selectedCompanyId = localStorage.getItem('selectedCompanyId') || undefined;
@@ -93,7 +93,40 @@ function DocumentsContent() {
           const category = categorizeDocument(d);
           console.log(`  - ${d.name}: status=${d.status}, signedS3Key=${d.signedS3Key ? 'YES' : 'NO'}, category=${category}`);
         });
-        setDocuments(fetchedDocs);
+        
+        if (preserveLocalUpdates) {
+          // Merge: preserve local signed documents if server doesn't have them yet
+          setDocuments(prev => {
+            const merged = fetchedDocs.map((serverDoc: any) => {
+              // Check if we have a local version with signed status
+              const localDoc = prev.find(d => d.id === serverDoc.id);
+              if (localDoc && (localDoc.signedS3Key || localDoc.status === 'signed')) {
+                // If server has it signed too, use server (it's authoritative)
+                if (serverDoc.signedS3Key || serverDoc.status === 'signed') {
+                  return serverDoc;
+                }
+                // Server doesn't have signed version yet, keep local
+                console.log(`⚠️ Keeping local signed version for ${serverDoc.name}`);
+                return localDoc;
+              }
+              return serverDoc;
+            });
+            
+            // Add any local documents that aren't in server response
+            prev.forEach(localDoc => {
+              if (!fetchedDocs.some((d: any) => d.id === localDoc.id)) {
+                if (localDoc.signedS3Key || localDoc.status === 'signed') {
+                  console.log(`⚠️ Adding local signed document not in server: ${localDoc.name}`);
+                  merged.push(localDoc);
+                }
+              }
+            });
+            
+            return merged;
+          });
+        } else {
+          setDocuments(fetchedDocs);
+        }
       } else {
         console.error('Failed to fetch documents');
       }
@@ -116,8 +149,8 @@ function DocumentsContent() {
     // Fetch company data from Airtable using selectedCompanyId
     fetchCompanyData();
     
-    // Fetch documents from API
-    fetchDocuments();
+    // Fetch documents from API - preserve local updates (signed documents)
+    fetchDocuments(true);
   }, [searchParams, fetchCompanyData, fetchDocuments]);
 
   // Debug: Log when companyData changes
@@ -271,59 +304,11 @@ function DocumentsContent() {
 
       alert('Documento firmado subido exitosamente. Se actualizará en Airtable automáticamente.');
       
-      // CRITICAL: Don't immediately fetch documents - it will overwrite our local state update
-      // The local state update is sufficient for immediate UI feedback
-      // Only refresh if user manually refreshes or navigates away and back
-      // Use a longer delay (2 seconds) to allow DynamoDB to propagate, and merge results instead of replacing
-      setTimeout(async () => {
-        try {
-          const selectedCompanyId = localStorage.getItem('selectedCompanyId') || undefined;
-          const query = selectedCompanyId ? `?companyId=${encodeURIComponent(selectedCompanyId)}` : '';
-          const response = await fetch(`/api/documents${query}`);
-          if (response.ok) {
-            const data = await response.json();
-            const fetchedDocs = data.documents || [];
-            console.log('📥 Refreshing documents from server after upload...');
-            
-            // Merge with existing state - preserve our local update if server hasn't caught up yet
-            setDocuments(prev => {
-              const merged = fetchedDocs.map((serverDoc: any) => {
-                // If this is the document we just uploaded, check if server has the update
-                if (serverDoc.id === documentId) {
-                  // If server has signedS3Key, use server version (it's up to date)
-                  if (serverDoc.signedS3Key || serverDoc.status === 'signed') {
-                    console.log('✅ Server has updated document, using server version');
-                    return serverDoc;
-                  } else {
-                    // Server doesn't have update yet, keep our local update
-                    const localDoc = prev.find(d => d.id === documentId);
-                    if (localDoc && (localDoc.signedS3Key || localDoc.status === 'signed')) {
-                      console.log('⚠️ Server not updated yet, keeping local update');
-                      return localDoc;
-                    }
-                  }
-                }
-                return serverDoc;
-              });
-              
-              // If server doesn't have our document at all, add it from local state
-              const serverHasDoc = fetchedDocs.some((d: any) => d.id === documentId);
-              if (!serverHasDoc) {
-                const localDoc = prev.find(d => d.id === documentId);
-                if (localDoc) {
-                  console.log('⚠️ Document not in server response, adding from local state');
-                  merged.push(localDoc);
-                }
-              }
-              
-              return merged;
-            });
-          }
-        } catch (error) {
-          console.error('Error refreshing documents:', error);
-          // Don't show error to user - local state is already updated
-        }
-      }, 2000); // 2 second delay to allow DynamoDB propagation
+      // CRITICAL: Do NOT refresh documents from server immediately
+      // The local state update is sufficient and correct
+      // Any refresh will overwrite our local state with potentially stale server data
+      // The document will be refreshed naturally when user navigates away and back, or on page reload
+      console.log('✅ Upload complete - keeping local state update, no server refresh');
     } catch (error: any) {
       console.error('Error uploading signed document:', error);
       alert(`Error al subir el documento firmado: ${error.message}`);
