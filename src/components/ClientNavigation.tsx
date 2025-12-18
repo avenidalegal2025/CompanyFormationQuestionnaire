@@ -38,6 +38,8 @@ export default function ClientNavigation({ currentTab, onTabChange }: ClientNavi
   const handleCompanyChange = (companyId: string) => {
     setSelectedCompanyId(companyId);
     localStorage.setItem('selectedCompanyId', companyId);
+    // Mark as user-selected when user manually changes company
+    localStorage.setItem('userSelectedCompanyId', companyId);
     window.location.reload(); // Reload to refresh data
   };
 

@@ -91,6 +91,8 @@ export default function ClientPage() {
   const handleCompanyChange = (companyId: string) => {
     setSelectedCompanyId(companyId);
     localStorage.setItem('selectedCompanyId', companyId);
+    // Mark as user-selected when user manually changes company
+    localStorage.setItem('userSelectedCompanyId', companyId);
     // TODO: Fetch company data from API based on companyId
     // For now, we'll still use localStorage but this should be updated
     // to fetch from Airtable or DynamoDB
@@ -397,7 +399,7 @@ export default function ClientPage() {
         {/* Main Content */}
         <div className="flex-1 lg:ml-64">
           {/* Header */}
-          <header className="bg-white border-b border-gray-200">
+          <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex justify-between items-center h-20">
                 <div>
@@ -439,8 +441,8 @@ export default function ClientPage() {
             {/* Quick Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* Documents that need signing */}
-              <Link href="/client/documents?tab=por-firmar" className="card hover:shadow-lg transition-shadow cursor-pointer">
-                <div className="flex items-start">
+              <Link href="/client/documents?tab=por-firmar" className="card hover:shadow-lg transition-shadow cursor-pointer block w-full h-full">
+                <div className="flex items-start w-full">
                   <div className="flex-shrink-0">
                     <DocumentTextIcon className="h-8 w-8 text-orange-500" />
                   </div>
@@ -486,8 +488,8 @@ export default function ClientPage() {
               </div>
 
               {/* Signed Documents */}
-              <Link href="/client/documents?tab=firmado" className="card hover:shadow-lg transition-shadow cursor-pointer">
-                <div className="flex items-start">
+              <Link href="/client/documents?tab=firmado" className="card hover:shadow-lg transition-shadow cursor-pointer block w-full h-full">
+                <div className="flex items-start w-full">
                   <div className="flex-shrink-0">
                     <CheckCircleIcon className="h-8 w-8 text-green-500" />
                   </div>

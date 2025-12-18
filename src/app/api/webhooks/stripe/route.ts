@@ -459,6 +459,9 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
     // Step 7: Sync to Airtable CRM
     // IMPORTANT: Always try to create Airtable record, even if formData is missing
     // This ensures the company appears in the dashboard
+    // Declare airtableRecordId at function scope so it's accessible for phone provisioning
+    let airtableRecordId: string | null = null;
+    
     try {
       console.log('📊 Syncing formation data to Airtable...');
       
@@ -519,7 +522,7 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
       
       console.log('📸 Filing Images URL:', airtableRecord['Filing Images'] || 'EMPTY');
       
-      const airtableRecordId = await createFormationRecord(airtableRecord);
+      airtableRecordId = await createFormationRecord(airtableRecord);
       console.log(`✅ Airtable record created successfully: ${airtableRecordId}`);
       console.log(`✅ Company "${airtableRecord['Company Name']}" is now visible in the dashboard`);
       
@@ -650,6 +653,7 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
         console.log('📞 Phone provisioned:', data);
         const userKey = session.customer_details?.email || (session.customer_email as string) || '';
         if (userKey) {
+          // Save to DynamoDB (for user-level phone management)
           await saveBusinessPhone(userKey, {
             phoneNumber: data.phoneNumber,
             areaCode: data.areaCode,
@@ -657,6 +661,24 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
             forwardToE164: forwardPhoneE164,
             updatedAt: new Date().toISOString(),
           });
+          
+          // CRITICAL: Also save to Airtable's "Business Phone" field for this specific company
+          // This ensures the SS4 form uses the correct phone number for this company
+          if (airtableRecordId) {
+            try {
+              const { updateFormationRecord } = await import('@/lib/airtable');
+              // Format phone number: Twilio returns E.164 format (+17866400626), we need to store it with area code
+              // The phone number already includes area code in E.164 format
+              await updateFormationRecord(airtableRecordId, {
+                'Business Phone': data.phoneNumber, // E.164 format includes area code: +17866400626
+              });
+              console.log(`✅ Updated Airtable record ${airtableRecordId} with Business Phone: ${data.phoneNumber}`);
+            } catch (updateError) {
+              console.error('❌ Failed to update Airtable with Business Phone:', updateError);
+            }
+          } else {
+            console.warn('⚠️ No airtableRecordId available to update with Business Phone');
+          }
         }
       } else {
         console.error('❌ Failed to provision phone:', await resp.text());

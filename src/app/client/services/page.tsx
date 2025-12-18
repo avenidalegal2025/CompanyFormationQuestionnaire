@@ -258,7 +258,7 @@ export default function ServicesPage() {
         {/* Main Content */}
         <div className="flex-1 lg:ml-64">
           {/* Header */}
-          <header className="bg-white shadow-sm border-b">
+          <header className="bg-white shadow-sm border-b sticky top-0 z-40">
             <div className="px-4 sm:px-6 lg:px-8">
               <div className="flex justify-between items-center h-16">
                 <div>

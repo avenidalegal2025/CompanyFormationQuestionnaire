@@ -1102,7 +1102,8 @@ async function mapAirtableToSS4(record: any): Promise<any> {
     // Responsible party officer role (for C-Corp) - pass to Lambda so it can use actual role
     responsiblePartyOfficerRole: responsiblePartyOfficerRole,
     // Applicant Phone: Use Business Phone from Airtable Formations table
-    applicantPhone: fields['Business Phone'] || '',
+    // CRITICAL: This must be the phone number for THIS specific company, not from a previous company
+    applicantPhone: (fields['Business Phone'] || '').trim(),
     applicantFax: '',
     
     // Additional owner information for reference
@@ -1382,6 +1383,7 @@ export async function POST(request: NextRequest) {
       line16OtherSpecify: ss4Data.line16OtherSpecify,
       line17PrincipalMerchandise: ss4Data.line17PrincipalMerchandise,
       applicantPhone: ss4Data.applicantPhone,
+      applicantPhoneSource: 'Business Phone from Airtable (this company\'s record)',
       signatureName: ss4Data.signatureName,
       responsiblePartyOfficerRole: ss4Data.responsiblePartyOfficerRole, // Pass officer role to Lambda
     });

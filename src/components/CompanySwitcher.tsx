@@ -94,7 +94,9 @@ export default function CompanySwitcher({ userEmail, selectedCompanyId, onCompan
           localStorage.removeItem('paymentCompleted');
         };
 
-        // If payment just completed OR no selection OR selection missing OR selection older than newest -> pick newest
+        // CRITICAL: Always default to newest company unless user has explicitly selected a different one
+        // Priority: 1) Payment completed -> newest, 2) No selection -> newest, 3) Selection missing -> newest, 4) Selection older -> newest
+        // Only keep current selection if it exists AND is the newest OR user explicitly selected it (not auto-selected)
         if (newestCompany) {
           const selectedCompany = companiesList.find((c: Company) => c.id === selectedCompanyId);
           const selectedIsOld =
@@ -102,14 +104,31 @@ export default function CompanySwitcher({ userEmail, selectedCompanyId, onCompan
             newestCompany &&
             new Date(selectedCompany.createdAt).getTime() < new Date(newestCompany.createdAt).getTime();
 
+          // Check if there's a user preference flag (set when user manually selects a company)
+          const userSelectedCompany = localStorage.getItem('userSelectedCompanyId');
+          const isUserSelected = userSelectedCompany === selectedCompanyId;
+
           if (paymentCompleted === 'true') {
+            // Payment just completed - always select newest
+            console.log('💳 Payment completed - selecting newest company');
             selectNewest();
+            localStorage.removeItem('userSelectedCompanyId'); // Clear user selection flag
           } else if (!selectedCompanyId) {
+            // No selection at all - select newest
+            console.log('📋 No company selected - selecting newest');
             selectNewest();
           } else if (!selectedCompany) {
+            // Selected company doesn't exist anymore - select newest
+            console.log('⚠️ Selected company not found - selecting newest');
             selectNewest();
-          } else if (selectedIsOld) {
+          } else if (selectedIsOld && !isUserSelected) {
+            // Selected company is older than newest AND user didn't explicitly select it - select newest
+            console.log('🔄 Selected company is older than newest - selecting newest');
             selectNewest();
+          } else if (selectedCompany.id === newestCompany.id) {
+            // Already selected newest - ensure it's persisted
+            console.log('✅ Already selected newest company');
+            localStorage.setItem('selectedCompanyId', newestCompany.id);
           }
         }
       } else {
@@ -198,6 +217,8 @@ export default function CompanySwitcher({ userEmail, selectedCompanyId, onCompan
                     key={company.id}
                     type="button"
                     onClick={() => {
+                      // Mark as user-selected when user manually clicks
+                      localStorage.setItem('userSelectedCompanyId', company.id);
                       onCompanyChange(company.id);
                       setIsOpen(false);
                     }}

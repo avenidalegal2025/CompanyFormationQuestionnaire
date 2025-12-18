@@ -449,18 +449,47 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
                         type="number"
                         min={1}
                         max={6}
-                        className="input w-full max-w-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className={`input w-full max-w-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+                          nestedInputValues[i] !== undefined && 
+                          (() => {
+                            const numValue = Number(nestedInputValues[i]);
+                            return isNaN(numValue) || numValue < 1 || numValue > 6;
+                          })()
+                            ? 'border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500' 
+                            : ''
+                        }`}
                         value={nestedInputValues[i] ?? nestedOwnersCount.toString()}
                         placeholder="Ingrese número (1-6)"
+                        onInput={(e) => {
+                          const input = e.target as HTMLInputElement;
+                          const value = Number(input.value);
+                          // Prevent values greater than 6
+                          if (!isNaN(value) && value > 6) {
+                            input.value = '6';
+                            setNestedInputValues(prev => ({ ...prev, [i]: "6" }));
+                            setValue(`${base}.nestedOwnersCount` as never, 6 as never);
+                            // Initialize nested owners array if needed
+                            const currentNested = w(`${base}.nestedOwners`) as any[] | undefined;
+                            if (!currentNested || currentNested.length < 6) {
+                              const newNested = Array.from({ length: 6 }).map((_, idx) => 
+                                currentNested?.[idx] || {}
+                              );
+                              setValue(`${base}.nestedOwners` as never, newNested as never);
+                            }
+                            return;
+                          }
+                        }}
                         onChange={(e) => {
                           const value = e.target.value;
-                          setNestedInputValues(prev => ({ ...prev, [i]: value }));
+                          // Only allow numeric characters
+                          const numericValue = value.replace(/[^0-9]/g, '');
+                          setNestedInputValues(prev => ({ ...prev, [i]: numericValue }));
                           
-                          if (value === "") {
+                          if (numericValue === "") {
                             return;
                           }
                           
-                          const numValue = Number(value);
+                          const numValue = Number(numericValue);
                           if (!isNaN(numValue) && numValue >= 1 && numValue <= 6) {
                             setValue(`${base}.nestedOwnersCount` as never, numValue as never);
                             // Initialize nested owners array if needed
@@ -474,17 +503,90 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
                           }
                         }}
                         onBlur={() => {
-                          if (!nestedInputValues[i] || Number(nestedInputValues[i]) < 1 || Number(nestedInputValues[i]) > 6) {
+                          const currentValue = nestedInputValues[i];
+                          if (!currentValue || currentValue === "") {
                             setNestedInputValues(prev => ({ ...prev, [i]: "1" }));
                             setValue(`${base}.nestedOwnersCount` as never, 1 as never);
+                            return;
+                          }
+                          
+                          const numValue = Number(currentValue);
+                          if (isNaN(numValue) || numValue < 1) {
+                            setNestedInputValues(prev => ({ ...prev, [i]: "1" }));
+                            setValue(`${base}.nestedOwnersCount` as never, 1 as never);
+                          } else if (numValue > 6) {
+                            setNestedInputValues(prev => ({ ...prev, [i]: "6" }));
+                            setValue(`${base}.nestedOwnersCount` as never, 6 as never);
+                            // Initialize nested owners array if needed
+                            const currentNested = w(`${base}.nestedOwners`) as any[] | undefined;
+                            if (!currentNested || currentNested.length < 6) {
+                              const newNested = Array.from({ length: 6 }).map((_, idx) => 
+                                currentNested?.[idx] || {}
+                              );
+                              setValue(`${base}.nestedOwners` as never, newNested as never);
+                            }
                           }
                         }}
                         onKeyDown={(e) => {
-                          if (e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '-' || e.key === '.') {
+                          // Prevent non-numeric characters
+                          if (e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '-' || e.key === '.' || 
+                              (e.key.length === 1 && !/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.key))) {
                             e.preventDefault();
                           }
                         }}
+                        onPaste={(e) => {
+                          e.preventDefault();
+                          const pastedText = e.clipboardData.getData('text');
+                          const numericValue = pastedText.replace(/[^0-9]/g, '');
+                          if (numericValue) {
+                            const numValue = Number(numericValue);
+                            if (!isNaN(numValue) && numValue >= 1 && numValue <= 6) {
+                              setNestedInputValues(prev => ({ ...prev, [i]: numValue.toString() }));
+                              setValue(`${base}.nestedOwnersCount` as never, numValue as never);
+                              // Initialize nested owners array if needed
+                              const currentNested = w(`${base}.nestedOwners`) as any[] | undefined;
+                              if (!currentNested || currentNested.length < numValue) {
+                                const newNested = Array.from({ length: numValue }).map((_, idx) => 
+                                  currentNested?.[idx] || {}
+                                );
+                                setValue(`${base}.nestedOwners` as never, newNested as never);
+                              }
+                            } else if (!isNaN(numValue) && numValue > 6) {
+                              setNestedInputValues(prev => ({ ...prev, [i]: "6" }));
+                              setValue(`${base}.nestedOwnersCount` as never, 6 as never);
+                              // Initialize nested owners array if needed
+                              const currentNested = w(`${base}.nestedOwners`) as any[] | undefined;
+                              if (!currentNested || currentNested.length < 6) {
+                                const newNested = Array.from({ length: 6 }).map((_, idx) => 
+                                  currentNested?.[idx] || {}
+                                );
+                                setValue(`${base}.nestedOwners` as never, newNested as never);
+                              }
+                            }
+                          }
+                        }}
                       />
+                      {nestedInputValues[i] !== undefined && 
+                       (() => {
+                         const numValue = Number(nestedInputValues[i]);
+                         return isNaN(numValue) || numValue < 1 || numValue > 6;
+                       })() && (
+                        <p className="mt-1 text-sm text-red-600">
+                          {(() => {
+                            const numValue = Number(nestedInputValues[i]);
+                            if (isNaN(numValue)) {
+                              return "Por favor ingrese un número válido.";
+                            }
+                            if (numValue > 6) {
+                              return "El número máximo de socios es 6.";
+                            }
+                            if (numValue < 1) {
+                              return "El número mínimo de socios es 1.";
+                            }
+                            return "Por favor ingrese un número válido (entre 1 y 6).";
+                          })()}
+                        </p>
+                      )}
                       <p className="help">Define cuántos socios se muestran debajo (1 a 6).</p>
                     </div>
 

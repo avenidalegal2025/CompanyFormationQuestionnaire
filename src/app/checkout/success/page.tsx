@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useEffect, useState, Suspense, useRef } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import ConfettiCelebration from '@/components/ConfettiCelebration';
 
 // Helper function to check if any owner has SSN
 function hasOwnerWithSSN(owners: any[] | undefined): boolean {
@@ -12,10 +13,57 @@ function hasOwnerWithSSN(owners: any[] | undefined): boolean {
 
 function CheckoutSuccessContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const sessionId = searchParams.get('session_id');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [processingTime, setProcessingTime] = useState<string>('5-7 días');
+  const [documentsReady, setDocumentsReady] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [checkingDocuments, setCheckingDocuments] = useState(false);
+  const [documentProgress, setDocumentProgress] = useState(0);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const maxWaitTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const startCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Check if documents are ready
+  const checkDocumentsReady = async (): Promise<boolean> => {
+    try {
+      const response = await fetch('/api/documents');
+      if (response.ok) {
+        const data = await response.json();
+        const documents = data.documents || [];
+        
+        // Check if we have at least some key documents generated
+        // We expect at least SS-4, Membership Registry, and Organizational Resolution
+        const keyDocuments = [
+          'ss4-ein-application',
+          'membership-registry',
+          'organizational-resolution',
+        ];
+        
+        const hasKeyDocuments = keyDocuments.some(docId => 
+          documents.some((doc: any) => doc.id === docId && (doc.s3Key || doc.status === 'generated'))
+        );
+        
+        // Count generated documents for progress
+        const generatedCount = documents.filter((doc: any) => 
+          doc.s3Key || doc.status === 'generated' || doc.status === 'signed'
+        ).length;
+        
+        const totalExpected = Math.max(documents.length, 3); // At least 3 key documents
+        const progress = Math.min(100, Math.round((generatedCount / totalExpected) * 100));
+        setDocumentProgress(progress);
+        
+        // Consider ready if we have at least one key document OR if we have any documents at all
+        return hasKeyDocuments || documents.length > 0;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking documents:', error);
+      return false;
+    }
+  };
 
   useEffect(() => {
     if (sessionId) {
@@ -56,6 +104,64 @@ function CheckoutSuccessContent() {
       }
       
       setLoading(false);
+      setShowCelebration(true);
+      
+      // Start checking for documents after a short delay (give webhook time to process)
+      startCheckTimeoutRef.current = setTimeout(() => {
+        setCheckingDocuments(true);
+        let isReady = false;
+        
+        // Poll for documents every 2 seconds
+        pollIntervalRef.current = setInterval(async () => {
+          if (isReady) {
+            if (pollIntervalRef.current) {
+              clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
+            }
+            return;
+          }
+          
+          const ready = await checkDocumentsReady();
+          if (ready) {
+            isReady = true;
+            setDocumentsReady(true);
+            setCheckingDocuments(false);
+            if (pollIntervalRef.current) {
+              clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
+            }
+            if (maxWaitTimeoutRef.current) {
+              clearTimeout(maxWaitTimeoutRef.current);
+              maxWaitTimeoutRef.current = null;
+            }
+          }
+        }, 2000);
+        
+        // Stop polling after 60 seconds max (documents should be ready by then)
+        maxWaitTimeoutRef.current = setTimeout(() => {
+          if (!isReady) {
+            if (pollIntervalRef.current) {
+              clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
+            }
+            // Even if documents aren't fully ready, allow user to proceed
+            setDocumentsReady(true);
+            setCheckingDocuments(false);
+          }
+        }, 60000);
+      }, 2000);
+      
+      return () => {
+        if (startCheckTimeoutRef.current) {
+          clearTimeout(startCheckTimeoutRef.current);
+        }
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+        }
+        if (maxWaitTimeoutRef.current) {
+          clearTimeout(maxWaitTimeoutRef.current);
+        }
+      };
     } else {
       setError('No session ID found');
       setLoading(false);
@@ -64,10 +170,10 @@ function CheckoutSuccessContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Processing your payment...</p>
+          <p className="mt-4 text-gray-600">Procesando tu pago...</p>
         </div>
       </div>
     );
@@ -75,7 +181,7 @@ function CheckoutSuccessContent() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-pink-100">
         <div className="text-center">
           <div className="text-red-600 text-6xl mb-4">❌</div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Error de Pago</h1>
@@ -92,45 +198,85 @@ function CheckoutSuccessContent() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
-        <div className="text-green-600 text-6xl mb-4">✅</div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">¡Pago Exitoso!</h1>
-        <p className="text-gray-600 mb-6">
-          Gracias por tu pedido. Comenzaremos a procesar la formación de tu empresa inmediatamente.
-        </p>
-        
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <h2 className="font-semibold text-blue-900 mb-2">¿Qué sigue?</h2>
-          <ul className="text-sm text-blue-800 text-left space-y-1">
-            <li>• Revisaremos tu información</li>
-            <li>• Archivaremos los documentos de formación de tu empresa</li>
-            <li>• Configuraremos tu dirección comercial y teléfono</li>
-            <li>• Prepararemos tu acuerdo operativo/de accionistas</li>
-            <li>• Te enviaremos toda la documentación en {processingTime}</li>
-          </ul>
-        </div>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden">
+      <ConfettiCelebration active={showCelebration} duration={8000} />
+      
+      <div className="max-w-md w-full bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8 text-center relative z-10 border border-white/20">
+        {checkingDocuments && !documentsReady ? (
+          <>
+            <div className="mb-6">
+              <div className="w-20 h-20 mx-auto mb-4 relative">
+                <div className="absolute inset-0 rounded-full border-4 border-blue-200"></div>
+                <div 
+                  className="absolute inset-0 rounded-full border-4 border-blue-600 border-t-transparent animate-spin"
+                  style={{ animationDuration: '1s' }}
+                ></div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-2xl">📄</span>
+                </div>
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">¡Felicidades! 🎉</h1>
+              <p className="text-gray-600 mb-6">
+                Tu empresa está siendo formada. Estamos preparando tus documentos...
+              </p>
+              
+              {/* Progress bar */}
+              <div className="mb-4">
+                <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                  <div 
+                    className="bg-gradient-to-r from-blue-500 to-indigo-600 h-3 rounded-full transition-all duration-500 ease-out"
+                    style={{ width: `${documentProgress}%` }}
+                  ></div>
+                </div>
+                <p className="text-sm text-gray-500 mt-2">{documentProgress}% completado</p>
+              </div>
+              
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left">
+                <p className="text-sm text-blue-800">
+                  <span className="inline-block animate-pulse">⏳</span> Generando documentos de formación...
+                </p>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="mb-6">
+              <div className="text-6xl mb-4 animate-bounce">🎉</div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">¡Felicidades! 🎊</h1>
+              <p className="text-lg text-gray-700 mb-2 font-semibold">
+                Tu empresa ha sido creada exitosamente
+              </p>
+              <p className="text-gray-600 mb-6">
+                Todos tus documentos están listos y disponibles en tu dashboard.
+              </p>
+            </div>
+            
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <h2 className="font-semibold text-blue-900 mb-2">✅ Documentos Listos</h2>
+              <ul className="text-sm text-blue-800 text-left space-y-1">
+                <li>✓ Formulario SS-4 (EIN Application)</li>
+                <li>✓ Membership Registry / Organizational Resolution</li>
+                <li>✓ Operating Agreement / Shareholder Agreement</li>
+                <li>✓ Formularios 2848 y 8821</li>
+              </ul>
+            </div>
 
-        <div className="space-y-3">
-          <Link
-            href="/client"
-            className="block w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700"
-          >
-            Ir a Mi Hub Empresarial
-          </Link>
-          <Link
-            href="/landing"
-            className="block w-full bg-gray-200 text-gray-800 py-3 px-4 rounded-lg hover:bg-gray-300"
-          >
-            Ver Página Principal
-          </Link>
-          <button
-            onClick={() => window.print()}
-            className="block w-full bg-gray-100 text-gray-600 py-3 px-4 rounded-lg hover:bg-gray-200"
-          >
-            Imprimir Recibo
-          </button>
-        </div>
+            <div className="space-y-3">
+              <Link
+                href="/client"
+                className="block w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 px-6 rounded-lg hover:from-blue-700 hover:to-indigo-700 font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+              >
+                Ir a Mi Hub Empresarial →
+              </Link>
+              <Link
+                href="/landing"
+                className="block w-full bg-gray-200 text-gray-800 py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Ver Página Principal
+              </Link>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

@@ -228,7 +228,7 @@ function DocumentsContent() {
         {/* Main Content */}
         <div className="flex-1 lg:ml-64">
           {/* Header */}
-          <header className="bg-white border-b border-gray-200">
+          <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex justify-between items-center h-20">
                 <div>
@@ -279,7 +279,7 @@ function DocumentsContent() {
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                   >
-                    Firmado
+                    Completado
                     <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
                       activeTab === 'firmado'
                         ? 'bg-green-100 text-green-700'
