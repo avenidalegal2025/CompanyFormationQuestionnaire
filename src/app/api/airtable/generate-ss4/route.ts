@@ -245,18 +245,18 @@ async function analyzeBusinessPurposeForLine17(businessPurpose: string): Promise
           },
           {
             role: 'user',
-            content: `Analyze this business purpose and create a CONCISE SUMMARY (not a truncation) of the principal line of merchandise sold, specific construction work done, products produced, or services provided. 
+            content: `Analyze this business purpose and create a CONCISE SUMMARY (not a raw truncation) of the principal line of merchandise sold, specific construction work done, products produced, or services provided.
 
-IMPORTANT: The summary MUST be exactly 80 characters or less. Use abbreviations and short phrases if needed. Do NOT truncate words - instead, summarize the key business activity in fewer words.
-
-Examples:
-- "Marine transport and logistics" (instead of "Marine transport and logistics, including the transport of goods by sea and supply")
-- "Real estate development" (instead of "Real estate development and property management services")
-- "Retail clothing sales" (instead of "Retail sale of clothing, accessories, and fashion items")
+CRITICAL RULES:
+- Base the summary ONLY on the actual business purpose text below.
+- Do NOT invent or assume a different industry than what is described.
+- The summary MUST be 80 characters or less.
+- Use abbreviations and short phrases if needed.
+- Do NOT cut words in half; shorten by rephrasing instead of chopping.
 
 Business Purpose: "${businessPurpose}"
 
-Return ONLY the concise summary (max 80 characters), no labels or prefixes:`,
+Return ONLY the concise summary (max 80 characters, ALL CAPS), no labels or prefixes:`,
           },
         ],
         max_tokens: 100, // Reduced to encourage more concise responses
