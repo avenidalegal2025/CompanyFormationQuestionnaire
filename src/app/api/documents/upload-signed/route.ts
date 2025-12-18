@@ -118,6 +118,17 @@ export async function POST(request: NextRequest) {
     await saveUserCompanyDocuments(userId, effectiveCompanyId, updatedDocuments);
 
     console.log(`✅ Signed document uploaded: ${uploadResult.s3Key} for document ${documentId}`);
+    console.log(`📋 Document saved with companyId: ${effectiveCompanyId || 'default'}`);
+    console.log(`📋 Updated document status: signedS3Key=${uploadResult.s3Key}, status=signed`);
+    
+    // Verify the document was saved correctly by reading it back
+    const verifyDocs = await getUserCompanyDocuments(userId, effectiveCompanyId);
+    const savedDoc = verifyDocs.find(d => d.id === documentId);
+    if (savedDoc) {
+      console.log(`✅ Verification: Document found in DB with status=${savedDoc.status}, signedS3Key=${savedDoc.signedS3Key ? 'YES' : 'NO'}`);
+    } else {
+      console.error(`❌ Verification FAILED: Document ${documentId} not found after save!`);
+    }
 
     // Update Airtable with signed document URL
     try {
