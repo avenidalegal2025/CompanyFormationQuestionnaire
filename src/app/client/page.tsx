@@ -502,13 +502,15 @@ export default function ClientPage() {
         <div className="flex-1 lg:ml-64">
           {/* Header */}
           <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex justify-between items-center h-20">
-                <div>
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
+              <div className="flex justify-between items-start gap-4">
+                <div className="flex-1 min-w-0">
                   <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-                  <p className="text-sm text-gray-600 mt-1">{getCompanyDisplayName()}</p>
+                  <p className="text-sm text-gray-600 mt-1 truncate" title={getCompanyDisplayName()}>
+                    {getCompanyDisplayName()}
+                  </p>
                 </div>
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-4 flex-shrink-0">
                   {userEmail && (
                     <CompanySwitcher
                       userEmail={userEmail}
