@@ -72,6 +72,19 @@ export default function ClientPage() {
   const [downloadedDocs, setDownloadedDocs] = useState<Set<string>>(new Set());
   const e164 = `${cc}${localNum.replace(/[^\d]/g, '')}`;
 
+  // If the user arrived here right after signing up from the questionnaire,
+  // redirect them back to the questionnaire flow instead of keeping them
+  // in the dashboard. We use the authCallbackUrl marker that
+  // Step components write before sending the user to Auth0.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const callback = localStorage.getItem('authCallbackUrl');
+    if (callback) {
+      localStorage.removeItem('authCallbackUrl');
+      router.push(callback);
+    }
+  }, [router]);
+
   const handleNewCompany = () => {
     // Clear ALL localStorage data to start completely fresh
     localStorage.removeItem('questionnaireData');
