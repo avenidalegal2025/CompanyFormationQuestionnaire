@@ -638,10 +638,16 @@ function DocumentsContent() {
             )}
 
             {/* En Proceso Cards */}
-            {activeTab === 'en-proceso' && (
-              <div className="space-y-6">
-                {/* EIN Card */}
-                {!hasEin && (
+            {activeTab === 'en-proceso' && (() => {
+              const showEin = !hasEin;
+              const showArticlesInc = isCorporation() && !hasArticlesInc;
+              const showArticlesLlc = isLLC() && !hasArticlesLlc;
+              const showCard = showEin || showArticlesInc || showArticlesLlc;
+              
+              if (!showCard) return null;
+              
+              return (
+                <div className="space-y-6">
                   <div className="card border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow">
                     <div className="p-6">
                       <div className="flex items-start">
@@ -649,120 +655,48 @@ function DocumentsContent() {
                           <ClockIcon className="h-8 w-8 text-blue-500" />
                         </div>
                         <div className="ml-4 flex-1">
-                          <div className="flex items-center gap-2 mb-2">
+                          <div className="flex items-center gap-2 mb-4">
                             <h3 className="text-lg font-semibold text-gray-900">
-                              EIN (Employer Identification Number)
+                              En Proceso
                             </h3>
                             <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
                               En Proceso
                             </span>
                           </div>
-                          <p className="text-sm text-gray-600 mb-2">
-                            Requisito expedido por el IRS necesario para abrir una cuenta de banco.
-                          </p>
-                          <p className="text-sm text-gray-500 font-medium">
-                            ⏱️ Tiempo aproximado: 1 mes
-                          </p>
+                          
+                          <ol className="list-decimal list-inside space-y-3 text-sm text-gray-700">
+                            {showEin && (
+                              <li className="mb-3">
+                                <span className="font-semibold">EIN (Employer Identification Number)</span>
+                                <span className="text-gray-500 ml-2">⏱️ Tiempo aproximado: 1 mes</span>
+                              </li>
+                            )}
+                            {showArticlesInc && (
+                              <li className="mb-3">
+                                <span className="font-semibold">Articles of Incorporation</span>
+                                <span className="text-gray-500 ml-2">⏱️ Tiempo aproximado: 5-7 días hábiles</span>
+                              </li>
+                            )}
+                            {showArticlesLlc && (
+                              <li className="mb-3">
+                                <span className="font-semibold">Articles of Organization</span>
+                                <span className="text-gray-500 ml-2">⏱️ Tiempo aproximado: 5-7 días hábiles</span>
+                              </li>
+                            )}
+                          </ol>
+                          
                           <div className="mt-4 p-3 bg-blue-50 rounded-lg">
                             <p className="text-sm text-blue-800">
-                              Este trámite está siendo procesado. No se requiere ninguna acción de tu parte.
+                              Estos trámites están siendo procesados. No se requiere ninguna acción de tu parte.
                             </p>
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                )}
-
-                {/* Articles of Incorporation Card (for Corporations) */}
-                {(() => {
-                  const corpCheck = isCorporation();
-                  const hasArticles = hasArticlesInc;
-                  console.log('🔍 Articles Inc Card Check:', { 
-                    isCorporation: corpCheck, 
-                    hasArticlesInc: hasArticles, 
-                    shouldShow: corpCheck && !hasArticles,
-                    companyData: companyData?.company
-                  });
-                  return corpCheck && !hasArticles;
-                })() && (
-                  <div className="card border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow">
-                    <div className="p-6">
-                      <div className="flex items-start">
-                        <div className="flex-shrink-0">
-                          <ClockIcon className="h-8 w-8 text-blue-500" />
-                        </div>
-                        <div className="ml-4 flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h3 className="text-lg font-semibold text-gray-900">
-                              Articles of Incorporation
-                            </h3>
-                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
-                              En Proceso
-                            </span>
-                          </div>
-                          <p className="text-sm text-gray-600 mb-2">
-                            Documento legal que establece la existencia de tu corporación ante el estado.
-                          </p>
-                          <p className="text-sm text-gray-500 font-medium">
-                            ⏱️ Tiempo aproximado: 5-7 días hábiles
-                          </p>
-                          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                            <p className="text-sm text-blue-800">
-                              Este documento está siendo procesado por el estado. No se requiere ninguna acción de tu parte.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Articles of Organization Card (for LLCs) */}
-                {(() => {
-                  const llcCheck = isLLC();
-                  const hasArticles = hasArticlesLlc;
-                  console.log('🔍 Articles LLC Card Check:', { 
-                    isLLC: llcCheck, 
-                    hasArticlesLlc: hasArticles, 
-                    shouldShow: llcCheck && !hasArticles,
-                    companyData: companyData?.company
-                  });
-                  return llcCheck && !hasArticles;
-                })() && (
-                  <div className="card border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow">
-                    <div className="p-6">
-                      <div className="flex items-start">
-                        <div className="flex-shrink-0">
-                          <ClockIcon className="h-8 w-8 text-blue-500" />
-                        </div>
-                        <div className="ml-4 flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h3 className="text-lg font-semibold text-gray-900">
-                              Articles of Organization
-                            </h3>
-                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
-                              En Proceso
-                            </span>
-                          </div>
-                          <p className="text-sm text-gray-600 mb-2">
-                            Documento legal que establece la existencia de tu LLC ante el estado.
-                          </p>
-                          <p className="text-sm text-gray-500 font-medium">
-                            ⏱️ Tiempo aproximado: 5-7 días hábiles
-                          </p>
-                          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                            <p className="text-sm text-blue-800">
-                              Este documento está siendo procesado por el estado. No se requiere ninguna acción de tu parte.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+                </div>
+              );
+            })()}
 
             {/* Empty State */}
             {!loading && filteredDocuments.length === 0 && activeTab !== 'en-proceso' && (
