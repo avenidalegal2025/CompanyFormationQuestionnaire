@@ -1563,9 +1563,9 @@ def map_data_to_ss4_fields(form_data):
     elif line16_other_specify:
         # If only other_specify is provided, check "Other"
         mapped_data["Checks"]["16_other"] = CHECK_COORDS["16_other"]
-        # CRITICAL: Max 32 chars, truncate at word boundaries, never cut words
+        # CRITICAL: Max 28 chars, truncate at word boundaries, never cut words
         translated = translate_to_english(line16_other_specify)
-        mapped_data["16_other_specify"] = to_upper(truncate_at_word_boundary(translated, 32))
+        mapped_data["16_other_specify"] = to_upper(truncate_at_word_boundary(translated, 28))
     
     # Line 17: Has applicant applied for EIN before? (default to No)
     # No checkbox needed if answer is No
@@ -1668,9 +1668,9 @@ def create_overlay(data, path):
     
     # Handle Line 16 "Other" specification text field (if present)
     if "16_other_specify" in data:
-        # CRITICAL: Max 32 chars, truncate at word boundaries, never cut words
+        # CRITICAL: Max 28 chars, truncate at word boundaries, never cut words
         other_specify_raw = str(data["16_other_specify"]).upper()
-        other_specify = truncate_at_word_boundary(other_specify_raw, 32)
+        other_specify = truncate_at_word_boundary(other_specify_raw, 28)
         if other_specify and "16_other_specify" in FIELD_COORDS:
             coord = FIELD_COORDS["16_other_specify"]
             c.drawString(coord[0], coord[1], other_specify)
