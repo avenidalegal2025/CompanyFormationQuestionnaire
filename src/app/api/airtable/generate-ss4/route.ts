@@ -441,7 +441,10 @@ async function mapAirtableToSS4(record: any): Promise<any> {
                   break;
                 }
               }
-              const isPresident = officerRole === 'PRESIDENT' || officerRole.includes('PRESIDENT');
+              // CRITICAL: Only match exact "PRESIDENT", not "VICE-PRESIDENT" or other roles containing "PRESIDENT"
+              const roleUpper = officerRole.trim().toUpperCase();
+              const isPresident = roleUpper === 'PRESIDENT' || 
+                                 (roleUpper.startsWith('PRESIDENT') && !roleUpper.includes('VICE') && !roleUpper.includes('CO-'));
               
               if (isPresident) {
                 // Tax owner is PRESIDENT - use them
@@ -487,7 +490,10 @@ async function mapAirtableToSS4(record: any): Promise<any> {
                 if (hasValidSSN) {
                   // Tax owner has SSN - check if they are PRESIDENT
                   const officerRole = (fields[`Officer ${i} Role`] || '').trim().toUpperCase();
-                  const isPresident = officerRole === 'PRESIDENT' || officerRole.includes('PRESIDENT');
+                  // CRITICAL: Only match exact "PRESIDENT", not "VICE-PRESIDENT" or other roles containing "PRESIDENT"
+                  const roleUpper = officerRole.trim().toUpperCase();
+                  const isPresident = roleUpper === 'PRESIDENT' || 
+                                     (roleUpper.startsWith('PRESIDENT') && !roleUpper.includes('VICE') && !roleUpper.includes('CO-'));
                   
                   if (isPresident) {
                     // Tax owner is PRESIDENT - use them
@@ -625,9 +631,13 @@ async function mapAirtableToSS4(record: any): Promise<any> {
       } else {
         // ALWAYS search for President first, regardless of how many officers there are
         console.log(`🔍 C-Corp: Found ${officersWithSSN.length} officer(s) with SSN, searching for PRESIDENT...`);
-        const president = officersWithSSN.find(o => 
-          o.role && (o.role.trim().toUpperCase() === 'PRESIDENT' || o.role.toUpperCase().includes('PRESIDENT'))
-        );
+        // CRITICAL: Only match exact "PRESIDENT", not "VICE-PRESIDENT" or other roles containing "PRESIDENT"
+        const president = officersWithSSN.find(o => {
+          if (!o.role) return false;
+          const roleUpper = o.role.trim().toUpperCase();
+          return roleUpper === 'PRESIDENT' || 
+                 (roleUpper.startsWith('PRESIDENT') && !roleUpper.includes('VICE') && !roleUpper.includes('CO-'));
+        });
         
         if (president) {
           // President found - use them (this should always happen since President is mandatory)
@@ -660,7 +670,11 @@ async function mapAirtableToSS4(record: any): Promise<any> {
         // All owners are officers, search for President role in officers
         for (let k = 1; k <= Math.min(officersCount, 6); k++) {
           const officerRole = (fields[`Officer ${k} Role`] || '').trim().toUpperCase();
-          if (officerRole === 'PRESIDENT' || officerRole.includes('PRESIDENT')) {
+          // CRITICAL: Only match exact "PRESIDENT", not "VICE-PRESIDENT"
+          const roleUpper = officerRole.trim().toUpperCase();
+          const isPresident = roleUpper === 'PRESIDENT' || 
+                             (roleUpper.startsWith('PRESIDENT') && !roleUpper.includes('VICE') && !roleUpper.includes('CO-'));
+          if (isPresident) {
             const officerName = fields[`Officer ${k} Name`] || '';
             if (officerName) {
               // Match to owner to get name/address
@@ -688,7 +702,11 @@ async function mapAirtableToSS4(record: any): Promise<any> {
         // Specific officers, search for President
         for (let k = 1; k <= Math.min(officersCount, 6); k++) {
           const officerRole = (fields[`Officer ${k} Role`] || '').trim().toUpperCase();
-          if (officerRole === 'PRESIDENT' || officerRole.includes('PRESIDENT')) {
+          // CRITICAL: Only match exact "PRESIDENT", not "VICE-PRESIDENT"
+          const roleUpper = officerRole.trim().toUpperCase();
+          const isPresident = roleUpper === 'PRESIDENT' || 
+                             (roleUpper.startsWith('PRESIDENT') && !roleUpper.includes('VICE') && !roleUpper.includes('CO-'));
+          if (isPresident) {
             responsiblePartyName = fields[`Officer ${k} Name`] || '';
             responsiblePartyFirstName = fields[`Officer ${k} First Name`] || '';
             responsiblePartyLastName = fields[`Officer ${k} Last Name`] || '';
@@ -986,7 +1004,10 @@ async function mapAirtableToSS4(record: any): Promise<any> {
     if (responsiblePartyOfficerRole && responsiblePartyOfficerRole.trim() !== '') {
       // Ensure role is PRESIDENT (normalize to PRESIDENT if it contains "PRESIDENT")
       const roleUpper = responsiblePartyOfficerRole.trim().toUpperCase();
-      const finalRole = (roleUpper === 'PRESIDENT' || roleUpper.includes('PRESIDENT')) ? 'PRESIDENT' : roleUpper;
+      // CRITICAL: Only match exact "PRESIDENT", not "VICE-PRESIDENT"
+      const isPresident = roleUpper === 'PRESIDENT' || 
+                         (roleUpper.startsWith('PRESIDENT') && !roleUpper.includes('VICE') && !roleUpper.includes('CO-'));
+      const finalRole = isPresident ? 'PRESIDENT' : roleUpper;
       signatureName = `${baseName}, ${finalRole}`;
       console.log(`✅ Using officer role in signature for ${entityType}: "${finalRole}"`);
     } else {
