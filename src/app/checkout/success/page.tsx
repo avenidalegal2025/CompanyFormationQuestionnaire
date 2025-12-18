@@ -30,6 +30,7 @@ function CheckoutSuccessContent() {
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const maxWaitTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const startCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const progressAnimationRef = useRef<NodeJS.Timeout | null>(null);
 
   // Check if documents are ready
   const checkDocumentsReady = async (): Promise<boolean> => {
@@ -124,6 +125,46 @@ function CheckoutSuccessContent() {
       
       setLoading(false);
       
+      // Animate progress bar: 0% -> 20% -> 40% -> 60% -> 80% -> 100% (slowly)
+      const progressSteps = [20, 40, 60, 80, 100];
+      let currentStep = 0;
+      
+      const animateProgress = () => {
+        if (currentStep < progressSteps.length) {
+          const targetProgress = progressSteps[currentStep];
+          const duration = currentStep === progressSteps.length - 1 ? 2000 : 800; // Slow for final step
+          
+          // Smooth transition to target progress
+          const startProgress = documentProgress;
+          const startTime = Date.now();
+          
+          const updateProgress = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const easedProgress = progress < 0.5 
+              ? 2 * progress * progress 
+              : 1 - Math.pow(-2 * progress + 2, 2) / 2; // Ease-in-out
+            const currentProgress = startProgress + (targetProgress - startProgress) * easedProgress;
+            
+            setDocumentProgress(Math.round(currentProgress));
+            
+            if (progress < 1) {
+              progressAnimationRef.current = setTimeout(updateProgress, 16); // ~60fps
+            } else {
+              currentStep++;
+              if (currentStep < progressSteps.length) {
+                progressAnimationRef.current = setTimeout(animateProgress, 200);
+              }
+            }
+          };
+          
+          updateProgress();
+        }
+      };
+      
+      // Start animation immediately
+      animateProgress();
+      
       // Start checking for documents after a short delay (give webhook time to process)
       startCheckTimeoutRef.current = setTimeout(() => {
         let isReady = false;
@@ -181,6 +222,9 @@ function CheckoutSuccessContent() {
         if (maxWaitTimeoutRef.current) {
           clearTimeout(maxWaitTimeoutRef.current);
         }
+        if (progressAnimationRef.current) {
+          clearTimeout(progressAnimationRef.current);
+        }
       };
     } else {
       setError('No session ID found');
@@ -218,12 +262,33 @@ function CheckoutSuccessContent() {
   }
 
   const isCorp = entityType === 'C-Corp' || entityType === 'S-Corp';
-  const registryLabel = isCorp
-    ? 'Shareholder Registry / Organizational Resolution'
-    : 'Membership Registry / Organizational Resolution';
-  const agreementLabel = isCorp
-    ? 'Shareholder Agreement'
-    : 'Operating Agreement';
+  
+  // Get accurate document list based on entity type
+  const getDocumentList = () => {
+    const baseDocs = [
+      '✓ Formulario SS-4 (EIN Application)',
+      '✓ Formularios 2848 y 8821',
+    ];
+    
+    if (isCorp) {
+      // Corporation documents
+      return [
+        ...baseDocs,
+        '✓ Shareholder Registry',
+        '✓ Bylaws',
+        '✓ Organizational Resolution',
+        ...(hasAgreementDoc ? ['✓ Shareholder Agreement'] : []),
+      ];
+    } else {
+      // LLC documents
+      return [
+        ...baseDocs,
+        '✓ Membership Registry',
+        '✓ Organizational Resolution',
+        ...(hasAgreementDoc ? ['✓ Operating Agreement'] : []),
+      ];
+    }
+  };
 
   const createdText =
     entityType === 'LLC'
@@ -302,12 +367,6 @@ function CheckoutSuccessContent() {
               >
                 Ir a Mi Hub Empresarial →
               </Link>
-              <Link
-                href="/landing"
-                className="block w-full bg-gray-200 text-gray-800 py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors"
-              >
-                Ver Página Principal
-              </Link>
             </div>
           </>
         ) : (
@@ -326,10 +385,9 @@ function CheckoutSuccessContent() {
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 mb-6">
               <h2 className="font-semibold text-blue-900 mb-2">✅ Documentos Listos</h2>
               <ul className="text-sm text-blue-800 text-left space-y-1">
-                <li>✓ Formulario SS-4 (EIN Application)</li>
-                <li>✓ {registryLabel}</li>
-                {hasAgreementDoc && <li>✓ {agreementLabel}</li>}
-                <li>✓ Formularios 2848 y 8821</li>
+                {getDocumentList().map((doc, index) => (
+                  <li key={index}>{doc}</li>
+                ))}
               </ul>
             </div>
 
@@ -339,12 +397,6 @@ function CheckoutSuccessContent() {
                 className="block w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 px-6 rounded-lg hover:from-blue-700 hover:to-indigo-700 font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
               >
                 Ir a Mi Hub Empresarial →
-              </Link>
-              <Link
-                href="/landing"
-                className="block w-full bg-gray-200 text-gray-800 py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors"
-              >
-                Ver Página Principal
               </Link>
             </div>
           </>
