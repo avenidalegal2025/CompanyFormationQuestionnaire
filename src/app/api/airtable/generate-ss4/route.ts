@@ -1021,7 +1021,11 @@ async function mapAirtableToSS4(record: any): Promise<any> {
     streetZip: addressParts.zip,
     
     // Line 6: County and state where principal business is located
-    countyState: `${addressParts.city || ''}, ${addressParts.state || 'FL'}`,
+    // We only reliably know the state from the address string; using the city
+    // name as if it were the county (e.g. "North Miami") is incorrect.
+    // To avoid wrong data, we pass just the state here. The Lambda can map
+    // this as needed, but we will NOT fabricate a county name.
+    countyState: addressParts.state || 'FL',
     
     // Line 7a: Name of responsible party
     responsiblePartyName: responsiblePartyName || `${responsiblePartyFirstName} ${responsiblePartyLastName}`.trim(),
