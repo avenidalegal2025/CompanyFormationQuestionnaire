@@ -1004,63 +1004,73 @@ def map_data_to_ss4_fields(form_data):
     
     # Helper function to format payment date as MM/DD/YYYY
     def format_payment_date(date_str):
+        """
+        Normalize many date formats to strict MM/DD/YYYY.
+        Handles:
+        - ISO: 2025-12-18 or 2025-12-18T...
+        - Slash: 12/18/2025 or 3/7/2025
+        - Tuple-style: (12, 18, 2025)
+        - Generic: any string containing three integers (month, day, year)
+        """
         if not date_str:
             return ""
         try:
             from datetime import datetime
+            import re
+
+            raw = str(date_str).strip()
             date_obj = None
-            
-            # Handle different date formats
-            if "-" in date_str:
-                # ISO format: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS
-                date_str_clean = date_str.split("T")[0]  # Remove time if present
+
+            # 1) Tuple-style "(12, 18, 2025)" or variations
+            if raw.startswith("(") and raw.endswith(")"):
+                # Extract all numbers in order
+                nums = re.findall(r"\d{1,4}", raw)
+                if len(nums) == 3:
+                    month, day, year = nums
+                    date_obj = datetime(int(year), int(month), int(day))
+
+            # 2) ISO "YYYY-MM-DD" (or with time)
+            if date_obj is None and "-" in raw:
+                date_str_clean = raw.split("T")[0].replace("Z", "")
                 try:
                     date_obj = datetime.strptime(date_str_clean, "%Y-%m-%d")
-                except:
-                    # Try other ISO formats
+                except Exception:
                     try:
-                        date_obj = datetime.fromisoformat(date_str_clean.replace("Z", "+00:00"))
-                    except:
+                        date_obj = datetime.fromisoformat(date_str_clean)
+                    except Exception:
                         pass
-            elif "/" in date_str:
-                # MM/DD/YYYY or M/D/YYYY format
-                parts = date_str.split("/")
+
+            # 3) Slash formats "MM/DD/YYYY" or "M/D/YYYY"
+            if date_obj is None and "/" in raw:
+                parts = raw.split("/")
                 if len(parts) == 3:
+                    month = parts[0].zfill(2)
+                    day = parts[1].zfill(2)
+                    year = parts[2]
                     try:
-                        # Try MM/DD/YYYY first
-                        date_obj = datetime.strptime(date_str, "%m/%d/%Y")
-                    except:
-                        try:
-                            # Try M/D/YYYY
-                            date_obj = datetime.strptime(date_str, "%m/%d/%Y")
-                        except:
-                            # Manual parsing with zero-padding
-                            month = parts[0].zfill(2)
-                            day = parts[1].zfill(2)
-                            year = parts[2]
-                            date_obj = datetime(int(year), int(month), int(day))
-            elif date_str.startswith("(") and date_str.endswith(")"):
-                # Convert from (MM, DD, YYYY) format to MM/DD/YYYY
-                try:
-                    # Remove parentheses and split by comma
-                    content = date_str.strip("()")
-                    parts = [p.strip() for p in content.split(",")]
-                    if len(parts) == 3:
-                        month = parts[0].zfill(2)
-                        day = parts[1].zfill(2)
-                        year = parts[2].strip()
                         date_obj = datetime(int(year), int(month), int(day))
-                except:
-                    pass
-            
-            # Format as MM/DD/YYYY with proper zero-padding
+                    except Exception:
+                        pass
+
+            # 4) Generic: pull out three integers (month, day, year)
+            if date_obj is None:
+                nums = re.findall(r"\d{1,4}", raw)
+                if len(nums) >= 3:
+                    month, day, year = nums[0], nums[1], nums[2]
+                    # Heuristic: treat 4‑digit piece as year
+                    if len(year) != 4:
+                        for n in nums:
+                            if len(n) == 4:
+                                year = n
+                                break
+                    try:
+                        date_obj = datetime(int(year), int(month), int(day))
+                    except Exception:
+                        date_obj = None
+
             if date_obj:
-                month = date_obj.strftime('%m')  # Zero-padded month (01-12)
-                day = date_obj.strftime('%d')    # Zero-padded day (01-31)
-                year = date_obj.strftime('%Y')   # Full year (YYYY)
-                return f"{month}/{day}/{year}"
-            
-            # If we couldn't parse it, return empty string
+                return date_obj.strftime("%m/%d/%Y")
+
             print(f"===> ⚠️ Could not parse date: '{date_str}'")
             return ""
         except Exception as e:
