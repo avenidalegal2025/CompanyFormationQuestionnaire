@@ -267,9 +267,33 @@ def map_data_to_ss4_fields(form_data):
     
     # Parse city, state, zip from company_city_state_zip
     # Format: "City State ZIP" or "City, State ZIP" or "City State, ZIP"
+    # CRITICAL: Must handle multi-word states like "NEW YORK", "NEW JERSEY", "NORTH CAROLINA", etc.
     company_city = ""
     company_state = ""
     company_zip = ""
+    
+    # List of valid US states (2-letter codes and full names including multi-word)
+    US_STATES = {
+        'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+        'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+        'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+        'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+        'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY',
+        'DC', 'PR', 'VI', 'GU', 'AS', 'MP'
+    }
+    US_STATE_NAMES = {
+        'ALABAMA', 'ALASKA', 'ARIZONA', 'ARKANSAS', 'CALIFORNIA', 'COLORADO',
+        'CONNECTICUT', 'DELAWARE', 'FLORIDA', 'GEORGIA', 'HAWAII', 'IDAHO',
+        'ILLINOIS', 'INDIANA', 'IOWA', 'KANSAS', 'KENTUCKY', 'LOUISIANA',
+        'MAINE', 'MARYLAND', 'MASSACHUSETTS', 'MICHIGAN', 'MINNESOTA', 'MISSISSIPPI',
+        'MISSOURI', 'MONTANA', 'NEBRASKA', 'NEVADA', 'NEW HAMPSHIRE', 'NEW JERSEY',
+        'NEW MEXICO', 'NEW YORK', 'NORTH CAROLINA', 'NORTH DAKOTA', 'OHIO', 'OKLAHOMA',
+        'OREGON', 'PENNSYLVANIA', 'RHODE ISLAND', 'SOUTH CAROLINA', 'SOUTH DAKOTA',
+        'TENNESSEE', 'TEXAS', 'UTAH', 'VERMONT', 'VIRGINIA', 'WASHINGTON',
+        'WEST VIRGINIA', 'WISCONSIN', 'WYOMING', 'DISTRICT OF COLUMBIA', 'PUERTO RICO',
+        'VIRGIN ISLANDS', 'GUAM', 'AMERICAN SAMOA', 'NORTHERN MARIANA ISLANDS'
+    }
+    
     if company_city_state_zip:
         # Try to parse: "City State ZIP" or "City, State ZIP"
         # First, try splitting by comma
@@ -277,32 +301,116 @@ def map_data_to_ss4_fields(form_data):
         if len(city_state_parts) >= 2:
             # Format: "City, State ZIP"
             company_city = city_state_parts[0].strip().strip(',').strip()  # Remove any leading/trailing commas
-            state_zip = city_state_parts[1].strip().split()
-            if len(state_zip) >= 2:
-                company_state = state_zip[0]
-                company_zip = state_zip[1]
-            elif len(state_zip) == 1:
-                company_state = state_zip[0]
+            state_zip_str = city_state_parts[1].strip()
+            state_zip_parts = state_zip_str.split()
+            
+            # Check if last part is ZIP (5 digits)
+            if state_zip_parts and state_zip_parts[-1].isdigit() and len(state_zip_parts[-1]) == 5:
+                company_zip = state_zip_parts[-1]
+                state_parts = state_zip_parts[:-1]
+            else:
+                state_parts = state_zip_parts
+            
+            # Try to match state: check 2-letter code first, then multi-word states
+            if len(state_parts) >= 2:
+                # Try last 2 words as state name (e.g., "NEW YORK", "NORTH CAROLINA")
+                two_word_state = " ".join(state_parts[-2:]).upper()
+                if two_word_state in US_STATE_NAMES:
+                    company_state = two_word_state
+                    # Everything before is city (if any remaining)
+                    if len(state_parts) > 2:
+                        company_city = f"{company_city} {''.join(state_parts[:-2])}".strip()
+                elif len(state_parts) >= 3:
+                    # Try last 3 words (e.g., "NORTH CAROLINA", "SOUTH CAROLINA")
+                    three_word_state = " ".join(state_parts[-3:]).upper()
+                    if three_word_state in US_STATE_NAMES:
+                        company_state = three_word_state
+                        if len(state_parts) > 3:
+                            company_city = f"{company_city} {''.join(state_parts[:-3])}".strip()
+                    else:
+                        # Fallback: use last word as state (might be 2-letter code)
+                        company_state = state_parts[-1].upper()
+                        if len(state_parts) > 1:
+                            company_city = f"{company_city} {''.join(state_parts[:-1])}".strip()
+                else:
+                    # Use last word as state
+                    company_state = state_parts[-1].upper()
+                    if len(state_parts) > 1:
+                        company_city = f"{company_city} {''.join(state_parts[:-1])}".strip()
+            elif len(state_parts) == 1:
+                company_state = state_parts[0].upper()
         else:
             # Format: "City State ZIP" - try to parse by spaces
-            # Assume last part is ZIP (5 digits), second to last is State (2 letters), rest is City
+            # Must handle multi-word states
             parts = company_city_state_zip.split()
             if len(parts) >= 3:
-                # Last part is ZIP
-                company_zip = parts[-1]
-                # Second to last is State
-                company_state = parts[-2]
-                # Everything before is City
-                company_city = " ".join(parts[:-2]).strip(',').strip()  # Remove any leading/trailing commas
+                # Check if last part is ZIP (5 digits)
+                if parts[-1].isdigit() and len(parts[-1]) == 5:
+                    company_zip = parts[-1]
+                    remaining = parts[:-1]
+                else:
+                    remaining = parts
+                    # Last part might be ZIP even if not 5 digits
+                    if parts[-1].isdigit():
+                        company_zip = parts[-1]
+                        remaining = parts[:-1]
+                
+                # Try to match state from the end
+                if len(remaining) >= 2:
+                    # Try last 2 words as state
+                    two_word_state = " ".join(remaining[-2:]).upper()
+                    if two_word_state in US_STATE_NAMES:
+                        company_state = two_word_state
+                        company_city = " ".join(remaining[:-2]).strip(',').strip()
+                    elif len(remaining) >= 3:
+                        # Try last 3 words
+                        three_word_state = " ".join(remaining[-3:]).upper()
+                        if three_word_state in US_STATE_NAMES:
+                            company_state = three_word_state
+                            company_city = " ".join(remaining[:-3]).strip(',').strip()
+                        else:
+                            # Check if second to last is 2-letter state code
+                            if len(remaining[-2]) == 2 and remaining[-2].upper() in US_STATES:
+                                company_state = remaining[-2].upper()
+                                company_city = " ".join(remaining[:-2]).strip(',').strip()
+                            else:
+                                # Fallback: assume last word is state
+                                company_state = remaining[-1].upper()
+                                company_city = " ".join(remaining[:-1]).strip(',').strip()
+                    else:
+                        # Check if last word is 2-letter state code
+                        if len(remaining[-1]) == 2 and remaining[-1].upper() in US_STATES:
+                            company_state = remaining[-1].upper()
+                            company_city = " ".join(remaining[:-1]).strip(',').strip()
+                        else:
+                            # Fallback: use last word as state
+                            company_state = remaining[-1].upper()
+                            company_city = " ".join(remaining[:-1]).strip(',').strip()
+                else:
+                    # Only 1-2 parts left
+                    if len(remaining) == 2:
+                        # Check if second is 2-letter state code
+                        if len(remaining[1]) == 2 and remaining[1].upper() in US_STATES:
+                            company_state = remaining[1].upper()
+                            company_city = remaining[0].strip(',').strip()
+                        else:
+                            company_state = remaining[1].upper()
+                            company_city = remaining[0].strip(',').strip()
+                    else:
+                        company_city = remaining[0].strip(',').strip() if remaining else ""
             elif len(parts) == 2:
                 # Could be "City State" or "State ZIP"
-                # If second part is 2 letters, it's State; otherwise assume it's ZIP
-                if len(parts[1]) == 2:
+                # If second part is 2 letters, it's State; if it's digits, it's ZIP
+                if len(parts[1]) == 2 and parts[1].upper() in US_STATES:
                     company_city = parts[0].strip(',').strip()
-                    company_state = parts[1]
-                else:
-                    company_state = parts[0]
+                    company_state = parts[1].upper()
+                elif parts[1].isdigit():
+                    company_state = parts[0].upper()
                     company_zip = parts[1]
+                else:
+                    # Assume "City State" where state might be full name
+                    company_city = parts[0].strip(',').strip()
+                    company_state = parts[1].upper()
             else:
                 # Single part - assume it's city
                 company_city = parts[0].strip(',').strip() if parts else ""
@@ -516,6 +624,31 @@ def map_data_to_ss4_fields(form_data):
         city_upper = city.upper().strip()
         state_upper = state.upper().strip()
         
+        # Convert full state names to 2-letter codes for lookup
+        # Keep original state for return value
+        state_name_to_code = {
+            'ALABAMA': 'AL', 'ALASKA': 'AK', 'ARIZONA': 'AZ', 'ARKANSAS': 'AR',
+            'CALIFORNIA': 'CA', 'COLORADO': 'CO', 'CONNECTICUT': 'CT', 'DELAWARE': 'DE',
+            'FLORIDA': 'FL', 'GEORGIA': 'GA', 'HAWAII': 'HI', 'IDAHO': 'ID',
+            'ILLINOIS': 'IL', 'INDIANA': 'IN', 'IOWA': 'IA', 'KANSAS': 'KS',
+            'KENTUCKY': 'KY', 'LOUISIANA': 'LA', 'MAINE': 'ME', 'MARYLAND': 'MD',
+            'MASSACHUSETTS': 'MA', 'MICHIGAN': 'MI', 'MINNESOTA': 'MN', 'MISSISSIPPI': 'MS',
+            'MISSOURI': 'MO', 'MONTANA': 'MT', 'NEBRASKA': 'NE', 'NEVADA': 'NV',
+            'NEW HAMPSHIRE': 'NH', 'NEW JERSEY': 'NJ', 'NEW MEXICO': 'NM', 'NEW YORK': 'NY',
+            'NORTH CAROLINA': 'NC', 'NORTH DAKOTA': 'ND', 'OHIO': 'OH', 'OKLAHOMA': 'OK',
+            'OREGON': 'OR', 'PENNSYLVANIA': 'PA', 'RHODE ISLAND': 'RI', 'SOUTH CAROLINA': 'SC',
+            'SOUTH DAKOTA': 'SD', 'TENNESSEE': 'TN', 'TEXAS': 'TX', 'UTAH': 'UT',
+            'VERMONT': 'VT', 'VIRGINIA': 'VA', 'WASHINGTON': 'WA', 'WEST VIRGINIA': 'WV',
+            'WISCONSIN': 'WI', 'WYOMING': 'WY', 'DISTRICT OF COLUMBIA': 'DC',
+            'PUERTO RICO': 'PR', 'VIRGIN ISLANDS': 'VI', 'GUAM': 'GU',
+            'AMERICAN SAMOA': 'AS', 'NORTHERN MARIANA ISLANDS': 'MP'
+        }
+        
+        # Convert state to 2-letter code for lookup (if it's a full name)
+        state_for_lookup = state_name_to_code.get(state_upper, state_upper)
+        # Keep original state for return value (use code if original was code, otherwise use original)
+        state_for_return = state_upper if len(state_upper) == 2 else state_upper
+        
         # Comprehensive city-to-county mapping
         # Format: (city_name, state): county_name
         city_county_map = {
@@ -594,6 +727,12 @@ def map_data_to_ss4_fields(form_data):
             ("ALBANY", "NY"): "ALBANY",
             ("SYRACUSE", "NY"): "ONONDAGA",
             ("YONKERS", "NY"): "WESTCHESTER",
+            ("WHITE PLAINS", "NY"): "WESTCHESTER",
+            ("WHITE PLAINS", "NEW YORK"): "WESTCHESTER",  # Handle full state name
+            ("MOUNT VERNON", "NY"): "WESTCHESTER",
+            ("NEW ROCHELLE", "NY"): "WESTCHESTER",
+            ("RYE", "NY"): "WESTCHESTER",
+            ("SCARSDALE", "NY"): "WESTCHESTER",
             
             # California cities
             ("LOS ANGELES", "CA"): "LOS ANGELES",
@@ -987,21 +1126,24 @@ def map_data_to_ss4_fields(form_data):
             ("WIDE RUINS", "AZ"): "APACHE",
         }
         
-        # Look up city in mapping
-        lookup_key = (city_upper, state_upper)
+        # Look up city in mapping (use 2-letter state code for lookup)
+        lookup_key = (city_upper, state_for_lookup)
         county = city_county_map.get(lookup_key)
         
         if county:
-            print(f"===> ✅ Found county '{county}' for '{city_upper}, {state_upper}' via local map")
-            return f"{county}, {state_upper}"
+            print(f"===> ✅ Found county '{county}' for '{city_upper}, {state_for_lookup}' via local map")
+            # Return with original state format (full name if that's what was passed)
+            return f"{county}, {state_for_return}"
         else:
             # Fallback: Use Google Maps Geocoding API to get county
-            print(f"===> City '{city}' in state '{state}' not in local mapping, querying Google Maps API...")
-            county_from_api = get_county_from_google_maps(city, state)
+            # Use 2-letter state code for API call (more reliable)
+            print(f"===> City '{city}' in state '{state_for_lookup}' not in local mapping, querying Google Maps API...")
+            county_from_api = get_county_from_google_maps(city, state_for_lookup)
             
             if county_from_api:
-                print(f"===> ✅ Found county '{county_from_api}' for '{city}, {state}' via Google Maps API")
-                return f"{county_from_api.upper()}, {state_upper}"
+                print(f"===> ✅ Found county '{county_from_api}' for '{city}, {state_for_lookup}' via Google Maps API")
+                # Return with original state format
+                return f"{county_from_api.upper()}, {state_for_return}"
             else:
                 # Final fallback: we DO NOT pretend the city is the county.
                 # Leave Line 6 blank so we don't send incorrect data to the IRS.
@@ -1379,21 +1521,21 @@ def map_data_to_ss4_fields(form_data):
             # Use "Other" checkbox with custom specification
             mapped_data["Checks"]["16_other"] = CHECK_COORDS["16_other"]
             if line16_other_specify:
-                mapped_data["16_other_specify"] = to_upper(translate_to_english(line16_other_specify)[:32])  # Max 32 chars, ALL CAPS - translated from Spanish
+                mapped_data["16_other_specify"] = to_upper(translate_to_english(line16_other_specify)[:45])  # Max 45 chars, ALL CAPS - translated from Spanish
             else:
                 # Default specification if none provided
-                mapped_data["16_other_specify"] = to_upper(translate_to_english(business_purpose or "GENERAL BUSINESS")[:32])
+                mapped_data["16_other_specify"] = to_upper(translate_to_english(business_purpose or "GENERAL BUSINESS")[:45])
         else:
             # Default to "Other" if category doesn't match any known category
             mapped_data["Checks"]["16_other"] = CHECK_COORDS["16_other"]
             if line16_other_specify:
-                mapped_data["16_other_specify"] = to_upper(translate_to_english(line16_other_specify)[:32])  # Translated from Spanish
+                mapped_data["16_other_specify"] = to_upper(translate_to_english(line16_other_specify)[:45])  # Translated from Spanish
             else:
-                mapped_data["16_other_specify"] = to_upper(translate_to_english(business_purpose or "GENERAL BUSINESS")[:32])
+                mapped_data["16_other_specify"] = to_upper(translate_to_english(business_purpose or "GENERAL BUSINESS")[:45])
     elif line16_other_specify:
         # If only other_specify is provided, check "Other"
         mapped_data["Checks"]["16_other"] = CHECK_COORDS["16_other"]
-        mapped_data["16_other_specify"] = to_upper(translate_to_english(line16_other_specify)[:32])  # Max 32 chars, ALL CAPS - Translated from Spanish
+        mapped_data["16_other_specify"] = to_upper(translate_to_english(line16_other_specify)[:45])  # Translated from Spanish
     
     # Line 17: Has applicant applied for EIN before? (default to No)
     # No checkbox needed if answer is No
@@ -1496,7 +1638,7 @@ def create_overlay(data, path):
     
     # Handle Line 16 "Other" specification text field (if present)
     if "16_other_specify" in data:
-        other_specify = str(data["16_other_specify"]).upper()[:32]  # Max 32 chars, ALL CAPS
+        other_specify = str(data["16_other_specify"]).upper()[:45]  # Max 45 chars, ALL CAPS
         if other_specify and "16_other_specify" in FIELD_COORDS:
             coord = FIELD_COORDS["16_other_specify"]
             c.drawString(coord[0], coord[1], other_specify)
