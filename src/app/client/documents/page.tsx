@@ -244,11 +244,19 @@ function DocumentsContent() {
     return category === activeTab && matchesSearch;
   });
 
+  // Helper to know if lawyer has already uploaded EIN/Articles docs
+  const hasDoc = (id: string) =>
+    documents.some(d => (d.id || '').toLowerCase() === id && (d.s3Key || d.signedS3Key));
+  const hasEin = hasDoc('ein-letter');
+  const hasArticlesInc = hasDoc('articles-inc');
+  const hasArticlesLlc = hasDoc('articles-llc');
+
   // Calculate additional cards for "En Proceso" tab
   const getEnProcesoCardCount = () => {
-    let count = 1; // EIN card is always there
-    if (isCorporation()) count += 1; // Articles of Incorporation
-    if (isLLC()) count += 1; // Articles of Organization
+    let count = 0;
+    if (!hasEin) count += 1; // EIN card
+    if (isCorporation() && !hasArticlesInc) count += 1; // Articles of Incorporation
+    if (isLLC() && !hasArticlesLlc) count += 1; // Articles of Organization
     return count;
   };
 
@@ -531,120 +539,107 @@ function DocumentsContent() {
             {/* En Proceso Cards */}
             {activeTab === 'en-proceso' && (
               <div className="space-y-6">
-                {/* Helpers to know if lawyer has already uploaded these docs */}
-                {(() => {
-                  const hasDoc = (id: string) =>
-                    documents.some(d => (d.id || '').toLowerCase() === id && (d.s3Key || d.signedS3Key));
-                  const hasEin = hasDoc('ein-letter');
-                  const hasArticlesInc = hasDoc('articles-inc');
-                  const hasArticlesLlc = hasDoc('articles-llc');
-
-                  return (
-                    <>
-                      {/* EIN Card */}
-                      {!hasEin && (
-                        <div className="card border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow">
-                          <div className="p-6">
-                            <div className="flex items-start">
-                              <div className="flex-shrink-0">
-                                <ClockIcon className="h-8 w-8 text-blue-500" />
-                              </div>
-                              <div className="ml-4 flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <h3 className="text-lg font-semibold text-gray-900">
-                                    EIN (Employer Identification Number)
-                                  </h3>
-                                  <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
-                                    En Proceso
-                                  </span>
-                                </div>
-                                <p className="text-sm text-gray-600 mb-2">
-                                  Requisito expedido por el IRS necesario para abrir una cuenta de banco.
-                                </p>
-                                <p className="text-sm text-gray-500 font-medium">
-                                  ⏱️ Tiempo aproximado: 1 mes
-                                </p>
-                                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                                  <p className="text-sm text-blue-800">
-                                    Este trámite está siendo procesado. No se requiere ninguna acción de tu parte.
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
+                {/* EIN Card */}
+                {!hasEin && (
+                  <div className="card border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow">
+                    <div className="p-6">
+                      <div className="flex items-start">
+                        <div className="flex-shrink-0">
+                          <ClockIcon className="h-8 w-8 text-blue-500" />
+                        </div>
+                        <div className="ml-4 flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="text-lg font-semibold text-gray-900">
+                              EIN (Employer Identification Number)
+                            </h3>
+                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                              En Proceso
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 mb-2">
+                            Requisito expedido por el IRS necesario para abrir una cuenta de banco.
+                          </p>
+                          <p className="text-sm text-gray-500 font-medium">
+                            ⏱️ Tiempo aproximado: 1 mes
+                          </p>
+                          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                            <p className="text-sm text-blue-800">
+                              Este trámite está siendo procesado. No se requiere ninguna acción de tu parte.
+                            </p>
                           </div>
                         </div>
-                      )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-                      {/* Articles of Incorporation Card (for Corporations) */}
-                      {isCorporation() && !hasArticlesInc && (
-                        <div className="card border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow">
-                          <div className="p-6">
-                            <div className="flex items-start">
-                              <div className="flex-shrink-0">
-                                <ClockIcon className="h-8 w-8 text-blue-500" />
-                              </div>
-                              <div className="ml-4 flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <h3 className="text-lg font-semibold text-gray-900">
-                                    Articles of Incorporation
-                                  </h3>
-                                  <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
-                                    En Proceso
-                                  </span>
-                                </div>
-                                <p className="text-sm text-gray-600 mb-2">
-                                  Documento legal que establece la existencia de tu corporación ante el estado.
-                                </p>
-                                <p className="text-sm text-gray-500 font-medium">
-                                  ⏱️ Tiempo aproximado: 5-7 días hábiles
-                                </p>
-                                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                                  <p className="text-sm text-blue-800">
-                                    Este documento está siendo procesado por el estado. No se requiere ninguna acción de tu parte.
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
+                {/* Articles of Incorporation Card (for Corporations) */}
+                {isCorporation() && !hasArticlesInc && (
+                  <div className="card border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow">
+                    <div className="p-6">
+                      <div className="flex items-start">
+                        <div className="flex-shrink-0">
+                          <ClockIcon className="h-8 w-8 text-blue-500" />
+                        </div>
+                        <div className="ml-4 flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="text-lg font-semibold text-gray-900">
+                              Articles of Incorporation
+                            </h3>
+                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                              En Proceso
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 mb-2">
+                            Documento legal que establece la existencia de tu corporación ante el estado.
+                          </p>
+                          <p className="text-sm text-gray-500 font-medium">
+                            ⏱️ Tiempo aproximado: 5-7 días hábiles
+                          </p>
+                          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                            <p className="text-sm text-blue-800">
+                              Este documento está siendo procesado por el estado. No se requiere ninguna acción de tu parte.
+                            </p>
                           </div>
                         </div>
-                      )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-                      {/* Articles of Organization Card (for LLCs) */}
-                      {isLLC() && !hasArticlesLlc && (
-                        <div className="card border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow">
-                          <div className="p-6">
-                            <div className="flex items-start">
-                              <div className="flex-shrink-0">
-                                <ClockIcon className="h-8 w-8 text-blue-500" />
-                              </div>
-                              <div className="ml-4 flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <h3 className="text-lg font-semibold text-gray-900">
-                                    Articles of Organization
-                                  </h3>
-                                  <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
-                                    En Proceso
-                                  </span>
-                                </div>
-                                <p className="text-sm text-gray-600 mb-2">
-                                  Documento legal que establece la existencia de tu LLC ante el estado.
-                                </p>
-                                <p className="text-sm text-gray-500 font-medium">
-                                  ⏱️ Tiempo aproximado: 5-7 días hábiles
-                                </p>
-                                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                                  <p className="text-sm text-blue-800">
-                                    Este documento está siendo procesado por el estado. No se requiere ninguna acción de tu parte.
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
+                {/* Articles of Organization Card (for LLCs) */}
+                {isLLC() && !hasArticlesLlc && (
+                  <div className="card border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow">
+                    <div className="p-6">
+                      <div className="flex items-start">
+                        <div className="flex-shrink-0">
+                          <ClockIcon className="h-8 w-8 text-blue-500" />
+                        </div>
+                        <div className="ml-4 flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="text-lg font-semibold text-gray-900">
+                              Articles of Organization
+                            </h3>
+                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                              En Proceso
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 mb-2">
+                            Documento legal que establece la existencia de tu LLC ante el estado.
+                          </p>
+                          <p className="text-sm text-gray-500 font-medium">
+                            ⏱️ Tiempo aproximado: 5-7 días hábiles
+                          </p>
+                          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                            <p className="text-sm text-blue-800">
+                              Este documento está siendo procesado por el estado. No se requiere ninguna acción de tu parte.
+                            </p>
                           </div>
                         </div>
-                      )}
-                    </>
-                  );
-                })()}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
                   <div className="p-6">
