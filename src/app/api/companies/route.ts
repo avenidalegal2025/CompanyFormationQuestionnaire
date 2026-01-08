@@ -97,11 +97,11 @@ export async function GET(request: NextRequest) {
           const fields = record.fields;
           const recordEmail = (fields['Customer Email'] as string) || '';
           const recordCompanyName = (fields['Company Name'] as string) || 'Unknown Company';
-          // Use Payment Date if available, otherwise use Created Time, otherwise current date
-          const paymentDate = (fields['Payment Date'] as string) || 
-                             (record.createdTime ? new Date(record.createdTime).toISOString() : new Date().toISOString());
+          // Use Payment Date if available, otherwise use current date
+          // Note: Airtable records have a createdTime property, but we'll use Payment Date for sorting
+          const paymentDate = (fields['Payment Date'] as string) || new Date().toISOString();
           
-          console.log(`📋 Found company: ${recordCompanyName} (email: ${recordEmail}, paymentDate: ${paymentDate}, createdTime: ${record.createdTime})`);
+          console.log(`📋 Found company: ${recordCompanyName} (email: ${recordEmail}, paymentDate: ${paymentDate})`);
           
           companies.push({
             id: record.id,
