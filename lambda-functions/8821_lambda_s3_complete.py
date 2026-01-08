@@ -86,8 +86,8 @@ FIELD_POSITIONS = {
     "Tax Matters": (460, 396),  # Raised 2 pixels (394 + 2)
     "Checkbox": (534, 412),  # Section 3 Intermediate Service Provider checkbox (NOT checked)
     "Section 4 Checkbox": (565, 315),  # Section 4 checkbox (ALWAYS checked) - moved 5px right (560 + 5)
-    "Signature Name": (77, 80),  # Print Name field - adjusted from 126 (too low)
-    "Signature Title": (447, 80),  # Title field - adjusted from 126 (too low)
+    "Signature Name": (77, 76),  # Print Name field - lowered 4 pixels (80 - 4)
+    "Signature Title": (447, 76),  # Title field - lowered 4 pixels (80 - 4)
 }
 
 def create_overlay(data, path):
