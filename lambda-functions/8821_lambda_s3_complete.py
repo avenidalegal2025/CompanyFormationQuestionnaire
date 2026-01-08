@@ -74,7 +74,7 @@ FIELD_POSITIONS = {
     "Taxpayer Name": (77, 661),  # Lowered 7 pixels (668 - 7)
     "Taxpayer Address 1": (77, 649),  # 12 pixels below name (661 - 12)
     "Taxpayer Address 2": (77, 637),  # 12 pixels below address 1 (649 - 12)
-    "Taxpayer Phone": (392, 639),  # Moved 15px left (407 - 15), 3px higher (636 + 3)
+    "Taxpayer Phone": (377, 639),  # Moved 15px left (392 - 15), 3px higher (636 + 3)
     "Designee Name": (77, 590),  # Moved up 10 pixels (580 + 10)
     "Designee Address 1": (77, 577),  # Moved up 10 pixels (567 + 10)
     "Designee Address 2": (77, 565),  # Moved up 10 pixels (555 + 10)
@@ -253,13 +253,17 @@ def create_overlay(data, path):
     if len(final_signature_title) > 50:
         final_signature_title = truncate_at_word_boundary(final_signature_title, max_length=50)
     
+    # IMPORTANT: Set font again after showPage() - font settings don't persist across pages
+    c.setFont("Helvetica", 9)
+    c.setFillColorRGB(0, 0, 0)  # Ensure black text (not transparent)
+    
     # Draw signature name
     c.drawString(*FIELD_POSITIONS["Signature Name"], final_signature_name)
-    print(f"✅ Drew signature name '{final_signature_name}' at {FIELD_POSITIONS['Signature Name']}")
+    print(f"✅ Drew signature name '{final_signature_name}' at {FIELD_POSITIONS['Signature Name']} with font Helvetica 9")
     
     # Draw signature title
     c.drawString(*FIELD_POSITIONS["Signature Title"], final_signature_title)
-    print(f"✅ Drew signature title '{final_signature_title}' at {FIELD_POSITIONS['Signature Title']}")
+    print(f"✅ Drew signature title '{final_signature_title}' at {FIELD_POSITIONS['Signature Title']} with font Helvetica 9")
     
     c.save()
     print("===> Overlay created")

@@ -305,8 +305,18 @@ function transformDataFor8821(formData: QuestionnaireData): any {
     signatureTitle = 'AUTHORIZED SIGNER';
   }
   
-  // Log for debugging (same format as SS-4)
-  console.log(`📝 8821 Signature (same as SS-4): name="${signatureName}", title="${signatureTitle}", baseName="${baseName}", hasSSN=${!!responsiblePartySSN}`);
+  // Log for debugging (same format as SS-4) - EXTENSIVE LOGGING
+  console.log(`📝 8821 Signature DEBUG:`);
+  console.log(`   - responsiblePartyName: "${responsiblePartyName}"`);
+  console.log(`   - responsiblePartyFirstName: "${responsiblePartyFirstName}"`);
+  console.log(`   - responsiblePartyLastName: "${responsiblePartyLastName}"`);
+  console.log(`   - baseName: "${baseName}"`);
+  console.log(`   - owners.length: ${owners.length}`);
+  console.log(`   - owners[0]?.fullName: "${owners[0]?.fullName || 'NOT FOUND'}"`);
+  console.log(`   - responsibleParty?.fullName: "${responsibleParty?.fullName || 'NOT FOUND'}"`);
+  console.log(`   - signatureName: "${signatureName}"`);
+  console.log(`   - signatureTitle: "${signatureTitle}"`);
+  console.log(`   - hasSSN: ${!!responsiblePartySSN}`);
   
   // Parse company address - Use Airtable Company Address format: "Street, City, State ZIP"
   // Priority: Use full address string from Airtable format, then fallback to components
