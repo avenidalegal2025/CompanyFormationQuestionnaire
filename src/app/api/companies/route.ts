@@ -82,15 +82,12 @@ export async function GET(request: NextRequest) {
 
     // Query Airtable for all records with matching email (case-insensitive)
     // Airtable formula: LOWER() function to make comparison case-insensitive
-    // IMPORTANT: Sort by Payment Date, but handle records without Payment Date
-    // Use Created Time as fallback for sorting if Payment Date is missing
+    // IMPORTANT: No maxRecords limit - fetch ALL companies for this user
     await base(AIRTABLE_TABLE_NAME)
       .select({
         filterByFormula: `LOWER({Customer Email}) = "${normalizedEmail}"`,
-        sort: [
-          { field: 'Payment Date', direction: 'desc' }, // Most recent first
-          { field: 'Created Time', direction: 'desc' }, // Fallback for records without Payment Date
-        ],
+        sort: [{ field: 'Payment Date', direction: 'desc' }], // Most recent first
+        // No maxRecords - fetch all pages
       })
       .eachPage((records, fetchNextPage) => {
         records.forEach((record) => {
