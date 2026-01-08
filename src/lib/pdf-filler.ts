@@ -35,9 +35,17 @@ export interface QuestionnaireData {
     formationState?: string;
     address?: string;
     addressLine1?: string;
+    addressLine2?: string;
     fullAddress?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    zipCode?: string;
     hasUsaAddress?: string | boolean;
     businessPurpose?: string;
+    usPhoneNumber?: string;
+    phone?: string;
+    phoneNumber?: string;
   };
   owners?: Array<{
     fullName?: string;
@@ -180,13 +188,91 @@ function transformDataFor2848(formData: QuestionnaireData): any {
 function transformDataFor8821(formData: QuestionnaireData): any {
   const company = formData.company || {};
   const owners = formData.owners || [];
+  const agreement = formData.agreement || {};
   
-  // Get tax owner (person authorized to handle tax matters)
-  const taxOwnerName = formData.agreement?.corp_taxOwner || 
-                       formData.agreement?.llc_taxOwner || 
+  // Determine entity type
+  const entityType = company.entityType || '';
+  const isLLC = entityType.toUpperCase().includes('LLC') || entityType.toUpperCase().includes('L.L.C.');
+  const isCorp = entityType.toUpperCase().includes('CORP') || entityType.toUpperCase().includes('INC');
+  const ownerCount = owners.length;
+  
+  // Get tax owner (person who will sign) - same logic as 2848
+  const taxOwnerName = agreement.corp_taxOwner || 
+                       agreement.llc_taxOwner || 
                        owners[0]?.fullName || '';
   
   const taxOwner = owners.find(o => o.fullName === taxOwnerName) || owners[0] || {};
+  
+  // Determine signature name and title
+  let signatureName = taxOwnerName || '';
+  let signatureTitle = '';
+  
+  if (isLLC) {
+    // For LLC: "SOLE MEMBER" or "MEMBER"
+    if (ownerCount === 1) {
+      signatureTitle = 'SOLE MEMBER';
+    } else {
+      signatureTitle = 'MEMBER';
+    }
+  } else if (isCorp) {
+    // For Corporation: Try to get role from admin section or default to PRESIDENT
+    const admin = formData.admin || {};
+    // Check if there's a manager1Name that matches the tax owner (might indicate role)
+    // For now, default to PRESIDENT - this will be updated from Airtable data when available
+    signatureTitle = 'PRESIDENT';
+    
+    // Note: Officer roles are typically determined from Airtable Officers table
+    // For questionnaire-based generation, we default to PRESIDENT
+    // The actual role will be determined when generating from Airtable data
+  } else {
+    // Default fallback
+    signatureTitle = 'AUTHORIZED SIGNER';
+  }
+  
+  // Parse company address - could be full address string or separate components
+  let companyAddress = company.address || company.addressLine1 || company.fullAddress || '';
+  let companyAddressLine2 = company.addressLine2 || '';
+  let companyCity = company.city || '';
+  let companyState = company.state || '';
+  let companyZip = company.postalCode || company.zipCode || '';
+  
+  // If we have a full address string, try to parse it
+  if (companyAddress && !companyCity && !companyState) {
+    // Try to parse "Street, City, State ZIP" format
+    const addressParts = companyAddress.split(',').map(p => p.trim());
+    if (addressParts.length >= 3) {
+      companyAddress = addressParts[0]; // Street address
+      companyCity = addressParts[1] || '';
+      const cityStateZip = addressParts[2] || '';
+      // Try to extract state and zip from "State ZIP"
+      const stateZipMatch = cityStateZip.match(/^([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/);
+      if (stateZipMatch) {
+        companyState = stateZipMatch[1];
+        companyZip = stateZipMatch[2];
+      } else {
+        // Fallback: treat as city, state, zip
+        const parts = cityStateZip.split(/\s+/);
+        if (parts.length >= 2) {
+          companyState = parts[parts.length - 2] || '';
+          companyZip = parts[parts.length - 1] || '';
+          companyCity = parts.slice(0, -2).join(' ') || cityStateZip;
+        }
+      }
+    } else if (addressParts.length === 2) {
+      // "Street, City State ZIP"
+      companyAddress = addressParts[0];
+      const cityStateZip = addressParts[1];
+      const parts = cityStateZip.split(/\s+/);
+      if (parts.length >= 2) {
+        companyState = parts[parts.length - 2] || '';
+        companyZip = parts[parts.length - 1] || '';
+        companyCity = parts.slice(0, -2).join(' ') || cityStateZip;
+      }
+    }
+  }
+  
+  // Get company phone number (US phone if available)
+  const companyPhone = company.usPhoneNumber || company.phone || company.phoneNumber || '';
   
   return {
     // Company Information
@@ -194,28 +280,35 @@ function transformDataFor8821(formData: QuestionnaireData): any {
     ein: '', // Will be filled after EIN is obtained
     companyAddress: company.address || company.addressLine1 || company.fullAddress || '',
     
-    // Tax Owner (Taxpayer)
-    taxpayerName: taxOwnerName,
-    taxpayerSSN: taxOwner.ssn || taxOwner.tin || '',
-    taxpayerAddress: taxOwner.address || taxOwner.addressLine1 || '',
-    taxpayerCity: taxOwner.city || '',
-    taxpayerState: taxOwner.state || '',
-    taxpayerZip: taxOwner.zipCode || '',
+    // Box 1: Taxpayer (COMPANY) - Use company's full address and phone
+    taxpayerName: company.companyName || '',
+    taxpayerSSN: '', // Company EIN will be filled later
+    taxpayerAddress: companyAddress,
+    taxpayerAddressLine2: companyAddressLine2, // Suite/Unit if exists
+    taxpayerCity: companyCity,
+    taxpayerState: companyState,
+    taxpayerZip: companyZip,
+    taxpayerPhone: companyPhone,
     
-    // Third Party Designee (Avenida Legal)
-    designeeName: 'Avenida Legal',
-    designeeAddress: '12550 Biscayne Blvd Ste 110',
-    designeeCity: 'North Miami',
+    // Box 2: Third Party Designee (Antonio Regojo - Lawyer)
+    designeeName: 'ANTONIO REGOJO',
+    designeeAddress: '10634 NE 11 AVE.',
+    designeeCity: 'MIAMI',
     designeeState: 'FL',
-    designeeZip: '33181',
-    designeePhone: '(305) 123-4567', // Update with actual phone
-    designeeFax: '', // If available
+    designeeZip: '33138',
+    designeePhone: '786-512-0434', // Antonio Regojo phone
+    designeeFax: '866-496-4957', // Antonio Regojo fax
     
-    // Authorization details
-    taxInfo: 'N/A', // Tax information type
-    taxForms: 'All tax forms and information', // Specific forms
-    taxYears: '2024, 2025, 2026', // Current and future years
-    taxMatters: 'N/A', // Tax matters description
+    // Authorization details - Section 3 always "N/A", Section 4 always checked
+    // These fields are hardcoded in Lambda to always be "N/A"
+    taxInfo: 'N/A', // Always "N/A"
+    taxForms: 'N/A', // Always "N/A"
+    taxYears: 'N/A', // Always "N/A"
+    taxMatters: 'N/A', // Always "N/A"
+    
+    // Signature information
+    signatureName: signatureName,
+    signatureTitle: signatureTitle,
   };
 }
 
