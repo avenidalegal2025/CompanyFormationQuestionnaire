@@ -85,7 +85,7 @@ FIELD_POSITIONS = {
     "Tax Years": (325, 396),  # Raised 2 pixels (394 + 2)
     "Tax Matters": (460, 396),  # Raised 2 pixels (394 + 2)
     "Checkbox": (534, 412),  # Section 3 Intermediate Service Provider checkbox (NOT checked)
-    "Section 4 Checkbox": (570, 310),  # Section 4 checkbox (ALWAYS checked) - moved 250px right (320 + 250), lowered 30px (340 - 30)
+    "Section 4 Checkbox": (560, 315),  # Section 4 checkbox (ALWAYS checked) - moved 10px left (570 - 10), moved 5px up (310 + 5)
     "Signature Name": (77, 126),
     "Signature Title": (447, 126),
 }
@@ -201,8 +201,8 @@ def create_overlay(data, path):
     # DO NOT draw anything at the "Checkbox" position - it's for Section 3 which we don't check
     
     # Section 4: Specific use not recorded on CAF - ALWAYS checked
-    # Position is approximately at the end of the Section 4 text, adjust Y coordinate if needed
-    c.setFont("Helvetica-Bold", 12)
+    # Position: 10px left, 5px up, 75% smaller (12 * 0.75 = 9)
+    c.setFont("Helvetica-Bold", 9)  # 75% of original 12 = 9
     c.drawString(*FIELD_POSITIONS["Section 4 Checkbox"], "X")
     c.setFont("Helvetica", 9)
     
@@ -212,10 +212,24 @@ def create_overlay(data, path):
     signature_name = process_text(data.get("signatureName", ""), max_length=80)
     signature_title = process_text(data.get("signatureTitle", ""), max_length=50)
     
+    # Always draw signature name and title, even if empty (to debug)
+    print(f"🔍 DEBUG: Signature name: '{signature_name}', title: '{signature_title}'")
+    
     if signature_name:
         c.drawString(*FIELD_POSITIONS["Signature Name"], signature_name)
+        print(f"✅ Drew signature name at {FIELD_POSITIONS['Signature Name']}")
+    else:
+        print(f"⚠️ WARNING: signature_name is empty!")
+        # Draw a placeholder to see if position is correct
+        c.drawString(*FIELD_POSITIONS["Signature Name"], "[MISSING NAME]")
+    
     if signature_title:
         c.drawString(*FIELD_POSITIONS["Signature Title"], signature_title)
+        print(f"✅ Drew signature title at {FIELD_POSITIONS['Signature Title']}")
+    else:
+        print(f"⚠️ WARNING: signature_title is empty!")
+        # Draw a placeholder to see if position is correct
+        c.drawString(*FIELD_POSITIONS["Signature Title"], "[MISSING TITLE]")
     
     c.save()
     print("===> Overlay created")
