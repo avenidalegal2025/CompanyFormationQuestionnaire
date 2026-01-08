@@ -78,14 +78,14 @@ FIELD_POSITIONS = {
     "Designee Name": (77, 590),  # Moved up 10 pixels (580 + 10)
     "Designee Address 1": (77, 577),  # Moved up 10 pixels (567 + 10)
     "Designee Address 2": (77, 565),  # Moved up 10 pixels (555 + 10)
-    "Designee Phone": (453, 582),  # Lowered 4 pixels (586 - 4)
-    "Designee Fax": (453, 568),  # Lowered 4 pixels (572 - 4)
+    "Designee Phone": (453, 579),  # Lowered 3 pixels (582 - 3)
+    "Designee Fax": (453, 565),  # Lowered 3 pixels (568 - 3)
     "Tax Info": (70, 396),  # Raised 2 pixels (394 + 2)
     "Tax Form": (200, 396),  # Raised 2 pixels (394 + 2)
     "Tax Years": (325, 396),  # Raised 2 pixels (394 + 2)
     "Tax Matters": (460, 396),  # Raised 2 pixels (394 + 2)
     "Checkbox": (534, 412),  # Section 3 Intermediate Service Provider checkbox (NOT checked)
-    "Section 4 Checkbox": (320, 340),  # Section 4 checkbox (ALWAYS checked) - lowered 25 pixels (365 - 25), moved 250 pixels right (70 + 250)
+    "Section 4 Checkbox": (570, 310),  # Section 4 checkbox (ALWAYS checked) - moved 250px right (320 + 250), lowered 30px (340 - 30)
     "Signature Name": (77, 126),
     "Signature Title": (447, 126),
 }

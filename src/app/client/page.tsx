@@ -368,22 +368,18 @@ export default function ClientPage() {
   const getCompanyDisplayName = () => {
     if (!companyData?.company) return 'Mi Empresa';
     
-    const { companyName, entityType, formationState } = companyData.company;
+    const { companyName, formationState } = companyData.company;
     
     if (!companyName) return 'Mi Empresa';
     
-    // Format: "CompanyName EntityType a State company"
-    // Example: "Trimaran LLC a Florida company"
-    const name = companyName;
-    const type = entityType || '';
+    // Remove entity type from name if it's already included (e.g., "QUEST Corp C-Corp" -> "QUEST Corp")
+    const nameWithoutType = companyName.replace(/\s+(C-Corp|S-Corp|LLC|L\.L\.C\.|Inc|Corp|Corporation|Incorporated)$/i, '').trim();
     const state = formationState || '';
     
     if (state) {
-      return `${name} ${type} a ${state} company`.trim();
-    } else if (type) {
-      return `${name} ${type}`.trim();
+      return `${nameWithoutType} a ${state} company`.trim();
     } else {
-      return name;
+      return nameWithoutType;
     }
   };
 

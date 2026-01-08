@@ -208,15 +208,14 @@ export default function CompanySwitcher({ userEmail, selectedCompanyId, onCompan
   
   const getCompanyDisplayName = (company: Company) => {
     const name = company.companyName;
-    const type = company.entityType || '';
+    // Remove entity type from name if it's already included (e.g., "QUEST Corp C-Corp" -> "QUEST Corp")
+    const nameWithoutType = name?.replace(/\s+(C-Corp|S-Corp|LLC|L\.L\.C\.|Inc|Corp|Corporation|Incorporated)$/i, '').trim() || name;
     const state = company.formationState || '';
     
     if (state) {
-      return `${name} ${type} a ${state} company`.trim();
-    } else if (type) {
-      return `${name} ${type}`.trim();
+      return `${nameWithoutType} a ${state} company`.trim();
     } else {
-      return name;
+      return nameWithoutType;
     }
   };
 
