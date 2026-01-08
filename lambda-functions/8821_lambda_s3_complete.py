@@ -74,7 +74,7 @@ FIELD_POSITIONS = {
     "Taxpayer Name": (77, 661),  # Lowered 7 pixels (668 - 7)
     "Taxpayer Address 1": (77, 649),  # 12 pixels below name (661 - 12)
     "Taxpayer Address 2": (77, 637),  # 12 pixels below address 1 (649 - 12)
-    "Taxpayer Phone": (407, 636),  # Moved 50px left (457 - 50), 15px up (621 + 15)
+    "Taxpayer Phone": (392, 639),  # Moved 15px left (407 - 15), 3px higher (636 + 3)
     "Designee Name": (77, 590),  # Moved up 10 pixels (580 + 10)
     "Designee Address 1": (77, 577),  # Moved up 10 pixels (567 + 10)
     "Designee Address 2": (77, 565),  # Moved up 10 pixels (555 + 10)

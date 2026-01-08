@@ -247,8 +247,28 @@ function transformDataFor8821(formData: QuestionnaireData): any {
     responsiblePartyOfficerRole = 'PRESIDENT';
   }
   
-  // Build base name (same as SS-4)
-  const baseName = responsiblePartyName || `${responsiblePartyFirstName} ${responsiblePartyLastName}`.trim();
+  // Build base name (same as SS-4) - ensure it's never empty
+  let baseName = responsiblePartyName || `${responsiblePartyFirstName} ${responsiblePartyLastName}`.trim();
+  
+  // If baseName is still empty, try to get from responsibleParty object directly
+  if (!baseName && responsibleParty) {
+    baseName = responsibleParty.fullName || 
+                `${responsibleParty.firstName || ''} ${responsibleParty.lastName || ''}`.trim() ||
+                'AUTHORIZED SIGNER';
+  }
+  
+  // Final fallback - use first owner's name if available
+  if (!baseName && owners.length > 0) {
+    const firstOwner = owners[0];
+    baseName = firstOwner.fullName || 
+               `${firstOwner.firstName || ''} ${firstOwner.lastName || ''}`.trim() ||
+               'AUTHORIZED SIGNER';
+  }
+  
+  // Absolute fallback
+  if (!baseName || baseName.trim() === '') {
+    baseName = 'AUTHORIZED SIGNER';
+  }
   
   // Determine signature name and title (same format as SS-4)
   let signatureName = baseName;
@@ -285,7 +305,7 @@ function transformDataFor8821(formData: QuestionnaireData): any {
     signatureTitle = 'AUTHORIZED SIGNER';
   }
   
-  // Ensure we always have a signature name and title
+  // Ensure we always have a signature name and title (final safety check)
   if (!signatureName || signatureName.trim() === '') {
     signatureName = 'AUTHORIZED SIGNER';
   }
