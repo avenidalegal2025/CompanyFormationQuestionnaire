@@ -170,14 +170,13 @@ export default function DomainsPage() {
     
     if (!companyName) return 'Mi Empresa';
     
-    // Remove entity type from name if it's already included (e.g., "QUEST Corp C-Corp" -> "QUEST Corp")
-    const nameWithoutType = companyName.replace(/\s+(C-Corp|S-Corp|LLC|L\.L\.C\.|Inc|Corp|Corporation|Incorporated)$/i, '').trim();
+    // Use full company name including entity type (e.g., "BEBE Corp a Florida company")
     const state = formationState || '';
     
     if (state) {
-      return `${nameWithoutType} a ${state} company`.trim();
+      return `${companyName} a ${state} company`.trim();
     } else {
-      return nameWithoutType;
+      return companyName;
     }
   };
 
