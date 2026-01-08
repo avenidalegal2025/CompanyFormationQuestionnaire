@@ -318,7 +318,7 @@ function transformDataFor8821(formData: QuestionnaireData): any {
   // Ensure company name is available - this is critical for Box 1
   const companyFullName = company.companyName || '';
   
-  return {
+  const transformedData = {
     // Company Information
     companyName: companyFullName,
     ein: '', // Will be filled after EIN is obtained
@@ -358,6 +358,19 @@ function transformDataFor8821(formData: QuestionnaireData): any {
     signatureName: signatureName,
     signatureTitle: signatureTitle,
   };
+  
+  // Debug logging
+  console.log('📝 8821 Transform Data:', {
+    taxpayerName: transformedData.taxpayerName,
+    taxpayerAddress: transformedData.taxpayerAddress,
+    taxpayerCity: transformedData.taxpayerCity,
+    taxpayerState: transformedData.taxpayerState,
+    taxpayerZip: transformedData.taxpayerZip,
+    signatureName: transformedData.signatureName,
+    signatureTitle: transformedData.signatureTitle,
+  });
+  
+  return transformedData;
 }
 
 /**

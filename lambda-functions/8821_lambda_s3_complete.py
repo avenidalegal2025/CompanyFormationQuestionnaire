@@ -122,14 +122,22 @@ def create_overlay(data, path):
     taxpayer_zip = str(data.get("taxpayerZip", "")).strip()
     taxpayer_phone = process_text(data.get("taxpayerPhone", ""), max_length=20)
     
+    # Debug logging for address
+    print(f"🔍 DEBUG Box 1 Address:")
+    print(f"   taxpayer_name: '{taxpayer_name}'")
+    print(f"   taxpayer_address: '{taxpayer_address}'")
+    print(f"   taxpayer_address_line2: '{taxpayer_address_line2}'")
+    print(f"   taxpayer_city: '{taxpayer_city}'")
+    print(f"   taxpayer_state: '{taxpayer_state}'")
+    print(f"   taxpayer_zip: '{taxpayer_zip}'")
+    print(f"   taxpayer_phone: '{taxpayer_phone}'")
+    
     # Build taxpayer address lines
-    # Address line 1: Street address + Suite/Unit (if exists)
-    # Address line 2: City, State ZIP
-    if taxpayer_address_line2:
-        # Combine street address and suite/unit
-        taxpayer_address_1 = f"{taxpayer_address} {taxpayer_address_line2}".strip() if taxpayer_address else taxpayer_address_line2
-    else:
-        taxpayer_address_1 = taxpayer_address or ""
+    # IMPORTANT: For Box 1, we want:
+    # Line 2: Street address only (taxpayerAddress)
+    # Line 3: City, State ZIP (taxpayerCity, taxpayerState, taxpayerZip)
+    # Do NOT combine taxpayerAddressLine2 - it's not used for 8821
+    taxpayer_address_1 = taxpayer_address or ""
     
     # Truncate address line 1 if needed
     if len(taxpayer_address_1) > 80:
@@ -140,6 +148,11 @@ def create_overlay(data, path):
     taxpayer_address_2 = ", ".join(city_state_zip_parts) if city_state_zip_parts else ""
     if taxpayer_address_2 and len(taxpayer_address_2) > 80:
         taxpayer_address_2 = truncate_at_word_boundary(taxpayer_address_2, max_length=80)
+    
+    # Debug logging for built address
+    print(f"🔍 DEBUG Built Address:")
+    print(f"   taxpayer_address_1 (Line 2): '{taxpayer_address_1}'")
+    print(f"   taxpayer_address_2 (Line 3): '{taxpayer_address_2}'")
     
     # Designee (Avenida Legal) Information
     designee_name = process_text(data.get("designeeName", "Avenida Legal"), max_length=80)
@@ -212,22 +225,27 @@ def create_overlay(data, path):
     signature_name = process_text(data.get("signatureName", ""), max_length=80)
     signature_title = process_text(data.get("signatureTitle", ""), max_length=50)
     
-    # Always draw signature name and title, even if empty (to debug)
-    print(f"🔍 DEBUG: Signature name: '{signature_name}', title: '{signature_title}'")
+    # Debug logging for signature
+    print(f"🔍 DEBUG Signature:")
+    print(f"   signature_name from data: '{data.get('signatureName', 'NOT FOUND')}'")
+    print(f"   signature_title from data: '{data.get('signatureTitle', 'NOT FOUND')}'")
+    print(f"   signature_name processed: '{signature_name}'")
+    print(f"   signature_title processed: '{signature_title}'")
     
-    if signature_name:
+    # Always draw signature name and title
+    if signature_name and signature_name.strip():
         c.drawString(*FIELD_POSITIONS["Signature Name"], signature_name)
-        print(f"✅ Drew signature name at {FIELD_POSITIONS['Signature Name']}")
+        print(f"✅ Drew signature name '{signature_name}' at {FIELD_POSITIONS['Signature Name']}")
     else:
-        print(f"⚠️ WARNING: signature_name is empty!")
+        print(f"⚠️ WARNING: signature_name is empty! Drawing placeholder.")
         # Draw a placeholder to see if position is correct
         c.drawString(*FIELD_POSITIONS["Signature Name"], "[MISSING NAME]")
     
-    if signature_title:
+    if signature_title and signature_title.strip():
         c.drawString(*FIELD_POSITIONS["Signature Title"], signature_title)
-        print(f"✅ Drew signature title at {FIELD_POSITIONS['Signature Title']}")
+        print(f"✅ Drew signature title '{signature_title}' at {FIELD_POSITIONS['Signature Title']}")
     else:
-        print(f"⚠️ WARNING: signature_title is empty!")
+        print(f"⚠️ WARNING: signature_title is empty! Drawing placeholder.")
         # Draw a placeholder to see if position is correct
         c.drawString(*FIELD_POSITIONS["Signature Title"], "[MISSING TITLE]")
     
