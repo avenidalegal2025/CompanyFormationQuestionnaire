@@ -197,14 +197,30 @@ function transformDataFor8821(formData: QuestionnaireData): any {
   const ownerCount = owners.length;
   
   // Get tax owner (person who will sign) - same logic as 2848
-  const taxOwnerName = agreement.corp_taxOwner || 
-                       agreement.llc_taxOwner || 
-                       owners[0]?.fullName || '';
+  // For 8821, the signature is the person signing on behalf of the company
+  let taxOwnerName = agreement.corp_taxOwner || 
+                     agreement.llc_taxOwner || 
+                     owners[0]?.fullName || '';
   
-  const taxOwner = owners.find(o => o.fullName === taxOwnerName) || owners[0] || {};
+  // Fallback: if still empty, try to get from owner's firstName/lastName
+  if (!taxOwnerName && owners.length > 0) {
+    const firstOwner = owners[0];
+    if (firstOwner.firstName || firstOwner.lastName) {
+      taxOwnerName = `${firstOwner.firstName || ''} ${firstOwner.lastName || ''}`.trim();
+    }
+  }
+  
+  // Final fallback: use "Authorized Signer" if no name found
+  if (!taxOwnerName) {
+    taxOwnerName = 'AUTHORIZED SIGNER';
+  }
+  
+  const taxOwner = owners.find(o => o.fullName === taxOwnerName) || 
+                  owners.find(o => `${o.firstName || ''} ${o.lastName || ''}`.trim() === taxOwnerName) ||
+                  owners[0] || {};
   
   // Determine signature name and title
-  let signatureName = taxOwnerName || '';
+  let signatureName = taxOwnerName || 'AUTHORIZED SIGNER';
   let signatureTitle = '';
   
   if (isLLC) {
@@ -226,6 +242,14 @@ function transformDataFor8821(formData: QuestionnaireData): any {
     // The actual role will be determined when generating from Airtable data
   } else {
     // Default fallback
+    signatureTitle = 'AUTHORIZED SIGNER';
+  }
+  
+  // Ensure we always have a signature name and title
+  if (!signatureName || signatureName.trim() === '') {
+    signatureName = 'AUTHORIZED SIGNER';
+  }
+  if (!signatureTitle || signatureTitle.trim() === '') {
     signatureTitle = 'AUTHORIZED SIGNER';
   }
   
