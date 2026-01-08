@@ -245,6 +245,7 @@ function transformDataFor8821(formData: QuestionnaireData): any {
   
   // Parse company address - Use Airtable Company Address format: "Street, City, State ZIP"
   // Priority: Use full address string from Airtable format, then fallback to components
+  // The address should come from Airtable's "Company Address" column
   let companyAddress = company.address || company.addressLine1 || company.fullAddress || '';
   let companyAddressLine2 = company.addressLine2 || '';
   let companyCity = company.city || '';
@@ -255,25 +256,26 @@ function transformDataFor8821(formData: QuestionnaireData): any {
   // This should be split into:
   // Line 2: "12550 Biscayne Blvd Ste 110" (street address)
   // Line 3: "North Miami, FL 33181" (city, state, zip)
-  if (companyAddress && (!companyCity || !companyState)) {
+  // Always try to parse if we have a full address string, even if city/state are already set
+  if (companyAddress) {
     // Try to parse "Street, City, State ZIP" format (Airtable format)
     const addressParts = companyAddress.split(',').map(p => p.trim());
     if (addressParts.length >= 3) {
       // Format: "Street, City, State ZIP"
       companyAddress = addressParts[0]; // Street address (Line 2)
-      companyCity = addressParts[1] || ''; // City
+      companyCity = addressParts[1] || companyCity || ''; // City (prefer parsed, fallback to existing)
       const stateZipStr = addressParts[2] || ''; // "State ZIP"
       // Extract state and zip from "State ZIP"
       const stateZipMatch = stateZipStr.match(/^([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/);
       if (stateZipMatch) {
-        companyState = stateZipMatch[1];
-        companyZip = stateZipMatch[2];
+        companyState = stateZipMatch[1] || companyState || '';
+        companyZip = stateZipMatch[2] || companyZip || '';
       } else {
         // Fallback: try to split by space
         const parts = stateZipStr.split(/\s+/);
         if (parts.length >= 2) {
-          companyState = parts[0] || '';
-          companyZip = parts[1] || '';
+          companyState = parts[0] || companyState || '';
+          companyZip = parts[1] || companyZip || '';
         }
       }
     } else if (addressParts.length === 2) {
@@ -282,9 +284,9 @@ function transformDataFor8821(formData: QuestionnaireData): any {
       const cityStateZip = addressParts[1];
       const parts = cityStateZip.split(/\s+/);
       if (parts.length >= 2) {
-        companyState = parts[parts.length - 2] || '';
-        companyZip = parts[parts.length - 1] || '';
-        companyCity = parts.slice(0, -2).join(' ') || cityStateZip;
+        companyState = parts[parts.length - 2] || companyState || '';
+        companyZip = parts[parts.length - 1] || companyZip || '';
+        companyCity = parts.slice(0, -2).join(' ') || companyCity || cityStateZip;
       }
     }
   }
