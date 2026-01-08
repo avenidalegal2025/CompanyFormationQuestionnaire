@@ -424,40 +424,40 @@ async function mapAirtableToSS4(record: any): Promise<any> {
       const ssnUpper = ssn.toUpperCase();
       return ssnUpper !== 'N/A' && !ssnUpper.includes('FOREIGN');
     };
-    
+      
     // Collect all officers with their SSNs and roles
     interface OfficerInfo {
-      officerIndex: number;
-      ownerIndex: number;
-      name: string;
-      firstName: string;
-      lastName: string;
-      ssn: string;
-      address: string;
-      role: string;
+        officerIndex: number;
+        ownerIndex: number;
+        name: string;
+        firstName: string;
+        lastName: string;
+        ssn: string;
+        address: string;
+        role: string;
       ownershipPercent: number;
-    }
+      }
     const allOfficers: OfficerInfo[] = [];
-    
-    if (officersAllOwners) {
+      
+      if (officersAllOwners) {
       // All owners are officers
-      const ownerCount = fields['Owner Count'] || 1;
-      for (let i = 1; i <= Math.min(ownerCount, 6); i++) {
-        const ownerName = fields[`Owner ${i} Name`] || '';
+        const ownerCount = fields['Owner Count'] || 1;
+        for (let i = 1; i <= Math.min(ownerCount, 6); i++) {
+          const ownerName = fields[`Owner ${i} Name`] || '';
         if (!ownerName || ownerName.trim() === '') continue;
         
         const ownerSSN = fields[`Owner ${i} SSN`] || '';
         // Find officer role
-        let officerRole = '';
-        for (let k = 1; k <= Math.min(officersCount, 6); k++) {
-          const officerName = fields[`Officer ${k} Name`] || '';
-          if (officerName && ownerName && 
-              officerName.trim().toLowerCase() === ownerName.trim().toLowerCase()) {
-            officerRole = fields[`Officer ${k} Role`] || '';
-            break;
-          }
-        }
-        
+            let officerRole = '';
+            for (let k = 1; k <= Math.min(officersCount, 6); k++) {
+              const officerName = fields[`Officer ${k} Name`] || '';
+              if (officerName && ownerName && 
+                  officerName.trim().toLowerCase() === ownerName.trim().toLowerCase()) {
+                officerRole = fields[`Officer ${k} Role`] || '';
+                break;
+              }
+            }
+            
         // Get ownership percentage
         let ownershipPercent = fields[`Owner ${i} Ownership %`] || 0;
         if (ownershipPercent < 1 && ownershipPercent > 0) {
@@ -465,32 +465,32 @@ async function mapAirtableToSS4(record: any): Promise<any> {
         }
         
         allOfficers.push({
-          officerIndex: i,
-          ownerIndex: i,
-          name: ownerName,
-          firstName: fields[`Owner ${i} First Name`] || '',
-          lastName: fields[`Owner ${i} Last Name`] || '',
-          ssn: ownerSSN,
-          address: fields[`Owner ${i} Address`] || '',
-          role: officerRole,
+              officerIndex: i,
+              ownerIndex: i,
+              name: ownerName,
+              firstName: fields[`Owner ${i} First Name`] || '',
+              lastName: fields[`Owner ${i} Last Name`] || '',
+              ssn: ownerSSN,
+              address: fields[`Owner ${i} Address`] || '',
+              role: officerRole,
           ownershipPercent: ownershipPercent,
-        });
-      }
-    } else {
+            });
+        }
+      } else {
       // Specific officers, match to owners
-      const ownerCount = fields['Owner Count'] || 1;
-      for (let i = 1; i <= Math.min(officersCount, 6); i++) {
-        const officerName = fields[`Officer ${i} Name`] || '';
+        const ownerCount = fields['Owner Count'] || 1;
+        for (let i = 1; i <= Math.min(officersCount, 6); i++) {
+          const officerName = fields[`Officer ${i} Name`] || '';
         if (!officerName || officerName.trim() === '') continue;
         
         const officerRole = fields[`Officer ${i} Role`] || '';
         
         // Match to owner to get SSN and ownership
-        for (let j = 1; j <= Math.min(ownerCount, 6); j++) {
-          const ownerName = fields[`Owner ${j} Name`] || '';
-          if (ownerName && officerName && 
-              ownerName.trim().toLowerCase() === officerName.trim().toLowerCase()) {
-            const ownerSSN = fields[`Owner ${j} SSN`] || '';
+            for (let j = 1; j <= Math.min(ownerCount, 6); j++) {
+              const ownerName = fields[`Owner ${j} Name`] || '';
+              if (ownerName && officerName && 
+                  ownerName.trim().toLowerCase() === officerName.trim().toLowerCase()) {
+                const ownerSSN = fields[`Owner ${j} SSN`] || '';
             
             // Get ownership percentage
             let ownershipPercent = fields[`Owner ${j} Ownership %`] || 0;
@@ -499,36 +499,36 @@ async function mapAirtableToSS4(record: any): Promise<any> {
             }
             
             allOfficers.push({
-              officerIndex: i,
-              ownerIndex: j,
-              name: officerName,
-              firstName: fields[`Officer ${i} First Name`] || fields[`Owner ${j} First Name`] || '',
-              lastName: fields[`Officer ${i} Last Name`] || fields[`Owner ${j} Last Name`] || '',
-              ssn: ownerSSN,
-              address: fields[`Officer ${i} Address`] || fields[`Owner ${j} Address`] || '',
-              role: officerRole,
+                    officerIndex: i,
+                    ownerIndex: j,
+                    name: officerName,
+                    firstName: fields[`Officer ${i} First Name`] || fields[`Owner ${j} First Name`] || '',
+                    lastName: fields[`Officer ${i} Last Name`] || fields[`Owner ${j} Last Name`] || '',
+                    ssn: ownerSSN,
+                    address: fields[`Officer ${i} Address`] || fields[`Owner ${j} Address`] || '',
+                    role: officerRole,
               ownershipPercent: ownershipPercent,
-            });
-            break;
+                  });
+                  break;
+                }
           }
         }
       }
-    }
-    
+      
     // S-Corp: President always has SSN and always signs
     if (isSCorp) {
       console.log(`🔍 S-Corp: SSN is mandatory - finding President with SSN...`);
       const president = allOfficers.find(o => isPresidentRole(o.role) && hasValidSSN(o.ssn));
-      
-      if (president) {
-        responsiblePartyName = president.name;
-        responsiblePartyFirstName = president.firstName;
-        responsiblePartyLastName = president.lastName;
-        responsiblePartySSN = president.ssn;
-        responsiblePartyAddress = president.address;
+        
+        if (president) {
+          responsiblePartyName = president.name;
+          responsiblePartyFirstName = president.firstName;
+          responsiblePartyLastName = president.lastName;
+          responsiblePartySSN = president.ssn;
+          responsiblePartyAddress = president.address;
         responsiblePartyOfficerRole = 'PRESIDENT';
         console.log(`✅ S-Corp: Found President with SSN: ${responsiblePartyName}`);
-      } else {
+        } else {
         // This should never happen - S-Corp must have President with SSN
         console.error(`❌ CRITICAL ERROR: S-Corp must have President with SSN!`);
         throw new Error(`CRITICAL: S-Corp must have a PRESIDENT officer with SSN.`);
@@ -569,18 +569,18 @@ async function mapAirtableToSS4(record: any): Promise<any> {
             responsiblePartyName = highestOwner.name;
             responsiblePartyFirstName = highestOwner.firstName;
             responsiblePartyLastName = highestOwner.lastName;
-            responsiblePartySSN = 'N/A-FOREIGN';
+                  responsiblePartySSN = 'N/A-FOREIGN';
             responsiblePartyAddress = highestOwner.address;
             responsiblePartyOfficerRole = highestOwner.role || '';
             console.log(`✅ C-Corp: Priority 3 - Highest % owner (no SSN): ${responsiblePartyName} (${highestOwner.ownershipPercent}%)`);
-          } else {
+      } else {
             // Fallback: Use first officer (should never happen)
             if (allOfficers.length > 0) {
               const officer = allOfficers[0];
               responsiblePartyName = officer.name;
               responsiblePartyFirstName = officer.firstName;
               responsiblePartyLastName = officer.lastName;
-              responsiblePartySSN = 'N/A-FOREIGN';
+            responsiblePartySSN = 'N/A-FOREIGN';
               responsiblePartyAddress = officer.address;
               responsiblePartyOfficerRole = officer.role || '';
               console.log(`⚠️ C-Corp: Fallback - Using first officer: ${responsiblePartyName}`);
@@ -633,20 +633,20 @@ async function mapAirtableToSS4(record: any): Promise<any> {
       const ownerSSN = (fields[`Owner ${i} SSN`] || '').trim();
       
       // Get ownership percentage
-      let ownershipPercent = fields[`Owner ${i} Ownership %`] || 0;
-      if (ownershipPercent < 1 && ownershipPercent > 0) {
-        ownershipPercent = ownershipPercent * 100;
-      }
-      
+        let ownershipPercent = fields[`Owner ${i} Ownership %`] || 0;
+        if (ownershipPercent < 1 && ownershipPercent > 0) {
+          ownershipPercent = ownershipPercent * 100;
+        }
+        
       allOwners.push({
-        ownerIndex: i,
-        name: ownerName,
-        firstName: fields[`Owner ${i} First Name`] || '',
-        lastName: fields[`Owner ${i} Last Name`] || '',
-        ssn: ownerSSN,
-        address: fields[`Owner ${i} Address`] || '',
-        ownershipPercent: ownershipPercent,
-      });
+          ownerIndex: i,
+          name: ownerName,
+          firstName: fields[`Owner ${i} First Name`] || '',
+          lastName: fields[`Owner ${i} Last Name`] || '',
+          ssn: ownerSSN,
+          address: fields[`Owner ${i} Address`] || '',
+          ownershipPercent: ownershipPercent,
+        });
     }
     
     // Priority 1: Highest % owner with SSN

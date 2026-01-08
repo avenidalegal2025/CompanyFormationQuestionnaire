@@ -367,7 +367,7 @@ def map_data_to_ss4_fields(form_data):
             if len(parts) >= 3:
                 # Check if last part is ZIP (5 digits)
                 if parts[-1].isdigit() and len(parts[-1]) == 5:
-                    company_zip = parts[-1]
+                company_zip = parts[-1]
                     remaining = parts[:-1]
                 else:
                     remaining = parts
@@ -1190,7 +1190,7 @@ def map_data_to_ss4_fields(form_data):
 
             raw = str(date_str).strip()
             date_obj = None
-
+            
             # 1) Tuple-style "(12, 18, 2025)" or variations
             if raw.startswith("(") and raw.endswith(")"):
                 # Extract all numbers in order
@@ -1214,14 +1214,14 @@ def map_data_to_ss4_fields(form_data):
             if date_obj is None and "/" in raw:
                 parts = raw.split("/")
                 if len(parts) == 3:
-                    month = parts[0].zfill(2)
-                    day = parts[1].zfill(2)
-                    year = parts[2]
+                            month = parts[0].zfill(2)
+                            day = parts[1].zfill(2)
+                            year = parts[2]
                     try:
                         date_obj = datetime(int(year), int(month), int(day))
                     except Exception:
-                        pass
-
+                    pass
+            
             # 4) Generic: pull out three integers (month, day, year)
             if date_obj is None:
                 nums = re.findall(r"\d{1,4}", raw)
@@ -1240,7 +1240,7 @@ def map_data_to_ss4_fields(form_data):
 
             if date_obj:
                 return date_obj.strftime("%m/%d/%Y")
-
+            
             print(f"===> ⚠️ Could not parse date: '{date_str}'")
             return ""
         except Exception as e:
@@ -1266,15 +1266,15 @@ def map_data_to_ss4_fields(form_data):
                 return ""
             # Convert to string if not already
             phone_str = str(phone) if not isinstance(phone, str) else phone
-            # Remove all non-digits
+        # Remove all non-digits
             phone_clean = ''.join(filter(str.isdigit, phone_str))
-            # Remove leading +1 or 1 if present (US country code)
-            if phone_clean.startswith('1') and len(phone_clean) == 11:
-                phone_clean = phone_clean[1:]  # Remove leading 1
-            # Format as xxx-xxx-xxxx if we have 10 digits
-            if len(phone_clean) == 10:
-                return f"{phone_clean[:3]}-{phone_clean[3:6]}-{phone_clean[6:]}"
-            # If not 10 digits, return cleaned version (might be international or invalid)
+        # Remove leading +1 or 1 if present (US country code)
+        if phone_clean.startswith('1') and len(phone_clean) == 11:
+            phone_clean = phone_clean[1:]  # Remove leading 1
+        # Format as xxx-xxx-xxxx if we have 10 digits
+        if len(phone_clean) == 10:
+            return f"{phone_clean[:3]}-{phone_clean[3:6]}-{phone_clean[6:]}"
+        # If not 10 digits, return cleaned version (might be international or invalid)
             return phone_clean if phone_clean else ""
         except Exception as e:
             print(f"===> ⚠️ Error formatting phone '{phone}': {e}")
@@ -1354,7 +1354,7 @@ def map_data_to_ss4_fields(form_data):
         print(f"===> Using countyState from TypeScript for Line 6: '{county_state_from_ts}'")
     else:
         print(f"===> No countyState from TypeScript; will derive county from city/state via city_to_county()")
-
+    
     mapped_data = {
         "Line 1": to_upper(company_name_clean),  # Legal name of entity (FULL NAME including LLC/L.L.C. suffix) - ALL CAPS, NO ADDRESS
         "Line 2": "",  # Trade name (if different, usually empty)
@@ -1658,7 +1658,7 @@ def create_overlay(data, path):
                     if field == "10":
                         value_str = truncate_at_word_boundary(value_str, max_length)
                     else:
-                        value_str = value_str[:max_length]
+                    value_str = value_str[:max_length]
                 # Draw the text
                 try:
                     c.drawString(coord[0], coord[1], value_str)

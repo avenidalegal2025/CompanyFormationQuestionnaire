@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
     const currentDocuments = effectiveCompanyId 
       ? await getUserCompanyDocuments(userId, effectiveCompanyId)
       : await getUserDocuments(userId);
-    
+
     // Update document record with signed version
     const updatedDocuments = currentDocuments.map(doc => {
       if (doc.id === documentId) {
@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
 
     // Return the full updated document (not just the changed fields)
     const updatedDoc = updatedDocuments.find(d => d.id === documentId);
-    
+
     return NextResponse.json({
       success: true,
       document: updatedDoc || {

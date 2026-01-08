@@ -496,7 +496,7 @@ function QuestionnaireContent() {
             // Only refresh if remote is newer than what we've seen and newer than our last local save
             const localLast = lastSavedAt ?? 0;
             const timeDiff = remoteUpdatedAt - lastRemoteUpdatedAt;
-
+            
             if (timeDiff > 2000 && remoteUpdatedAt > localLast) {
               form.reset(res.item.data);
               setLastRemoteUpdatedAt(remoteUpdatedAt);

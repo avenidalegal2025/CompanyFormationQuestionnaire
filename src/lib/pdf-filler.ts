@@ -202,22 +202,12 @@ function transformDataFor8821(formData: QuestionnaireData): any {
                      agreement.llc_taxOwner || 
                      owners[0]?.fullName || '';
   
-  // Fallback: if still empty, try to get from owner's firstName/lastName
-  if (!taxOwnerName && owners.length > 0) {
-    const firstOwner = owners[0];
-    if (firstOwner.firstName || firstOwner.lastName) {
-      taxOwnerName = `${firstOwner.firstName || ''} ${firstOwner.lastName || ''}`.trim();
-    }
-  }
-  
   // Final fallback: use "Authorized Signer" if no name found
   if (!taxOwnerName) {
     taxOwnerName = 'AUTHORIZED SIGNER';
   }
   
-  const taxOwner = owners.find(o => o.fullName === taxOwnerName) || 
-                  owners.find(o => `${o.firstName || ''} ${o.lastName || ''}`.trim() === taxOwnerName) ||
-                  owners[0] || {};
+  const taxOwner = owners.find(o => o.fullName === taxOwnerName) || owners[0] || {};
   
   // Determine signature name and title
   let signatureName = taxOwnerName || 'AUTHORIZED SIGNER';
@@ -253,38 +243,42 @@ function transformDataFor8821(formData: QuestionnaireData): any {
     signatureTitle = 'AUTHORIZED SIGNER';
   }
   
-  // Parse company address - could be full address string or separate components
+  // Parse company address - Use Airtable Company Address format: "Street, City, State ZIP"
+  // Priority: Use full address string from Airtable format, then fallback to components
   let companyAddress = company.address || company.addressLine1 || company.fullAddress || '';
   let companyAddressLine2 = company.addressLine2 || '';
   let companyCity = company.city || '';
   let companyState = company.state || '';
   let companyZip = company.postalCode || company.zipCode || '';
   
-  // If we have a full address string, try to parse it
-  if (companyAddress && !companyCity && !companyState) {
-    // Try to parse "Street, City, State ZIP" format
+  // Parse full address string (Airtable format: "12550 Biscayne Blvd Ste 110, North Miami, FL 33181")
+  // This should be split into:
+  // Line 2: "12550 Biscayne Blvd Ste 110" (street address)
+  // Line 3: "North Miami, FL 33181" (city, state, zip)
+  if (companyAddress && (!companyCity || !companyState)) {
+    // Try to parse "Street, City, State ZIP" format (Airtable format)
     const addressParts = companyAddress.split(',').map(p => p.trim());
     if (addressParts.length >= 3) {
-      companyAddress = addressParts[0]; // Street address
-      companyCity = addressParts[1] || '';
-      const cityStateZip = addressParts[2] || '';
-      // Try to extract state and zip from "State ZIP"
-      const stateZipMatch = cityStateZip.match(/^([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/);
+      // Format: "Street, City, State ZIP"
+      companyAddress = addressParts[0]; // Street address (Line 2)
+      companyCity = addressParts[1] || ''; // City
+      const stateZipStr = addressParts[2] || ''; // "State ZIP"
+      // Extract state and zip from "State ZIP"
+      const stateZipMatch = stateZipStr.match(/^([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/);
       if (stateZipMatch) {
         companyState = stateZipMatch[1];
         companyZip = stateZipMatch[2];
       } else {
-        // Fallback: treat as city, state, zip
-        const parts = cityStateZip.split(/\s+/);
+        // Fallback: try to split by space
+        const parts = stateZipStr.split(/\s+/);
         if (parts.length >= 2) {
-          companyState = parts[parts.length - 2] || '';
-          companyZip = parts[parts.length - 1] || '';
-          companyCity = parts.slice(0, -2).join(' ') || cityStateZip;
+          companyState = parts[0] || '';
+          companyZip = parts[1] || '';
         }
       }
     } else if (addressParts.length === 2) {
-      // "Street, City State ZIP"
-      companyAddress = addressParts[0];
+      // Format: "Street, City State ZIP"
+      companyAddress = addressParts[0]; // Street address
       const cityStateZip = addressParts[1];
       const parts = cityStateZip.split(/\s+/);
       if (parts.length >= 2) {
@@ -294,6 +288,12 @@ function transformDataFor8821(formData: QuestionnaireData): any {
       }
     }
   }
+  
+  // For 8821, we want:
+  // Line 2: Street address (companyAddress)
+  // Line 3: City, State ZIP (companyCity, companyState, companyZip)
+  // So we don't use companyAddressLine2 for the street - it goes on line 2
+  // And city/state/zip goes on line 3
   
   // Get company phone number (US phone if available)
   const companyPhone = company.usPhoneNumber || company.phone || company.phoneNumber || '';
@@ -307,15 +307,18 @@ function transformDataFor8821(formData: QuestionnaireData): any {
     ein: '', // Will be filled after EIN is obtained
     companyAddress: company.address || company.addressLine1 || company.fullAddress || '',
     
-    // Box 1: Taxpayer (COMPANY) - Use company's full name and address
-    // IMPORTANT: Company name must be first, then address
+    // Box 1: Taxpayer (COMPANY) - Use company's full name and address from Airtable
+    // IMPORTANT: 
+    // Line 1: Company name
+    // Line 2: Street address (from Airtable Company Address)
+    // Line 3: City, State ZIP (from Airtable Company Address)
     taxpayerName: companyFullName,
     taxpayerSSN: '', // Company EIN will be filled later
-    taxpayerAddress: companyAddress,
-    taxpayerAddressLine2: companyAddressLine2, // Suite/Unit if exists
-    taxpayerCity: companyCity,
-    taxpayerState: companyState,
-    taxpayerZip: companyZip,
+    taxpayerAddress: companyAddress, // Street address for Line 2
+    taxpayerAddressLine2: '', // Not used - city/state/zip goes on Line 3
+    taxpayerCity: companyCity, // For Line 3
+    taxpayerState: companyState, // For Line 3
+    taxpayerZip: companyZip, // For Line 3
     taxpayerPhone: companyPhone,
     
     // Box 2: Third Party Designee (Antonio Regojo - Lawyer)

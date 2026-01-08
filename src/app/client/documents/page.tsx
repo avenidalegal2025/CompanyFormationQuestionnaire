@@ -73,7 +73,7 @@ function DocumentsContent() {
       } else {
         const errorData = await response.json().catch(() => ({}));
         console.error('❌ Failed to fetch company data from Airtable:', response.status, errorData);
-      }
+    }
     } catch (error) {
       console.error('❌ Error fetching company data:', error);
     }
@@ -500,8 +500,8 @@ function DocumentsContent() {
                     </span>
                   </button>
                 </nav>
-              </div>
-            </div>
+                  </div>
+                </div>
 
             {/* Checklist Info for Por Firmar */}
             {activeTab === 'por-firmar' && (
@@ -604,8 +604,8 @@ function DocumentsContent() {
                             )}
                             <span className={isSigned || category === 'firmado' ? 'text-gray-600 line-through' : 'text-gray-900'}>
                               3. Subir
-                            </span>
-                          </div>
+                      </span>
+                    </div>
                         </div>
                       )}
 

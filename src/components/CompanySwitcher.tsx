@@ -161,11 +161,11 @@ export default function CompanySwitcher({ userEmail, selectedCompanyId, onCompan
           } else if (selectedIsOld) {
             // Selected company is older than newest - ALWAYS select newest (unless user explicitly selected the old one)
             if (!isUserSelected) {
-              console.log('🔄 Selected company is older than newest - selecting newest');
+            console.log('🔄 Selected company is older than newest - selecting newest');
               // #region agent log
               fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:128',message:'Branch: selectedIsOld and not userSelected',data:{willSelectNewest:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
               // #endregion
-              selectNewest();
+            selectNewest();
             } else {
               console.log('👤 User explicitly selected older company, keeping selection');
               // #region agent log
