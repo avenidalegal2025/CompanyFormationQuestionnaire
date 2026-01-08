@@ -74,7 +74,7 @@ FIELD_POSITIONS = {
     "Taxpayer Name": (77, 661),  # Lowered 7 pixels (668 - 7)
     "Taxpayer Address 1": (77, 649),  # 12 pixels below name (661 - 12)
     "Taxpayer Address 2": (77, 637),  # 12 pixels below address 1 (649 - 12)
-    "Taxpayer Phone": (457, 621),  # Adjusted to align with new position (628 - 7)
+    "Taxpayer Phone": (407, 636),  # Moved 50px left (457 - 50), 15px up (621 + 15)
     "Designee Name": (77, 590),  # Moved up 10 pixels (580 + 10)
     "Designee Address 1": (77, 577),  # Moved up 10 pixels (567 + 10)
     "Designee Address 2": (77, 565),  # Moved up 10 pixels (555 + 10)
@@ -222,32 +222,44 @@ def create_overlay(data, path):
     c.showPage()
     
     # Page 2 - Signature section
-    signature_name = process_text(data.get("signatureName", ""), max_length=80)
-    signature_title = process_text(data.get("signatureTitle", ""), max_length=50)
+    # Get signature data - don't process/translate names (keep original)
+    signature_name_raw = data.get("signatureName", "")
+    signature_title_raw = data.get("signatureTitle", "")
+    
+    # Process signature name - translate but keep original format
+    signature_name = process_text(signature_name_raw, max_length=80) if signature_name_raw else ""
+    # Process signature title - translate and uppercase
+    signature_title = process_text(signature_title_raw, max_length=50) if signature_title_raw else ""
     
     # Debug logging for signature
     print(f"🔍 DEBUG Signature:")
-    print(f"   signature_name from data: '{data.get('signatureName', 'NOT FOUND')}'")
-    print(f"   signature_title from data: '{data.get('signatureTitle', 'NOT FOUND')}'")
-    print(f"   signature_name processed: '{signature_name}'")
-    print(f"   signature_title processed: '{signature_title}'")
+    print(f"   Raw signature_name from data: '{signature_name_raw}'")
+    print(f"   Raw signature_title from data: '{signature_title_raw}'")
+    print(f"   Processed signature_name: '{signature_name}'")
+    print(f"   Processed signature_title: '{signature_title}'")
+    print(f"   All data keys: {list(data.keys())}")
     
-    # Always draw signature name and title
-    if signature_name and signature_name.strip():
-        c.drawString(*FIELD_POSITIONS["Signature Name"], signature_name)
-        print(f"✅ Drew signature name '{signature_name}' at {FIELD_POSITIONS['Signature Name']}")
-    else:
-        print(f"⚠️ WARNING: signature_name is empty! Drawing placeholder.")
-        # Draw a placeholder to see if position is correct
-        c.drawString(*FIELD_POSITIONS["Signature Name"], "[MISSING NAME]")
+    # Always draw signature name and title - use raw if processed is empty
+    final_signature_name = signature_name if signature_name and signature_name.strip() else (signature_name_raw if signature_name_raw else "AUTHORIZED SIGNER")
+    final_signature_title = signature_title if signature_title and signature_title.strip() else (signature_title_raw if signature_title_raw else "AUTHORIZED SIGNER")
     
-    if signature_title and signature_title.strip():
-        c.drawString(*FIELD_POSITIONS["Signature Title"], signature_title)
-        print(f"✅ Drew signature title '{signature_title}' at {FIELD_POSITIONS['Signature Title']}")
-    else:
-        print(f"⚠️ WARNING: signature_title is empty! Drawing placeholder.")
-        # Draw a placeholder to see if position is correct
-        c.drawString(*FIELD_POSITIONS["Signature Title"], "[MISSING TITLE]")
+    # Convert to uppercase for consistency
+    final_signature_name = final_signature_name.upper() if final_signature_name else "AUTHORIZED SIGNER"
+    final_signature_title = final_signature_title.upper() if final_signature_title else "AUTHORIZED SIGNER"
+    
+    # Truncate if needed
+    if len(final_signature_name) > 80:
+        final_signature_name = truncate_at_word_boundary(final_signature_name, max_length=80)
+    if len(final_signature_title) > 50:
+        final_signature_title = truncate_at_word_boundary(final_signature_title, max_length=50)
+    
+    # Draw signature name
+    c.drawString(*FIELD_POSITIONS["Signature Name"], final_signature_name)
+    print(f"✅ Drew signature name '{final_signature_name}' at {FIELD_POSITIONS['Signature Name']}")
+    
+    # Draw signature title
+    c.drawString(*FIELD_POSITIONS["Signature Title"], final_signature_title)
+    print(f"✅ Drew signature title '{final_signature_title}' at {FIELD_POSITIONS['Signature Title']}")
     
     c.save()
     print("===> Overlay created")
