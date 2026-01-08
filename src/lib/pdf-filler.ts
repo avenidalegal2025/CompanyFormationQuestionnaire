@@ -196,23 +196,33 @@ function transformDataFor8821(formData: QuestionnaireData): any {
   const isCorp = entityType.toUpperCase().includes('CORP') || entityType.toUpperCase().includes('INC');
   const ownerCount = owners.length;
   
-  // Get tax owner (person who will sign) - same logic as 2848
-  // For 8821, the signature is the person signing on behalf of the company
-  let taxOwnerName = agreement.corp_taxOwner || 
-                     agreement.llc_taxOwner || 
-                     owners[0]?.fullName || '';
-  
-  // Final fallback: use "Authorized Signer" if no name found
-  if (!taxOwnerName) {
-    taxOwnerName = 'AUTHORIZED SIGNER';
-  }
-  
-  const taxOwner = owners.find(o => o.fullName === taxOwnerName) || owners[0] || {};
-  
-  // Determine signature name and title
-  let signatureName = taxOwnerName || 'AUTHORIZED SIGNER';
+  // Get tax owner (person who will sign) - must have SSN
+  // Priority: Find owner with SSN, prioritize based on entity type
+  let taxOwner: any = null;
+  let taxOwnerName = '';
   let signatureTitle = '';
   
+  // First, try to get from agreement (if specified)
+  const agreementTaxOwnerName = agreement.corp_taxOwner || agreement.llc_taxOwner || '';
+  if (agreementTaxOwnerName) {
+    taxOwner = owners.find(o => o.fullName === agreementTaxOwnerName) || null;
+  }
+  
+  // If not found or no SSN, find owner with SSN
+  if (!taxOwner || !taxOwner.ssn || !taxOwner.tin) {
+    // Find first owner with SSN
+    taxOwner = owners.find(o => {
+      const hasSSN = (o.ssn && o.ssn.trim() !== '') || (o.tin && o.tin.trim() !== '' && !o.tin.toUpperCase().includes('FOREIGN'));
+      return hasSSN;
+    }) || owners[0] || null;
+  }
+  
+  // Get the name
+  if (taxOwner) {
+    taxOwnerName = taxOwner.fullName || '';
+  }
+  
+  // Determine signature name and title based on entity type
   if (isLLC) {
     // For LLC: "SOLE MEMBER" or "MEMBER"
     if (ownerCount === 1) {
@@ -221,19 +231,21 @@ function transformDataFor8821(formData: QuestionnaireData): any {
       signatureTitle = 'MEMBER';
     }
   } else if (isCorp) {
-    // For Corporation: Try to get role from admin section or default to PRESIDENT
+    // For Corporation: Use PRESIDENT (or could be SHAREHOLDER if no officers)
+    // Check if there are officers defined
     const admin = formData.admin || {};
-    // Check if there's a manager1Name that matches the tax owner (might indicate role)
-    // For now, default to PRESIDENT - this will be updated from Airtable data when available
+    // For now, default to PRESIDENT - this matches SS-4 logic
     signatureTitle = 'PRESIDENT';
     
-    // Note: Officer roles are typically determined from Airtable Officers table
-    // For questionnaire-based generation, we default to PRESIDENT
-    // The actual role will be determined when generating from Airtable data
+    // Note: If we have officer data, we could use that, but for questionnaire
+    // we default to PRESIDENT as the signer
   } else {
     // Default fallback
     signatureTitle = 'AUTHORIZED SIGNER';
   }
+  
+  // Final signature name
+  let signatureName = taxOwnerName || 'AUTHORIZED SIGNER';
   
   // Ensure we always have a signature name and title
   if (!signatureName || signatureName.trim() === '') {
@@ -242,6 +254,9 @@ function transformDataFor8821(formData: QuestionnaireData): any {
   if (!signatureTitle || signatureTitle.trim() === '') {
     signatureTitle = 'AUTHORIZED SIGNER';
   }
+  
+  // Log for debugging
+  console.log(`📝 8821 Signature: name="${signatureName}", title="${signatureTitle}", ownerHasSSN=${taxOwner ? (!!taxOwner.ssn || !!taxOwner.tin) : false}`);
   
   // Parse company address - Use Airtable Company Address format: "Street, City, State ZIP"
   // Priority: Use full address string from Airtable format, then fallback to components
