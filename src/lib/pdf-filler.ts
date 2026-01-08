@@ -275,7 +275,7 @@ function transformDataFor8821(formData: QuestionnaireData): any {
   const companyPhone = company.usPhoneNumber || company.phone || company.phoneNumber || '';
   
   // Ensure company name is available - this is critical for Box 1
-  const companyFullName = company.companyName || company.name || '';
+  const companyFullName = company.companyName || '';
   
   return {
     // Company Information
