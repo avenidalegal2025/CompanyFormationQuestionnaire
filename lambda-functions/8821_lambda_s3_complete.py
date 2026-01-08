@@ -85,7 +85,7 @@ FIELD_POSITIONS = {
     "Tax Years": (325, 396),  # Raised 2 pixels (394 + 2)
     "Tax Matters": (460, 396),  # Raised 2 pixels (394 + 2)
     "Checkbox": (534, 412),  # Section 3 Intermediate Service Provider checkbox (NOT checked)
-    "Section 4 Checkbox": (560, 315),  # Section 4 checkbox (ALWAYS checked) - moved 10px left (570 - 10), moved 5px up (310 + 5)
+    "Section 4 Checkbox": (565, 315),  # Section 4 checkbox (ALWAYS checked) - moved 5px right (560 + 5)
     "Signature Name": (77, 126),
     "Signature Title": (447, 126),
 }
