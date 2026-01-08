@@ -312,8 +312,11 @@ function transformDataFor8821(formData: QuestionnaireData): any {
   // So we don't use companyAddressLine2 for the street - it goes on line 2
   // And city/state/zip goes on line 3
   
-  // Get company phone number (US phone if available)
-  const companyPhone = company.usPhoneNumber || company.phone || company.phoneNumber || '';
+  // Get company phone number - Use Business Phone from Airtable if available
+  // Priority: Business Phone from Airtable > usPhoneNumber from questionnaire > other phone fields
+  // Note: When generating from questionnaire, Business Phone should be in usPhoneNumber
+  // When regenerating from Airtable, we should pass Business Phone explicitly
+  const companyPhone = company.businessPhone || company.usPhoneNumber || company.phone || company.phoneNumber || '';
   
   // Ensure company name is available - this is critical for Box 1
   const companyFullName = company.companyName || '';
