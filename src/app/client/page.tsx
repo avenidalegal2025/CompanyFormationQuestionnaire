@@ -957,59 +957,6 @@ export default function ClientPage() {
               )}
             </div>
 
-            {/* Quick Actions */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Link
-                href="/client/documents"
-                className="card hover:shadow-lg transition-shadow"
-              >
-                <div className="flex items-center mb-4">
-                  <div className="flex-shrink-0">
-                    <DocumentTextIcon className="h-8 w-8 text-brand-600" />
-                  </div>
-                  <div className="ml-3">
-                    <h3 className="text-lg font-semibold text-gray-900">Gestionar Documentos</h3>
-                  </div>
-                </div>
-                <p className="text-gray-600 text-sm">
-                  Revisa, descarga y gestiona todos los documentos de tu empresa.
-                </p>
-              </Link>
-
-              <Link
-                href="/client/domains"
-                className="card hover:shadow-lg transition-shadow"
-              >
-                <div className="flex items-center mb-4">
-                  <div className="flex-shrink-0">
-                    <GlobeAltIcon className="h-8 w-8 text-brand-600" />
-                  </div>
-                  <div className="ml-3">
-                    <h3 className="text-lg font-semibold text-gray-900">Gestionar Dominios</h3>
-                  </div>
-                </div>
-                <p className="text-gray-600 text-sm">
-                  Busca, compra y gestiona dominios para tu empresa.
-                </p>
-              </Link>
-
-              <Link
-                href="/client/services"
-                className="card hover:shadow-lg transition-shadow"
-              >
-                <div className="flex items-center mb-4">
-                  <div className="flex-shrink-0">
-                    <ShoppingBagIcon className="h-8 w-8 text-brand-600" />
-                  </div>
-                  <div className="ml-3">
-                    <h3 className="text-lg font-semibold text-gray-900">Servicios Adicionales</h3>
-                  </div>
-                </div>
-                <p className="text-gray-600 text-sm">
-                  Descubre servicios complementarios para hacer crecer tu negocio.
-                </p>
-              </Link>
-            </div>
           </main>
         </div>
       </div>
