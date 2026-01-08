@@ -219,9 +219,7 @@ def create_overlay(data, path):
     c.drawString(*FIELD_POSITIONS["Section 4 Checkbox"], "X")
     c.setFont("Helvetica", 9)
     
-    c.showPage()
-    
-    # Page 2 - Signature section
+    # Page 1 - Signature section (BEFORE showPage!)
     # Get signature data - don't process/translate names (keep original)
     signature_name_raw = data.get("signatureName", "")
     signature_title_raw = data.get("signatureTitle", "")
@@ -253,17 +251,19 @@ def create_overlay(data, path):
     if len(final_signature_title) > 50:
         final_signature_title = truncate_at_word_boundary(final_signature_title, max_length=50)
     
-    # IMPORTANT: Set font again after showPage() - font settings don't persist across pages
+    # Draw signature name and title on PAGE 1 (before showPage)
     c.setFont("Helvetica", 9)
     c.setFillColorRGB(0, 0, 0)  # Ensure black text (not transparent)
     
     # Draw signature name
     c.drawString(*FIELD_POSITIONS["Signature Name"], final_signature_name)
-    print(f"✅ Drew signature name '{final_signature_name}' at {FIELD_POSITIONS['Signature Name']} with font Helvetica 9")
+    print(f"✅ Drew signature name '{final_signature_name}' at {FIELD_POSITIONS['Signature Name']} on PAGE 1 with font Helvetica 9")
     
     # Draw signature title
     c.drawString(*FIELD_POSITIONS["Signature Title"], final_signature_title)
-    print(f"✅ Drew signature title '{final_signature_title}' at {FIELD_POSITIONS['Signature Title']} with font Helvetica 9")
+    print(f"✅ Drew signature title '{final_signature_title}' at {FIELD_POSITIONS['Signature Title']} on PAGE 1 with font Helvetica 9")
+    
+    c.showPage()
     
     c.save()
     print("===> Overlay created")
