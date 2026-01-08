@@ -71,10 +71,10 @@ def translate_to_english(text):
 # Form 8821 Field Positions
 # Actual coordinates from debug_grid_overlay.py
 FIELD_POSITIONS = {
-    "Taxpayer Name": (77, 668),
-    "Taxpayer Address 1": (77, 655),
-    "Taxpayer Address 2": (77, 643),
-    "Taxpayer Phone": (457, 628),
+    "Taxpayer Name": (77, 661),  # Lowered 7 pixels (668 - 7)
+    "Taxpayer Address 1": (77, 649),  # 12 pixels below name (661 - 12)
+    "Taxpayer Address 2": (77, 637),  # 12 pixels below address 1 (649 - 12)
+    "Taxpayer Phone": (457, 621),  # Adjusted to align with new position (628 - 7)
     "Designee Name": (77, 590),  # Moved up 10 pixels (580 + 10)
     "Designee Address 1": (77, 577),  # Moved up 10 pixels (567 + 10)
     "Designee Address 2": (77, 565),  # Moved up 10 pixels (555 + 10)
