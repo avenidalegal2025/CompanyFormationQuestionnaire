@@ -82,19 +82,26 @@ export async function GET(request: NextRequest) {
 
     // Query Airtable for all records with matching email (case-insensitive)
     // Airtable formula: LOWER() function to make comparison case-insensitive
+    // IMPORTANT: Sort by Payment Date, but handle records without Payment Date
+    // Use Created Time as fallback for sorting if Payment Date is missing
     await base(AIRTABLE_TABLE_NAME)
       .select({
         filterByFormula: `LOWER({Customer Email}) = "${normalizedEmail}"`,
-        sort: [{ field: 'Payment Date', direction: 'desc' }], // Most recent first
+        sort: [
+          { field: 'Payment Date', direction: 'desc' }, // Most recent first
+          { field: 'Created Time', direction: 'desc' }, // Fallback for records without Payment Date
+        ],
       })
       .eachPage((records, fetchNextPage) => {
         records.forEach((record) => {
           const fields = record.fields;
           const recordEmail = (fields['Customer Email'] as string) || '';
           const recordCompanyName = (fields['Company Name'] as string) || 'Unknown Company';
-          const paymentDate = (fields['Payment Date'] as string) || new Date().toISOString();
+          // Use Payment Date if available, otherwise use Created Time, otherwise current date
+          const paymentDate = (fields['Payment Date'] as string) || 
+                             (record.createdTime ? new Date(record.createdTime).toISOString() : new Date().toISOString());
           
-          console.log(`📋 Found company: ${recordCompanyName} (email: ${recordEmail})`);
+          console.log(`📋 Found company: ${recordCompanyName} (email: ${recordEmail}, paymentDate: ${paymentDate}, createdTime: ${record.createdTime})`);
           
           companies.push({
             id: record.id,
