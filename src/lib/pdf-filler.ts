@@ -272,12 +272,12 @@ function transformDataFor8821(formData: QuestionnaireData): any {
     }
     signatureTitle = 'PRESIDENT';
   } else if (isSoleProprietor && isLLC) {
-    // Sole proprietor (1 owner with 100% ownership) - use ",SOLE MEMBER" for LLCs only
-    signatureName = `${baseName},SOLE MEMBER`;
+    // Sole proprietor (1 owner with 100% ownership) - use ", SOLE MEMBER" for LLCs only (with space)
+    signatureName = `${baseName}, SOLE MEMBER`;
     signatureTitle = 'SOLE MEMBER';
   } else if (isLLC) {
-    // Multi-member LLC
-    signatureName = `${baseName},MEMBER`;
+    // Multi-member LLC - use ", MEMBER" (with space)
+    signatureName = `${baseName}, MEMBER`;
     signatureTitle = 'MEMBER';
   } else {
     // Default fallback
