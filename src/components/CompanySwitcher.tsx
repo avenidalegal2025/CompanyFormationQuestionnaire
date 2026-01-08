@@ -81,9 +81,25 @@ export default function CompanySwitcher({ userEmail, selectedCompanyId, onCompan
       if (response.ok) {
         const data = await response.json();
         const companiesList = data.companies || [];
+        
+        // Log all companies received from API
+        console.log(`📊 Companies received from API: ${companiesList.length}`);
+        companiesList.forEach((c: Company, index: number) => {
+          console.log(`  ${index + 1}. ${c.companyName} (ID: ${c.id}, Created: ${c.createdAt})`);
+        });
+        
         // #region agent log
         fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:80',message:'Companies fetched from API',data:{count:companiesList.length,companies:companiesList.map((c:Company)=>({id:c.id,name:c.companyName,createdAt:c.createdAt}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
         // #endregion
+        
+        if (companiesList.length === 0) {
+          console.warn(`⚠️ No companies found for email: ${userEmail}`);
+          console.warn(`💡 Check:`);
+          console.warn(`   1. Is the email correct?`);
+          console.warn(`   2. Do the companies in Airtable have the exact same Customer Email?`);
+          console.warn(`   3. Check the server logs for API errors`);
+        }
+        
         setCompanies(companiesList);
         
         // Always consider the newest company (sorted by Payment Date desc)
