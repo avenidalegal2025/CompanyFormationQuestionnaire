@@ -43,6 +43,7 @@ export interface QuestionnaireData {
     zipCode?: string;
     hasUsaAddress?: string | boolean;
     businessPurpose?: string;
+    businessPhone?: string; // Business Phone from Airtable
     usPhoneNumber?: string;
     phone?: string;
     phoneNumber?: string;
