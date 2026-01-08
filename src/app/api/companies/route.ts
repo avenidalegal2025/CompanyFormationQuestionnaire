@@ -92,6 +92,7 @@ export async function GET(request: NextRequest) {
           const fields = record.fields;
           const recordEmail = (fields['Customer Email'] as string) || '';
           const recordCompanyName = (fields['Company Name'] as string) || 'Unknown Company';
+          const paymentDate = (fields['Payment Date'] as string) || new Date().toISOString();
           
           console.log(`📋 Found company: ${recordCompanyName} (email: ${recordEmail})`);
           
@@ -101,12 +102,17 @@ export async function GET(request: NextRequest) {
             entityType: (fields['Entity Type'] as string) || 'LLC',
             formationState: (fields['Formation State'] as string) || '',
             formationStatus: (fields['Formation Status'] as string) || 'Pending',
-            createdAt: (fields['Payment Date'] as string) || new Date().toISOString(),
+            createdAt: paymentDate,
             customerEmail: recordEmail || normalizedEmail,
           });
         });
         fetchNextPage();
       });
+    
+    // #region agent log
+    // Log the companies array with dates for debugging
+    console.log('🔍 DEBUG: Companies array after fetch:', JSON.stringify(companies.map(c => ({ id: c.id, name: c.companyName, createdAt: c.createdAt, createdAtMs: new Date(c.createdAt).getTime() })), null, 2));
+    // #endregion
 
     console.log(`✅ Found ${companies.length} companies for user: ${normalizedEmail}`);
     

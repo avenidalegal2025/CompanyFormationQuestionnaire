@@ -9,6 +9,65 @@ import boto3
 BUCKET_NAME = os.environ.get('BUCKET_NAME', 'ss4-template-bucket-043206426879')
 OUTPUT_BUCKET = os.environ.get('OUTPUT_BUCKET', 'avenida-legal-documents')
 
+# Initialize AWS Translate client
+translate_client = boto3.client('translate', region_name='us-west-1')
+
+def truncate_at_word_boundary(text, max_length):
+    """
+    Truncate text at word boundaries to avoid cutting words.
+    Never exceeds max_length and never cuts words in half.
+    """
+    if not text or len(text) <= max_length:
+        return text
+    
+    # Truncate to max_length
+    truncated = text[:max_length]
+    
+    # Find the last space before the truncation point
+    last_space = truncated.rfind(' ')
+    
+    if last_space > 0:
+        # Truncate at the last complete word
+        return truncated[:last_space].strip()
+    else:
+        # No space found, return truncated (single long word)
+        return truncated.strip()
+
+def translate_to_english(text):
+    """
+    Translate Spanish text to English using AWS Translate.
+    Returns original text if translation fails or text is already in English.
+    """
+    if not text or not isinstance(text, str) or len(text.strip()) == 0:
+        return text
+    
+    text_clean = text.strip()
+    
+    # Skip very short text (likely codes, numbers, or already English)
+    if len(text_clean) < 3:
+        return text
+    
+    # Quick check: if text doesn't contain Spanish characters, assume it's English
+    # Spanish characters: á, é, í, ó, ú, ñ, ü, ¿, ¡
+    has_spanish = any(char in text_clean for char in 'áéíóúñü¿¡')
+    
+    if not has_spanish:
+        return text
+    
+    try:
+        # Translate from Spanish to English
+        result = translate_client.translate_text(
+            Text=text_clean,
+            SourceLanguageCode='es',
+            TargetLanguageCode='en'
+        )
+        translated = result.get('TranslatedText', text_clean)
+        print(f"===> Translated: '{text_clean[:50]}...' -> '{translated[:50]}...'")
+        return translated
+    except Exception as e:
+        print(f"===> Translation failed for '{text_clean[:50]}...': {e}")
+        return text
+
 # Form 8821 Field Positions
 # Actual coordinates from debug_grid_overlay.py
 FIELD_POSITIONS = {
@@ -25,7 +84,8 @@ FIELD_POSITIONS = {
     "Tax Form": (200, 417),
     "Tax Years": (325, 417),
     "Tax Matters": (460, 417),
-    "Checkbox": (534, 412),
+    "Checkbox": (534, 412),  # Section 3 Intermediate Service Provider checkbox (NOT checked)
+    "Section 4 Checkbox": (70, 365),  # Section 4 checkbox (ALWAYS checked) - position at end of Section 4 text
     "Signature Name": (77, 126),
     "Signature Title": (447, 126),
 }
@@ -40,38 +100,73 @@ def create_overlay(data, path):
     c = canvas.Canvas(path, pagesize=(612, 792))
     c.setFont("Helvetica", 9)
     
-    # Taxpayer (Owner) Information
-    taxpayer_name = data.get("taxpayerName", "")
-    taxpayer_address = data.get("taxpayerAddress", "")
-    taxpayer_city = data.get("taxpayerCity", "")
-    taxpayer_state = data.get("taxpayerState", "")
-    taxpayer_zip = data.get("taxpayerZip", "")
-    taxpayer_phone = data.get("taxpayerPhone", "")  # May not be in data, will be empty
+    # Helper function to process text fields (translate, uppercase, truncate)
+    def process_text(value, max_length=None):
+        if not value:
+            return ""
+        # Translate from Spanish to English
+        translated = translate_to_english(str(value))
+        # Convert to uppercase
+        upper = translated.upper()
+        # Truncate if needed
+        if max_length and len(upper) > max_length:
+            return truncate_at_word_boundary(upper, max_length)
+        return upper
+    
+    # Taxpayer (Company) Information - Box 1
+    taxpayer_name = process_text(data.get("taxpayerName", ""), max_length=80)
+    taxpayer_address = process_text(data.get("taxpayerAddress", ""), max_length=80)
+    taxpayer_address_line2 = process_text(data.get("taxpayerAddressLine2", ""), max_length=80)
+    taxpayer_city = process_text(data.get("taxpayerCity", ""))
+    taxpayer_state = process_text(data.get("taxpayerState", ""))
+    taxpayer_zip = str(data.get("taxpayerZip", "")).strip()
+    taxpayer_phone = process_text(data.get("taxpayerPhone", ""), max_length=20)
     
     # Build taxpayer address lines
-    taxpayer_address_1 = taxpayer_address or ""
-    taxpayer_address_2 = f"{taxpayer_city}, {taxpayer_state} {taxpayer_zip}".strip(", ")
+    # Address line 1: Street address + Suite/Unit (if exists)
+    # Address line 2: City, State ZIP
+    if taxpayer_address_line2:
+        # Combine street address and suite/unit
+        taxpayer_address_1 = f"{taxpayer_address} {taxpayer_address_line2}".strip() if taxpayer_address else taxpayer_address_line2
+    else:
+        taxpayer_address_1 = taxpayer_address or ""
+    
+    # Truncate address line 1 if needed
+    if len(taxpayer_address_1) > 80:
+        taxpayer_address_1 = truncate_at_word_boundary(taxpayer_address_1, max_length=80)
+    
+    # Address line 2: City, State ZIP
+    city_state_zip_parts = [p for p in [taxpayer_city, taxpayer_state, taxpayer_zip] if p]
+    taxpayer_address_2 = ", ".join(city_state_zip_parts) if city_state_zip_parts else ""
+    if taxpayer_address_2 and len(taxpayer_address_2) > 80:
+        taxpayer_address_2 = truncate_at_word_boundary(taxpayer_address_2, max_length=80)
     
     # Designee (Avenida Legal) Information
-    designee_name = data.get("designeeName", "Avenida Legal")
-    designee_address = data.get("designeeAddress", "")
-    designee_city = data.get("designeeCity", "")
-    designee_state = data.get("designeeState", "")
-    designee_zip = data.get("designeeZip", "")
-    designee_phone = data.get("designeePhone", "")
-    designee_fax = data.get("designeeFax", "")
+    designee_name = process_text(data.get("designeeName", "Avenida Legal"), max_length=80)
+    designee_address = process_text(data.get("designeeAddress", ""), max_length=80)
+    designee_city = process_text(data.get("designeeCity", ""))
+    designee_state = process_text(data.get("designeeState", ""))
+    designee_zip = str(data.get("designeeZip", "")).strip()
+    designee_phone = process_text(data.get("designeePhone", ""), max_length=20)
+    designee_fax = process_text(data.get("designeeFax", ""), max_length=20)
     
     # Build designee address lines
     designee_address_1 = designee_address or ""
-    designee_address_2 = f"{designee_city}, {designee_state} {designee_zip}".strip(", ")
+    # Always include city, state, zip on line 2 for Avenida Legal
+    designee_city_state_zip_parts = [p for p in [designee_city, designee_state, designee_zip] if p]
+    designee_address_2 = ", ".join(designee_city_state_zip_parts) if designee_city_state_zip_parts else ""
+    # For Avenida Legal, always show the full address
+    if not designee_address_2 and designee_city and designee_state and designee_zip:
+        designee_address_2 = f"{designee_city}, {designee_state} {designee_zip}"
+    if designee_address_2 and len(designee_address_2) > 80:
+        designee_address_2 = truncate_at_word_boundary(designee_address_2, max_length=80)
     
-    # Tax authorization details
-    # transformDataFor8821 sends: taxYears, taxForms
-    # Map to the fields expected by the form
-    tax_info = data.get("taxInfo", "N/A")
-    tax_form = data.get("taxForms", "All tax forms and information")
-    tax_years = data.get("taxYears", "2024, 2025, 2026")
-    tax_matters = data.get("taxMatters", "N/A")
+    # Tax authorization details - Section 3
+    # ALWAYS set to "N/A" for all fields
+    tax_info = "N/A"
+    tax_form = "N/A"
+    tax_years = "N/A"
+    tax_matters = "N/A"
     
     # Page 1 - Fill form fields
     # Line 1: Taxpayer info
@@ -96,30 +191,31 @@ def create_overlay(data, path):
     if designee_fax:
         c.drawString(*FIELD_POSITIONS["Designee Fax"], designee_fax)
     
-    # Line 3: Tax info
-    if tax_info:
-        c.drawString(*FIELD_POSITIONS["Tax Info"], tax_info)
-    if tax_form:
-        c.drawString(*FIELD_POSITIONS["Tax Form"], tax_form)
-    if tax_years:
-        c.drawString(*FIELD_POSITIONS["Tax Years"], tax_years)
-    if tax_matters:
-        c.drawString(*FIELD_POSITIONS["Tax Matters"], tax_matters)
+    # Line 3: Tax info - ALWAYS "N/A" for all fields
+    c.drawString(*FIELD_POSITIONS["Tax Info"], tax_info)
+    c.drawString(*FIELD_POSITIONS["Tax Form"], tax_form)
+    c.drawString(*FIELD_POSITIONS["Tax Years"], tax_years)
+    c.drawString(*FIELD_POSITIONS["Tax Matters"], tax_matters)
     
-    # Checkbox
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(*FIELD_POSITIONS["Checkbox"], "✓")
+    # Section 3: Intermediate Service Provider checkbox - NOT checked (leave empty)
+    # DO NOT draw anything at the "Checkbox" position - it's for Section 3 which we don't check
+    
+    # Section 4: Specific use not recorded on CAF - ALWAYS checked
+    # Position is approximately at the end of the Section 4 text, adjust Y coordinate if needed
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(*FIELD_POSITIONS["Section 4 Checkbox"], "X")
     c.setFont("Helvetica", 9)
     
     c.showPage()
     
     # Page 2 - Signature section
-    if taxpayer_name:
-        c.drawString(*FIELD_POSITIONS["Signature Name"], taxpayer_name)
-    # Signature title can be added if needed
-    # signature_title = data.get("signatureTitle", "")
-    # if signature_title:
-    #     c.drawString(*FIELD_POSITIONS["Signature Title"], signature_title)
+    signature_name = process_text(data.get("signatureName", ""), max_length=80)
+    signature_title = process_text(data.get("signatureTitle", ""), max_length=50)
+    
+    if signature_name:
+        c.drawString(*FIELD_POSITIONS["Signature Name"], signature_name)
+    if signature_title:
+        c.drawString(*FIELD_POSITIONS["Signature Title"], signature_title)
     
     c.save()
     print("===> Overlay created")

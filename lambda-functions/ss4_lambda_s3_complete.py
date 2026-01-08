@@ -742,6 +742,7 @@ def map_data_to_ss4_fields(form_data):
             ("MANHATTAN", "NY"): "NEW YORK",
             ("QUEENS", "NY"): "QUEENS",
             ("BRONX", "NY"): "BRONX",
+            ("THE BRONX", "NY"): "BRONX",  # Handle "The Bronx" variation
             ("STATEN ISLAND", "NY"): "RICHMOND",
             ("BUFFALO", "NY"): "ERIE",
             ("ROCHESTER", "NY"): "MONROE",
@@ -1367,6 +1368,13 @@ def map_data_to_ss4_fields(form_data):
             if county_state_from_ts
             else (to_upper(city_to_county(company_city, company_state)) if company_city and company_state else "")
         ),  # County, State (converted from city) - e.g., "MIAMI-DADE, FL" or "KINGS, NY"
+        # DEBUG: Log Line 6 calculation for troubleshooting
+        "_debug_line6": {
+            "county_state_from_ts": county_state_from_ts or "EMPTY",
+            "company_city": company_city or "EMPTY",
+            "company_state": company_state or "EMPTY",
+            "calculated_county": city_to_county(company_city, company_state) if company_city and company_state else "N/A (city or state missing)",
+        },
         "Line 7a": to_upper(responsible_name) if responsible_name else "",  # Responsible party name - ALL CAPS
         "Line 7b": format_ssn(responsible_ssn) if responsible_ssn and responsible_ssn.upper() not in ['N/A-FOREIGN', 'N/A', ''] else "N/A-FOREIGN",  # Responsible party SSN/ITIN/EIN - formatted as XXX-XX-XXXX
         "8b": "",  # Will be set to member count if LLC, or date if not LLC
@@ -1953,6 +1961,8 @@ def lambda_handler(event, context):
         print(f"===> Line 5a: '{ss4_fields.get('Line 5a', 'NOT FOUND')}'")
         print(f"===> Line 5b: '{ss4_fields.get('Line 5b', 'NOT FOUND')}'")
         print(f"===> Line 6: '{ss4_fields.get('Line 6', 'NOT FOUND')}'")
+        debug_line6 = ss4_fields.get('_debug_line6', {})
+        print(f"===> Line 6 DEBUG: county_from_ts='{debug_line6.get('county_state_from_ts', 'N/A')}', city='{debug_line6.get('company_city', 'N/A')}', state='{debug_line6.get('company_state', 'N/A')}', calculated='{debug_line6.get('calculated_county', 'N/A')}'")
         print(f"===> Line 7a: '{ss4_fields.get('Line 7a', 'NOT FOUND')}'")
         print(f"===> Line 7b: '{ss4_fields.get('Line 7b', 'NOT FOUND')}'")
         print(f"===> Line 8b: '{ss4_fields.get('8b', 'NOT FOUND')}'")

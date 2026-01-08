@@ -9,6 +9,65 @@ import boto3
 BUCKET_NAME = os.environ.get('BUCKET_NAME', 'ss4-template-bucket-043206426879')
 OUTPUT_BUCKET = os.environ.get('OUTPUT_BUCKET', 'avenida-legal-documents')
 
+# Initialize AWS Translate client
+translate_client = boto3.client('translate', region_name='us-west-1')
+
+def truncate_at_word_boundary(text, max_length):
+    """
+    Truncate text at word boundaries to avoid cutting words.
+    Never exceeds max_length and never cuts words in half.
+    """
+    if not text or len(text) <= max_length:
+        return text
+    
+    # Truncate to max_length
+    truncated = text[:max_length]
+    
+    # Find the last space before the truncation point
+    last_space = truncated.rfind(' ')
+    
+    if last_space > 0:
+        # Truncate at the last complete word
+        return truncated[:last_space].strip()
+    else:
+        # No space found, return truncated (single long word)
+        return truncated.strip()
+
+def translate_to_english(text):
+    """
+    Translate Spanish text to English using AWS Translate.
+    Returns original text if translation fails or text is already in English.
+    """
+    if not text or not isinstance(text, str) or len(text.strip()) == 0:
+        return text
+    
+    text_clean = text.strip()
+    
+    # Skip very short text (likely codes, numbers, or already English)
+    if len(text_clean) < 3:
+        return text
+    
+    # Quick check: if text doesn't contain Spanish characters, assume it's English
+    # Spanish characters: á, é, í, ó, ú, ñ, ü, ¿, ¡
+    has_spanish = any(char in text_clean for char in 'áéíóúñü¿¡')
+    
+    if not has_spanish:
+        return text
+    
+    try:
+        # Translate from Spanish to English
+        result = translate_client.translate_text(
+            Text=text_clean,
+            SourceLanguageCode='es',
+            TargetLanguageCode='en'
+        )
+        translated = result.get('TranslatedText', text_clean)
+        print(f"===> Translated: '{text_clean[:50]}...' -> '{translated[:50]}...'")
+        return translated
+    except Exception as e:
+        print(f"===> Translation failed for '{text_clean[:50]}...': {e}")
+        return text
+
 FIELD_POSITIONS = {
     "Taxpayer Phone": (350, 617),
     "Representative PTIN": (415, 555),
@@ -33,55 +92,79 @@ def create_overlay(data, path):
     c = canvas.Canvas(path)
     c.setFont("Helvetica", 9)
     
+    # Helper function to process text fields (translate, uppercase, truncate)
+    def process_text(value, max_length=None):
+        if not value:
+            return ""
+        # Translate from Spanish to English
+        translated = translate_to_english(str(value))
+        # Convert to uppercase
+        upper = translated.upper()
+        # Truncate if needed
+        if max_length and len(upper) > max_length:
+            return truncate_at_word_boundary(upper, max_length)
+        return upper
+    
     # Build address lines from individual fields
     principal_address_lines = []
-    if data.get("principalAddress"):
-        principal_address_lines.append(data.get("principalAddress", ""))
-    if data.get("principalCity") or data.get("principalState") or data.get("principalZip"):
+    principal_address = process_text(data.get("principalAddress", ""), max_length=80)
+    if principal_address:
+        principal_address_lines.append(principal_address)
+    
+    principal_city = process_text(data.get("principalCity", ""))
+    principal_state = process_text(data.get("principalState", ""))
+    principal_zip = str(data.get("principalZip", "")).strip()
+    
+    if principal_city or principal_state or principal_zip:
         city_state_zip = ", ".join(filter(None, [
-            data.get("principalCity", ""),
-            data.get("principalState", ""),
-            data.get("principalZip", "")
+            principal_city,
+            principal_state,
+            principal_zip
         ]))
         if city_state_zip:
-            principal_address_lines.append(city_state_zip)
+            principal_address_lines.append(truncate_at_word_boundary(city_state_zip, max_length=80))
     
     representative_address_lines = []
-    if data.get("representativeAddress"):
-        representative_address_lines.append(data.get("representativeAddress", ""))
-    if data.get("representativeCity") or data.get("representativeState") or data.get("representativeZip"):
+    representative_address = process_text(data.get("representativeAddress", ""), max_length=80)
+    if representative_address:
+        representative_address_lines.append(representative_address)
+    
+    representative_city = process_text(data.get("representativeCity", ""))
+    representative_state = process_text(data.get("representativeState", ""))
+    representative_zip = str(data.get("representativeZip", "")).strip()
+    
+    if representative_city or representative_state or representative_zip:
         city_state_zip = ", ".join(filter(None, [
-            data.get("representativeCity", ""),
-            data.get("representativeState", ""),
-            data.get("representativeZip", "")
+            representative_city,
+            representative_state,
+            representative_zip
         ]))
         if city_state_zip:
-            representative_address_lines.append(city_state_zip)
+            representative_address_lines.append(truncate_at_word_boundary(city_state_zip, max_length=80))
     
     # Page 1
     # Taxpayer (Principal) Name and Address
-    principal_name = data.get("principalName", "")
+    principal_name = process_text(data.get("principalName", ""), max_length=80)
     if principal_name:
         c.drawString(56, 638, principal_name)
     for i, line in enumerate(principal_address_lines):
         c.drawString(56, 638 - (i + 1) * 12, line)
     
     # Representative Name and Address
-    representative_name = data.get("representativeName", "")
+    representative_name = process_text(data.get("representativeName", ""), max_length=80)
     if representative_name:
         c.drawString(56, 565, representative_name)
     for i, line in enumerate(representative_address_lines):
         c.drawString(56, 565 - (i + 1) * 12, line)
     
-    c.drawString(*FIELD_POSITIONS["Representative PTIN"], data.get("representativePTIN", ""))
-    c.drawString(*FIELD_POSITIONS["Representative Fax"], data.get("representativeFax", ""))
+    c.drawString(*FIELD_POSITIONS["Representative PTIN"], process_text(data.get("representativePTIN", ""), max_length=20))
+    c.drawString(*FIELD_POSITIONS["Representative Fax"], process_text(data.get("representativeFax", ""), max_length=20))
     
     # Authorized Matters (from years field - parse if needed)
-    years = data.get("years", "")
+    years = process_text(data.get("years", ""), max_length=30)
     if years:
-        # Simple parsing - could be enhanced
-        c.drawString(*FIELD_POSITIONS["Authorized Type 1"], "Tax Matters")
-        c.drawString(*FIELD_POSITIONS["Authorized Form 1"], "All Forms")
+        c.drawString(*FIELD_POSITIONS["Authorized Type 1"], "TAX MATTERS")
+        c.drawString(*FIELD_POSITIONS["Authorized Form 1"], "ALL FORMS")
         c.drawString(*FIELD_POSITIONS["Authorized Year 1"], years)
     
     c.setFont("Helvetica-Bold", 10.5)
@@ -90,13 +173,13 @@ def create_overlay(data, path):
     
     # Page 2
     c.setFont("Helvetica", 9)
-    c.drawString(*FIELD_POSITIONS["Signature Name"], data.get("principalName", ""))
-    c.drawString(*FIELD_POSITIONS["Signature Title"], data.get("principalTitle", ""))
-    c.drawString(*FIELD_POSITIONS["Signature Company"], data.get("companyName", ""))
-    c.drawString(*FIELD_POSITIONS["Representative Date"], data.get("representativeDate", ""))
-    c.drawString(*FIELD_POSITIONS["Representative Designation"], data.get("representativeDesignation", ""))
-    c.drawString(*FIELD_POSITIONS["Representative Jurisdiction"], data.get("representativeJurisdiction", ""))
-    c.drawString(*FIELD_POSITIONS["Representative License No."], data.get("representativeLicenseNo", ""))
+    c.drawString(*FIELD_POSITIONS["Signature Name"], process_text(data.get("principalName", ""), max_length=80))
+    c.drawString(*FIELD_POSITIONS["Signature Title"], process_text(data.get("principalTitle", ""), max_length=50))
+    c.drawString(*FIELD_POSITIONS["Signature Company"], process_text(data.get("companyName", ""), max_length=80))
+    c.drawString(*FIELD_POSITIONS["Representative Date"], process_text(data.get("representativeDate", ""), max_length=20))
+    c.drawString(*FIELD_POSITIONS["Representative Designation"], process_text(data.get("representativeDesignation", ""), max_length=50))
+    c.drawString(*FIELD_POSITIONS["Representative Jurisdiction"], process_text(data.get("representativeJurisdiction", ""), max_length=50))
+    c.drawString(*FIELD_POSITIONS["Representative License No."], process_text(data.get("representativeLicenseNo", ""), max_length=30))
     
     c.save()
 
