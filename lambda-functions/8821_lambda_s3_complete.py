@@ -75,11 +75,11 @@ FIELD_POSITIONS = {
     "Taxpayer Address 1": (77, 655),
     "Taxpayer Address 2": (77, 643),
     "Taxpayer Phone": (457, 628),
-    "Designee Name": (77, 580),
-    "Designee Address 1": (77, 567),
-    "Designee Address 2": (77, 555),
-    "Designee Phone": (453, 566),
-    "Designee Fax": (453, 552),
+    "Designee Name": (77, 590),  # Moved up 10 pixels (580 + 10)
+    "Designee Address 1": (77, 577),  # Moved up 10 pixels (567 + 10)
+    "Designee Address 2": (77, 565),  # Moved up 10 pixels (555 + 10)
+    "Designee Phone": (453, 576),  # Moved up 10 pixels (566 + 10)
+    "Designee Fax": (453, 562),  # Moved up 10 pixels (552 + 10)
     "Tax Info": (70, 417),
     "Tax Form": (200, 417),
     "Tax Years": (325, 417),
