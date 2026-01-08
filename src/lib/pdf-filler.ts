@@ -197,56 +197,92 @@ function transformDataFor8821(formData: QuestionnaireData): any {
   const isCorp = entityType.toUpperCase().includes('CORP') || entityType.toUpperCase().includes('INC');
   const ownerCount = owners.length;
   
-  // Get tax owner (person who will sign) - must have SSN
-  // Priority: Find owner with SSN, prioritize based on entity type
-  let taxOwner: any = null;
-  let taxOwnerName = '';
-  let signatureTitle = '';
+  // Get responsible party (same logic as SS-4) - must have SSN
+  // This is the person who will sign the form
+  let responsibleParty: any = null;
+  let responsiblePartyName = '';
+  let responsiblePartyFirstName = '';
+  let responsiblePartyLastName = '';
+  let responsiblePartySSN = '';
+  let responsiblePartyOfficerRole = ''; // For corporations
   
-  // First, try to get from agreement (if specified)
+  // First, try to get from agreement (if specified) - this matches SS-4 logic
   const agreementTaxOwnerName = agreement.corp_taxOwner || agreement.llc_taxOwner || '';
   if (agreementTaxOwnerName) {
-    taxOwner = owners.find(o => o.fullName === agreementTaxOwnerName) || null;
-  }
-  
-  // If not found or no SSN, find owner with SSN
-  if (!taxOwner || !taxOwner.ssn || !taxOwner.tin) {
-    // Find first owner with SSN
-    taxOwner = owners.find(o => {
-      const hasSSN = (o.ssn && o.ssn.trim() !== '') || (o.tin && o.tin.trim() !== '' && !o.tin.toUpperCase().includes('FOREIGN'));
-      return hasSSN;
-    }) || owners[0] || null;
-  }
-  
-  // Get the name
-  if (taxOwner) {
-    taxOwnerName = taxOwner.fullName || '';
-  }
-  
-  // Determine signature name and title based on entity type
-  if (isLLC) {
-    // For LLC: "SOLE MEMBER" or "MEMBER"
-    if (ownerCount === 1) {
-      signatureTitle = 'SOLE MEMBER';
-    } else {
-      signatureTitle = 'MEMBER';
+    responsibleParty = owners.find(o => o.fullName === agreementTaxOwnerName) || null;
+    if (responsibleParty) {
+      responsiblePartyName = responsibleParty.fullName || '';
+      // Try to parse first/last name if available
+      const nameParts = responsiblePartyName.split(' ');
+      responsiblePartyFirstName = nameParts[0] || '';
+      responsiblePartyLastName = nameParts.slice(1).join(' ') || '';
+      responsiblePartySSN = responsibleParty.ssn || responsibleParty.tin || '';
     }
-  } else if (isCorp) {
-    // For Corporation: Use PRESIDENT (or could be SHAREHOLDER if no officers)
-    // Check if there are officers defined
-    const admin = formData.admin || {};
-    // For now, default to PRESIDENT - this matches SS-4 logic
-    signatureTitle = 'PRESIDENT';
+  }
+  
+  // If not found or no SSN, find first owner with SSN (same as SS-4)
+  if (!responsibleParty || !responsiblePartySSN || responsiblePartySSN.toUpperCase().includes('FOREIGN')) {
+    // Find first owner with valid SSN
+    responsibleParty = owners.find(o => {
+      const ssn = o.ssn || o.tin || '';
+      return ssn && ssn.trim() !== '' && 
+             ssn.toUpperCase() !== 'N/A' && 
+             !ssn.toUpperCase().includes('FOREIGN');
+    }) || owners[0] || null;
     
-    // Note: If we have officer data, we could use that, but for questionnaire
-    // we default to PRESIDENT as the signer
+    if (responsibleParty) {
+      responsiblePartyName = responsibleParty.fullName || '';
+      const nameParts = responsiblePartyName.split(' ');
+      responsiblePartyFirstName = nameParts[0] || '';
+      responsiblePartyLastName = nameParts.slice(1).join(' ') || '';
+      responsiblePartySSN = responsibleParty.ssn || responsibleParty.tin || '';
+    }
+  }
+  
+  // For corporations, try to get officer role from admin section
+  if (isCorp && responsibleParty) {
+    const admin = formData.admin || {};
+    // Check if responsible party is an officer (manager1Name, etc.)
+    // For questionnaire, default to PRESIDENT
+    responsiblePartyOfficerRole = 'PRESIDENT';
+  }
+  
+  // Build base name (same as SS-4)
+  const baseName = responsiblePartyName || `${responsiblePartyFirstName} ${responsiblePartyLastName}`.trim();
+  
+  // Determine signature name and title (same format as SS-4)
+  let signatureName = baseName;
+  let signatureTitle = '';
+  
+  // Check if sole proprietor (1 owner with 100% ownership)
+  const isSoleProprietor = ownerCount === 1 && owners[0]?.ownership === 100;
+  
+  if (isCorp && (entityType.toUpperCase().includes('C-CORP') || entityType.toUpperCase().includes('S-CORP'))) {
+    // For C-Corp and S-Corp: Add officer role to signature name
+    // Format: "NAME, ROLE" (with space after comma) - same as SS-4
+    if (responsiblePartyOfficerRole && responsiblePartyOfficerRole.trim() !== '') {
+      const roleUpper = responsiblePartyOfficerRole.trim().toUpperCase();
+      const isPresident = roleUpper === 'PRESIDENT' || 
+                         (roleUpper.startsWith('PRESIDENT') && !roleUpper.includes('VICE') && !roleUpper.includes('CO-'));
+      const finalRole = isPresident ? 'PRESIDENT' : roleUpper;
+      signatureName = `${baseName}, ${finalRole}`;
+    } else {
+      signatureName = `${baseName}, PRESIDENT`;
+    }
+    signatureTitle = 'PRESIDENT';
+  } else if (isSoleProprietor && isLLC) {
+    // Sole proprietor (1 owner with 100% ownership) - use ",SOLE MEMBER" for LLCs only
+    signatureName = `${baseName},SOLE MEMBER`;
+    signatureTitle = 'SOLE MEMBER';
+  } else if (isLLC) {
+    // Multi-member LLC
+    signatureName = `${baseName},MEMBER`;
+    signatureTitle = 'MEMBER';
   } else {
     // Default fallback
+    signatureName = baseName || 'AUTHORIZED SIGNER';
     signatureTitle = 'AUTHORIZED SIGNER';
   }
-  
-  // Final signature name
-  let signatureName = taxOwnerName || 'AUTHORIZED SIGNER';
   
   // Ensure we always have a signature name and title
   if (!signatureName || signatureName.trim() === '') {
@@ -256,8 +292,8 @@ function transformDataFor8821(formData: QuestionnaireData): any {
     signatureTitle = 'AUTHORIZED SIGNER';
   }
   
-  // Log for debugging
-  console.log(`📝 8821 Signature: name="${signatureName}", title="${signatureTitle}", ownerHasSSN=${taxOwner ? (!!taxOwner.ssn || !!taxOwner.tin) : false}`);
+  // Log for debugging (same format as SS-4)
+  console.log(`📝 8821 Signature (same as SS-4): name="${signatureName}", title="${signatureTitle}", baseName="${baseName}", hasSSN=${!!responsiblePartySSN}`);
   
   // Parse company address - Use Airtable Company Address format: "Street, City, State ZIP"
   // Priority: Use full address string from Airtable format, then fallback to components
