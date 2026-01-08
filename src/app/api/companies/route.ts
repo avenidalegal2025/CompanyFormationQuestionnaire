@@ -164,13 +164,74 @@ export async function GET(request: NextRequest) {
 
     console.log(`✅ Found ${companies.length} companies for user: ${normalizedEmail}`);
     
-    // If no companies found, log a warning with all available emails for debugging
+    // If no companies found, try a more lenient search and log all emails for debugging
     if (companies.length === 0) {
       console.warn(`⚠️ No companies found for email: ${normalizedEmail}`);
-      console.warn(`💡 This could mean:`);
+      console.warn(`💡 Trying alternative search methods...`);
+      
+      // Try searching without LOWER() in case of formula issues
+      try {
+        const altCompanies: Company[] = [];
+        await base(AIRTABLE_TABLE_NAME)
+          .select({
+            filterByFormula: `{Customer Email} = "${normalizedEmail}"`,
+          })
+          .eachPage((records, fetchNextPage) => {
+            records.forEach((record) => {
+              const fields = record.fields;
+              altCompanies.push({
+                id: record.id,
+                companyName: (fields['Company Name'] as string) || 'Unknown Company',
+                entityType: (fields['Entity Type'] as string) || 'LLC',
+                formationState: (fields['Formation State'] as string) || '',
+                formationStatus: (fields['Formation Status'] as string) || 'Pending',
+                createdAt: (fields['Payment Date'] as string) || new Date().toISOString(),
+                customerEmail: (fields['Customer Email'] as string) || normalizedEmail,
+              });
+            });
+            fetchNextPage();
+          });
+        
+        if (altCompanies.length > 0) {
+          console.log(`✅ Found ${altCompanies.length} companies with alternative search`);
+          companies.push(...altCompanies);
+        }
+      } catch (altError) {
+        console.error('❌ Alternative search also failed:', altError);
+      }
+      
+      // Log a sample of all records to help debug email matching
+      try {
+        console.log(`🔍 Fetching sample records to check email formats...`);
+        const sampleRecords: any[] = [];
+        await base(AIRTABLE_TABLE_NAME)
+          .select({
+            maxRecords: 10,
+            sort: [{ field: 'Payment Date', direction: 'desc' }],
+          })
+          .eachPage((records, fetchNextPage) => {
+            records.forEach((record) => {
+              const fields = record.fields;
+              sampleRecords.push({
+                id: record.id,
+                companyName: fields['Company Name'],
+                customerEmail: fields['Customer Email'],
+                emailLower: (fields['Customer Email'] as string)?.toLowerCase(),
+              });
+            });
+            fetchNextPage();
+          });
+        console.log(`📋 Sample records (first 10):`, JSON.stringify(sampleRecords, null, 2));
+        console.log(`🔍 Looking for email: "${normalizedEmail}"`);
+      } catch (sampleError) {
+        console.error('❌ Could not fetch sample records:', sampleError);
+      }
+      
+      console.warn(`💡 Possible issues:`);
       console.warn(`   1. The company record hasn't been created in Airtable yet (check webhook logs)`);
       console.warn(`   2. The email in Airtable doesn't match: ${normalizedEmail}`);
       console.warn(`   3. The webhook may have failed to create the record`);
+      console.warn(`   4. There may be whitespace or formatting differences in the email field`);
     }
 
     return NextResponse.json({
