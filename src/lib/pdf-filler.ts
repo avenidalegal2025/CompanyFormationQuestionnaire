@@ -274,14 +274,18 @@ function transformDataFor8821(formData: QuestionnaireData): any {
   // Get company phone number (US phone if available)
   const companyPhone = company.usPhoneNumber || company.phone || company.phoneNumber || '';
   
+  // Ensure company name is available - this is critical for Box 1
+  const companyFullName = company.companyName || company.name || '';
+  
   return {
     // Company Information
-    companyName: company.companyName || '',
+    companyName: companyFullName,
     ein: '', // Will be filled after EIN is obtained
     companyAddress: company.address || company.addressLine1 || company.fullAddress || '',
     
-    // Box 1: Taxpayer (COMPANY) - Use company's full address and phone
-    taxpayerName: company.companyName || '',
+    // Box 1: Taxpayer (COMPANY) - Use company's full name and address
+    // IMPORTANT: Company name must be first, then address
+    taxpayerName: companyFullName,
     taxpayerSSN: '', // Company EIN will be filled later
     taxpayerAddress: companyAddress,
     taxpayerAddressLine2: companyAddressLine2, // Suite/Unit if exists
