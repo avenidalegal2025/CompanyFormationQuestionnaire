@@ -262,8 +262,11 @@ function transformDataFor8821(formData: QuestionnaireData): any {
     baseName = 'AUTHORIZED SIGNER';
   }
   
-  // Determine signature name and title (same format as SS-4)
-  let signatureName = baseName;
+  // Determine signature name and title
+  // IMPORTANT: For 8821, name and title are SEPARATE fields (unlike SS-4 where they're combined)
+  // Name field: Just the person's name (no role/title)
+  // Title field: Just the role/title
+  let signatureName = baseName;  // Just the name, no role
   let signatureTitle = '';
   
   // Check if sole proprietor (1 owner with 100% ownership)
@@ -271,25 +274,16 @@ function transformDataFor8821(formData: QuestionnaireData): any {
   const isSoleProprietor = ownerCount === 1;
   
   if (isCorp && (entityType.toUpperCase().includes('C-CORP') || entityType.toUpperCase().includes('S-CORP'))) {
-    // For C-Corp and S-Corp: Add officer role to signature name
-    // Format: "NAME, ROLE" (with space after comma) - same as SS-4
-    if (responsiblePartyOfficerRole && responsiblePartyOfficerRole.trim() !== '') {
-      const roleUpper = responsiblePartyOfficerRole.trim().toUpperCase();
-      const isPresident = roleUpper === 'PRESIDENT' || 
-                         (roleUpper.startsWith('PRESIDENT') && !roleUpper.includes('VICE') && !roleUpper.includes('CO-'));
-      const finalRole = isPresident ? 'PRESIDENT' : roleUpper;
-      signatureName = `${baseName}, ${finalRole}`;
-    } else {
-      signatureName = `${baseName}, PRESIDENT`;
-    }
+    // For C-Corp and S-Corp: Title is PRESIDENT
+    signatureName = baseName;  // Just the name
     signatureTitle = 'PRESIDENT';
   } else if (isSoleProprietor && isLLC) {
-    // Sole proprietor (1 owner with 100% ownership) - use ", SOLE MEMBER" for LLCs only (with space)
-    signatureName = `${baseName}, SOLE MEMBER`;
+    // Sole proprietor (1 owner with 100% ownership) - Title is SOLE MEMBER
+    signatureName = baseName;  // Just the name
     signatureTitle = 'SOLE MEMBER';
   } else if (isLLC) {
-    // Multi-member LLC - use ", MEMBER" (with space)
-    signatureName = `${baseName}, MEMBER`;
+    // Multi-member LLC - Title is MEMBER
+    signatureName = baseName;  // Just the name
     signatureTitle = 'MEMBER';
   } else {
     // Default fallback
