@@ -248,21 +248,13 @@ function transformDataFor8821(formData: QuestionnaireData): any {
   }
   
   // Build base name (same as SS-4) - ensure it's never empty
+  // Prefer fullName, then first+last from the separate vars we already computed
   let baseName = responsiblePartyName || `${responsiblePartyFirstName} ${responsiblePartyLastName}`.trim();
   
-  // If baseName is still empty, try to get from responsibleParty object directly
-  if (!baseName && responsibleParty) {
-    baseName = responsibleParty.fullName || 
-                `${responsibleParty.firstName || ''} ${responsibleParty.lastName || ''}`.trim() ||
-                'AUTHORIZED SIGNER';
-  }
-  
-  // Final fallback - use first owner's name if available
-  if (!baseName && owners.length > 0) {
-    const firstOwner = owners[0];
-    baseName = firstOwner.fullName || 
-               `${firstOwner.firstName || ''} ${firstOwner.lastName || ''}`.trim() ||
-               'AUTHORIZED SIGNER';
+  // Final fallback - use first owner's fullName if available
+  if ((!baseName || baseName.trim() === '') && owners.length > 0) {
+    const firstOwner = owners[0] as any;
+    baseName = firstOwner.fullName || '';
   }
   
   // Absolute fallback
