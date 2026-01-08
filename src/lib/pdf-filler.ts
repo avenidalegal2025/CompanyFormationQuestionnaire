@@ -255,7 +255,8 @@ function transformDataFor8821(formData: QuestionnaireData): any {
   let signatureTitle = '';
   
   // Check if sole proprietor (1 owner with 100% ownership)
-  const isSoleProprietor = ownerCount === 1 && owners[0]?.ownership === 100;
+  // Note: Ownership percentage might be stored differently in questionnaire data
+  const isSoleProprietor = ownerCount === 1;
   
   if (isCorp && (entityType.toUpperCase().includes('C-CORP') || entityType.toUpperCase().includes('S-CORP'))) {
     // For C-Corp and S-Corp: Add officer role to signature name
