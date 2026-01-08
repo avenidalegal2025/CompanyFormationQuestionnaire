@@ -83,35 +83,79 @@ export async function GET(request: NextRequest) {
     // Query Airtable for all records with matching email (case-insensitive)
     // Airtable formula: LOWER() function to make comparison case-insensitive
     // IMPORTANT: No maxRecords limit - fetch ALL companies for this user
-    await base(AIRTABLE_TABLE_NAME)
-      .select({
-        filterByFormula: `LOWER({Customer Email}) = "${normalizedEmail}"`,
-        sort: [{ field: 'Payment Date', direction: 'desc' }], // Most recent first
-        // No maxRecords - fetch all pages
-      })
-      .eachPage((records, fetchNextPage) => {
-        records.forEach((record) => {
-          const fields = record.fields;
-          const recordEmail = (fields['Customer Email'] as string) || '';
-          const recordCompanyName = (fields['Company Name'] as string) || 'Unknown Company';
-          // Use Payment Date if available, otherwise use current date
-          // Note: Airtable records have a createdTime property, but we'll use Payment Date for sorting
-          const paymentDate = (fields['Payment Date'] as string) || new Date().toISOString();
-          
-          console.log(`📋 Found company: ${recordCompanyName} (email: ${recordEmail}, paymentDate: ${paymentDate})`);
-          
-          companies.push({
-            id: record.id,
-            companyName: recordCompanyName,
-            entityType: (fields['Entity Type'] as string) || 'LLC',
-            formationState: (fields['Formation State'] as string) || '',
-            formationStatus: (fields['Formation Status'] as string) || 'Pending',
-            createdAt: paymentDate,
-            customerEmail: recordEmail || normalizedEmail,
+    // Also try without sort first to see if sorting is causing issues
+    try {
+      await base(AIRTABLE_TABLE_NAME)
+        .select({
+          filterByFormula: `LOWER({Customer Email}) = "${normalizedEmail}"`,
+          sort: [{ field: 'Payment Date', direction: 'desc' }], // Most recent first
+          // No maxRecords - fetch all pages
+        })
+        .eachPage((records, fetchNextPage) => {
+          records.forEach((record) => {
+            const fields = record.fields;
+            const recordEmail = (fields['Customer Email'] as string) || '';
+            const recordCompanyName = (fields['Company Name'] as string) || 'Unknown Company';
+            // Use Payment Date if available, otherwise use current date
+            // Note: Airtable records have a createdTime property, but we'll use Payment Date for sorting
+            const paymentDate = (fields['Payment Date'] as string) || new Date().toISOString();
+            
+            console.log(`📋 Found company: ${recordCompanyName} (ID: ${record.id}, email: ${recordEmail}, paymentDate: ${paymentDate})`);
+            
+            companies.push({
+              id: record.id,
+              companyName: recordCompanyName,
+              entityType: (fields['Entity Type'] as string) || 'LLC',
+              formationState: (fields['Formation State'] as string) || '',
+              formationStatus: (fields['Formation Status'] as string) || 'Pending',
+              createdAt: paymentDate,
+              customerEmail: recordEmail || normalizedEmail,
+            });
           });
+          fetchNextPage();
         });
-        fetchNextPage();
-      });
+    } catch (error: any) {
+      console.error('❌ Error in Airtable query:', error);
+      // If sorting by Payment Date fails (e.g., some records don't have it), try without sort
+      if (error.message?.includes('Payment Date') || error.message?.includes('sort')) {
+        console.log('⚠️ Retrying without Payment Date sort...');
+        await base(AIRTABLE_TABLE_NAME)
+          .select({
+            filterByFormula: `LOWER({Customer Email}) = "${normalizedEmail}"`,
+            // No sort - just get all records
+          })
+          .eachPage((records, fetchNextPage) => {
+            records.forEach((record) => {
+              const fields = record.fields;
+              const recordEmail = (fields['Customer Email'] as string) || '';
+              const recordCompanyName = (fields['Company Name'] as string) || 'Unknown Company';
+              const paymentDate = (fields['Payment Date'] as string) || new Date().toISOString();
+              
+              console.log(`📋 Found company (no sort): ${recordCompanyName} (ID: ${record.id}, email: ${recordEmail})`);
+              
+              companies.push({
+                id: record.id,
+                companyName: recordCompanyName,
+                entityType: (fields['Entity Type'] as string) || 'LLC',
+                formationState: (fields['Formation State'] as string) || '',
+                formationStatus: (fields['Formation Status'] as string) || 'Pending',
+                createdAt: paymentDate,
+                customerEmail: recordEmail || normalizedEmail,
+              });
+            });
+            fetchNextPage();
+          });
+        
+        // Sort manually by Payment Date (descending)
+        companies.sort((a, b) => {
+          const dateA = new Date(a.createdAt).getTime();
+          const dateB = new Date(b.createdAt).getTime();
+          return dateB - dateA; // Descending
+        });
+      } else {
+        throw error;
+      }
+    }
     
     // #region agent log
     // Log the companies array with dates for debugging
