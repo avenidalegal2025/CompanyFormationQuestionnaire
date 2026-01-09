@@ -42,6 +42,7 @@ export interface QuestionnaireData {
     postalCode?: string;
     zipCode?: string;
     hasUsaAddress?: string | boolean;
+    hasUsAddress?: string | boolean; // Alternative spelling for backward compatibility
     businessPurpose?: string;
     businessPhone?: string; // Business Phone from Airtable
     usPhoneNumber?: string;
