@@ -73,9 +73,9 @@ FIELD_POSITIONS = {
     "Taxpayer Address 1": (77, 629),  # Line 2: Street address - moved 5px down (634 - 5)
     "Taxpayer Address 2": (77, 617),  # Line 3: City, State, Zip - moved 5px down (622 - 5)
     "Taxpayer Phone": (377, 617),  # Daytime telephone - moved 2px down (619 - 2)
-    "Representative Name": (77, 590),  # Representative name (same Y as 8821 designee)
-    "Representative Address 1": (77, 577),  # Representative address line 1
-    "Representative Address 2": (77, 565),  # Representative address line 2
+    "Representative Name": (77, 565),  # Representative name - moved 25px down (590 - 25)
+    "Representative Address 1": (77, 552),  # Representative address line 1 - moved 25px down (577 - 25)
+    "Representative Address 2": (77, 540),  # Representative address line 2 - moved 25px down (565 - 25)
     "Representative Phone": (453, 554),  # Representative phone - moved 2px up (552 + 2)
     "Representative Fax": (453, 542),  # Representative fax - moved 4px up (538 + 4)
     "Representative PTIN": (415, 555),
