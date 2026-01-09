@@ -69,10 +69,10 @@ def translate_to_english(text):
         return text
 
 FIELD_POSITIONS = {
-    "Taxpayer Name": (77, 641),  # Line 1: Company name - moved 5px down (646 - 5)
-    "Taxpayer Address 1": (77, 629),  # Line 2: Street address - moved 5px down (634 - 5)
-    "Taxpayer Address 2": (77, 617),  # Line 3: City, State, Zip - moved 5px down (622 - 5)
-    "Taxpayer Phone": (377, 617),  # Daytime telephone - moved 2px down (619 - 2)
+    "Taxpayer Name": (77, 639),  # Line 1: Company name - lowered 2px (641 - 2)
+    "Taxpayer Address 1": (77, 627),  # Line 2: Street address - lowered 2px (629 - 2)
+    "Taxpayer Address 2": (77, 615),  # Line 3: City, State, Zip - lowered 2px (617 - 2)
+    "Taxpayer Phone": (377, 615),  # Daytime telephone - lowered 2px (617 - 2)
     "Representative Name": (77, 565),  # Representative name - moved 25px down (590 - 25)
     "Representative Address 1": (77, 552),  # Representative address line 1 - moved 25px down (577 - 25)
     "Representative Address 2": (77, 540),  # Representative address line 2 - moved 25px down (565 - 25)
