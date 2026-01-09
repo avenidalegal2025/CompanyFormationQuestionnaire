@@ -113,6 +113,9 @@ export default function ClientPage() {
   };
 
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'client/page.tsx:115',message:'ClientPage useEffect entry',data:{paymentCompleted:localStorage.getItem('paymentCompleted'),selectedCompanyId:localStorage.getItem('selectedCompanyId'),userSelectedCompanyId:localStorage.getItem('userSelectedCompanyId')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     // CRITICAL: Check paymentCompleted FIRST before anything else
     // This ensures newest company is selected after payment
     const paymentCompleted = localStorage.getItem('paymentCompleted');
@@ -120,9 +123,15 @@ export default function ClientPage() {
     if (paymentCompleted === 'true') {
       // Payment just completed - IMMEDIATELY clear ALL selection state
       console.log('💳 Payment completed - IMMEDIATELY clearing ALL company selection state');
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'client/page.tsx:122',message:'Clearing selection state for paymentCompleted',data:{beforeSelectedCompanyId:localStorage.getItem('selectedCompanyId'),beforeUserSelectedCompanyId:localStorage.getItem('userSelectedCompanyId')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       localStorage.removeItem('selectedCompanyId');
       localStorage.removeItem('userSelectedCompanyId');
       setSelectedCompanyId(null);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'client/page.tsx:127',message:'After clearing - paymentCompleted still set',data:{paymentCompletedStillSet:localStorage.getItem('paymentCompleted')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       // Keep paymentCompleted flag for CompanySwitcher to detect
       // Don't proceed with any other logic - let CompanySwitcher handle selection
       return;

@@ -26,6 +26,9 @@ export default function CompanySwitcher({ userEmail, selectedCompanyId, onCompan
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:28',message:'CompanySwitcher mount - userEmail effect',data:{userEmail,selectedCompanyId,paymentCompleted:localStorage.getItem('paymentCompleted')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     if (userEmail) {
       fetchCompanies();
     }
@@ -98,9 +101,15 @@ export default function CompanySwitcher({ userEmail, selectedCompanyId, onCompan
           console.warn(`   1. Is the email correct?`);
           console.warn(`   2. Do the companies in Airtable have the exact same Customer Email?`);
           console.warn(`   3. Check the server logs for API errors`);
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:95',message:'No companies found in API response',data:{userEmail,paymentCompleted:localStorage.getItem('paymentCompleted')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+          // #endregion
         }
         
         setCompanies(companiesList);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:103',message:'Companies set in state',data:{count:companiesList.length,newestCompanyId:companiesList[0]?.id,newestCompanyName:companiesList[0]?.companyName,newestCreatedAt:companiesList[0]?.createdAt},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
         
         // Always consider the newest company (sorted by Payment Date desc)
         const newestCompany = companiesList[0];
@@ -159,6 +168,9 @@ export default function CompanySwitcher({ userEmail, selectedCompanyId, onCompan
             // #endregion
             selectNewest();
             localStorage.removeItem('userSelectedCompanyId'); // Clear user selection flag
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:160',message:'After selectNewest - paymentCompleted branch',data:{selectedCompanyIdAfter:localStorage.getItem('selectedCompanyId'),paymentCompletedAfter:localStorage.getItem('paymentCompleted')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
             return; // Exit early - don't check other conditions
           } else if (!selectedCompanyId) {
             // No selection at all - select newest
