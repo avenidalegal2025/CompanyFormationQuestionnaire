@@ -137,11 +137,11 @@ def create_overlay(data, path):
         c.drawString(*FIELD_POSITIONS["Taxpayer Address 2"], truncate_at_word_boundary(city_state_zip, max_length=80))
     
     # Telephone number (same position as 8821)
-    # Remove "+1_" prefix if present
+    # Remove "+1_" or "+1 " prefix if present
     company_phone_raw = data.get("companyPhone", "")
     if company_phone_raw:
-        # Remove "+1_" or "+1" prefix
-        company_phone = str(company_phone_raw).replace("+1_", "").replace("+1", "").strip()
+        # Remove "+1_" or "+1 " or "+1" prefix (handle space and underscore variants)
+        company_phone = str(company_phone_raw).replace("+1_", "").replace("+1 ", "").replace("+1", "").strip()
         company_phone = process_text(company_phone, max_length=20)
         if company_phone:
             c.drawString(*FIELD_POSITIONS["Taxpayer Phone"], company_phone)

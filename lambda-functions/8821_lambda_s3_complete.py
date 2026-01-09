@@ -120,10 +120,11 @@ def create_overlay(data, path):
     taxpayer_city = process_text(data.get("taxpayerCity", ""))
     taxpayer_state = process_text(data.get("taxpayerState", ""))
     taxpayer_zip = str(data.get("taxpayerZip", "")).strip()
-    # Remove "+1_" or "+1" prefix from phone number
+    # Remove "+1_" or "+1 " prefix from phone number
     taxpayer_phone_raw = data.get("taxpayerPhone", "")
     if taxpayer_phone_raw:
-        taxpayer_phone_raw = str(taxpayer_phone_raw).replace("+1_", "").replace("+1", "").strip()
+        # Remove "+1_" or "+1 " or "+1" prefix (handle space and underscore variants)
+        taxpayer_phone_raw = str(taxpayer_phone_raw).replace("+1_", "").replace("+1 ", "").replace("+1", "").strip()
     taxpayer_phone = process_text(taxpayer_phone_raw, max_length=20)
     
     # Debug logging for address
