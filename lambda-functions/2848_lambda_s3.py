@@ -82,7 +82,7 @@ FIELD_POSITIONS = {
     "Authorized Type 1": (80, 232),  # Income Tax - keep same
     "Authorized Form 1": (340, 232),  # Tax Form Number (1065/1120/1120-S) - aligned with Income Tax
     "Authorized Year 1": (500, 232),  # Year - aligned with Income Tax
-    "EIN": (80, 210),  # EIN field - aligned with SS-4 and Formation Year
+    "EIN": (80, 212),  # EIN field - 20px under Income Tax (232 - 20)
     "SS4": (340, 210),  # SS-4 field - moved 20px up (190 + 20)
     "Formation Year": (500, 210),  # Year company is being formed - moved 20px up (190 + 20)
     "Authorized Type 2": (80, 210),
