@@ -240,7 +240,10 @@ def create_overlay(data, path):
     if signature_title:
         c.drawString(*FIELD_POSITIONS["Signature Title"], signature_title)
         print(f"✅ Drew signature title '{signature_title}' at {FIELD_POSITIONS['Signature Title']} on PAGE 2")
-    c.drawString(*FIELD_POSITIONS["Representative Date"], process_text(data.get("representativeDate", ""), max_length=20))
+    # Representative Date - only draw if provided (leave blank for manual entry)
+    representative_date = process_text(data.get("representativeDate", ""), max_length=20)
+    if representative_date and representative_date.strip():
+        c.drawString(*FIELD_POSITIONS["Representative Date"], representative_date)
     c.drawString(*FIELD_POSITIONS["Representative Designation"], process_text(data.get("representativeDesignation", ""), max_length=50))
     c.drawString(*FIELD_POSITIONS["Representative Jurisdiction"], process_text(data.get("representativeJurisdiction", ""), max_length=50))
     c.drawString(*FIELD_POSITIONS["Representative License No."], process_text(data.get("representativeLicenseNo", ""), max_length=30))

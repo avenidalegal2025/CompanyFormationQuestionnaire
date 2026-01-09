@@ -286,8 +286,8 @@ function transformDataFor2848(formData: QuestionnaireData): any {
     representativeDesignation: 'A',
     representativeJurisdiction: 'FLORIDA',
     representativeLicenseNo: '41990',
-    representativeSignature: 'ANTONIO REGOJO',
-    representativeDate: new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }), // MM/DD/YYYY format
+    representativeSignature: '', // Leave blank for manual signing
+    representativeDate: '', // Leave blank - no date should appear
     
     // Authorization details - Section 3
     authorizedType: 'INCOME TAX',
@@ -387,9 +387,10 @@ function transformDataFor8821(formData: QuestionnaireData): any {
   
   // Determine signature name and title
   // IMPORTANT: For 8821, name and title are SEPARATE fields (unlike SS-4 where they're combined)
-  // Name field: Just the person's name (no role/title)
+  // Name field: Just the person's name (no role/title) - USE SAME AS SS-4 (responsiblePartyName)
   // Title field: Just the role/title
-  let signatureName = baseName;  // Just the name, no role
+  // Use responsiblePartyName directly (same as 2848 and SS-4) - this ensures consistency
+  let signatureName = responsiblePartyName || baseName;  // Prefer responsiblePartyName (same as SS-4)
   let signatureTitle = '';
   
   // Check if sole proprietor (1 owner with 100% ownership)
@@ -398,25 +399,25 @@ function transformDataFor8821(formData: QuestionnaireData): any {
   
   if (isCorp && (entityType.toUpperCase().includes('C-CORP') || entityType.toUpperCase().includes('S-CORP'))) {
     // For C-Corp and S-Corp: Title is PRESIDENT
-    signatureName = baseName;  // Just the name
+    signatureName = responsiblePartyName || baseName;  // Use responsiblePartyName (same as SS-4)
     signatureTitle = 'PRESIDENT';
   } else if (isSoleProprietor && isLLC) {
     // Sole proprietor (1 owner with 100% ownership) - Title is SOLE MEMBER
-    signatureName = baseName;  // Just the name
+    signatureName = responsiblePartyName || baseName;  // Use responsiblePartyName (same as SS-4)
     signatureTitle = 'SOLE MEMBER';
   } else if (isLLC) {
     // Multi-member LLC - Title is MEMBER
-    signatureName = baseName;  // Just the name
+    signatureName = responsiblePartyName || baseName;  // Use responsiblePartyName (same as SS-4)
     signatureTitle = 'MEMBER';
   } else {
     // Default fallback
-    signatureName = baseName || 'AUTHORIZED SIGNER';
+    signatureName = responsiblePartyName || baseName || 'AUTHORIZED SIGNER';
     signatureTitle = 'AUTHORIZED SIGNER';
   }
   
   // Ensure we always have a signature name and title (final safety check)
   if (!signatureName || signatureName.trim() === '') {
-    signatureName = 'AUTHORIZED SIGNER';
+    signatureName = responsiblePartyName || baseName || 'AUTHORIZED SIGNER';
   }
   if (!signatureTitle || signatureTitle.trim() === '') {
     signatureTitle = 'AUTHORIZED SIGNER';
