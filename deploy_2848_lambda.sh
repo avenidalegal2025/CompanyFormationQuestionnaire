@@ -8,7 +8,7 @@ set -e
 # Use llc-admin profile for Avenida Legal LLC
 export AWS_PROFILE="${AWS_PROFILE:-llc-admin}"
 
-FUNCTION_NAME="${2848_LAMBDA_NAME:-Fill2848Lambda-arm64}"
+FUNCTION_NAME="${LAMBDA_2848_NAME:-Fill2848Lambda-arm64}"
 REGION="${AWS_REGION:-us-west-1}"
 RUNTIME="python3.11"
 HANDLER="lambda_function.lambda_handler"

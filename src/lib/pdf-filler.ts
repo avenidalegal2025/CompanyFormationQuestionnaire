@@ -145,41 +145,157 @@ function transformDataForSS4(formData: QuestionnaireData): any {
 function transformDataFor2848(formData: QuestionnaireData): any {
   const company = formData.company || {};
   const owners = formData.owners || [];
-  const profile = formData.profile || {};
+  const agreement = formData.agreement || {};
   
-  // Get tax owner (person authorized to handle tax matters)
-  const taxOwnerName = formData.agreement?.corp_taxOwner || 
-                       formData.agreement?.llc_taxOwner || 
-                       owners[0]?.fullName || '';
+  // Determine entity type
+  const entityType = company.entityType || '';
+  const isLLC = entityType.toUpperCase().includes('LLC') || entityType.toUpperCase().includes('L.L.C.');
+  const isCorp = entityType.toUpperCase().includes('CORP') || entityType.toUpperCase().includes('INC');
+  const isSCorp = entityType.toUpperCase().includes('S-CORP') || entityType.toUpperCase().includes('S CORP');
+  const ownerCount = owners.length;
   
-  const taxOwner = owners.find(o => o.fullName === taxOwnerName) || owners[0] || {};
+  // Get responsible party (same logic as SS-4 and 8821) - must have SSN
+  let responsibleParty: any = null;
+  let responsiblePartyName = '';
+  let responsiblePartySSN = '';
+  let responsiblePartyOfficerRole = '';
+  
+  // First, try to get from agreement (if specified)
+  const agreementTaxOwnerName = agreement.corp_taxOwner || agreement.llc_taxOwner || '';
+  if (agreementTaxOwnerName) {
+    responsibleParty = owners.find(o => o.fullName === agreementTaxOwnerName) || null;
+    if (responsibleParty) {
+      responsiblePartyName = responsibleParty.fullName || '';
+      responsiblePartySSN = responsibleParty.ssn || responsibleParty.tin || '';
+    }
+  }
+  
+  // If not found or no SSN, find first owner with SSN
+  if (!responsibleParty || !responsiblePartySSN || responsiblePartySSN.toUpperCase().includes('FOREIGN')) {
+    responsibleParty = owners.find(o => {
+      const ssn = o.ssn || o.tin || '';
+      return ssn && ssn.trim() !== '' && 
+             ssn.toUpperCase() !== 'N/A' && 
+             !ssn.toUpperCase().includes('FOREIGN');
+    }) || owners[0] || null;
+    
+    if (responsibleParty) {
+      responsiblePartyName = responsibleParty.fullName || '';
+      responsiblePartySSN = responsibleParty.ssn || responsibleParty.tin || '';
+    }
+  }
+  
+  // For corporations, determine officer role
+  if (isCorp && responsibleParty) {
+    responsiblePartyOfficerRole = 'PRESIDENT';
+  }
+  
+  // Determine signature title
+  let signatureTitle = '';
+  if (isCorp) {
+    signatureTitle = 'PRESIDENT';
+  } else if (isLLC && ownerCount === 1) {
+    signatureTitle = 'SOLE MEMBER';
+  } else if (isLLC) {
+    signatureTitle = 'MEMBER';
+  } else {
+    signatureTitle = 'AUTHORIZED SIGNER';
+  }
+  
+  // Parse company address - Use Airtable Company Address format: "Street, City, State ZIP"
+  let companyAddress = company.address || company.addressLine1 || company.fullAddress || '';
+  let companyAddressLine2 = company.addressLine2 || '';
+  let companyCity = company.city || '';
+  let companyState = company.state || '';
+  let companyZip = company.zipCode || company.postalCode || '';
+  
+  // If companyAddress is in Airtable format "Street, City, State ZIP", parse it
+  if (companyAddress && companyAddress.includes(',')) {
+    const parts = companyAddress.split(',').map(p => p.trim());
+    if (parts.length >= 2) {
+      companyAddress = parts[0]; // Street address
+      if (parts.length >= 3) {
+        // Last part should be "State ZIP"
+        const lastPart = parts[parts.length - 1];
+        const stateZipMatch = lastPart.match(/^([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/);
+        if (stateZipMatch) {
+          companyState = stateZipMatch[1];
+          companyZip = stateZipMatch[2];
+          // Everything in between is city
+          companyCity = parts.slice(1, -1).join(', ');
+        } else {
+          // Fallback: assume last part is state+zip, everything else is city
+          companyCity = parts.slice(1, -1).join(', ');
+          const stateZipParts = parts[parts.length - 1].split(/\s+/);
+          if (stateZipParts.length >= 2) {
+            companyState = stateZipParts[0];
+            companyZip = stateZipParts.slice(1).join(' ');
+          }
+        }
+      } else {
+        // Only 2 parts: street and city/state/zip
+        const cityStateZip = parts[1];
+        const stateZipMatch = cityStateZip.match(/^(.+?)\s+([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/);
+        if (stateZipMatch) {
+          companyCity = stateZipMatch[1];
+          companyState = stateZipMatch[2];
+          companyZip = stateZipMatch[3];
+        }
+      }
+    }
+  }
+  
+  // Get company phone (same priority as 8821)
+  const companyPhone = company.businessPhone || company.usPhoneNumber || company.phone || company.phoneNumber || '';
+  
+  // Get formation year - use current year (company is being founded now)
+  const formationYear = new Date().getFullYear().toString();
+  
+  // Determine tax form number based on entity type
+  let taxFormNumber = '';
+  if (isLLC) {
+    taxFormNumber = '1065';
+  } else if (isSCorp) {
+    taxFormNumber = '1120-S';
+  } else if (isCorp) {
+    taxFormNumber = '1120';
+  } else {
+    taxFormNumber = '1120'; // Default
+  }
   
   return {
-    // Company Information
+    // Company Information (Taxpayer)
     companyName: company.companyName || '',
-    ein: '', // Will be filled after EIN is obtained
-    companyAddress: company.address || company.addressLine1 || company.fullAddress || '',
+    companyAddress: companyAddress, // Street address (Line 2)
+    companyAddressLine2: companyAddressLine2,
+    companyCity: companyCity, // For Line 3
+    companyState: companyState, // For Line 3
+    companyZip: companyZip, // For Line 3
+    companyPhone: companyPhone,
     
-    // Tax Owner (Principal)
-    principalName: taxOwnerName,
-    principalSSN: taxOwner.ssn || taxOwner.tin || '',
-    principalAddress: taxOwner.address || taxOwner.addressLine1 || '',
-    principalCity: taxOwner.city || '',
-    principalState: taxOwner.state || '',
-    principalZip: taxOwner.zipCode || '',
-    
-    // Representative (Avenida Legal)
-    representativeName: 'Avenida Legal',
-    representativeAddress: '12550 Biscayne Blvd Ste 110',
-    representativeCity: 'North Miami',
+    // Representative (Antonio Regojo - same as 8821)
+    representativeName: 'ANTONIO REGOJO',
+    representativeAddress: '10634 NE 11 AVE.',
+    representativeCity: 'MIAMI',
     representativeState: 'FL',
-    representativeZip: '33181',
-    representativePhone: '(305) 123-4567', // Update with actual phone
-    representativeFax: '', // If available
+    representativeZip: '33138',
+    representativePhone: '786-512-0434',
+    representativeFax: '866-496-4957',
     
-    // Authorization details
-    taxMatters: true,
-    years: '2024, 2025, 2026', // Current and future years
+    // Authorization details - Section 3
+    authorizedType: 'INCOME TAX',
+    authorizedForm: taxFormNumber, // 1065, 1120, or 1120-S
+    authorizedYear: formationYear, // Year company is being founded
+    
+    // EIN | SS4 | Year
+    ein: '', // Will be filled after EIN is obtained
+    ss4: 'SS-4',
+    formationYear: formationYear,
+    
+    // Signature information (Section 7)
+    signatureName: responsiblePartyName, // Full name of responsible party
+    signatureTitle: signatureTitle, // PRESIDENT, SOLE MEMBER, MEMBER, etc.
+    signatureCompanyName: company.companyName || '', // Full company name
   };
 }
 

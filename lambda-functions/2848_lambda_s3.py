@@ -69,9 +69,16 @@ def translate_to_english(text):
         return text
 
 FIELD_POSITIONS = {
-    "Taxpayer Phone": (350, 617),
+    "Taxpayer Name": (77, 661),  # Line 1: Company name (same as 8821)
+    "Taxpayer Address 1": (77, 649),  # Line 2: Street address (same as 8821)
+    "Taxpayer Address 2": (77, 637),  # Line 3: City, State, Zip (same as 8821)
+    "Taxpayer Phone": (377, 639),  # Telephone (same as 8821 - moved 15px left, 3px higher)
+    "Representative Name": (77, 590),  # Representative name (same Y as 8821 designee)
+    "Representative Address 1": (77, 577),  # Representative address line 1
+    "Representative Address 2": (77, 565),  # Representative address line 2
+    "Representative Phone": (453, 579),  # Representative phone (same as 8821 designee phone)
+    "Representative Fax": (453, 565),  # Representative fax (same as 8821 designee fax)
     "Representative PTIN": (415, 555),
-    "Representative Fax": (415, 541),
     "Authorized Type 1": (80, 232),
     "Authorized Form 1": (340, 232),
     "Authorized Year 1": (500, 232),
@@ -80,7 +87,7 @@ FIELD_POSITIONS = {
     "Authorized Year 2": (500, 210),
     "Signature Name": (55, 524),
     "Signature Title": (420, 559),
-    "Signature Company": (400, 524),
+    "Signature Company": (350, 514),  # Print name of taxpayer - 50px left (400 - 50), 10px down (524 - 10)
     "Representative Date": (535, 150),
     "Representative Designation": (62, 150),
     "Representative Jurisdiction": (110, 150),
@@ -105,77 +112,119 @@ def create_overlay(data, path):
             return truncate_at_word_boundary(upper, max_length)
         return upper
     
-    # Build address lines from individual fields
-    principal_address_lines = []
-    principal_address = process_text(data.get("principalAddress", ""), max_length=80)
-    if principal_address:
-        principal_address_lines.append(principal_address)
+    # Page 1
+    # Input 1: Taxpayer (Company) Information - Same format as 8821
+    # Line 1: Full company name
+    company_name = process_text(data.get("companyName", ""), max_length=80)
+    if company_name:
+        c.drawString(*FIELD_POSITIONS["Taxpayer Name"], company_name)
     
-    principal_city = process_text(data.get("principalCity", ""))
-    principal_state = process_text(data.get("principalState", ""))
-    principal_zip = str(data.get("principalZip", "")).strip()
+    # Line 2: Street address
+    company_address = process_text(data.get("companyAddress", ""), max_length=80)
+    if company_address:
+        c.drawString(*FIELD_POSITIONS["Taxpayer Address 1"], company_address)
     
-    if principal_city or principal_state or principal_zip:
-        city_state_zip = ", ".join(filter(None, [
-            principal_city,
-            principal_state,
-            principal_zip
-        ]))
-        if city_state_zip:
-            principal_address_lines.append(truncate_at_word_boundary(city_state_zip, max_length=80))
+    # Line 3: City, State, Zip
+    company_city = process_text(data.get("companyCity", ""))
+    company_state = process_text(data.get("companyState", ""))
+    company_zip = str(data.get("companyZip", "")).strip()
+    city_state_zip = ", ".join(filter(None, [company_city, company_state, company_zip]))
+    if city_state_zip:
+        c.drawString(*FIELD_POSITIONS["Taxpayer Address 2"], truncate_at_word_boundary(city_state_zip, max_length=80))
     
-    representative_address_lines = []
+    # Telephone number (same position as 8821)
+    company_phone = process_text(data.get("companyPhone", ""), max_length=20)
+    if company_phone:
+        c.drawString(*FIELD_POSITIONS["Taxpayer Phone"], company_phone)
+    
+    # Input 2: Representative (Antonio Regojo) Information - Same format as 8821
+    # Name
+    representative_name = process_text(data.get("representativeName", ""), max_length=80)
+    if representative_name:
+        c.drawString(*FIELD_POSITIONS["Representative Name"], representative_name)
+    
+    # Address Line 1: Street address
     representative_address = process_text(data.get("representativeAddress", ""), max_length=80)
     if representative_address:
-        representative_address_lines.append(representative_address)
+        c.drawString(*FIELD_POSITIONS["Representative Address 1"], representative_address)
     
+    # Address Line 2: City, State, Zip
     representative_city = process_text(data.get("representativeCity", ""))
     representative_state = process_text(data.get("representativeState", ""))
     representative_zip = str(data.get("representativeZip", "")).strip()
+    rep_city_state_zip = ", ".join(filter(None, [representative_city, representative_state, representative_zip]))
+    if rep_city_state_zip:
+        c.drawString(*FIELD_POSITIONS["Representative Address 2"], truncate_at_word_boundary(rep_city_state_zip, max_length=80))
     
-    if representative_city or representative_state or representative_zip:
-        city_state_zip = ", ".join(filter(None, [
-            representative_city,
-            representative_state,
-            representative_zip
-        ]))
-        if city_state_zip:
-            representative_address_lines.append(truncate_at_word_boundary(city_state_zip, max_length=80))
+    # Representative Phone and Fax (same positions as 8821)
+    representative_phone = process_text(data.get("representativePhone", ""), max_length=20)
+    if representative_phone:
+        c.drawString(*FIELD_POSITIONS["Representative Phone"], representative_phone)
     
-    # Page 1
-    # Taxpayer (Principal) Name and Address
-    principal_name = process_text(data.get("principalName", ""), max_length=80)
-    if principal_name:
-        c.drawString(56, 638, principal_name)
-    for i, line in enumerate(principal_address_lines):
-        c.drawString(56, 638 - (i + 1) * 12, line)
+    representative_fax = process_text(data.get("representativeFax", ""), max_length=20)
+    if representative_fax:
+        c.drawString(*FIELD_POSITIONS["Representative Fax"], representative_fax)
     
-    # Representative Name and Address
-    representative_name = process_text(data.get("representativeName", ""), max_length=80)
-    if representative_name:
-        c.drawString(56, 565, representative_name)
-    for i, line in enumerate(representative_address_lines):
-        c.drawString(56, 565 - (i + 1) * 12, line)
+    # Section 3: Acts Authorized
+    # Description of Matter | Tax Form Number | Year(s) or Period(s)
+    authorized_type = process_text(data.get("authorizedType", "INCOME TAX"), max_length=30)
+    authorized_form = process_text(data.get("authorizedForm", ""), max_length=20)  # 1065, 1120, or 1120-S
+    authorized_year = process_text(data.get("authorizedYear", ""), max_length=10)  # Formation year
     
-    c.drawString(*FIELD_POSITIONS["Representative PTIN"], process_text(data.get("representativePTIN", ""), max_length=20))
-    c.drawString(*FIELD_POSITIONS["Representative Fax"], process_text(data.get("representativeFax", ""), max_length=20))
+    # Always draw these fields - they are required
+    if authorized_type:
+        c.drawString(*FIELD_POSITIONS["Authorized Type 1"], authorized_type)
+        print(f"✅ Drew authorized type '{authorized_type}' at {FIELD_POSITIONS['Authorized Type 1']}")
+    else:
+        # Fallback if not provided
+        c.drawString(*FIELD_POSITIONS["Authorized Type 1"], "INCOME TAX")
+        print(f"✅ Drew authorized type 'INCOME TAX' (fallback) at {FIELD_POSITIONS['Authorized Type 1']}")
     
-    # Authorized Matters (from years field - parse if needed)
-    years = process_text(data.get("years", ""), max_length=30)
-    if years:
-        c.drawString(*FIELD_POSITIONS["Authorized Type 1"], "TAX MATTERS")
-        c.drawString(*FIELD_POSITIONS["Authorized Form 1"], "ALL FORMS")
-        c.drawString(*FIELD_POSITIONS["Authorized Year 1"], years)
+    if authorized_form:
+        c.drawString(*FIELD_POSITIONS["Authorized Form 1"], authorized_form)
+        print(f"✅ Drew authorized form '{authorized_form}' at {FIELD_POSITIONS['Authorized Form 1']}")
+    else:
+        print(f"⚠️ WARNING: authorizedForm is missing in data")
+    
+    if authorized_year:
+        c.drawString(*FIELD_POSITIONS["Authorized Year 1"], authorized_year)
+        print(f"✅ Drew authorized year '{authorized_year}' at {FIELD_POSITIONS['Authorized Year 1']}")
+    else:
+        print(f"⚠️ WARNING: authorizedYear is missing in data")
+    
+    # EIN | SS4 | Year (need to find coordinates for this)
+    ein = process_text(data.get("ein", ""), max_length=20)
+    ss4 = process_text(data.get("ss4", "SS-4"), max_length=10)
+    formation_year = process_text(data.get("formationYear", ""), max_length=10)
+    # TODO: Find correct coordinates for EIN | SS4 | Year field
     
     c.setFont("Helvetica-Bold", 10.5)
     c.drawString(570, 160, "✓")  # Checkbox
     c.showPage()
     
     # Page 2
+    # IMPORTANT: Set font and color again after showPage() - font settings don't persist across pages
     c.setFont("Helvetica", 9)
-    c.drawString(*FIELD_POSITIONS["Signature Name"], process_text(data.get("principalName", ""), max_length=80))
-    c.drawString(*FIELD_POSITIONS["Signature Title"], process_text(data.get("principalTitle", ""), max_length=50))
-    c.drawString(*FIELD_POSITIONS["Signature Company"], process_text(data.get("companyName", ""), max_length=80))
+    c.setFillColorRGB(0, 0, 0)  # Ensure black text (not transparent)
+    
+    # Section 7: Taxpayer signature
+    # Print name: Full name of responsible party
+    signature_name = process_text(data.get("signatureName", ""), max_length=80)
+    if signature_name:
+        c.drawString(*FIELD_POSITIONS["Signature Name"], signature_name)
+        print(f"✅ Drew signature name '{signature_name}' at {FIELD_POSITIONS['Signature Name']} on PAGE 2")
+    
+    # Print name of taxpayer: Full company name
+    signature_company = process_text(data.get("signatureCompanyName", ""), max_length=80)
+    if signature_company:
+        c.drawString(*FIELD_POSITIONS["Signature Company"], signature_company)
+        print(f"✅ Drew signature company '{signature_company}' at {FIELD_POSITIONS['Signature Company']} on PAGE 2")
+    
+    # Title: Responsible party title
+    signature_title = process_text(data.get("signatureTitle", ""), max_length=50)
+    if signature_title:
+        c.drawString(*FIELD_POSITIONS["Signature Title"], signature_title)
+        print(f"✅ Drew signature title '{signature_title}' at {FIELD_POSITIONS['Signature Title']} on PAGE 2")
     c.drawString(*FIELD_POSITIONS["Representative Date"], process_text(data.get("representativeDate", ""), max_length=20))
     c.drawString(*FIELD_POSITIONS["Representative Designation"], process_text(data.get("representativeDesignation", ""), max_length=50))
     c.drawString(*FIELD_POSITIONS["Representative Jurisdiction"], process_text(data.get("representativeJurisdiction", ""), max_length=50))
