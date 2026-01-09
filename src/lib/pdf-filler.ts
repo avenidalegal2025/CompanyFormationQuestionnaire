@@ -453,45 +453,33 @@ function transformDataFor8821(formData: QuestionnaireData): any {
   
   // Determine signature name and title
   // IMPORTANT: For 8821, name and title are SEPARATE fields (unlike SS-4 where they're combined)
-  // Name field: Just the person's name (no role/title) - USE SAME AS SS-4 (responsiblePartyName)
+  // Name field: Just the person's name (no role/title) - USE SAME AS 2848 (responsiblePartyName)
   // Title field: Just the role/title
-  // Use responsiblePartyName directly (same as 2848 and SS-4) - this ensures consistency
-  let signatureName = responsiblePartyName || baseName;  // Prefer responsiblePartyName (same as SS-4)
-  let signatureTitle = '';
+  // CRITICAL: Use same logic as 2848 - always use responsiblePartyName with same fallbacks
+  const signatureName = (() => {
+    // Priority: responsiblePartyName > first owner > fallback (SAME AS 2848)
+    if (responsiblePartyName && responsiblePartyName.trim()) {
+      return responsiblePartyName;
+    }
+    if (owners.length > 0) {
+      const firstOwner = owners[0] as any;
+      return firstOwner.fullName || firstOwner.name || '[NO OWNER NAME]';
+    }
+    return '[NO OWNER]'; // Never empty string (SAME AS 2848)
+  })();
   
-  // Check if sole proprietor (1 owner with 100% ownership)
-  // Note: Ownership percentage might be stored differently in questionnaire data
+  // Determine signature title based on entity type
+  let signatureTitle = '';
   const isSoleProprietor = ownerCount === 1;
   
   if (isCorp && (entityType.toUpperCase().includes('C-CORP') || entityType.toUpperCase().includes('S-CORP'))) {
-    // For C-Corp and S-Corp: Title is PRESIDENT
-    signatureName = responsiblePartyName || baseName;  // Use responsiblePartyName (same as SS-4)
     signatureTitle = 'PRESIDENT';
   } else if (isSoleProprietor && isLLC) {
-    // Sole proprietor (1 owner with 100% ownership) - Title is SOLE MEMBER
-    signatureName = responsiblePartyName || baseName;  // Use responsiblePartyName (same as SS-4)
     signatureTitle = 'SOLE MEMBER';
   } else if (isLLC) {
-    // Multi-member LLC - Title is MEMBER
-    signatureName = responsiblePartyName || baseName;  // Use responsiblePartyName (same as SS-4)
     signatureTitle = 'MEMBER';
   } else {
-    // Default fallback - use first owner's name, never 'AUTHORIZED SIGNER'
-    signatureName = responsiblePartyName || baseName || (owners.length > 0 ? owners[0]?.fullName : '');
     signatureTitle = 'AUTHORIZED SIGNER'; // Only title can be this, not the name
-  }
-  
-  // CRITICAL: Ensure we always have a signature name - NEVER empty
-  if (!signatureName || signatureName.trim() === '') {
-    // Use first owner as absolute fallback
-    if (owners.length > 0) {
-      const firstOwner = owners[0] as any;
-      signatureName = firstOwner.fullName || firstOwner.name || baseName || '[NO NAME]';
-      console.error(`❌ WARNING: signatureName was empty, using first owner: "${signatureName}"`);
-    } else {
-      signatureName = baseName || '[NO OWNER]';
-      console.error(`❌ CRITICAL: No owners found! Using: "${signatureName}"`);
-    }
   }
   if (!signatureTitle || signatureTitle.trim() === '') {
     signatureTitle = 'AUTHORIZED SIGNER'; // Only title can default to this
