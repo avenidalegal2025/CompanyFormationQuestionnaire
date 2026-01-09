@@ -320,8 +320,18 @@ function transformDataFor2848(formData: QuestionnaireData): any {
     formationYear: formationYear,
     
     // Signature information (Section 7)
-    // CRITICAL: Always use actual name, never 'AUTHORIZED SIGNER'
-    signatureName: responsiblePartyName || (owners.length > 0 ? owners[0]?.fullName : '') || '', // Full name of responsible party
+    // CRITICAL: Always use actual name, never 'AUTHORIZED SIGNER' or empty string
+    signatureName: (() => {
+      // Priority: responsiblePartyName > first owner > fallback
+      if (responsiblePartyName && responsiblePartyName.trim()) {
+        return responsiblePartyName;
+      }
+      if (owners.length > 0) {
+        const firstOwner = owners[0] as any;
+        return firstOwner.fullName || firstOwner.name || '[NO OWNER NAME]';
+      }
+      return '[NO OWNER]'; // Never empty string
+    })(),
     signatureTitle: signatureTitle, // PRESIDENT, SOLE MEMBER, MEMBER, etc.
     signatureCompanyName: company.companyName || '', // Full company name
   };
@@ -395,21 +405,19 @@ function transformDataFor8821(formData: QuestionnaireData): any {
   // Prefer fullName, then first+last from the separate vars we already computed
   let baseName = responsiblePartyName || `${responsiblePartyFirstName} ${responsiblePartyLastName}`.trim();
   
-  // Final fallback - use first owner's fullName if available
-  if ((!baseName || baseName.trim() === '') && owners.length > 0) {
-    const firstOwner = owners[0] as any;
-    baseName = firstOwner.fullName || '';
-  }
-  
-  // CRITICAL: We MUST have a name - if we don't, log error but use first owner
+  // CRITICAL: We MUST have a name - use first owner as hard requirement
   if (!baseName || baseName.trim() === '') {
-    console.error('❌ ERROR: No responsible party name found! Using first owner as fallback.');
-    if (owners.length > 0 && owners[0]?.fullName) {
-      baseName = owners[0].fullName;
-    } else {
-      console.error('❌ CRITICAL ERROR: No owners found! Cannot generate signature name.');
-      // Don't use 'AUTHORIZED SIGNER' - throw error or use empty string
-      baseName = '';
+    if (owners.length > 0) {
+      const firstOwner = owners[0] as any;
+      baseName = firstOwner.fullName || firstOwner.name || '';
+      console.log(`⚠️ Using first owner as fallback: "${baseName}"`);
+    }
+    
+    // If still empty, this is a critical error
+    if (!baseName || baseName.trim() === '') {
+      console.error('❌ CRITICAL ERROR: No owner name found! Cannot generate signature.');
+      // Use a placeholder that will be visible in logs but won't be "AUTHORIZED SIGNER"
+      baseName = '[NO OWNER NAME]';
     }
   }
   
@@ -443,10 +451,17 @@ function transformDataFor8821(formData: QuestionnaireData): any {
     signatureTitle = 'AUTHORIZED SIGNER'; // Only title can be this, not the name
   }
   
-  // Ensure we always have a signature name (final safety check) - NO 'AUTHORIZED SIGNER' for name
+  // CRITICAL: Ensure we always have a signature name - NEVER empty
   if (!signatureName || signatureName.trim() === '') {
-    signatureName = responsiblePartyName || baseName || (owners.length > 0 ? owners[0]?.fullName : '');
-    console.error('❌ WARNING: signatureName is still empty after all fallbacks!');
+    // Use first owner as absolute fallback
+    if (owners.length > 0) {
+      const firstOwner = owners[0] as any;
+      signatureName = firstOwner.fullName || firstOwner.name || baseName || '[NO NAME]';
+      console.error(`❌ WARNING: signatureName was empty, using first owner: "${signatureName}"`);
+    } else {
+      signatureName = baseName || '[NO OWNER]';
+      console.error(`❌ CRITICAL: No owners found! Using: "${signatureName}"`);
+    }
   }
   if (!signatureTitle || signatureTitle.trim() === '') {
     signatureTitle = 'AUTHORIZED SIGNER'; // Only title can default to this
