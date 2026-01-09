@@ -201,9 +201,10 @@ def create_overlay(data, path):
     formation_year = process_text(data.get("formationYear", ""), max_length=10)
     
     # Draw EIN | SS-4 | Year fields
-    if ein:
-        c.drawString(*FIELD_POSITIONS["EIN"], ein)
-        print(f"✅ Drew EIN '{ein}' at {FIELD_POSITIONS['EIN']}")
+    # Always draw EIN (use value if provided, otherwise use "EIN" as label)
+    ein_text = ein if ein else "EIN"
+    c.drawString(*FIELD_POSITIONS["EIN"], ein_text)
+    print(f"✅ Drew EIN '{ein_text}' at {FIELD_POSITIONS['EIN']}")
     if ss4:
         c.drawString(*FIELD_POSITIONS["SS4"], ss4)
         print(f"✅ Drew SS-4 '{ss4}' at {FIELD_POSITIONS['SS4']}")
