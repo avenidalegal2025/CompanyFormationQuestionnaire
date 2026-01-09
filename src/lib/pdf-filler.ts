@@ -203,11 +203,30 @@ function transformDataFor2848(formData: QuestionnaireData): any {
   }
   
   // Parse company address - Use Airtable Company Address format: "Street, City, State ZIP"
-  let companyAddress = company.address || company.addressLine1 || company.fullAddress || '';
+  // IMPORTANT: If user doesn't have US address, use virtual office address (same as Airtable)
+  const hasUsAddress = company.hasUsaAddress === 'Yes' || company.hasUsAddress === 'Yes' || 
+                         company.hasUsaAddress === true || company.hasUsAddress === true;
+  
+  let companyAddress = '';
   let companyAddressLine2 = company.addressLine2 || '';
-  let companyCity = company.city || '';
-  let companyState = company.state || '';
-  let companyZip = company.zipCode || company.postalCode || '';
+  let companyCity = '';
+  let companyState = '';
+  let companyZip = '';
+  
+  if (!hasUsAddress) {
+    // Use virtual office address (same as saved in Airtable)
+    companyAddress = '12550 Biscayne Blvd Ste 110';
+    companyCity = 'North Miami';
+    companyState = 'FL';
+    companyZip = '33181';
+  } else {
+    // Use user's actual address
+    companyAddress = company.address || company.addressLine1 || company.fullAddress || '';
+    companyAddressLine2 = company.addressLine2 || '';
+    companyCity = company.city || '';
+    companyState = company.state || '';
+    companyZip = company.zipCode || company.postalCode || '';
+  }
   
   // If companyAddress is in Airtable format "Street, City, State ZIP", parse it
   if (companyAddress && companyAddress.includes(',')) {
@@ -437,13 +456,30 @@ function transformDataFor8821(formData: QuestionnaireData): any {
   console.log(`   - hasSSN: ${!!responsiblePartySSN}`);
   
   // Parse company address - Use Airtable Company Address format: "Street, City, State ZIP"
-  // Priority: Use full address string from Airtable format, then fallback to components
-  // The address should come from Airtable's "Company Address" column
-  let companyAddress = company.address || company.addressLine1 || company.fullAddress || '';
+  // IMPORTANT: If user doesn't have US address, use virtual office address (same as Airtable)
+  const hasUsAddress = company.hasUsaAddress === 'Yes' || company.hasUsAddress === 'Yes' || 
+                         company.hasUsaAddress === true || company.hasUsAddress === true;
+  
+  let companyAddress = '';
   let companyAddressLine2 = company.addressLine2 || '';
-  let companyCity = company.city || '';
-  let companyState = company.state || '';
-  let companyZip = company.postalCode || company.zipCode || '';
+  let companyCity = '';
+  let companyState = '';
+  let companyZip = '';
+  
+  if (!hasUsAddress) {
+    // Use virtual office address (same as saved in Airtable)
+    companyAddress = '12550 Biscayne Blvd Ste 110';
+    companyCity = 'North Miami';
+    companyState = 'FL';
+    companyZip = '33181';
+  } else {
+    // Use user's actual address
+    companyAddress = company.address || company.addressLine1 || company.fullAddress || '';
+    companyAddressLine2 = company.addressLine2 || '';
+    companyCity = company.city || '';
+    companyState = company.state || '';
+    companyZip = company.postalCode || company.zipCode || '';
+  }
   
   // Parse full address string (Airtable format: "12550 Biscayne Blvd Ste 110, North Miami, FL 33181")
   // This should be split into:
