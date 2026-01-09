@@ -42,11 +42,23 @@ export default function CompanySwitcher({ userEmail, selectedCompanyId, onCompan
       if (paymentCompleted === 'true') {
         // Payment was just completed, wait a bit for webhook to process
         // Then refetch to get the new company
-        console.log('💳 Payment completed detected, will refetch companies in 3 seconds...');
-        const timer = setTimeout(() => {
+        // CRITICAL: Keep refetching until we find a newer company or timeout
+        console.log('💳 Payment completed detected, will refetch companies multiple times...');
+        let refetchCount = 0;
+        const maxRefetches = 10; // Try for up to 30 seconds (10 * 3s)
+        
+        const refetchInterval = setInterval(() => {
+          refetchCount++;
+          console.log(`🔄 Refetch attempt ${refetchCount}/${maxRefetches} for new company...`);
           fetchCompanies();
-        }, 3000);
-        return () => clearTimeout(timer);
+          
+          if (refetchCount >= maxRefetches) {
+            console.log('⏱️ Max refetch attempts reached, stopping...');
+            clearInterval(refetchInterval);
+          }
+        }, 3000); // Refetch every 3 seconds
+        
+        return () => clearInterval(refetchInterval);
       } else {
         // No payment, just do a quick refetch to ensure we have latest data
         const timer = setTimeout(() => {
@@ -114,9 +126,30 @@ export default function CompanySwitcher({ userEmail, selectedCompanyId, onCompan
         // Always consider the newest company (sorted by Payment Date desc)
         const newestCompany = companiesList[0];
         const paymentCompleted = localStorage.getItem('paymentCompleted');
+        const currentSelectedId = localStorage.getItem('selectedCompanyId');
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:86',message:'Before selection logic',data:{newestCompanyId:newestCompany?.id,newestCompanyName:newestCompany?.companyName,newestCreatedAt:newestCompany?.createdAt,selectedCompanyId,paymentCompleted,userSelectedCompanyId:localStorage.getItem('userSelectedCompanyId')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+        fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:86',message:'Before selection logic',data:{newestCompanyId:newestCompany?.id,newestCompanyName:newestCompany?.companyName,newestCreatedAt:newestCompany?.createdAt,selectedCompanyId,currentSelectedId,paymentCompleted,userSelectedCompanyId:localStorage.getItem('userSelectedCompanyId'),companiesCount:companiesList.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
         // #endregion
+        
+        // CRITICAL: If paymentCompleted is true, ALWAYS check if we should update selection
+        // Even if selectedCompanyId is already set, we need to check if a newer company appeared
+        if (paymentCompleted === 'true' && newestCompany) {
+          const currentSelected = companiesList.find((c: Company) => c.id === currentSelectedId);
+          const currentSelectedDate = currentSelected ? new Date(currentSelected.createdAt).getTime() : 0;
+          const newestDate = new Date(newestCompany.createdAt).getTime();
+          
+          // If newest company is newer than currently selected, update selection
+          if (!currentSelected || newestDate > currentSelectedDate) {
+            console.log('🔄 Newer company detected, updating selection...');
+            console.log(`   Current: ${currentSelected?.companyName || 'none'} (${currentSelectedDate})`);
+            console.log(`   Newest: ${newestCompany.companyName} (${newestDate})`);
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:95',message:'Newer company found during paymentCompleted refetch',data:{currentSelectedId,currentSelectedName:currentSelected?.companyName,newestCompanyId:newestCompany.id,newestCompanyName:newestCompany.companyName,willUpdate:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
+            selectNewest();
+            return; // Exit early - don't run other selection logic
+          }
+        }
 
         // Helper to select and persist newest
         const selectNewest = () => {
