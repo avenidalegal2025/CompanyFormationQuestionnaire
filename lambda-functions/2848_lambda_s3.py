@@ -80,7 +80,7 @@ FIELD_POSITIONS = {
     "Representative Fax": (453, 542),  # Representative fax - moved 4px up (538 + 4)
     "Representative PTIN": (415, 555),
     "Authorized Type 1": (80, 232),  # Income Tax - keep same
-    "Authorized Form 1": (340, 212),  # Tax Form Number - moved 20px down (232 - 20)
+    "Authorized Form 1": (340, 227),  # Tax Form Number (1065/1120/1120-S) - moved 15px up (212 + 15)
     "Authorized Year 1": (500, 212),  # Year - moved 20px down (232 - 20)
     "EIN": (80, 190),  # EIN field - 20px below Year (212 - 22)
     "SS4": (340, 190),  # SS-4 field
@@ -88,7 +88,7 @@ FIELD_POSITIONS = {
     "Authorized Type 2": (80, 210),
     "Authorized Form 2": (340, 210),
     "Authorized Year 2": (500, 210),
-    "Signature Name": (55, 524),
+    "Signature Name": (55, 522),  # Print name - moved 2px down (524 - 2)
     "Signature Title": (400, 554),  # Title - 20px left (420 - 20), 5px down (559 - 5)
     "Signature Company": (310, 519),  # Print name of taxpayer - 40px left (350 - 40), 5px up (514 + 5)
     "Representative Date": (535, 150),
