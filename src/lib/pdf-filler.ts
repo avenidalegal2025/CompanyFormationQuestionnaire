@@ -125,7 +125,7 @@ function transformDataForSS4(formData: QuestionnaireData): any {
     
     // Responsible Party (first owner with SSN, or primary owner if none have SSN)
     // CRITICAL: Always use fullName from owner object, never empty (same as SS-4 uses Owner 1 Name)
-    responsiblePartyName: responsibleOwner?.fullName || responsibleOwner?.name || '',
+    responsiblePartyName: responsibleOwner?.fullName || '',
     responsiblePartySSN: hasValidSSN ? (responsibleOwner.ssn || responsibleOwner.tin || '') : 'N/A-FOREIGN', // N/A-FOREIGN if no owner has SSN
     responsiblePartyAddress: responsibleOwner.address || responsibleOwner.addressLine1 || '',
     responsiblePartyCity: responsibleOwner.city || '',
@@ -165,7 +165,7 @@ function transformDataFor2848(formData: QuestionnaireData): any {
   // Get responsible party (same logic as SS-4) - must have SSN
   // CRITICAL: Always start with owners[0] as fallback (same as SS-4 from Airtable uses Owner 1 Name)
   let responsibleParty: any = owners.length > 0 ? owners[0] : null;
-  let responsiblePartyName = responsibleParty?.fullName || responsibleParty?.name || '';
+  let responsiblePartyName = responsibleParty?.fullName || '';
   let responsiblePartySSN = responsibleParty?.ssn || responsibleParty?.tin || '';
   let responsiblePartyOfficerRole = '';
   
@@ -175,7 +175,7 @@ function transformDataFor2848(formData: QuestionnaireData): any {
     const foundParty = owners.find(o => o.fullName === agreementTaxOwnerName);
     if (foundParty) {
       responsibleParty = foundParty;
-      responsiblePartyName = foundParty.fullName || foundParty.name || '';
+      responsiblePartyName = foundParty.fullName || '';
       responsiblePartySSN = foundParty.ssn || foundParty.tin || '';
     }
   }
@@ -191,12 +191,12 @@ function transformDataFor2848(formData: QuestionnaireData): any {
     
     if (ownerWithSSN) {
       responsibleParty = ownerWithSSN;
-      responsiblePartyName = ownerWithSSN.fullName || ownerWithSSN.name || '';
+      responsiblePartyName = ownerWithSSN.fullName || '';
       responsiblePartySSN = ownerWithSSN.ssn || ownerWithSSN.tin || '';
     } else if (owners.length > 0) {
       // Fallback to first owner (same as SS-4 uses Owner 1 Name when no SSN)
       responsibleParty = owners[0];
-      responsiblePartyName = owners[0].fullName || owners[0].name || '';
+      responsiblePartyName = owners[0].fullName || '';
       responsiblePartySSN = owners[0].ssn || owners[0].tin || '';
     }
   }
@@ -343,7 +343,7 @@ function transformDataFor2848(formData: QuestionnaireData): any {
       }
       if (owners.length > 0) {
         const firstOwner = owners[0] as any;
-        return firstOwner.fullName || firstOwner.name || '[NO OWNER NAME]';
+        return firstOwner.fullName || '[NO OWNER NAME]';
       }
       return '[NO OWNER]'; // Never empty string
     })(),
@@ -369,7 +369,7 @@ function transformDataFor8821(formData: QuestionnaireData): any {
   // Get responsible party (same logic as SS-4) - must have SSN
   // CRITICAL: Always start with owners[0] as fallback (same as SS-4 from Airtable uses Owner 1 Name)
   let responsibleParty: any = owners.length > 0 ? owners[0] : null;
-  let responsiblePartyName = responsibleParty?.fullName || responsibleParty?.name || '';
+  let responsiblePartyName = responsibleParty?.fullName || '';
   let responsiblePartyFirstName = '';
   let responsiblePartyLastName = '';
   let responsiblePartySSN = responsibleParty?.ssn || responsibleParty?.tin || '';
@@ -388,7 +388,7 @@ function transformDataFor8821(formData: QuestionnaireData): any {
     const foundParty = owners.find(o => o.fullName === agreementTaxOwnerName);
     if (foundParty) {
       responsibleParty = foundParty;
-      responsiblePartyName = foundParty.fullName || foundParty.name || '';
+      responsiblePartyName = foundParty.fullName || '';
       const nameParts = responsiblePartyName.split(' ');
       responsiblePartyFirstName = nameParts[0] || '';
       responsiblePartyLastName = nameParts.slice(1).join(' ') || '';
@@ -407,7 +407,7 @@ function transformDataFor8821(formData: QuestionnaireData): any {
     
     if (ownerWithSSN) {
       responsibleParty = ownerWithSSN;
-      responsiblePartyName = ownerWithSSN.fullName || ownerWithSSN.name || '';
+      responsiblePartyName = ownerWithSSN.fullName || '';
       const nameParts = responsiblePartyName.split(' ');
       responsiblePartyFirstName = nameParts[0] || '';
       responsiblePartyLastName = nameParts.slice(1).join(' ') || '';
@@ -415,7 +415,7 @@ function transformDataFor8821(formData: QuestionnaireData): any {
     } else if (owners.length > 0) {
       // Fallback to first owner (same as SS-4 uses Owner 1 Name when no SSN)
       responsibleParty = owners[0];
-      responsiblePartyName = owners[0].fullName || owners[0].name || '';
+      responsiblePartyName = owners[0].fullName || '';
       const nameParts = responsiblePartyName.split(' ');
       responsiblePartyFirstName = nameParts[0] || '';
       responsiblePartyLastName = nameParts.slice(1).join(' ') || '';
@@ -439,7 +439,7 @@ function transformDataFor8821(formData: QuestionnaireData): any {
   if (!baseName || baseName.trim() === '') {
     if (owners.length > 0) {
       const firstOwner = owners[0] as any;
-      baseName = firstOwner.fullName || firstOwner.name || '';
+      baseName = firstOwner.fullName || '';
       console.log(`⚠️ Using first owner as fallback: "${baseName}"`);
     }
     
@@ -463,7 +463,7 @@ function transformDataFor8821(formData: QuestionnaireData): any {
     }
     if (owners.length > 0) {
       const firstOwner = owners[0] as any;
-      return firstOwner.fullName || firstOwner.name || '[NO OWNER NAME]';
+      return firstOwner.fullName || '[NO OWNER NAME]';
     }
     return '[NO OWNER]'; // Never empty string (SAME AS 2848)
   })();
