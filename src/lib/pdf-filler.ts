@@ -91,7 +91,8 @@ function transformDataForSS4(formData: QuestionnaireData): any {
   // Find the first owner/partner with an SSN for responsible party (Line 7a and 7b)
   // If one of the partners has a SSN, use their full name for 7a and their SSN for 7b
   // If no one has a SSN, use Owner 1's name for 7a but leave 7b empty
-  let responsibleOwner = owners[0] || {};
+  // CRITICAL: Always start with owners[0] as fallback (same as SS-4 from Airtable uses Owner 1 Name)
+  let responsibleOwner = owners.length > 0 ? owners[0] : null;
   let hasValidSSN = false;
   
   for (const owner of owners) {
@@ -101,6 +102,11 @@ function transformDataForSS4(formData: QuestionnaireData): any {
       hasValidSSN = true;
       break; // Use the first owner with valid SSN
     }
+  }
+  
+  // CRITICAL: Always ensure we have an owner (same as SS-4 from Airtable always has Owner 1 Name)
+  if (!responsibleOwner && owners.length > 0) {
+    responsibleOwner = owners[0];
   }
   
   // Get company name without entity suffix for some fields
@@ -118,7 +124,8 @@ function transformDataForSS4(formData: QuestionnaireData): any {
     companyAddress: company.address || company.addressLine1 || company.fullAddress || '',
     
     // Responsible Party (first owner with SSN, or primary owner if none have SSN)
-    responsiblePartyName: responsibleOwner.fullName || '',
+    // CRITICAL: Always use fullName from owner object, never empty (same as SS-4 uses Owner 1 Name)
+    responsiblePartyName: responsibleOwner?.fullName || responsibleOwner?.name || '',
     responsiblePartySSN: hasValidSSN ? (responsibleOwner.ssn || responsibleOwner.tin || '') : 'N/A-FOREIGN', // N/A-FOREIGN if no owner has SSN
     responsiblePartyAddress: responsibleOwner.address || responsibleOwner.addressLine1 || '',
     responsiblePartyCity: responsibleOwner.city || '',
@@ -155,34 +162,42 @@ function transformDataFor2848(formData: QuestionnaireData): any {
   const isSCorp = entityType.toUpperCase().includes('S-CORP') || entityType.toUpperCase().includes('S CORP');
   const ownerCount = owners.length;
   
-  // Get responsible party (same logic as SS-4 and 8821) - must have SSN
-  let responsibleParty: any = null;
-  let responsiblePartyName = '';
-  let responsiblePartySSN = '';
+  // Get responsible party (same logic as SS-4) - must have SSN
+  // CRITICAL: Always start with owners[0] as fallback (same as SS-4 from Airtable uses Owner 1 Name)
+  let responsibleParty: any = owners.length > 0 ? owners[0] : null;
+  let responsiblePartyName = responsibleParty?.fullName || responsibleParty?.name || '';
+  let responsiblePartySSN = responsibleParty?.ssn || responsibleParty?.tin || '';
   let responsiblePartyOfficerRole = '';
   
   // First, try to get from agreement (if specified)
   const agreementTaxOwnerName = agreement.corp_taxOwner || agreement.llc_taxOwner || '';
   if (agreementTaxOwnerName) {
-    responsibleParty = owners.find(o => o.fullName === agreementTaxOwnerName) || null;
-    if (responsibleParty) {
-      responsiblePartyName = responsibleParty.fullName || '';
-      responsiblePartySSN = responsibleParty.ssn || responsibleParty.tin || '';
+    const foundParty = owners.find(o => o.fullName === agreementTaxOwnerName);
+    if (foundParty) {
+      responsibleParty = foundParty;
+      responsiblePartyName = foundParty.fullName || foundParty.name || '';
+      responsiblePartySSN = foundParty.ssn || foundParty.tin || '';
     }
   }
   
-  // If not found or no SSN, find first owner with SSN
-  if (!responsibleParty || !responsiblePartySSN || responsiblePartySSN.toUpperCase().includes('FOREIGN')) {
-    responsibleParty = owners.find(o => {
+  // If not found or no SSN, find first owner with SSN (same as SS-4 logic)
+  if (!responsiblePartySSN || responsiblePartySSN.toUpperCase().includes('FOREIGN')) {
+    const ownerWithSSN = owners.find(o => {
       const ssn = o.ssn || o.tin || '';
       return ssn && ssn.trim() !== '' && 
              ssn.toUpperCase() !== 'N/A' && 
              !ssn.toUpperCase().includes('FOREIGN');
-    }) || owners[0] || null;
+    });
     
-    if (responsibleParty) {
-      responsiblePartyName = responsibleParty.fullName || '';
-      responsiblePartySSN = responsibleParty.ssn || responsibleParty.tin || '';
+    if (ownerWithSSN) {
+      responsibleParty = ownerWithSSN;
+      responsiblePartyName = ownerWithSSN.fullName || ownerWithSSN.name || '';
+      responsiblePartySSN = ownerWithSSN.ssn || ownerWithSSN.tin || '';
+    } else if (owners.length > 0) {
+      // Fallback to first owner (same as SS-4 uses Owner 1 Name when no SSN)
+      responsibleParty = owners[0];
+      responsiblePartyName = owners[0].fullName || owners[0].name || '';
+      responsiblePartySSN = owners[0].ssn || owners[0].tin || '';
     }
   }
   
@@ -352,44 +367,59 @@ function transformDataFor8821(formData: QuestionnaireData): any {
   const ownerCount = owners.length;
   
   // Get responsible party (same logic as SS-4) - must have SSN
-  // This is the person who will sign the form
-  let responsibleParty: any = null;
-  let responsiblePartyName = '';
+  // CRITICAL: Always start with owners[0] as fallback (same as SS-4 from Airtable uses Owner 1 Name)
+  let responsibleParty: any = owners.length > 0 ? owners[0] : null;
+  let responsiblePartyName = responsibleParty?.fullName || responsibleParty?.name || '';
   let responsiblePartyFirstName = '';
   let responsiblePartyLastName = '';
-  let responsiblePartySSN = '';
+  let responsiblePartySSN = responsibleParty?.ssn || responsibleParty?.tin || '';
   let responsiblePartyOfficerRole = ''; // For corporations
+  
+  // Parse name if we have it
+  if (responsiblePartyName) {
+    const nameParts = responsiblePartyName.split(' ');
+    responsiblePartyFirstName = nameParts[0] || '';
+    responsiblePartyLastName = nameParts.slice(1).join(' ') || '';
+  }
   
   // First, try to get from agreement (if specified) - this matches SS-4 logic
   const agreementTaxOwnerName = agreement.corp_taxOwner || agreement.llc_taxOwner || '';
   if (agreementTaxOwnerName) {
-    responsibleParty = owners.find(o => o.fullName === agreementTaxOwnerName) || null;
-    if (responsibleParty) {
-      responsiblePartyName = responsibleParty.fullName || '';
-      // Try to parse first/last name if available
+    const foundParty = owners.find(o => o.fullName === agreementTaxOwnerName);
+    if (foundParty) {
+      responsibleParty = foundParty;
+      responsiblePartyName = foundParty.fullName || foundParty.name || '';
       const nameParts = responsiblePartyName.split(' ');
       responsiblePartyFirstName = nameParts[0] || '';
       responsiblePartyLastName = nameParts.slice(1).join(' ') || '';
-      responsiblePartySSN = responsibleParty.ssn || responsibleParty.tin || '';
+      responsiblePartySSN = foundParty.ssn || foundParty.tin || '';
     }
   }
   
   // If not found or no SSN, find first owner with SSN (same as SS-4)
-  if (!responsibleParty || !responsiblePartySSN || responsiblePartySSN.toUpperCase().includes('FOREIGN')) {
-    // Find first owner with valid SSN
-    responsibleParty = owners.find(o => {
+  if (!responsiblePartySSN || responsiblePartySSN.toUpperCase().includes('FOREIGN')) {
+    const ownerWithSSN = owners.find(o => {
       const ssn = o.ssn || o.tin || '';
       return ssn && ssn.trim() !== '' && 
              ssn.toUpperCase() !== 'N/A' && 
              !ssn.toUpperCase().includes('FOREIGN');
-    }) || owners[0] || null;
+    });
     
-    if (responsibleParty) {
-      responsiblePartyName = responsibleParty.fullName || '';
+    if (ownerWithSSN) {
+      responsibleParty = ownerWithSSN;
+      responsiblePartyName = ownerWithSSN.fullName || ownerWithSSN.name || '';
       const nameParts = responsiblePartyName.split(' ');
       responsiblePartyFirstName = nameParts[0] || '';
       responsiblePartyLastName = nameParts.slice(1).join(' ') || '';
-      responsiblePartySSN = responsibleParty.ssn || responsibleParty.tin || '';
+      responsiblePartySSN = ownerWithSSN.ssn || ownerWithSSN.tin || '';
+    } else if (owners.length > 0) {
+      // Fallback to first owner (same as SS-4 uses Owner 1 Name when no SSN)
+      responsibleParty = owners[0];
+      responsiblePartyName = owners[0].fullName || owners[0].name || '';
+      const nameParts = responsiblePartyName.split(' ');
+      responsiblePartyFirstName = nameParts[0] || '';
+      responsiblePartyLastName = nameParts.slice(1).join(' ') || '';
+      responsiblePartySSN = owners[0].ssn || owners[0].tin || '';
     }
   }
   
