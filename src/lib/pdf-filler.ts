@@ -282,6 +282,13 @@ function transformDataFor2848(formData: QuestionnaireData): any {
     representativePhone: '786-512-0434',
     representativeFax: '866-496-4957',
     
+    // Representative signature section (Page 2)
+    representativeDesignation: 'A',
+    representativeJurisdiction: 'FLORIDA',
+    representativeLicenseNo: '41990',
+    representativeSignature: 'ANTONIO REGOJO',
+    representativeDate: new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }), // MM/DD/YYYY format
+    
     // Authorization details - Section 3
     authorizedType: 'INCOME TAX',
     authorizedForm: taxFormNumber, // 1065, 1120, or 1120-S

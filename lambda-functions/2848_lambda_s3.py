@@ -94,7 +94,8 @@ FIELD_POSITIONS = {
     "Representative Date": (535, 150),
     "Representative Designation": (62, 150),
     "Representative Jurisdiction": (110, 150),
-    "Representative License No.": (245, 150)
+    "Representative License No.": (245, 150),
+    "Representative Signature": (380, 150)  # Signature column between License and Date
 }
 
 def create_overlay(data, path):
@@ -243,6 +244,11 @@ def create_overlay(data, path):
     c.drawString(*FIELD_POSITIONS["Representative Designation"], process_text(data.get("representativeDesignation", ""), max_length=50))
     c.drawString(*FIELD_POSITIONS["Representative Jurisdiction"], process_text(data.get("representativeJurisdiction", ""), max_length=50))
     c.drawString(*FIELD_POSITIONS["Representative License No."], process_text(data.get("representativeLicenseNo", ""), max_length=30))
+    # Representative Signature
+    representative_signature = process_text(data.get("representativeSignature", ""), max_length=50)
+    if representative_signature:
+        c.drawString(*FIELD_POSITIONS["Representative Signature"], representative_signature)
+        print(f"✅ Drew representative signature '{representative_signature}' at {FIELD_POSITIONS['Representative Signature']} on PAGE 2")
     
     c.save()
 
