@@ -86,9 +86,6 @@ export default function CompanySwitcher({ userEmail, selectedCompanyId, onCompan
   const fetchCompanies = async () => {
     try {
       setLoading(true);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:74',message:'fetchCompanies entry',data:{userEmail,selectedCompanyId,propSelectedCompanyId:selectedCompanyId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       const response = await fetch(`/api/companies?email=${encodeURIComponent(userEmail)}`);
       if (response.ok) {
         const data = await response.json();
@@ -100,48 +97,38 @@ export default function CompanySwitcher({ userEmail, selectedCompanyId, onCompan
           console.log(`  ${index + 1}. ${c.companyName} (ID: ${c.id}, Created: ${c.createdAt})`);
         });
         
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:80',message:'Companies fetched from API',data:{count:companiesList.length,companies:companiesList.map((c:Company)=>({id:c.id,name:c.companyName,createdAt:c.createdAt}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
-        
         if (companiesList.length === 0) {
           console.warn(`⚠️ No companies found for email: ${userEmail}`);
           console.warn(`💡 Check:`);
           console.warn(`   1. Is the email correct?`);
           console.warn(`   2. Do the companies in Airtable have the exact same Customer Email?`);
           console.warn(`   3. Check the server logs for API errors`);
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:95',message:'No companies found in API response',data:{userEmail,paymentCompleted:localStorage.getItem('paymentCompleted')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-          // #endregion
         }
         
         setCompanies(companiesList);
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:103',message:'Companies set in state',data:{count:companiesList.length,newestCompanyId:companiesList[0]?.id,newestCompanyName:companiesList[0]?.companyName,newestCreatedAt:companiesList[0]?.createdAt},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
         
         // Always consider the newest company (sorted by Payment Date desc)
         const newestCompany = companiesList[0];
         const paymentCompleted = localStorage.getItem('paymentCompleted');
         const currentSelectedId = localStorage.getItem('selectedCompanyId');
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:86',message:'Before selection logic',data:{newestCompanyId:newestCompany?.id,newestCompanyName:newestCompany?.companyName,newestCreatedAt:newestCompany?.createdAt,selectedCompanyId,currentSelectedId,paymentCompleted,userSelectedCompanyId:localStorage.getItem('userSelectedCompanyId'),companiesCount:companiesList.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
 
         // Helper to select and persist newest
+        // IMPORTANT: This is called programmatically, NOT by user action
+        // So we should NOT set userSelectedCompanyId - only set selectedCompanyId
         const selectNewest = () => {
           if (!newestCompany) return;
           console.log('✅ Selecting newest company:', newestCompany.id);
           console.log('📋 Available companies:', companiesList.map((c: Company) => ({ id: c.id, name: c.companyName })));
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:88',message:'selectNewest called',data:{newestCompanyId:newestCompany.id,newestCompanyName:newestCompany.companyName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-          // #endregion
-          onCompanyChange(newestCompany.id);
+          // Directly update state and localStorage WITHOUT calling onCompanyChange
+          // This prevents handleCompanyChange from setting userSelectedCompanyId
+          setSelectedCompanyId(newestCompany.id);
           localStorage.setItem('selectedCompanyId', newestCompany.id);
+          // CRITICAL: Clear userSelectedCompanyId to ensure it's not marked as user-selected
+          localStorage.removeItem('userSelectedCompanyId');
           localStorage.removeItem('paymentCompleted');
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:94',message:'selectNewest completed',data:{selectedCompanyIdSet:localStorage.getItem('selectedCompanyId')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-          // #endregion
+          // Call onCompanyChange AFTER clearing userSelectedCompanyId to update parent
+          // But handleCompanyChange will see userSelectedCompanyId is cleared, so it won't set it
+          onCompanyChange(newestCompany.id);
         };
 
         // CRITICAL: If paymentCompleted is true, ALWAYS check if we should update selection
@@ -156,9 +143,6 @@ export default function CompanySwitcher({ userEmail, selectedCompanyId, onCompan
             console.log('🔄 Newer company detected, updating selection...');
             console.log(`   Current: ${currentSelected?.companyName || 'none'} (${currentSelectedDate})`);
             console.log(`   Newest: ${newestCompany.companyName} (${newestDate})`);
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:95',message:'Newer company found during paymentCompleted refetch',data:{currentSelectedId,currentSelectedName:currentSelected?.companyName,newestCompanyId:newestCompany.id,newestCompanyName:newestCompany.companyName,willUpdate:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-            // #endregion
             selectNewest();
             return; // Exit early - don't run other selection logic
           }

@@ -104,8 +104,13 @@ export default function ClientPage() {
   const handleCompanyChange = (companyId: string) => {
     setSelectedCompanyId(companyId);
     localStorage.setItem('selectedCompanyId', companyId);
-    // Mark as user-selected when user manually changes company
-    localStorage.setItem('userSelectedCompanyId', companyId);
+    // Only mark as user-selected if userSelectedCompanyId is NOT already cleared
+    // This allows programmatic selection (from selectNewest) to work without marking as user-selected
+    const currentUserSelected = localStorage.getItem('userSelectedCompanyId');
+    if (currentUserSelected !== null) {
+      // User manually changed company - mark as user-selected
+      localStorage.setItem('userSelectedCompanyId', companyId);
+    }
     // TODO: Fetch company data from API based on companyId
     // For now, we'll still use localStorage but this should be updated
     // to fetch from Airtable or DynamoDB
