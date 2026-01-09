@@ -602,86 +602,107 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
         console.error('⚠️ Failed to save documents to DynamoDB (will continue anyway):', docsError);
       }
       
-      // Step 8: Generate SS-4 from Airtable data (after payment confirmation)
-      // This is the ONLY place SS-4 is generated - ensures it uses canonical Airtable data
-      try {
-        console.log('📄 Generating SS-4 from Airtable record (post-payment confirmation)...');
-        console.log(`📋 Airtable Record ID: ${airtableRecordId}`);
-        
-        // Use internal API endpoint to generate SS-4 from Airtable
-        // In production, this will use the deployed URL; in dev, it uses localhost
-        // IMPORTANT: Use absolute URL for internal API calls in Vercel
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
-                       (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
-        
-        const apiUrl = `${baseUrl}/api/airtable/generate-ss4`;
-        console.log(`🔗 Calling SS-4 generation endpoint: ${apiUrl}`);
-        console.log(`📋 Airtable Record ID: ${airtableRecordId}`);
-        console.log(`📋 Base URL: ${baseUrl}`);
-        console.log(`📋 VERCEL_URL env: ${process.env.VERCEL_URL || 'NOT SET'}`);
-        console.log(`📋 NEXT_PUBLIC_BASE_URL env: ${process.env.NEXT_PUBLIC_BASE_URL || 'NOT SET'}`);
-        
-        console.log(`📤 Calling SS-4 generation API with recordId: ${airtableRecordId}`);
-        const generateSS4Response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            recordId: airtableRecordId,
-            updateAirtable: true, // Update the record with SS-4 URL
-          }),
-        });
-        
-        console.log(`📡 SS-4 generation API response status: ${generateSS4Response.status} ${generateSS4Response.statusText}`);
-        
-        if (generateSS4Response.ok) {
-          const ss4Result = await generateSS4Response.json();
-          console.log(`✅ SS-4 generated from Airtable successfully`);
-          console.log(`📁 SS-4 S3 Key: ${ss4Result.s3Key}`);
-          console.log(`🔗 SS-4 View URL: ${ss4Result.viewUrl}`);
-          console.log(`📊 SS-4 Result:`, JSON.stringify(ss4Result, null, 2));
+      // Step 8: Regenerate tax forms (SS-4, 2848, 8821) from Airtable data (after payment confirmation)
+      // This ensures all forms use canonical Airtable data, especially owner information
+      // IMPORTANT: Use absolute URL for internal API calls in Vercel
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
+                     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+      
+      // Helper function to regenerate a form from Airtable
+      const regenerateFormFromAirtable = async (
+        formId: string,
+        formName: string,
+        apiEndpoint: string
+      ) => {
+        try {
+          console.log(`📄 Regenerating ${formName} from Airtable record (post-payment confirmation)...`);
+          console.log(`📋 Airtable Record ID: ${airtableRecordId}`);
+          console.log(`🔗 Calling ${formName} generation endpoint: ${apiEndpoint}`);
           
-          // Update the documents array with the SS-4 from Airtable (replaces initial generation)
-          const existingSS4Index = documents.findIndex(d => d.id === 'ss4-ein-application');
-          if (existingSS4Index >= 0 && ss4Result.s3Key) {
-            // Replace existing SS-4 with the one from Airtable
-            documents[existingSS4Index].s3Key = ss4Result.s3Key;
-            documents[existingSS4Index].status = 'generated';
-            if (ss4Result.pdfSize) {
-              documents[existingSS4Index].size = ss4Result.pdfSize;
+          const response = await fetch(apiEndpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              recordId: airtableRecordId,
+              updateAirtable: true,
+            }),
+          });
+          
+          console.log(`📡 ${formName} generation API response status: ${response.status} ${response.statusText}`);
+          
+          if (response.ok) {
+            const result = await response.json();
+            console.log(`✅ ${formName} generated from Airtable successfully`);
+            console.log(`📁 ${formName} S3 Key: ${result.s3Key}`);
+            
+            // Update the documents array with the regenerated form
+            const existingIndex = documents.findIndex(d => d.id === formId);
+            if (existingIndex >= 0 && result.s3Key) {
+              // Replace existing form with the one from Airtable
+              documents[existingIndex].s3Key = result.s3Key;
+              documents[existingIndex].status = 'generated';
+              if (result.pdfSize) {
+                documents[existingIndex].size = result.pdfSize;
+              }
+              console.log(`✅ Updated ${formName} document in documents array (from Airtable)`);
+            } else if (result.s3Key) {
+              // Add form if it wasn't in the initial documents array
+              documents.push({
+                id: formId,
+                name: formName,
+                type: 'tax' as const,
+                s3Key: result.s3Key,
+                status: 'generated' as const,
+                createdAt: new Date().toISOString(),
+                size: result.pdfSize,
+              });
+              console.log(`✅ Added ${formName} document to documents array (from Airtable)`);
             }
-            console.log('✅ Updated SS-4 document in documents array (from Airtable)');
-          } else if (ss4Result.s3Key) {
-            // Add SS-4 if it wasn't in the initial documents array
-            documents.push({
-              id: 'ss4-ein-application',
-              name: 'SS-4 EIN Application',
-              type: 'tax' as const,
-              s3Key: ss4Result.s3Key,
-              status: 'generated' as const,
-              createdAt: new Date().toISOString(),
-              size: ss4Result.pdfSize,
-            });
-            console.log('✅ Added SS-4 document to documents array (from Airtable)');
+            
+            return { success: true, s3Key: result.s3Key };
+          } else {
+            const errorText = await response.text();
+            console.error(`❌ Failed to generate ${formName} from Airtable: ${response.status}`);
+            console.error(`❌ Error details: ${errorText}`);
+            return { success: false, error: errorText };
           }
-          
-          // Update DynamoDB with the SS-4 from Airtable for this specific company
-          const companyKeyForUpdate = airtableRecordId || 'default';
-          await saveUserCompanyDocuments(userId, companyKeyForUpdate, documents);
-          console.log('✅ Updated DynamoDB with SS-4 generated from Airtable (companyId=' + companyKeyForUpdate + ')');
-        } else {
-          const errorText = await generateSS4Response.text();
-          console.error(`❌ Failed to generate SS-4 from Airtable: ${generateSS4Response.status}`);
-          console.error(`❌ Error details: ${errorText}`);
-          console.error('❌ SS-4 was NOT generated - check logs above for details');
-          // Don't fail the entire process, but SS-4 will be missing
+        } catch (error: any) {
+          console.error(`❌ Error generating ${formName} from Airtable:`, error.message);
+          console.error(`❌ ${formName} generation error stack:`, error.stack);
+          return { success: false, error: error.message };
         }
-      } catch (ss4Error: any) {
-        console.error('❌ Error generating SS-4 from Airtable:', ss4Error.message);
-        console.error('❌ SS-4 generation error stack:', ss4Error.stack);
-        console.error('❌ SS-4 was NOT generated - check logs above for details');
-        // Don't fail the entire process, but SS-4 will be missing
+      };
+      
+      // Regenerate SS-4 from Airtable
+      await regenerateFormFromAirtable(
+        'ss4-ein-application',
+        'SS-4 EIN Application',
+        `${baseUrl}/api/airtable/generate-ss4`
+      );
+      
+      // Regenerate 2848 from Airtable
+      await regenerateFormFromAirtable(
+        'form-2848-power-of-attorney',
+        'Form 2848 Power of Attorney',
+        `${baseUrl}/api/airtable/generate-2848`
+      );
+      
+      // Regenerate 8821 from Airtable
+      await regenerateFormFromAirtable(
+        'form-8821-tax-authorization',
+        'Form 8821 Tax Information Authorization',
+        `${baseUrl}/api/airtable/generate-8821`
+      );
+      
+      // Update DynamoDB with all regenerated forms for this specific company
+      try {
+        const companyKeyForUpdate = airtableRecordId || 'default';
+        await saveUserCompanyDocuments(userId, companyKeyForUpdate, documents);
+        console.log('✅ Updated DynamoDB with all tax forms regenerated from Airtable (companyId=' + companyKeyForUpdate + ')');
+      } catch (dbError) {
+        console.error('⚠️ Failed to update DynamoDB with regenerated forms (continuing anyway):', dbError);
       }
       
       // Send email notification for approval

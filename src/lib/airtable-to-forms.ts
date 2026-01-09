@@ -1,0 +1,488 @@
+/**
+ * Shared utility functions to convert Airtable records to form data format
+ * Used by SS-4, 2848, and 8821 generation endpoints
+ */
+
+/**
+ * Get responsible party from Airtable fields (same logic as SS-4)
+ * Returns: { name, firstName, lastName, ssn, address, officerRole, title }
+ */
+export function getResponsiblePartyFromAirtable(fields: any): {
+  name: string;
+  firstName: string;
+  lastName: string;
+  ssn: string;
+  address: string;
+  officerRole: string;
+  title: string;
+} {
+  const entityType = fields['Entity Type'] || 'LLC';
+  const isLLC = entityType === 'LLC';
+  const isCorp = entityType === 'C-Corp' || entityType === 'S-Corp';
+  const isSCorp = entityType === 'S-Corp';
+  const isCCorp = entityType === 'C-Corp';
+  const ownerCount = fields['Owner Count'] || 0;
+
+  let responsiblePartyName = '';
+  let responsiblePartyFirstName = '';
+  let responsiblePartyLastName = '';
+  let responsiblePartySSN = '';
+  let responsiblePartyAddress = '';
+  let responsiblePartyOfficerRole = '';
+  let signatureTitle = '';
+
+  // Helper function to check if role is PRESIDENT
+  const isPresidentRole = (role: string): boolean => {
+    if (!role) return false;
+    const roleUpper = role.trim().toUpperCase();
+    return roleUpper === 'PRESIDENT' || 
+           (roleUpper.startsWith('PRESIDENT') && !roleUpper.includes('VICE') && !roleUpper.includes('CO-'));
+  };
+
+  // Helper function to get valid SSN
+  const hasValidSSN = (ssn: string): boolean => {
+    if (!ssn || ssn.trim() === '') return false;
+    const ssnUpper = ssn.toUpperCase();
+    return ssnUpper !== 'N/A' && !ssnUpper.includes('FOREIGN');
+  };
+
+  if (isCorp) {
+    // Get officers count
+    const officersCount = fields['Officers Count'] || 0;
+    const officersAllOwners = fields['Officers All Owners'] === 'Yes' || fields['Officers All Owners'] === true;
+    
+    interface OfficerInfo {
+      officerIndex: number;
+      ownerIndex: number;
+      name: string;
+      firstName: string;
+      lastName: string;
+      ssn: string;
+      address: string;
+      role: string;
+      ownershipPercent: number;
+    }
+    const allOfficers: OfficerInfo[] = [];
+    
+    if (officersAllOwners) {
+      // All owners are officers
+      for (let i = 1; i <= Math.min(ownerCount, 6); i++) {
+        const ownerName = fields[`Owner ${i} Name`] || '';
+        if (!ownerName || ownerName.trim() === '') continue;
+        
+        const ownerSSN = fields[`Owner ${i} SSN`] || '';
+        let officerRole = '';
+        for (let k = 1; k <= Math.min(officersCount, 6); k++) {
+          const officerName = fields[`Officer ${k} Name`] || '';
+          if (officerName && ownerName && 
+              officerName.trim().toLowerCase() === ownerName.trim().toLowerCase()) {
+            officerRole = fields[`Officer ${k} Role`] || '';
+            break;
+          }
+        }
+        
+        let ownershipPercent = fields[`Owner ${i} Ownership %`] || 0;
+        if (ownershipPercent < 1 && ownershipPercent > 0) {
+          ownershipPercent = ownershipPercent * 100;
+        }
+        
+        allOfficers.push({
+          officerIndex: i,
+          ownerIndex: i,
+          name: ownerName,
+          firstName: fields[`Owner ${i} First Name`] || '',
+          lastName: fields[`Owner ${i} Last Name`] || '',
+          ssn: ownerSSN,
+          address: fields[`Owner ${i} Address`] || '',
+          role: officerRole,
+          ownershipPercent: ownershipPercent,
+        });
+      }
+    } else {
+      // Specific officers, match to owners
+      for (let i = 1; i <= Math.min(officersCount, 6); i++) {
+        const officerName = fields[`Officer ${i} Name`] || '';
+        if (!officerName || officerName.trim() === '') continue;
+        
+        const officerRole = fields[`Officer ${i} Role`] || '';
+        
+        // Match to owner to get SSN and ownership
+        for (let j = 1; j <= Math.min(ownerCount, 6); j++) {
+          const ownerName = fields[`Owner ${j} Name`] || '';
+          if (ownerName && officerName && 
+              ownerName.trim().toLowerCase() === officerName.trim().toLowerCase()) {
+            const ownerSSN = fields[`Owner ${j} SSN`] || '';
+            
+            let ownershipPercent = fields[`Owner ${j} Ownership %`] || 0;
+            if (ownershipPercent < 1 && ownershipPercent > 0) {
+              ownershipPercent = ownershipPercent * 100;
+            }
+            
+            allOfficers.push({
+              officerIndex: i,
+              ownerIndex: j,
+              name: officerName,
+              firstName: fields[`Officer ${i} First Name`] || fields[`Owner ${j} First Name`] || '',
+              lastName: fields[`Officer ${i} Last Name`] || fields[`Owner ${j} Last Name`] || '',
+              ssn: ownerSSN,
+              address: fields[`Officer ${i} Address`] || fields[`Owner ${j} Address`] || '',
+              role: officerRole,
+              ownershipPercent: ownershipPercent,
+            });
+            break;
+          }
+        }
+      }
+    }
+    
+    // S-Corp: President always has SSN and always signs
+    if (isSCorp) {
+      const president = allOfficers.find(o => isPresidentRole(o.role) && hasValidSSN(o.ssn));
+      if (president) {
+        responsiblePartyName = president.name;
+        responsiblePartyFirstName = president.firstName;
+        responsiblePartyLastName = president.lastName;
+        responsiblePartySSN = president.ssn;
+        responsiblePartyAddress = president.address;
+        responsiblePartyOfficerRole = 'PRESIDENT';
+        signatureTitle = 'PRESIDENT';
+      } else {
+        throw new Error(`CRITICAL: S-Corp must have a PRESIDENT officer with SSN.`);
+      }
+    } 
+    // C-Corp: President with SSN > Any officer with SSN > Highest % owner (if no SSN)
+    else if (isCCorp) {
+      // Priority 1: President with SSN
+      const presidentWithSSN = allOfficers.find(o => isPresidentRole(o.role) && hasValidSSN(o.ssn));
+      if (presidentWithSSN) {
+        responsiblePartyName = presidentWithSSN.name;
+        responsiblePartyFirstName = presidentWithSSN.firstName;
+        responsiblePartyLastName = presidentWithSSN.lastName;
+        responsiblePartySSN = presidentWithSSN.ssn;
+        responsiblePartyAddress = presidentWithSSN.address;
+        responsiblePartyOfficerRole = 'PRESIDENT';
+        signatureTitle = 'PRESIDENT';
+      } else {
+        // Priority 2: Any officer with SSN
+        const officerWithSSN = allOfficers.find(o => hasValidSSN(o.ssn));
+        if (officerWithSSN) {
+          responsiblePartyName = officerWithSSN.name;
+          responsiblePartyFirstName = officerWithSSN.firstName;
+          responsiblePartyLastName = officerWithSSN.lastName;
+          responsiblePartySSN = officerWithSSN.ssn;
+          responsiblePartyAddress = officerWithSSN.address;
+          responsiblePartyOfficerRole = officerWithSSN.role || 'PRESIDENT';
+          signatureTitle = officerWithSSN.role || 'PRESIDENT';
+        } else {
+          // Priority 3: Highest % owner (if no SSN)
+          const sortedByOwnership = [...allOfficers].sort((a, b) => b.ownershipPercent - a.ownershipPercent);
+          if (sortedByOwnership.length > 0) {
+            const highestOwner = sortedByOwnership[0];
+            responsiblePartyName = highestOwner.name;
+            responsiblePartyFirstName = highestOwner.firstName;
+            responsiblePartyLastName = highestOwner.lastName;
+            responsiblePartySSN = highestOwner.ssn || 'N/A-FOREIGN';
+            responsiblePartyAddress = highestOwner.address;
+            responsiblePartyOfficerRole = highestOwner.role || 'PRESIDENT';
+            signatureTitle = highestOwner.role || 'PRESIDENT';
+          }
+        }
+      }
+    }
+  } else if (isLLC) {
+    // LLC: Highest % owner with SSN > Any owner with SSN > Highest % owner (if no SSN)
+    const owners: Array<{
+      name: string;
+      firstName: string;
+      lastName: string;
+      ssn: string;
+      address: string;
+      ownershipPercent: number;
+    }> = [];
+    
+    for (let i = 1; i <= Math.min(ownerCount, 6); i++) {
+      const ownerName = fields[`Owner ${i} Name`] || '';
+      if (!ownerName || ownerName.trim() === '') continue;
+      
+      let ownershipPercent = fields[`Owner ${i} Ownership %`] || 0;
+      if (ownershipPercent < 1 && ownershipPercent > 0) {
+        ownershipPercent = ownershipPercent * 100;
+      }
+      
+      owners.push({
+        name: ownerName,
+        firstName: fields[`Owner ${i} First Name`] || '',
+        lastName: fields[`Owner ${i} Last Name`] || '',
+        ssn: fields[`Owner ${i} SSN`] || '',
+        address: fields[`Owner ${i} Address`] || '',
+        ownershipPercent: ownershipPercent,
+      });
+    }
+    
+    // Priority 1: Highest % owner with SSN
+    const ownersWithSSN = owners.filter(o => hasValidSSN(o.ssn));
+    if (ownersWithSSN.length > 0) {
+      const sortedByOwnership = [...ownersWithSSN].sort((a, b) => b.ownershipPercent - a.ownershipPercent);
+      const highestOwnerWithSSN = sortedByOwnership[0];
+      responsiblePartyName = highestOwnerWithSSN.name;
+      responsiblePartyFirstName = highestOwnerWithSSN.firstName;
+      responsiblePartyLastName = highestOwnerWithSSN.lastName;
+      responsiblePartySSN = highestOwnerWithSSN.ssn;
+      responsiblePartyAddress = highestOwnerWithSSN.address;
+    } else {
+      // Priority 2: Highest % owner (if no SSN)
+      const sortedByOwnership = [...owners].sort((a, b) => b.ownershipPercent - a.ownershipPercent);
+      if (sortedByOwnership.length > 0) {
+        const highestOwner = sortedByOwnership[0];
+        responsiblePartyName = highestOwner.name;
+        responsiblePartyFirstName = highestOwner.firstName;
+        responsiblePartyLastName = highestOwner.lastName;
+        responsiblePartySSN = highestOwner.ssn || 'N/A-FOREIGN';
+        responsiblePartyAddress = highestOwner.address;
+      }
+    }
+    
+    // Determine title for LLC
+    if (ownerCount === 1) {
+      signatureTitle = 'SOLE MEMBER';
+    } else {
+      signatureTitle = 'MEMBER';
+    }
+  }
+  
+  // Fallback to Owner 1 if still empty (same as SS-4)
+  if (!responsiblePartyName || responsiblePartyName.trim() === '') {
+    const owner1Name = fields['Owner 1 Name'] || '';
+    if (owner1Name) {
+      responsiblePartyName = owner1Name;
+      responsiblePartyFirstName = fields['Owner 1 First Name'] || '';
+      responsiblePartyLastName = fields['Owner 1 Last Name'] || '';
+      responsiblePartySSN = fields['Owner 1 SSN'] || 'N/A-FOREIGN';
+      responsiblePartyAddress = fields['Owner 1 Address'] || '';
+      if (isCorp) {
+        signatureTitle = 'PRESIDENT';
+      } else if (isLLC && ownerCount === 1) {
+        signatureTitle = 'SOLE MEMBER';
+      } else if (isLLC) {
+        signatureTitle = 'MEMBER';
+      }
+    }
+  }
+  
+  return {
+    name: responsiblePartyName,
+    firstName: responsiblePartyFirstName,
+    lastName: responsiblePartyLastName,
+    ssn: responsiblePartySSN,
+    address: responsiblePartyAddress,
+    officerRole: responsiblePartyOfficerRole,
+    title: signatureTitle,
+  };
+}
+
+/**
+ * Parse company address from Airtable format: "Street, City, State ZIP"
+ */
+export function parseCompanyAddress(fields: any): {
+  street: string;
+  addressLine2: string;
+  city: string;
+  state: string;
+  zip: string;
+} {
+  const companyAddress = fields['Company Address'] || '';
+  
+  // Default to virtual office if no address
+  if (!companyAddress || companyAddress.trim() === '') {
+    return {
+      street: '12550 Biscayne Blvd Ste 110',
+      addressLine2: '',
+      city: 'North Miami',
+      state: 'FL',
+      zip: '33181',
+    };
+  }
+  
+  // Parse "Street, City, State ZIP" format
+  const parts = companyAddress.split(',').map((p: string) => p.trim());
+  let street = '';
+  let addressLine2 = '';
+  let city = '';
+  let state = '';
+  let zip = '';
+  
+  if (parts.length >= 3) {
+    // Format: "Street, City, State ZIP"
+    street = parts[0];
+    city = parts[1];
+    const stateZipStr = parts[2];
+    const stateZipMatch = stateZipStr.match(/^([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/);
+    if (stateZipMatch) {
+      state = stateZipMatch[1];
+      zip = stateZipMatch[2];
+    }
+  } else if (parts.length === 2) {
+    // Format: "Street, City State ZIP"
+    street = parts[0];
+    const cityStateZip = parts[1];
+    const match = cityStateZip.match(/^(.+?)\s+([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/);
+    if (match) {
+      city = match[1];
+      state = match[2];
+      zip = match[3];
+    }
+  } else {
+    // Fallback: use as-is
+    street = companyAddress;
+  }
+  
+  return { street, addressLine2, city, state, zip };
+}
+
+/**
+ * Map Airtable record to Form 2848 (Power of Attorney) format
+ */
+export function mapAirtableTo2848(record: any): any {
+  const fields = record.fields || record;
+  const entityType = fields['Entity Type'] || 'LLC';
+  const isLLC = entityType === 'LLC';
+  const isCorp = entityType === 'C-Corp' || entityType === 'S-Corp';
+  const isSCorp = entityType === 'S-Corp';
+  const ownerCount = fields['Owner Count'] || 0;
+  
+  // Get responsible party (same logic as SS-4)
+  const responsibleParty = getResponsiblePartyFromAirtable(fields);
+  
+  // Parse company address
+  const address = parseCompanyAddress(fields);
+  
+  // Get company phone
+  const companyPhone = (fields['Business Phone'] || '').trim();
+  
+  // Get formation year
+  const paymentDate = fields['Payment Date'] || new Date().toISOString().split('T')[0];
+  const formationYear = new Date(paymentDate).getFullYear().toString();
+  
+  // Determine tax form number
+  let taxFormNumber = '';
+  if (isLLC) {
+    taxFormNumber = '1065';
+  } else if (isSCorp) {
+    taxFormNumber = '1120-S';
+  } else if (isCorp) {
+    taxFormNumber = '1120';
+  } else {
+    taxFormNumber = '1120';
+  }
+  
+  return {
+    // Company Information (Taxpayer)
+    companyName: fields['Company Name'] || '',
+    companyAddress: address.street,
+    companyAddressLine2: address.addressLine2,
+    companyCity: address.city,
+    companyState: address.state,
+    companyZip: address.zip,
+    companyPhone: companyPhone,
+    
+    // Representative (Antonio Regojo)
+    representativeName: 'ANTONIO REGOJO',
+    representativeAddress: '10634 NE 11 AVE.',
+    representativeCity: 'MIAMI',
+    representativeState: 'FL',
+    representativeZip: '33138',
+    representativePhone: '786-512-0434',
+    representativeFax: '866-496-4957',
+    
+    // Representative signature section (Page 2)
+    representativeDesignation: 'A',
+    representativeJurisdiction: 'FLORIDA',
+    representativeLicenseNo: '41990',
+    representativeSignature: '',
+    representativeDate: '',
+    
+    // Authorization details - Section 3
+    authorizedType: 'INCOME TAX',
+    authorizedForm: taxFormNumber,
+    authorizedYear: formationYear,
+    
+    // EIN | SS4 | Year
+    ein: '',
+    ss4: 'SS-4',
+    formationYear: formationYear,
+    
+    // Signature information (Section 7)
+    signatureName: responsibleParty.name || fields['Owner 1 Name'] || '',
+    signatureTitle: responsibleParty.title || 'AUTHORIZED SIGNER',
+    signatureCompanyName: fields['Company Name'] || '',
+  };
+}
+
+/**
+ * Map Airtable record to Form 8821 (Tax Information Authorization) format
+ */
+export function mapAirtableTo8821(record: any): any {
+  const fields = record.fields || record;
+  const entityType = fields['Entity Type'] || 'LLC';
+  const isLLC = entityType === 'LLC';
+  const isCorp = entityType === 'C-Corp' || entityType === 'S-Corp';
+  const ownerCount = fields['Owner Count'] || 0;
+  
+  // Get responsible party (same logic as SS-4)
+  const responsibleParty = getResponsiblePartyFromAirtable(fields);
+  
+  // Parse company address
+  const address = parseCompanyAddress(fields);
+  
+  // Get company phone
+  const companyPhone = (fields['Business Phone'] || '').trim();
+  
+  // Determine signature title
+  let signatureTitle = '';
+  if (isCorp) {
+    signatureTitle = 'PRESIDENT';
+  } else if (isLLC && ownerCount === 1) {
+    signatureTitle = 'SOLE MEMBER';
+  } else if (isLLC) {
+    signatureTitle = 'MEMBER';
+  } else {
+    signatureTitle = 'AUTHORIZED SIGNER';
+  }
+  
+  return {
+    // Company Information
+    companyName: fields['Company Name'] || '',
+    ein: '',
+    companyAddress: address.street,
+    
+    // Box 1: Taxpayer (COMPANY)
+    taxpayerName: fields['Company Name'] || '',
+    taxpayerSSN: '',
+    taxpayerAddress: address.street,
+    taxpayerAddressLine2: '',
+    taxpayerCity: address.city,
+    taxpayerState: address.state,
+    taxpayerZip: address.zip,
+    taxpayerPhone: companyPhone,
+    
+    // Box 2: Third Party Designee (Antonio Regojo)
+    designeeName: 'ANTONIO REGOJO',
+    designeeAddress: '10634 NE 11 AVE.',
+    designeeCity: 'MIAMI',
+    designeeState: 'FL',
+    designeeZip: '33138',
+    designeePhone: '786-512-0434',
+    designeeFax: '866-496-4957',
+    
+    // Authorization details - Section 3 always "N/A", Section 4 always checked
+    taxInfo: 'N/A',
+    taxForms: 'N/A',
+    taxYears: 'N/A',
+    taxMatters: 'N/A',
+    
+    // Signature information
+    signatureName: responsibleParty.name || fields['Owner 1 Name'] || '',
+    signatureTitle: responsibleParty.title || signatureTitle,
+  };
+}
+

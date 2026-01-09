@@ -13,20 +13,20 @@ const testFormData = {
     state: 'FL',
     zipCode: '33181',
     postalCode: '33181',
-    phone: '305-555-1234',
-    phoneNumber: '305-555-1234',
-    usPhoneNumber: '305-555-1234',
-    businessPhone: '305-555-1234',
+    phone: '+1 305-555-1234',
+    phoneNumber: '+1 305-555-1234',
+    usPhoneNumber: '+1 305-555-1234',
+    businessPhone: '+1 305-555-1234',
   },
   owners: [
     {
-      fullName: 'JOHN SMITH TEST',
+      fullName: 'MATIAS ROMERO',
       ssn: '123-45-6789',
       tin: '',
     },
   ],
   agreement: {
-    llc_taxOwner: 'JOHN SMITH TEST',
+    llc_taxOwner: 'MATIAS ROMERO',
     corp_taxOwner: '',
   },
   admin: {
@@ -37,8 +37,9 @@ const testFormData = {
 async function test8821Signature() {
   console.log('🧪 Testing 8821 PDF with hardcoded signature...');
   console.log('📋 Expected signature:');
-  console.log('   Name: "JOHN SMITH TEST, SOLE MEMBER"');
+  console.log('   Name: "MATIAS ROMERO"');
   console.log('   Title: "SOLE MEMBER"');
+  console.log('   Phone: "305-555-1234" (no +1 prefix)');
   
   try {
     const result = await generate8821PDF(
