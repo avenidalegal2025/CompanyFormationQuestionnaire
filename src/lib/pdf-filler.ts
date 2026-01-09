@@ -320,7 +320,8 @@ function transformDataFor2848(formData: QuestionnaireData): any {
     formationYear: formationYear,
     
     // Signature information (Section 7)
-    signatureName: responsiblePartyName, // Full name of responsible party
+    // CRITICAL: Always use actual name, never 'AUTHORIZED SIGNER'
+    signatureName: responsiblePartyName || (owners.length > 0 ? owners[0]?.fullName : '') || '', // Full name of responsible party
     signatureTitle: signatureTitle, // PRESIDENT, SOLE MEMBER, MEMBER, etc.
     signatureCompanyName: company.companyName || '', // Full company name
   };
@@ -390,7 +391,7 @@ function transformDataFor8821(formData: QuestionnaireData): any {
     responsiblePartyOfficerRole = 'PRESIDENT';
   }
   
-  // Build base name (same as SS-4) - ensure it's never empty
+  // Build base name (same as SS-4) - ensure we always find a name
   // Prefer fullName, then first+last from the separate vars we already computed
   let baseName = responsiblePartyName || `${responsiblePartyFirstName} ${responsiblePartyLastName}`.trim();
   
@@ -400,9 +401,16 @@ function transformDataFor8821(formData: QuestionnaireData): any {
     baseName = firstOwner.fullName || '';
   }
   
-  // Absolute fallback
+  // CRITICAL: We MUST have a name - if we don't, log error but use first owner
   if (!baseName || baseName.trim() === '') {
-    baseName = 'AUTHORIZED SIGNER';
+    console.error('❌ ERROR: No responsible party name found! Using first owner as fallback.');
+    if (owners.length > 0 && owners[0]?.fullName) {
+      baseName = owners[0].fullName;
+    } else {
+      console.error('❌ CRITICAL ERROR: No owners found! Cannot generate signature name.');
+      // Don't use 'AUTHORIZED SIGNER' - throw error or use empty string
+      baseName = '';
+    }
   }
   
   // Determine signature name and title
@@ -430,17 +438,18 @@ function transformDataFor8821(formData: QuestionnaireData): any {
     signatureName = responsiblePartyName || baseName;  // Use responsiblePartyName (same as SS-4)
     signatureTitle = 'MEMBER';
   } else {
-    // Default fallback
-    signatureName = responsiblePartyName || baseName || 'AUTHORIZED SIGNER';
-    signatureTitle = 'AUTHORIZED SIGNER';
+    // Default fallback - use first owner's name, never 'AUTHORIZED SIGNER'
+    signatureName = responsiblePartyName || baseName || (owners.length > 0 ? owners[0]?.fullName : '');
+    signatureTitle = 'AUTHORIZED SIGNER'; // Only title can be this, not the name
   }
   
-  // Ensure we always have a signature name and title (final safety check)
+  // Ensure we always have a signature name (final safety check) - NO 'AUTHORIZED SIGNER' for name
   if (!signatureName || signatureName.trim() === '') {
-    signatureName = responsiblePartyName || baseName || 'AUTHORIZED SIGNER';
+    signatureName = responsiblePartyName || baseName || (owners.length > 0 ? owners[0]?.fullName : '');
+    console.error('❌ WARNING: signatureName is still empty after all fallbacks!');
   }
   if (!signatureTitle || signatureTitle.trim() === '') {
-    signatureTitle = 'AUTHORIZED SIGNER';
+    signatureTitle = 'AUTHORIZED SIGNER'; // Only title can default to this
   }
   
   // Log for debugging (same format as SS-4) - EXTENSIVE LOGGING
