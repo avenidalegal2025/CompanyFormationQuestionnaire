@@ -76,8 +76,8 @@ FIELD_POSITIONS = {
     "Representative Name": (77, 590),  # Representative name (same Y as 8821 designee)
     "Representative Address 1": (77, 577),  # Representative address line 1
     "Representative Address 2": (77, 565),  # Representative address line 2
-    "Representative Phone": (453, 552),  # Representative phone - moved 3px down (555 - 3)
-    "Representative Fax": (453, 538),  # Representative fax - moved 3px down (541 - 3)
+    "Representative Phone": (453, 554),  # Representative phone - moved 2px up (552 + 2)
+    "Representative Fax": (453, 542),  # Representative fax - moved 4px up (538 + 4)
     "Representative PTIN": (415, 555),
     "Authorized Type 1": (80, 232),  # Income Tax - keep same
     "Authorized Form 1": (340, 212),  # Tax Form Number - moved 20px down (232 - 20)
