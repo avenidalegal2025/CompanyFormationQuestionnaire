@@ -147,6 +147,26 @@ export default function CompanySwitcher({ userEmail, selectedCompanyId, onCompan
           // #endregion
         };
 
+        // CRITICAL: If paymentCompleted is true, ALWAYS check if we should update selection
+        // Even if selectedCompanyId is already set, we need to check if a newer company appeared
+        if (paymentCompleted === 'true' && newestCompany) {
+          const currentSelected = companiesList.find((c: Company) => c.id === currentSelectedId);
+          const currentSelectedDate = currentSelected ? new Date(currentSelected.createdAt).getTime() : 0;
+          const newestDate = new Date(newestCompany.createdAt).getTime();
+          
+          // If newest company is newer than currently selected, update selection
+          if (!currentSelected || newestDate > currentSelectedDate) {
+            console.log('🔄 Newer company detected, updating selection...');
+            console.log(`   Current: ${currentSelected?.companyName || 'none'} (${currentSelectedDate})`);
+            console.log(`   Newest: ${newestCompany.companyName} (${newestDate})`);
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:95',message:'Newer company found during paymentCompleted refetch',data:{currentSelectedId,currentSelectedName:currentSelected?.companyName,newestCompanyId:newestCompany.id,newestCompanyName:newestCompany.companyName,willUpdate:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
+            selectNewest();
+            return; // Exit early - don't run other selection logic
+          }
+        }
+
         // CRITICAL: Always default to newest company unless user has explicitly selected a different one
         // Priority: 1) Payment completed -> newest, 2) No selection -> newest, 3) Selection missing -> newest, 4) Selection older -> newest
         // Only keep current selection if it exists AND is the newest OR user explicitly selected it (not auto-selected)
