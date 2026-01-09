@@ -88,7 +88,8 @@ export async function GET(request: NextRequest) {
       await base(AIRTABLE_TABLE_NAME)
         .select({
           filterByFormula: `LOWER({Customer Email}) = "${normalizedEmail}"`,
-          sort: [{ field: 'Payment Date', direction: 'desc' }], // Most recent first
+          // Sort by Payment Date descending, then by record ID (newer records have later IDs)
+          sort: [{ field: 'Payment Date', direction: 'desc' }],
           // No maxRecords - fetch all pages
         })
         .eachPage((records, fetchNextPage) => {
@@ -96,9 +97,12 @@ export async function GET(request: NextRequest) {
             const fields = record.fields;
             const recordEmail = (fields['Customer Email'] as string) || '';
             const recordCompanyName = (fields['Company Name'] as string) || 'Unknown Company';
-            // Use Payment Date if available, otherwise use current date
-            // Note: Airtable records have a createdTime property, but we'll use Payment Date for sorting
+            // Use Payment Date for sorting, with record ID as tiebreaker (newer records have later IDs)
             const paymentDate = (fields['Payment Date'] as string) || new Date().toISOString();
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/companies/route.ts:103',message:'Company record fetched',data:{companyName:recordCompanyName,recordId:record.id,paymentDate:paymentDate,recordIdForSort:record.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+            // #endregion
             
             console.log(`📋 Found company: ${recordCompanyName} (ID: ${record.id}, email: ${recordEmail}, paymentDate: ${paymentDate})`);
             
@@ -146,12 +150,22 @@ export async function GET(request: NextRequest) {
             fetchNextPage();
           });
         
-        // Sort manually by Payment Date (descending)
+        // Sort by createdAt (timestamp) descending, with record ID as tiebreaker
         companies.sort((a, b) => {
           const dateA = new Date(a.createdAt).getTime();
           const dateB = new Date(b.createdAt).getTime();
-          return dateB - dateA; // Descending
+          if (dateB !== dateA) {
+            return dateB - dateA; // Descending by date
+          }
+          // If dates are equal, use record ID as tiebreaker (newer IDs come later alphabetically)
+          return b.id.localeCompare(a.id);
         });
+        
+        // #region agent log
+        const newestCompanyData = companies[0] ? { id: companies[0].id, name: companies[0].companyName, createdAt: companies[0].createdAt } : null;
+        const allCompaniesData = companies.slice(0, 5).map((c: Company) => ({ id: c.id, name: c.companyName, createdAt: c.createdAt }));
+        fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'api/companies/route.ts:165', message: 'Companies sorted', data: { count: companies.length, newestCompany: newestCompanyData, allCompanies: allCompaniesData }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'F' }) }).catch(() => {});
+        // #endregion
       } else {
         throw error;
       }
@@ -179,13 +193,14 @@ export async function GET(request: NextRequest) {
           .eachPage((records, fetchNextPage) => {
             records.forEach((record) => {
               const fields = record.fields;
+              const paymentDate = (fields['Payment Date'] as string) || new Date().toISOString();
               altCompanies.push({
                 id: record.id,
                 companyName: (fields['Company Name'] as string) || 'Unknown Company',
                 entityType: (fields['Entity Type'] as string) || 'LLC',
                 formationState: (fields['Formation State'] as string) || '',
                 formationStatus: (fields['Formation Status'] as string) || 'Pending',
-                createdAt: (fields['Payment Date'] as string) || new Date().toISOString(),
+                createdAt: paymentDate,
                 customerEmail: (fields['Customer Email'] as string) || normalizedEmail,
               });
             });

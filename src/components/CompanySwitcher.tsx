@@ -107,8 +107,13 @@ export default function CompanySwitcher({ userEmail, selectedCompanyId, onCompan
         
         setCompanies(companiesList);
         
-        // Always consider the newest company (sorted by Payment Date desc)
+        // Always consider the newest company (sorted by Created Time desc)
         const newestCompany = companiesList[0];
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:111',message:'Newest company identified',data:{newestCompany:newestCompany?{id:newestCompany.id,name:newestCompany.companyName,createdAt:newestCompany.createdAt}:null,allCompanies:companiesList.slice(0,5).map((c:Company)=>({id:c.id,name:c.companyName,createdAt:c.createdAt}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+        // #endregion
+        
         const paymentCompleted = localStorage.getItem('paymentCompleted');
         const currentSelectedId = localStorage.getItem('selectedCompanyId');
 
@@ -119,9 +124,8 @@ export default function CompanySwitcher({ userEmail, selectedCompanyId, onCompan
           if (!newestCompany) return;
           console.log('✅ Selecting newest company:', newestCompany.id);
           console.log('📋 Available companies:', companiesList.map((c: Company) => ({ id: c.id, name: c.companyName })));
-          // Directly update state and localStorage WITHOUT calling onCompanyChange
+          // Directly update localStorage WITHOUT calling onCompanyChange first
           // This prevents handleCompanyChange from setting userSelectedCompanyId
-          setSelectedCompanyId(newestCompany.id);
           localStorage.setItem('selectedCompanyId', newestCompany.id);
           // CRITICAL: Clear userSelectedCompanyId to ensure it's not marked as user-selected
           localStorage.removeItem('userSelectedCompanyId');
