@@ -366,6 +366,11 @@ function CheckoutSuccessContent() {
             <div className="space-y-3">
               <Link
                 href="/client"
+                onClick={() => {
+                  // #region agent log
+                  fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'checkout/success/page.tsx:368',message:'Button clicked (checking) - navigating to client dashboard',data:{paymentCompleted:localStorage.getItem('paymentCompleted'),selectedCompanyId:localStorage.getItem('selectedCompanyId'),userSelectedCompanyId:localStorage.getItem('userSelectedCompanyId'),sessionId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+                  // #endregion
+                }}
                 className="block w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 px-6 rounded-lg hover:from-blue-700 hover:to-indigo-700 font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
               >
                 Ir a Mi Hub Empresarial →
@@ -397,6 +402,11 @@ function CheckoutSuccessContent() {
             <div className="space-y-3">
               <Link
                 href="/client"
+                onClick={() => {
+                  // #region agent log
+                  fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'checkout/success/page.tsx:398',message:'Button clicked (celebration) - navigating to client dashboard',data:{paymentCompleted:localStorage.getItem('paymentCompleted'),selectedCompanyId:localStorage.getItem('selectedCompanyId'),userSelectedCompanyId:localStorage.getItem('userSelectedCompanyId'),sessionId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+                  // #endregion
+                }}
                 className="block w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 px-6 rounded-lg hover:from-blue-700 hover:to-indigo-700 font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
               >
                 Ir a Mi Hub Empresarial →
