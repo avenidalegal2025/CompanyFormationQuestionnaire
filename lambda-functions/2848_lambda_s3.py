@@ -80,17 +80,17 @@ FIELD_POSITIONS = {
     "Representative Fax": (453, 542),  # Representative fax - moved 4px up (538 + 4)
     "Representative PTIN": (415, 555),
     "Authorized Type 1": (80, 232),  # Income Tax - keep same
-    "Authorized Form 1": (340, 227),  # Tax Form Number (1065/1120/1120-S) - moved 15px up (212 + 15)
-    "Authorized Year 1": (500, 212),  # Year - moved 20px down (232 - 20)
-    "EIN": (80, 190),  # EIN field - 20px below Year (212 - 22)
-    "SS4": (340, 190),  # SS-4 field
-    "Formation Year": (500, 190),  # Year company is being formed
+    "Authorized Form 1": (340, 232),  # Tax Form Number (1065/1120/1120-S) - aligned with Income Tax
+    "Authorized Year 1": (500, 232),  # Year - aligned with Income Tax
+    "EIN": (80, 210),  # EIN field - aligned with SS-4 and Formation Year
+    "SS4": (340, 210),  # SS-4 field - moved 20px up (190 + 20)
+    "Formation Year": (500, 210),  # Year company is being formed - moved 20px up (190 + 20)
     "Authorized Type 2": (80, 210),
     "Authorized Form 2": (340, 210),
     "Authorized Year 2": (500, 210),
     "Signature Name": (55, 522),  # Print name - moved 2px down (524 - 2)
     "Signature Title": (400, 554),  # Title - 20px left (420 - 20), 5px down (559 - 5)
-    "Signature Company": (310, 519),  # Print name of taxpayer - 40px left (350 - 40), 5px up (514 + 5)
+    "Signature Company": (310, 522),  # Print name of taxpayer - aligned with Signature Name (519 + 3)
     "Representative Date": (535, 150),
     "Representative Designation": (62, 150),
     "Representative Jurisdiction": (110, 150),
