@@ -120,7 +120,11 @@ def create_overlay(data, path):
     taxpayer_city = process_text(data.get("taxpayerCity", ""))
     taxpayer_state = process_text(data.get("taxpayerState", ""))
     taxpayer_zip = str(data.get("taxpayerZip", "")).strip()
-    taxpayer_phone = process_text(data.get("taxpayerPhone", ""), max_length=20)
+    # Remove "+1_" or "+1" prefix from phone number
+    taxpayer_phone_raw = data.get("taxpayerPhone", "")
+    if taxpayer_phone_raw:
+        taxpayer_phone_raw = str(taxpayer_phone_raw).replace("+1_", "").replace("+1", "").strip()
+    taxpayer_phone = process_text(taxpayer_phone_raw, max_length=20)
     
     # Debug logging for address
     print(f"🔍 DEBUG Box 1 Address:")
@@ -238,12 +242,19 @@ def create_overlay(data, path):
     print(f"   All data keys: {list(data.keys())}")
     
     # Always draw signature name and title - use raw if processed is empty
-    final_signature_name = signature_name if signature_name and signature_name.strip() else (signature_name_raw if signature_name_raw else "AUTHORIZED SIGNER")
-    final_signature_title = signature_title if signature_title and signature_title.strip() else (signature_title_raw if signature_title_raw else "AUTHORIZED SIGNER")
+    # DO NOT use "AUTHORIZED SIGNER" fallback - use actual name from data
+    final_signature_name = signature_name if signature_name and signature_name.strip() else signature_name_raw
+    final_signature_title = signature_title if signature_title and signature_title.strip() else signature_title_raw
     
-    # Convert to uppercase for consistency
-    final_signature_name = final_signature_name.upper() if final_signature_name else "AUTHORIZED SIGNER"
-    final_signature_title = final_signature_title.upper() if final_signature_title else "AUTHORIZED SIGNER"
+    # Convert to uppercase for consistency (only if we have a value)
+    if final_signature_name:
+        final_signature_name = final_signature_name.upper()
+    if final_signature_title:
+        final_signature_title = final_signature_title.upper()
+    
+    # Log warning if name is missing
+    if not final_signature_name or not final_signature_name.strip():
+        print(f"⚠️ WARNING: signatureName is empty or missing in data. Keys: {list(data.keys())}")
     
     # Truncate if needed
     if len(final_signature_name) > 80:

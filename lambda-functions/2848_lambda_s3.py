@@ -137,9 +137,14 @@ def create_overlay(data, path):
         c.drawString(*FIELD_POSITIONS["Taxpayer Address 2"], truncate_at_word_boundary(city_state_zip, max_length=80))
     
     # Telephone number (same position as 8821)
-    company_phone = process_text(data.get("companyPhone", ""), max_length=20)
-    if company_phone:
-        c.drawString(*FIELD_POSITIONS["Taxpayer Phone"], company_phone)
+    # Remove "+1_" prefix if present
+    company_phone_raw = data.get("companyPhone", "")
+    if company_phone_raw:
+        # Remove "+1_" or "+1" prefix
+        company_phone = str(company_phone_raw).replace("+1_", "").replace("+1", "").strip()
+        company_phone = process_text(company_phone, max_length=20)
+        if company_phone:
+            c.drawString(*FIELD_POSITIONS["Taxpayer Phone"], company_phone)
     
     # Input 2: Representative (Antonio Regojo) Information - Same format as 8821
     # Name
@@ -225,9 +230,12 @@ def create_overlay(data, path):
     # Section 7: Taxpayer signature
     # Print name: Full name of responsible party
     signature_name = process_text(data.get("signatureName", ""), max_length=80)
-    if signature_name:
+    # Always draw signature name - if empty, log warning but don't draw placeholder
+    if signature_name and signature_name.strip():
         c.drawString(*FIELD_POSITIONS["Signature Name"], signature_name)
         print(f"✅ Drew signature name '{signature_name}' at {FIELD_POSITIONS['Signature Name']} on PAGE 2")
+    else:
+        print(f"⚠️ WARNING: signatureName is empty or missing in data. Keys: {list(data.keys())}")
     
     # Print name of taxpayer: Full company name
     signature_company = process_text(data.get("signatureCompanyName", ""), max_length=80)
