@@ -126,12 +126,12 @@ function transformDataForSS4(formData: QuestionnaireData): any {
     // Responsible Party (first owner with SSN, or primary owner if none have SSN)
     // CRITICAL: Always use fullName from owner object, never empty (same as SS-4 uses Owner 1 Name)
     responsiblePartyName: responsibleOwner?.fullName || '',
-    responsiblePartySSN: hasValidSSN ? (responsibleOwner.ssn || responsibleOwner.tin || '') : 'N/A-FOREIGN', // N/A-FOREIGN if no owner has SSN
-    responsiblePartyAddress: responsibleOwner.address || responsibleOwner.addressLine1 || '',
-    responsiblePartyCity: responsibleOwner.city || '',
-    responsiblePartyState: responsibleOwner.state || '',
-    responsiblePartyZip: responsibleOwner.zipCode || '',
-    responsiblePartyCountry: responsibleOwner.country || 'USA',
+    responsiblePartySSN: hasValidSSN && responsibleOwner ? (responsibleOwner.ssn || responsibleOwner.tin || '') : 'N/A-FOREIGN', // N/A-FOREIGN if no owner has SSN
+    responsiblePartyAddress: responsibleOwner?.address || responsibleOwner?.addressLine1 || '',
+    responsiblePartyCity: responsibleOwner?.city || '',
+    responsiblePartyState: responsibleOwner?.state || '',
+    responsiblePartyZip: responsibleOwner?.zipCode || '',
+    responsiblePartyCountry: responsibleOwner?.country || 'USA',
     
     // Additional owner information if needed
     ownerCount: owners.length,
