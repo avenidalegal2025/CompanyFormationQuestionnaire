@@ -30,7 +30,7 @@ const s3Client = new S3Client({
  */
 async function fetchAirtableRecord(recordId: string): Promise<any> {
   return new Promise((resolve, reject) => {
-    base(AIRTABLE_TABLE_NAME).find(recordId, (err, record) => {
+    base(AIRTABLE_TABLE_NAME).find(recordId, (err: any, record: any) => {
       if (err) {
         console.error(`❌ Error fetching Airtable record ${recordId}:`, err);
         reject(err);
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
         await new Promise((resolve, reject) => {
           base(AIRTABLE_TABLE_NAME).update(recordId, {
             'Form 8821 URL': pdfUrl,
-          }, (err, record) => {
+          }, (err: any, record: any) => {
             if (err) {
               console.error('❌ Failed to update Airtable with 8821 URL:', err);
               reject(err);

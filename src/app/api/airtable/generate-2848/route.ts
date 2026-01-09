@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
         await new Promise((resolve, reject) => {
           base(AIRTABLE_TABLE_NAME).update(recordId, {
             'Form 2848 URL': pdfUrl,
-          }, (err, record) => {
+          }, (err: any, record: any) => {
             if (err) {
               console.error('❌ Failed to update Airtable with 2848 URL:', err);
               reject(err);
