@@ -164,10 +164,22 @@ function transformDataFor2848(formData: QuestionnaireData): any {
   
   // Get responsible party (same logic as SS-4) - must have SSN
   // CRITICAL: Always start with owners[0] as fallback (same as SS-4 from Airtable uses Owner 1 Name)
+  // DEBUG: Log owners array to diagnose missing data
+  console.log(`🔍 2848 DEBUG - Owners array:`, {
+    ownersLength: owners.length,
+    owners0: owners[0] ? { fullName: owners[0].fullName, hasSSN: !!(owners[0].ssn || owners[0].tin) } : 'MISSING',
+    allOwners: owners.map((o, i) => ({ index: i, fullName: o.fullName, hasSSN: !!(o.ssn || o.tin) }))
+  });
+  
   let responsibleParty: any = owners.length > 0 ? owners[0] : null;
   let responsiblePartyName = responsibleParty?.fullName || '';
   let responsiblePartySSN = responsibleParty?.ssn || responsibleParty?.tin || '';
   let responsiblePartyOfficerRole = '';
+  
+  // CRITICAL: If responsiblePartyName is empty, log error
+  if (!responsiblePartyName || responsiblePartyName.trim() === '') {
+    console.error(`❌ 2848 ERROR: responsiblePartyName is empty! owners.length=${owners.length}, owners[0]=${JSON.stringify(owners[0])}`);
+  }
   
   // First, try to get from agreement (if specified)
   const agreementTaxOwnerName = agreement.corp_taxOwner || agreement.llc_taxOwner || '';
@@ -368,12 +380,24 @@ function transformDataFor8821(formData: QuestionnaireData): any {
   
   // Get responsible party (same logic as SS-4) - must have SSN
   // CRITICAL: Always start with owners[0] as fallback (same as SS-4 from Airtable uses Owner 1 Name)
+  // DEBUG: Log owners array to diagnose missing data
+  console.log(`🔍 8821 DEBUG - Owners array:`, {
+    ownersLength: owners.length,
+    owners0: owners[0] ? { fullName: owners[0].fullName, hasSSN: !!(owners[0].ssn || owners[0].tin) } : 'MISSING',
+    allOwners: owners.map((o, i) => ({ index: i, fullName: o.fullName, hasSSN: !!(o.ssn || o.tin) }))
+  });
+  
   let responsibleParty: any = owners.length > 0 ? owners[0] : null;
   let responsiblePartyName = responsibleParty?.fullName || '';
   let responsiblePartyFirstName = '';
   let responsiblePartyLastName = '';
   let responsiblePartySSN = responsibleParty?.ssn || responsibleParty?.tin || '';
   let responsiblePartyOfficerRole = ''; // For corporations
+  
+  // CRITICAL: If responsiblePartyName is empty, log error
+  if (!responsiblePartyName || responsiblePartyName.trim() === '') {
+    console.error(`❌ 8821 ERROR: responsiblePartyName is empty! owners.length=${owners.length}, owners[0]=${JSON.stringify(owners[0])}`);
+  }
   
   // Parse name if we have it
   if (responsiblePartyName) {
