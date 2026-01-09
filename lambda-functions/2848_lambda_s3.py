@@ -69,25 +69,28 @@ def translate_to_english(text):
         return text
 
 FIELD_POSITIONS = {
-    "Taxpayer Name": (77, 661),  # Line 1: Company name (same as 8821)
-    "Taxpayer Address 1": (77, 649),  # Line 2: Street address (same as 8821)
-    "Taxpayer Address 2": (77, 637),  # Line 3: City, State, Zip (same as 8821)
-    "Taxpayer Phone": (377, 639),  # Telephone (same as 8821 - moved 15px left, 3px higher)
+    "Taxpayer Name": (77, 631),  # Line 1: Company name - moved 30px down (661 - 30)
+    "Taxpayer Address 1": (77, 619),  # Line 2: Street address - moved 30px down (649 - 30)
+    "Taxpayer Address 2": (77, 607),  # Line 3: City, State, Zip - moved 30px down (637 - 30)
+    "Taxpayer Phone": (377, 609),  # Telephone - moved 30px down (639 - 30)
     "Representative Name": (77, 590),  # Representative name (same Y as 8821 designee)
     "Representative Address 1": (77, 577),  # Representative address line 1
     "Representative Address 2": (77, 565),  # Representative address line 2
-    "Representative Phone": (453, 579),  # Representative phone (same as 8821 designee phone)
-    "Representative Fax": (453, 565),  # Representative fax (same as 8821 designee fax)
+    "Representative Phone": (453, 564),  # Representative phone - moved 15px down (579 - 15)
+    "Representative Fax": (453, 550),  # Representative fax - moved 15px down (565 - 15)
     "Representative PTIN": (415, 555),
-    "Authorized Type 1": (80, 232),
-    "Authorized Form 1": (340, 232),
-    "Authorized Year 1": (500, 232),
+    "Authorized Type 1": (80, 232),  # Income Tax - keep same
+    "Authorized Form 1": (340, 212),  # Tax Form Number - moved 20px down (232 - 20)
+    "Authorized Year 1": (500, 212),  # Year - moved 20px down (232 - 20)
+    "EIN": (80, 190),  # EIN field - 20px below Year (212 - 22)
+    "SS4": (340, 190),  # SS-4 field
+    "Formation Year": (500, 190),  # Year company is being formed
     "Authorized Type 2": (80, 210),
     "Authorized Form 2": (340, 210),
     "Authorized Year 2": (500, 210),
     "Signature Name": (55, 524),
-    "Signature Title": (420, 559),
-    "Signature Company": (350, 514),  # Print name of taxpayer - 50px left (400 - 50), 10px down (524 - 10)
+    "Signature Title": (400, 554),  # Title - 20px left (420 - 20), 5px down (559 - 5)
+    "Signature Company": (310, 519),  # Print name of taxpayer - 40px left (350 - 40), 5px up (514 + 5)
     "Representative Date": (535, 150),
     "Representative Designation": (62, 150),
     "Representative Jurisdiction": (110, 150),
@@ -192,11 +195,21 @@ def create_overlay(data, path):
     else:
         print(f"⚠️ WARNING: authorizedYear is missing in data")
     
-    # EIN | SS4 | Year (need to find coordinates for this)
+    # EIN | SS-4 | Year (company being formed) - 20px below Income Tax row
     ein = process_text(data.get("ein", ""), max_length=20)
     ss4 = process_text(data.get("ss4", "SS-4"), max_length=10)
     formation_year = process_text(data.get("formationYear", ""), max_length=10)
-    # TODO: Find correct coordinates for EIN | SS4 | Year field
+    
+    # Draw EIN | SS-4 | Year fields
+    if ein:
+        c.drawString(*FIELD_POSITIONS["EIN"], ein)
+        print(f"✅ Drew EIN '{ein}' at {FIELD_POSITIONS['EIN']}")
+    if ss4:
+        c.drawString(*FIELD_POSITIONS["SS4"], ss4)
+        print(f"✅ Drew SS-4 '{ss4}' at {FIELD_POSITIONS['SS4']}")
+    if formation_year:
+        c.drawString(*FIELD_POSITIONS["Formation Year"], formation_year)
+        print(f"✅ Drew formation year '{formation_year}' at {FIELD_POSITIONS['Formation Year']}")
     
     c.setFont("Helvetica-Bold", 10.5)
     c.drawString(570, 160, "✓")  # Checkbox
