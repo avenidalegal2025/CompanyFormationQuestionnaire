@@ -97,14 +97,22 @@ export async function GET(request: NextRequest) {
             const fields = record.fields;
             const recordEmail = (fields['Customer Email'] as string) || '';
             const recordCompanyName = (fields['Company Name'] as string) || 'Unknown Company';
-            // Use Payment Date for sorting, with record ID as tiebreaker (newer records have later IDs)
-            const paymentDate = (fields['Payment Date'] as string) || new Date().toISOString();
+
+            // Prefer Airtable's internal createdTime (full timestamp) for precise ordering.
+            // This property exists at runtime but isn't in the TS types, so we access it via `any`.
+            const rawRecord: any = record as any;
+            const createdTimeFromRecord: string | undefined =
+              rawRecord?.createdTime || rawRecord?._rawJson?.createdTime;
+            const paymentDate: string | undefined = fields['Payment Date'] as string | undefined;
+            const createdAt =
+              createdTimeFromRecord ||
+              (paymentDate ? `${paymentDate}T00:00:00.000Z` : new Date().toISOString());
             
             // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/companies/route.ts:103',message:'Company record fetched',data:{companyName:recordCompanyName,recordId:record.id,paymentDate:paymentDate,recordIdForSort:record.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+            fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/companies/route.ts:103',message:'Company record fetched',data:{companyName:recordCompanyName,recordId:record.id,createdAt,createdTimeFromRecord,paymentDate},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
             // #endregion
             
-            console.log(`📋 Found company: ${recordCompanyName} (ID: ${record.id}, email: ${recordEmail}, paymentDate: ${paymentDate})`);
+            console.log(`📋 Found company: ${recordCompanyName} (ID: ${record.id}, email: ${recordEmail}, createdAt: ${createdAt}, paymentDate: ${paymentDate || 'NONE'})`);
             
             companies.push({
               id: record.id,
@@ -112,7 +120,7 @@ export async function GET(request: NextRequest) {
               entityType: (fields['Entity Type'] as string) || 'LLC',
               formationState: (fields['Formation State'] as string) || '',
               formationStatus: (fields['Formation Status'] as string) || 'Pending',
-              createdAt: paymentDate,
+              createdAt,
               customerEmail: recordEmail || normalizedEmail,
             });
           });
@@ -133,9 +141,15 @@ export async function GET(request: NextRequest) {
               const fields = record.fields;
               const recordEmail = (fields['Customer Email'] as string) || '';
               const recordCompanyName = (fields['Company Name'] as string) || 'Unknown Company';
-              const paymentDate = (fields['Payment Date'] as string) || new Date().toISOString();
+              const rawRecord: any = record as any;
+              const createdTimeFromRecord: string | undefined =
+                rawRecord?.createdTime || rawRecord?._rawJson?.createdTime;
+              const paymentDate: string | undefined = fields['Payment Date'] as string | undefined;
+              const createdAt =
+                createdTimeFromRecord ||
+                (paymentDate ? `${paymentDate}T00:00:00.000Z` : new Date().toISOString());
               
-              console.log(`📋 Found company (no sort): ${recordCompanyName} (ID: ${record.id}, email: ${recordEmail})`);
+              console.log(`📋 Found company (no sort): ${recordCompanyName} (ID: ${record.id}, email: ${recordEmail}, createdAt: ${createdAt})`);
               
               companies.push({
                 id: record.id,
@@ -143,32 +157,63 @@ export async function GET(request: NextRequest) {
                 entityType: (fields['Entity Type'] as string) || 'LLC',
                 formationState: (fields['Formation State'] as string) || '',
                 formationStatus: (fields['Formation Status'] as string) || 'Pending',
-                createdAt: paymentDate,
+                createdAt,
                 customerEmail: recordEmail || normalizedEmail,
               });
             });
             fetchNextPage();
           });
-        
-        // Sort by createdAt (timestamp) descending, with record ID as tiebreaker
-        companies.sort((a, b) => {
-          const dateA = new Date(a.createdAt).getTime();
-          const dateB = new Date(b.createdAt).getTime();
-          if (dateB !== dateA) {
-            return dateB - dateA; // Descending by date
-          }
-          // If dates are equal, use record ID as tiebreaker (newer IDs come later alphabetically)
-          return b.id.localeCompare(a.id);
-        });
-        
-        // #region agent log
-        const newestCompanyData = companies[0] ? { id: companies[0].id, name: companies[0].companyName, createdAt: companies[0].createdAt } : null;
-        const allCompaniesData = companies.slice(0, 5).map((c: Company) => ({ id: c.id, name: c.companyName, createdAt: c.createdAt }));
-        fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'api/companies/route.ts:165', message: 'Companies sorted', data: { count: companies.length, newestCompany: newestCompanyData, allCompanies: allCompaniesData }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'F' }) }).catch(() => {});
-        // #endregion
       } else {
         throw error;
       }
+    }
+
+    // GLOBAL SORT: Regardless of whether we hit the normal or fallback path,
+    // sort by createdAt (full timestamp) descending, with record ID as tiebreaker.
+    if (companies.length > 1) {
+      companies.sort((a, b) => {
+        const dateA = new Date(a.createdAt).getTime();
+        const dateB = new Date(b.createdAt).getTime();
+        if (dateB !== dateA) {
+          return dateB - dateA; // Descending by date
+        }
+        // If dates are equal, use record ID as tiebreaker (newer IDs come later alphabetically)
+        return b.id.localeCompare(a.id);
+      });
+
+      // #region agent log
+      const newestCompanyData = companies[0]
+        ? {
+            id: companies[0].id,
+            name: companies[0].companyName,
+            createdAt: companies[0].createdAt,
+            createdAtMs: new Date(companies[0].createdAt).getTime(),
+          }
+        : null;
+      const allCompaniesData = companies.slice(0, 10).map((c: Company) => ({
+        id: c.id,
+        name: c.companyName,
+        createdAt: c.createdAt,
+        createdAtMs: new Date(c.createdAt).getTime(),
+      }));
+      fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'api/companies/route.ts:180',
+          message: 'Companies sorted (global)',
+          data: {
+            count: companies.length,
+            newestCompany: newestCompanyData,
+            allCompanies: allCompaniesData,
+          },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'run1',
+          hypothesisId: 'H',
+        }),
+      }).catch(() => {});
+      // #endregion
     }
     
     // #region agent log

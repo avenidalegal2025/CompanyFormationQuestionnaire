@@ -97,6 +97,10 @@ export default function CompanySwitcher({ userEmail, selectedCompanyId, onCompan
           console.log(`  ${index + 1}. ${c.companyName} (ID: ${c.id}, Created: ${c.createdAt})`);
         });
         
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:99',message:'All companies from API',data:{count:companiesList.length,companies:companiesList.map((c:Company)=>({id:c.id,name:c.companyName,createdAt:c.createdAt,createdAtMs:new Date(c.createdAt).getTime()}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+        // #endregion
+        
         if (companiesList.length === 0) {
           console.warn(`⚠️ No companies found for email: ${userEmail}`);
           console.warn(`💡 Check:`);
