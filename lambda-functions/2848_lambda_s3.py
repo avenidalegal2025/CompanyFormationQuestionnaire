@@ -230,12 +230,15 @@ def create_overlay(data, path):
     # Section 7: Taxpayer signature
     # Print name: Full name of responsible party
     signature_name = process_text(data.get("signatureName", ""), max_length=80)
-    # Always draw signature name - if empty, log warning but don't draw placeholder
+    # CRITICAL: Only draw if we have a value (don't draw empty string)
+    # If empty, the template's "AUTHORIZED SIGNER" will show through
     if signature_name and signature_name.strip():
         c.drawString(*FIELD_POSITIONS["Signature Name"], signature_name)
         print(f"✅ Drew signature name '{signature_name}' at {FIELD_POSITIONS['Signature Name']} on PAGE 2")
     else:
-        print(f"⚠️ WARNING: signatureName is empty or missing in data. Keys: {list(data.keys())}")
+        print(f"❌ ERROR: Cannot draw signature name - it's empty! This means the template's 'AUTHORIZED SIGNER' will show.")
+        print(f"❌ Data received: signatureName='{data.get('signatureName', '')}', processed='{signature_name}'")
+        print(f"❌ Available keys: {list(data.keys())}")
     
     # Print name of taxpayer: Full company name
     signature_company = process_text(data.get("signatureCompanyName", ""), max_length=80)

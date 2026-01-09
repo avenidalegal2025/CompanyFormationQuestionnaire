@@ -267,9 +267,14 @@ def create_overlay(data, path):
     c.setFont("Helvetica", 9)
     c.setFillColorRGB(0, 0, 0)  # Ensure black text (not transparent)
     
-    # Draw signature name
-    c.drawString(*FIELD_POSITIONS["Signature Name"], final_signature_name)
-    print(f"✅ Drew signature name '{final_signature_name}' at {FIELD_POSITIONS['Signature Name']} on PAGE 1 with font Helvetica 9")
+    # Draw signature name - CRITICAL: Only draw if we have a value (don't draw empty string)
+    # If empty, the template's "AUTHORIZED SIGNER" will show through
+    if final_signature_name and final_signature_name.strip():
+        c.drawString(*FIELD_POSITIONS["Signature Name"], final_signature_name)
+        print(f"✅ Drew signature name '{final_signature_name}' at {FIELD_POSITIONS['Signature Name']} on PAGE 1 with font Helvetica 9")
+    else:
+        print(f"❌ ERROR: Cannot draw signature name - it's empty! This means the template's 'AUTHORIZED SIGNER' will show.")
+        print(f"❌ Data received: signatureName='{signature_name_raw}', signature_name='{signature_name}', final='{final_signature_name}'")
     
     # Draw signature title
     c.drawString(*FIELD_POSITIONS["Signature Title"], final_signature_title)
