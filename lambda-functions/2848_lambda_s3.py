@@ -244,11 +244,7 @@ def create_overlay(data, path):
     c.drawString(*FIELD_POSITIONS["Representative Designation"], process_text(data.get("representativeDesignation", ""), max_length=50))
     c.drawString(*FIELD_POSITIONS["Representative Jurisdiction"], process_text(data.get("representativeJurisdiction", ""), max_length=50))
     c.drawString(*FIELD_POSITIONS["Representative License No."], process_text(data.get("representativeLicenseNo", ""), max_length=30))
-    # Representative Signature
-    representative_signature = process_text(data.get("representativeSignature", ""), max_length=50)
-    if representative_signature:
-        c.drawString(*FIELD_POSITIONS["Representative Signature"], representative_signature)
-        print(f"✅ Drew representative signature '{representative_signature}' at {FIELD_POSITIONS['Representative Signature']} on PAGE 2")
+    # Representative Signature - Leave blank (user will sign manually)
     
     c.save()
 
