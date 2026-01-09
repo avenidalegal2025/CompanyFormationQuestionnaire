@@ -130,26 +130,6 @@ export default function CompanySwitcher({ userEmail, selectedCompanyId, onCompan
         // #region agent log
         fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:86',message:'Before selection logic',data:{newestCompanyId:newestCompany?.id,newestCompanyName:newestCompany?.companyName,newestCreatedAt:newestCompany?.createdAt,selectedCompanyId,currentSelectedId,paymentCompleted,userSelectedCompanyId:localStorage.getItem('userSelectedCompanyId'),companiesCount:companiesList.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
         // #endregion
-        
-        // CRITICAL: If paymentCompleted is true, ALWAYS check if we should update selection
-        // Even if selectedCompanyId is already set, we need to check if a newer company appeared
-        if (paymentCompleted === 'true' && newestCompany) {
-          const currentSelected = companiesList.find((c: Company) => c.id === currentSelectedId);
-          const currentSelectedDate = currentSelected ? new Date(currentSelected.createdAt).getTime() : 0;
-          const newestDate = new Date(newestCompany.createdAt).getTime();
-          
-          // If newest company is newer than currently selected, update selection
-          if (!currentSelected || newestDate > currentSelectedDate) {
-            console.log('🔄 Newer company detected, updating selection...');
-            console.log(`   Current: ${currentSelected?.companyName || 'none'} (${currentSelectedDate})`);
-            console.log(`   Newest: ${newestCompany.companyName} (${newestDate})`);
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/20b3c4ee-700a-4d96-a79c-99dd33f4960a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompanySwitcher.tsx:95',message:'Newer company found during paymentCompleted refetch',data:{currentSelectedId,currentSelectedName:currentSelected?.companyName,newestCompanyId:newestCompany.id,newestCompanyName:newestCompany.companyName,willUpdate:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-            // #endregion
-            selectNewest();
-            return; // Exit early - don't run other selection logic
-          }
-        }
 
         // Helper to select and persist newest
         const selectNewest = () => {
