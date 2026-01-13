@@ -582,6 +582,40 @@ export function mapAirtableToMembershipRegistry(record: any): any {
 }
 
 /**
+ * Get the template path for Membership Registry based on member and manager counts
+ * 
+ * ACTUAL S3 STRUCTURE (from AWS Console):
+ * Bucket: company-formation-template-llc-and-inc
+ * Base Path: llc-formation-templates/membership-registry-all-templates/
+ * 
+ * Structure:
+ * - Folders by member count: membership-registry-{N}-member/ (singular) or membership-registry-{N}-members/ (plural)
+ * - Files inside: Template Membership Registry_{N} Members_{M} Manager.docx
+ * 
+ * Examples:
+ * - 1 member, 1 manager: 
+ *   llc-formation-templates/membership-registry-all-templates/membership-registry-1-member/Template Membership Registry_1 Members_1 Manager.docx
+ * - 2 members, 3 managers:
+ *   llc-formation-templates/membership-registry-all-templates/membership-registry-2-members/Template Membership Registry_2 Members_3 Manager.docx
+ */
+export function getMembershipRegistryTemplateName(memberCount: number, managerCount: number): string {
+  // Cap at 6 for both members and managers (max supported)
+  const members = Math.min(Math.max(memberCount, 1), 6);
+  const managers = Math.min(Math.max(managerCount, 0), 6);
+  
+  // Folder name: membership-registry-{N}-member (singular) or membership-registry-{N}-members/ (plural)
+  const folderName = members === 1 
+    ? 'membership-registry-1-member'
+    : `membership-registry-${members}-members`;
+  
+  // File name: Template Membership Registry_{N} Members_{M} Manager.docx
+  const fileName = `Template Membership Registry_${members} Members_${managers} Manager.docx`;
+  
+  // Full path
+  return `llc-formation-templates/membership-registry-all-templates/${folderName}/${fileName}`;
+}
+
+/**
  * Helper function to format address
  */
 function formatAddress(address: string): string {
