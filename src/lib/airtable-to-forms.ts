@@ -486,3 +486,211 @@ export function mapAirtableTo8821(record: any): any {
   };
 }
 
+
+/**
+ * Map Airtable record to Membership Registry format (for LLCs)
+ */
+export function mapAirtableToMembershipRegistry(record: any): any {
+  const fields = record.fields || record;
+  const entityType = fields['Entity Type'] || 'LLC';
+  
+  if (entityType !== 'LLC') {
+    throw new Error('Membership Registry is only for LLCs');
+  }
+  
+  // Parse company address
+  const address = parseCompanyAddress(fields);
+  
+  // Get company name
+  const companyName = fields['Company Name'] || '';
+  
+  // Get formation state
+  const formationState = fields['Formation State'] || '';
+  
+  // Get formation date (use Payment Date as proxy, or current date)
+  const paymentDate = fields['Payment Date'];
+  let formationDate = '';
+  if (paymentDate) {
+    // Format date as MM/DD/YYYY
+    const date = new Date(paymentDate);
+    if (!isNaN(date.getTime())) {
+      formationDate = `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}/${date.getFullYear()}`;
+    }
+  }
+  if (!formationDate) {
+    // Use current date as fallback
+    const now = new Date();
+    formationDate = `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}/${now.getFullYear()}`;
+  }
+  
+  // Build full company address
+  const companyAddressParts = [
+    address.street,
+    address.city ? `${address.city}, ${address.state || ''} ${address.zip || ''}`.trim() : '',
+  ].filter(Boolean);
+  const companyAddress = companyAddressParts.join('\n');
+  
+  // Collect all members (owners)
+  const members: Array<{
+    name: string;
+    address: string;
+    ownershipPercent: number;
+    ssn?: string;
+  }> = [];
+  
+  // Count actual owners
+  let actualOwnerCount = 0;
+  for (let i = 1; i <= 6; i++) {
+    const ownerName = fields[`Owner ${i} Name`] || '';
+    if (ownerName && ownerName.trim() !== '') {
+      actualOwnerCount++;
+    }
+  }
+  const ownerCount = actualOwnerCount || fields['Owner Count'] || 0;
+  
+  // Collect member information
+  for (let i = 1; i <= Math.min(ownerCount, 6); i++) {
+    const ownerName = fields[`Owner ${i} Name`] || '';
+    if (!ownerName || ownerName.trim() === '') continue;
+    
+    let ownershipPercent = fields[`Owner ${i} Ownership %`] || 0;
+    // If ownership is stored as decimal (0-1), convert to percentage
+    if (ownershipPercent < 1 && ownershipPercent > 0) {
+      ownershipPercent = ownershipPercent * 100;
+    }
+    
+    const ownerAddress = formatAddress(fields[`Owner ${i} Address`] || '');
+    const ownerSSN = fields[`Owner ${i} SSN`] || '';
+    
+    members.push({
+      name: ownerName.trim(),
+      address: ownerAddress,
+      ownershipPercent: ownershipPercent,
+      ssn: ownerSSN && ownerSSN.toUpperCase() !== 'N/A' && !ownerSSN.toUpperCase().includes('FOREIGN') ? ownerSSN : undefined,
+    });
+  }
+  
+}
+
+/**
+ * Helper function to format address
+ */
+/**
+ * Get the template name for Membership Registry based on member and manager counts
+ * Format: membership-registry-template-{members}-{managers}.docx
+ * Examples:
+ * - 1 member, 0 managers: membership-registry-template-1-0.docx
+ * - 2 members, 1 manager: membership-registry-template-2-1.docx
+ * - 3 members, 2 managers: membership-registry-template-3-2.docx
+ */
+/**
+ * Get the template path for Membership Registry based on member and manager counts
+ * 
+ * ACTUAL S3 STRUCTURE (from AWS Console):
+ * Bucket: company-formation-template-llc-and-inc
+ * Base Path: llc-formation-templates/membership-registry-all-templates/
+ * 
+ * Structure:
+ * - Folders by member count: membership-registry-{N}-member/ (singular) or membership-registry-{N}-members/ (plural)
+ * - Files inside: Template Membership Registry_{N} Members_{M} Manager.docx
+ * 
+ * Examples:
+ * - 1 member, 1 manager: 
+ *   llc-formation-templates/membership-registry-all-templates/membership-registry-1-member/Template Membership Registry_1 Members_1 Manager.docx
+ * - 2 members, 3 managers:
+ *   llc-formation-templates/membership-registry-all-templates/membership-registry-2-members/Template Membership Registry_2 Members_3 Manager.docx
+ */
+export function getMembershipRegistryTemplateName(memberCount: number, managerCount: number): string {
+  // Cap at 6 for both members and managers (max supported)
+  const members = Math.min(Math.max(memberCount, 1), 6);
+  const managers = Math.min(Math.max(managerCount, 0), 6);
+  
+  // Folder name: membership-registry-{N}-member (singular) or membership-registry-{N}-members (plural)
+  const folderName = members === 1 
+    ? 'membership-registry-1-member'
+    : `membership-registry-${members}-members`;
+  
+  // File name: Template Membership Registry_{N} Members_{M} Manager.docx
+  const fileName = `Template Membership Registry_${members} Members_${managers} Manager.docx`;
+  
+  // Full path
+  return `llc-formation-templates/membership-registry-all-templates/${folderName}/${fileName}`;
+}
+
+/**
+ * Helper function to format address
+ */
+function formatAddress(address: string): string {
+  if (!address || address.trim() === '') {
+    return '';
+  }
+  return address.trim();
+}
+
+  // Collect all managers
+  const managers: Array<{
+    name: string;
+    address: string;
+  }> = [];
+  
+  // Count actual managers
+  let actualManagerCount = 0;
+  for (let i = 1; i <= 6; i++) {
+    const managerName = fields[`Manager ${i} Name`] || '';
+    if (managerName && managerName.trim() !== '') {
+      actualManagerCount++;
+    }
+  }
+  const managerCount = actualManagerCount || fields['Managers Count'] || 0;
+  
+  // Collect manager information
+  for (let i = 1; i <= Math.min(managerCount, 6); i++) {
+    const managerName = fields[`Manager ${i} Name`] || '';
+    if (!managerName || managerName.trim() === '') continue;
+    
+    const managerAddress = formatAddress(fields[`Manager ${i} Address`] || '');
+    
+    managers.push({
+      name: managerName.trim(),
+      address: managerAddress,
+    });
+  }
+  
+  return {
+    companyName: companyName,
+    companyAddress: companyAddress,
+    formationState: formationState,
+    formationDate: formationDate,
+    members: members,
+    managers: managers,
+    memberCount: members.length,
+    managerCount: managers.length,
+  };
+}
+
+/**
+ * Get the template name for Membership Registry based on member and manager counts
+ * Format: membership-registry-template-{members}-{managers}.docx
+ * Examples:
+ * - 1 member, 0 managers: membership-registry-template-1-0.docx
+ * - 2 members, 1 manager: membership-registry-template-2-1.docx
+ * - 3 members, 2 managers: membership-registry-template-3-2.docx
+ */
+/**
+ * Get the template path for Membership Registry based on member and manager counts
+ * 
+ * ACTUAL S3 STRUCTURE (from AWS Console):
+ * Bucket: company-formation-template-llc-and-inc
+ * Base Path: llc-formation-templates/membership-registry-all-templates/
+ * 
+ * Structure:
+ * - Folders by member count: membership-registry-{N}-member/ (singular) or membership-registry-{N}-members/ (plural)
+ * - Files inside: Template Membership Registry_{N} Members_{M} Manager.docx
+ * 
+ * Examples:
+ * - 1 member, 1 manager: 
+ *   llc-formation-templates/membership-registry-all-templates/membership-registry-1-member/Template Membership Registry_1 Members_1 Manager.docx
+ * - 2 members, 3 managers:
+ *   llc-formation-templates/membership-registry-all-templates/membership-registry-2-members/Template Membership Registry_2 Members_3 Manager.docx
+ */
+
