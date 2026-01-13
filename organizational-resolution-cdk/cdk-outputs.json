@@ -1,0 +1,7 @@
+{
+  "OrganizationalResolutionStack": {
+    "FunctionName": "OrganizationalResolutionS-OrganizationalResolution-LB7obOUKKQ8R",
+    "FunctionArn": "arn:aws:lambda:us-west-1:043206426879:function:OrganizationalResolutionS-OrganizationalResolution-LB7obOUKKQ8R",
+    "FunctionUrl": "https://yo54tsr37rcs3kjqsxt2ecvi2y0zjnli.lambda-url.us-west-1.on.aws/"
+  }
+}

@@ -1,0 +1,42 @@
+version: 0.2
+
+env:
+  variables:
+    AWS_REGION: us-west-1
+    LAYER_NAME: python-docx-layer
+    FUNCTION_NAME: MembershipRegistryStack-MembershipRegistryLambda8D-YpxTIUIqd2m2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.11
+  pre_build:
+    commands:
+      - echo "Installing build tools..."
+      - pip install --upgrade pip
+  build:
+    commands:
+      - echo "Building Lambda layer for python-docx and lxml on Amazon Linux..."
+      - mkdir -p python
+      - pip install python-docx lxml -t python/
+      - zip -r python-docx-layer.zip python
+      - echo "Publishing Lambda layer..."
+      - |
+        LAYER_ARN=$(aws lambda publish-layer-version \
+          --layer-name "$LAYER_NAME" \
+          --zip-file "fileb://python-docx-layer.zip" \
+          --compatible-runtimes python3.11 \
+          --region "$AWS_REGION" \
+          --query 'LayerVersionArn' \
+          --output text)
+        echo "LAYER_ARN=$LAYER_ARN"
+        echo "Updating Lambda function to use new layer..."
+        aws lambda update-function-configuration \
+          --function-name "$FUNCTION_NAME" \
+          --layers "$LAYER_ARN" \
+          --region "$AWS_REGION"
+artifacts:
+  files:
+    - python-docx-layer.zip
+  discard-paths: yes
+

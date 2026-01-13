@@ -703,6 +703,13 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
           'Membership Registry',
           `${baseUrl}/api/airtable/generate-membership-registry`
         );
+        
+        // Regenerate Organizational Resolution from Airtable (for LLCs only)
+        await regenerateFormFromAirtable(
+          'organizational-resolution',
+          'Organizational Resolution',
+          `${baseUrl}/api/airtable/generate-organizational-resolution`
+        );
       }
       
       // Update DynamoDB with all regenerated forms for this specific company

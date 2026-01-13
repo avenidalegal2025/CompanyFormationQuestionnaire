@@ -648,6 +648,43 @@ export function getMembershipRegistryTemplateName(memberCount: number, managerCo
 }
 
 /**
+ * Get the template path for Organizational Resolution based on member and manager counts
+ * 
+ * S3 STRUCTURE:
+ * Bucket: company-formation-template-llc-and-inc
+ * Base Path: llc-formation-templates/organizational-resolution-all-templates/
+ * 
+ * Structure:
+ * - Folders: Template Organization Resolution_{N} Member/ or Template Organization Resolution_{N} Members/
+ * - Files: Template Organization Resolution_{N} Members_{M} Manager.docx
+ * 
+ * Examples:
+ * - 1 member, 1 manager:
+ *   llc-formation-templates/organizational-resolution-all-templates/Template Organization Resolution_1 Member/Template Organization Resolution_1 Member_1 Manager.docx
+ * - 2 members, 3 managers:
+ *   llc-formation-templates/organizational-resolution-all-templates/Template Organization Resolution_2 Members/Template Organization Resolution_2 Members_3 Managers.docx
+ */
+export function getOrganizationalResolutionTemplateName(memberCount: number, managerCount: number): string {
+  const members = Math.min(Math.max(memberCount, 1), 6);
+  const managers = Math.min(Math.max(managerCount, 0), 6);
+  
+  // Folder name: Template Organization Resolution_{N} Member (singular) or Template Organization Resolution_{N} Members (plural)
+  const folderName = members === 1
+    ? 'Template Organization Resolution_1 Member'
+    : `Template Organization Resolution_${members} Members`;
+  
+  // File name pattern:
+  // - 1 manager: "Manager" (singular)
+  // - 2+ managers: "Managers" (plural)
+  // - Member/Members follows the same pattern based on member count
+  const memberWord = members === 1 ? 'Member' : 'Members';
+  const managerWord = managers === 1 ? 'Manager' : 'Managers';
+  const fileName = `Template Organization Resolution_${members} ${memberWord}_${managers} ${managerWord}.docx`;
+  
+  return `llc-formation-templates/organizational-resolution-all-templates/${folderName}/${fileName}`;
+}
+
+/**
  * Helper function to format address
  */
 function formatAddress(address: string): string {

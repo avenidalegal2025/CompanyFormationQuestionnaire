@@ -272,12 +272,15 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
                   <input
                     type="number"
                     min={0}
-                    step={1}
+                    max={100}
+                    step="0.01"
                     className={`input w-full max-w-xs ${totalPercentage > 100 ? 'border-red-500 bg-red-50' : ''}`}
                     {...reg(`${base}.ownership`)}
                     onChange={(e) => {
-                      const value = Number(e.target.value);
-                      (setValue as (name: string, value: unknown) => void)(`${base}.ownership`, value);
+                      const value = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                      if (!isNaN(value)) {
+                        (setValue as (name: string, value: unknown) => void)(`${base}.ownership`, value);
+                      }
                     }}
                   />
                   <div className="mt-1 text-sm">
