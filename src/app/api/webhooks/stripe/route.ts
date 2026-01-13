@@ -696,6 +696,15 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
         `${baseUrl}/api/airtable/generate-8821`
       );
       
+      // Regenerate Membership Registry from Airtable (for LLCs only)
+      if (entityType === 'LLC') {
+        await regenerateFormFromAirtable(
+          'membership-registry',
+          'Membership Registry',
+          `${baseUrl}/api/airtable/generate-membership-registry`
+        );
+      }
+      
       // Update DynamoDB with all regenerated forms for this specific company
       try {
         const companyKeyForUpdate = airtableRecordId || 'default';
