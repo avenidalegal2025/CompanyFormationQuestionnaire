@@ -584,7 +584,7 @@ export function mapAirtableToMembershipRegistry(record: any): any {
 /**
  * Helper function to format address
  */
-function format_address(address: string): string {
+function formatAddress(address: string): string {
   if (!address || address.trim() === '') {
     return '';
   }
