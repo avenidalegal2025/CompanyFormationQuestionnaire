@@ -572,12 +572,44 @@ export function mapAirtableToMembershipRegistry(record: any): any {
   // Sort members by ownership percentage (descending)
   members.sort((a, b) => b.ownershipPercent - a.ownershipPercent);
   
+  // Collect all managers
+  const managers: Array<{
+    name: string;
+    address: string;
+  }> = [];
+  
+  // Count actual managers
+  let actualManagerCount = 0;
+  for (let i = 1; i <= 6; i++) {
+    const managerName = fields[`Manager ${i} Name`] || '';
+    if (managerName && managerName.trim() !== '') {
+      actualManagerCount++;
+    }
+  }
+  const managerCount = actualManagerCount || fields['Managers Count'] || 0;
+  
+  // Collect manager information
+  for (let i = 1; i <= Math.min(managerCount, 6); i++) {
+    const managerName = fields[`Manager ${i} Name`] || '';
+    if (!managerName || managerName.trim() === '') continue;
+    
+    const managerAddress = formatAddress(fields[`Manager ${i} Address`] || '');
+    
+    managers.push({
+      name: managerName.trim(),
+      address: managerAddress,
+    });
+  }
+  
   return {
     companyName: companyName,
     companyAddress: companyAddress,
     formationState: formationState,
     formationDate: formationDate,
     members: members,
+    managers: managers,
+    memberCount: members.length,
+    managerCount: managers.length,
   };
 }
 
