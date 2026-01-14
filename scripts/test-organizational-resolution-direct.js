@@ -41,11 +41,18 @@ function mapAirtableToOrganizationalResolution(record) {
     const ownerName = fields[`Owner ${i} Name`] || '';
     if (!ownerName || ownerName.trim() === '') continue;
     
+    let ownershipPercent = fields[`Owner ${i} Ownership %`] || 0;
+    // If ownership is stored as decimal (0-1), convert to percentage
+    if (ownershipPercent > 0 && ownershipPercent <= 1) {
+      ownershipPercent = ownershipPercent * 100;
+    }
+    
     const ownerAddress = (fields[`Owner ${i} Address`] || '').trim();
     
     members.push({
       name: ownerName.trim(),
       address: ownerAddress,
+      ownershipPercent: ownershipPercent,
     });
   }
   
