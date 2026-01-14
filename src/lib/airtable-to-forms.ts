@@ -523,11 +523,26 @@ export function mapAirtableToMembershipRegistry(record: any): any {
   }
   
   // Build full company address
-  const companyAddressParts = [
-    address.street,
-    address.city ? `${address.city}, ${address.state || ''} ${address.zip || ''}`.trim() : '',
-  ].filter(Boolean);
-  const companyAddress = companyAddressParts.join('\n');
+  // Prefer parsed components, but if parsing fails (e.g. "New York New York 10001"),
+  // fall back to the raw Airtable string so we don't drop city/state/zip.
+  const rawCompanyAddress = (fields['Company Address'] || '').toString().trim();
+  let companyAddress: string;
+
+  if (address.city || address.state || address.zip) {
+    const companyAddressParts = [
+      address.street,
+      address.city ? `${address.city}, ${address.state || ''} ${address.zip || ''}`.trim() : '',
+    ].filter(Boolean);
+    companyAddress = companyAddressParts.join('\n');
+  } else if (rawCompanyAddress) {
+    companyAddress = rawCompanyAddress;
+  } else {
+    const companyAddressParts = [
+      address.street,
+      address.city ? `${address.city}, ${address.state || ''} ${address.zip || ''}`.trim() : '',
+    ].filter(Boolean);
+    companyAddress = companyAddressParts.join('\n');
+  }
   
   // Collect all members (owners)
   const members: Array<{
