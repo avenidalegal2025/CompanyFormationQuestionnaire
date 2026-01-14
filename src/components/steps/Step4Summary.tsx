@@ -824,8 +824,8 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                 </div>
               </div>
                 
-                {/* Manager Details - Always show when managersAllOwners is "Yes", or when "No" and managersCount is set */}
-                {((adminData?.managersAllOwners === "Yes" && ownersCount > 0) || (adminData?.managersAllOwners === "No" && adminData?.managersCount)) && (
+                {/* Manager Details - only when ALL owners are managers (avoids duplication with separate Managers list) */}
+                {adminData?.managersAllOwners === "Yes" && ownersCount > 0 && (
                   <div className="mt-4 space-y-4">
                     <h4 className="text-md font-semibold text-gray-800">Detalles de los Gerentes</h4>
                     {Array.from({ length: Math.min(
