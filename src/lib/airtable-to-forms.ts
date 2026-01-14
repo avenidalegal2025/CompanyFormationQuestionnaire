@@ -554,7 +554,8 @@ export function mapAirtableToMembershipRegistry(record: any): any {
     
     let ownershipPercent = fields[`Owner ${i} Ownership %`] || 0;
     // If ownership is stored as decimal (0-1), convert to percentage
-    if (ownershipPercent < 1 && ownershipPercent > 0) {
+    // Handle both 0-1 range (decimal) and 0-100 range (percentage)
+    if (ownershipPercent > 0 && ownershipPercent <= 1) {
       ownershipPercent = ownershipPercent * 100;
     }
     

@@ -147,7 +147,9 @@ def replace_placeholders(doc, data):
             
             # Ownership percentages - handle both {{member_01_pct}} and {{member_1_pct}}
             # Also handle cases where template has "%" after placeholder (e.g., {{member_01_pct}}%)
-            ownership_pct = member.get('ownershipPercent', 0) or 0
+            ownership_pct = member.get('ownershipPercent', 0)
+            if ownership_pct is None:
+                ownership_pct = 0
             pct_str = format_percentage(ownership_pct)
             # Remove the "%" from pct_str since template may already have it
             pct_str_no_percent = pct_str.rstrip('%')
