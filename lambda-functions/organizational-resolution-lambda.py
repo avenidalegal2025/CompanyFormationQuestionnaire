@@ -150,6 +150,7 @@ def replace_placeholders(doc, data):
             ownership_pct = member.get('ownershipPercent', 0)
             if ownership_pct is None:
                 ownership_pct = 0
+            print(f"===> Member {idx} ownership: {ownership_pct} (raw), will format to: {format_percentage(ownership_pct)}")
             pct_str = format_percentage(ownership_pct)
             # Remove the "%" from pct_str since template may already have it
             pct_str_no_percent = pct_str.rstrip('%')
@@ -240,7 +241,9 @@ def replace_placeholders(doc, data):
                     
                     # Fill ownership percentage
                     if 'ownership' in column_map and len(row.cells) > column_map['ownership']:
-                        ownership_pct = member.get('ownershipPercent', 0) or 0
+                        ownership_pct = member.get('ownershipPercent', 0)
+                        if ownership_pct is None:
+                            ownership_pct = 0
                         pct_str = format_percentage(ownership_pct)
                         # Check if cell already has "%" in template text
                         cell_text = row.cells[column_map['ownership']].text
