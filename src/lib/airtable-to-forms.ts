@@ -696,11 +696,16 @@ export function getOrganizationalResolutionTemplateName(memberCount: number, man
     : `Template Organization Resolution_${members} Members`;
   
   // File name pattern:
-  // - 1 manager: "Manager" (singular)
-  // - 2+ managers: "Managers" (plural)
-  // - Member/Members follows the same pattern based on member count
+  // - Member/Members follows pluralization based on member count
+  // - Manager/Managers is PLURAL only for 2+ managers when members >= 2
+  //   (for 1-member templates, S3 uses "Manager" even for 2+ managers)
   const memberWord = members === 1 ? 'Member' : 'Members';
-  const managerWord = managers === 1 ? 'Manager' : 'Managers';
+  const managerWord =
+    members === 1
+      ? 'Manager'
+      : managers === 1
+        ? 'Manager'
+        : 'Managers';
   const fileName = `Template Organization Resolution_${members} ${memberWord}_${managers} ${managerWord}.docx`;
   
   return `llc-formation-templates/organizational-resolution-all-templates/${folderName}/${fileName}`;
