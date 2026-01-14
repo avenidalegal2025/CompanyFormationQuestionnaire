@@ -161,22 +161,25 @@ def replace_placeholders(doc, data):
         
         return text
     
-    # Replace in paragraphs
+    # Replace in paragraphs - python-docx handles runs automatically when setting .text
     for paragraph in doc.paragraphs:
-        original = paragraph.text
-        new_text = replace_in_text(original)
-        if new_text != original:
-            paragraph.text = new_text
+        full_text = paragraph.text
+        if '{{' in full_text:
+            new_text = replace_in_text(full_text)
+            if new_text != full_text:
+                # Setting paragraph.text automatically handles all runs
+                paragraph.text = new_text
     
     # Replace in tables (cell paragraphs)
     for table in doc.tables:
         for row in table.rows:
             for cell in row.cells:
                 for paragraph in cell.paragraphs:
-                    original = paragraph.text
-                    new_text = replace_in_text(original)
-                    if new_text != original:
-                        paragraph.text = new_text
+                    full_text = paragraph.text
+                    if '{{' in full_text:
+                        new_text = replace_in_text(full_text)
+                        if new_text != full_text:
+                            paragraph.text = new_text
     
     # Handle ownership table if it exists (Members | Percentage Ownership)
     for table in doc.tables:
