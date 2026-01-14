@@ -335,6 +335,12 @@ export function parseCompanyAddress(fields: any): {
     // Fallback: use as-is
     street = companyAddress;
   }
+
+  // If we still couldn't parse city/state/zip (e.g. "New York New York 10001"),
+  // fall back to the full raw address in the street line so we don't lose info.
+  if (!city && !state && !zip && companyAddress) {
+    street = companyAddress;
+  }
   
   return { street, addressLine2, city, state, zip };
 }
