@@ -123,18 +123,22 @@ def create_overlay(data, path):
     if company_name:
         c.drawString(*FIELD_POSITIONS["Taxpayer Name"], company_name)
     
-    # Line 2: Street address
+    # Line 2: Street address (or primary address line)
     company_address = process_text(data.get("companyAddress", ""), max_length=80)
     if company_address:
         c.drawString(*FIELD_POSITIONS["Taxpayer Address 1"], company_address)
     
-    # Line 3: City, State, Zip
-    company_city = process_text(data.get("companyCity", ""))
-    company_state = process_text(data.get("companyState", ""))
-    company_zip = str(data.get("companyZip", "")).strip()
-    city_state_zip = ", ".join(filter(None, [company_city, company_state, company_zip]))
-    if city_state_zip:
-        c.drawString(*FIELD_POSITIONS["Taxpayer Address 2"], truncate_at_word_boundary(city_state_zip, max_length=80))
+    # Line 3: Either explicit Address Line 2 from data, or City, State, Zip
+    company_address_line2 = process_text(data.get("companyAddressLine2", ""), max_length=80)
+    if company_address_line2:
+        c.drawString(*FIELD_POSITIONS["Taxpayer Address 2"], company_address_line2)
+    else:
+        company_city = process_text(data.get("companyCity", ""))
+        company_state = process_text(data.get("companyState", ""))
+        company_zip = str(data.get("companyZip", "")).strip()
+        city_state_zip = ", ".join(filter(None, [company_city, company_state, company_zip]))
+        if city_state_zip:
+            c.drawString(*FIELD_POSITIONS["Taxpayer Address 2"], truncate_at_word_boundary(city_state_zip, max_length=80))
     
     # Telephone number (same position as 8821)
     # Remove "+1_" or "+1 " prefix if present

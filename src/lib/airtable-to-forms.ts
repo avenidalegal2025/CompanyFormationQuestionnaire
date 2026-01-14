@@ -361,6 +361,7 @@ export function mapAirtableTo2848(record: any): any {
   
   // Parse company address
   const address = parseCompanyAddress(fields);
+  const rawCompanyAddress = (fields['Company Address'] || '').toString().trim();
   
   // Get company phone
   const companyPhone = (fields['Business Phone'] || '').trim();
@@ -381,11 +382,28 @@ export function mapAirtableTo2848(record: any): any {
     taxFormNumber = '1120';
   }
   
+  // Build address lines for PDFs:
+  // - Line 1: street / primary line
+  // - Line 2: optional remainder (e.g. city/state when parsing failed)
+  let companyAddress = address.street;
+  let companyAddressLine2 = address.addressLine2;
+
+  // If parsing failed to produce city/state/zip but we have a raw address,
+  // split on the first comma as a fallback to avoid overly long single lines.
+  if (!address.city && !address.state && !address.zip && rawCompanyAddress.includes(',')) {
+    const [line1, ...restParts] = rawCompanyAddress.split(',');
+    const rest = restParts.join(',').trim();
+    companyAddress = line1.trim() || rawCompanyAddress;
+    if (rest) {
+      companyAddressLine2 = rest;
+    }
+  }
+
   return {
     // Company Information (Taxpayer)
     companyName: fields['Company Name'] || '',
-    companyAddress: address.street,
-    companyAddressLine2: address.addressLine2,
+    companyAddress: companyAddress,
+    companyAddressLine2: companyAddressLine2,
     companyCity: address.city,
     companyState: address.state,
     companyZip: address.zip,
@@ -439,6 +457,7 @@ export function mapAirtableTo8821(record: any): any {
   
   // Parse company address
   const address = parseCompanyAddress(fields);
+  const rawCompanyAddress = (fields['Company Address'] || '').toString().trim();
   
   // Get company phone
   const companyPhone = (fields['Business Phone'] || '').trim();
@@ -455,17 +474,32 @@ export function mapAirtableTo8821(record: any): any {
     signatureTitle = 'AUTHORIZED SIGNER';
   }
   
+  // Build address lines for PDFs (Box 1):
+  // - taxpayerAddress: primary street line
+  // - taxpayerAddressLine2: optional remainder when parsing failed
+  let taxpayerAddress = address.street;
+  let taxpayerAddressLine2 = '';
+
+  if (!address.city && !address.state && !address.zip && rawCompanyAddress.includes(',')) {
+    const [line1, ...restParts] = rawCompanyAddress.split(',');
+    const rest = restParts.join(',').trim();
+    taxpayerAddress = line1.trim() || rawCompanyAddress;
+    if (rest) {
+      taxpayerAddressLine2 = rest;
+    }
+  }
+
   return {
     // Company Information
     companyName: fields['Company Name'] || '',
     ein: '',
-    companyAddress: address.street,
+    companyAddress: taxpayerAddress,
     
     // Box 1: Taxpayer (COMPANY)
     taxpayerName: fields['Company Name'] || '',
     taxpayerSSN: '',
-    taxpayerAddress: address.street,
-    taxpayerAddressLine2: '',
+    taxpayerAddress: taxpayerAddress,
+    taxpayerAddressLine2: taxpayerAddressLine2,
     taxpayerCity: address.city,
     taxpayerState: address.state,
     taxpayerZip: address.zip,

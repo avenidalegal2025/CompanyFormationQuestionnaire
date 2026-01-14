@@ -140,17 +140,22 @@ def create_overlay(data, path):
     # Build taxpayer address lines
     # IMPORTANT: For Box 1, we want:
     # Line 2: Street address only (taxpayerAddress)
-    # Line 3: City, State ZIP (taxpayerCity, taxpayerState, taxpayerZip)
-    # Do NOT combine taxpayerAddressLine2 - it's not used for 8821
+    # Line 3: Either explicit taxpayerAddressLine2, or City, State ZIP
     taxpayer_address_1 = taxpayer_address or ""
     
     # Truncate address line 1 if needed
     if len(taxpayer_address_1) > 80:
         taxpayer_address_1 = truncate_at_word_boundary(taxpayer_address_1, max_length=80)
     
-    # Address line 2: City, State ZIP
-    city_state_zip_parts = [p for p in [taxpayer_city, taxpayer_state, taxpayer_zip] if p]
-    taxpayer_address_2 = ", ".join(city_state_zip_parts) if city_state_zip_parts else ""
+    # Address line 2:
+    # Prefer taxpayerAddressLine2 from data (used when parsing failed and we split on comma),
+    # otherwise build from city, state, zip.
+    if taxpayer_address_line2:
+        taxpayer_address_2 = taxpayer_address_line2
+    else:
+        city_state_zip_parts = [p for p in [taxpayer_city, taxpayer_state, taxpayer_zip] if p]
+        taxpayer_address_2 = ", ".join(city_state_zip_parts) if city_state_zip_parts else ""
+    
     if taxpayer_address_2 and len(taxpayer_address_2) > 80:
         taxpayer_address_2 = truncate_at_word_boundary(taxpayer_address_2, max_length=80)
     
