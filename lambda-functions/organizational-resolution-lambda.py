@@ -93,8 +93,21 @@ def replace_placeholders(doc, data):
     managers = data.get('managers', []) or []
     print(f"===> Found {len(members)} members and {len(managers)} managers in form data")
     
-    # Determine managed type: "member" if no managers, "manager" if managers exist
-    managed_type = "manager" if len(managers) > 0 else "member"
+    # Determine managed type:
+    # - If ALL members are also ALL managers (same set), it's "member-managed"
+    # - Otherwise, it's "manager-managed"
+    if len(managers) == 0:
+        managed_type = "member"
+    elif len(members) == len(managers) and len(members) > 0:
+        # Check if all members are also managers (same set)
+        member_names = set(m.get('name', '').strip().lower() for m in members if m.get('name'))
+        manager_names = set(m.get('name', '').strip().lower() for m in managers if m.get('name'))
+        if member_names == manager_names and len(member_names) > 0:
+            managed_type = "member"
+        else:
+            managed_type = "manager"
+    else:
+        managed_type = "manager"
     
     # Helper to replace all known placeholders in a text string
     def replace_in_text(text: str) -> str:
@@ -133,15 +146,26 @@ def replace_placeholders(doc, data):
                     text = text.replace(ph, member_name)
             
             # Ownership percentages - handle both {{member_01_pct}} and {{member_1_pct}}
+            # Also handle cases where template has "%" after placeholder (e.g., {{member_01_pct}}%)
             ownership_pct = member.get('ownershipPercent', 0) or 0
             pct_str = format_percentage(ownership_pct)
+            # Remove the "%" from pct_str since template may already have it
+            pct_str_no_percent = pct_str.rstrip('%')
+            
             pct_ph1 = '{{' + f'member_{num2}_pct' + '}}'
             pct_ph2 = '{{' + f'member_{idx}_pct' + '}}'
             pct_ph3 = '{{' + f'Member_{num2}_pct' + '}}'
             pct_ph4 = '{{' + f'Member_{idx}_pct' + '}}'
+            
+            # Replace with % if template has it, without % if template doesn't
             for ph in (pct_ph1, pct_ph2, pct_ph3, pct_ph4):
                 if ph in text:
-                    text = text.replace(ph, pct_str)
+                    # Check if template has "%" after the placeholder
+                    ph_with_percent = ph + '%'
+                    if ph_with_percent in text:
+                        text = text.replace(ph_with_percent, pct_str_no_percent + '%')
+                    else:
+                        text = text.replace(ph, pct_str)
         
         # Manager placeholders: {{manager_01_full_name}}, {{Manager_1}}, etc.
         for idx, manager in enumerate(managers, start=1):
@@ -215,7 +239,14 @@ def replace_placeholders(doc, data):
                     # Fill ownership percentage
                     if 'ownership' in column_map and len(row.cells) > column_map['ownership']:
                         ownership_pct = member.get('ownershipPercent', 0) or 0
-                        row.cells[column_map['ownership']].text = format_percentage(ownership_pct)
+                        pct_str = format_percentage(ownership_pct)
+                        # Check if cell already has "%" in template text
+                        cell_text = row.cells[column_map['ownership']].text
+                        if '%' in cell_text and pct_str.endswith('%'):
+                            # Remove the % from our string if template already has it
+                            row.cells[column_map['ownership']].text = pct_str.rstrip('%') + '%'
+                        else:
+                            row.cells[column_map['ownership']].text = pct_str
                 
                 # Remove extra rows
                 while len(table.rows) > len(members) + 1:
