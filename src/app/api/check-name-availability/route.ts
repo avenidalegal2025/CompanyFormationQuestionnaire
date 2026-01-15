@@ -3,13 +3,17 @@ import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 
 const lambdaClient = new LambdaClient({
   region: 'us-west-1',
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
-  },
+  credentials: process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
+    ? {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      }
+    : undefined,
 });
 
 const LAMBDA_FUNCTION_ARN = 'arn:aws:lambda:us-west-1:043206426879:function:sunbiz-lambda-latest';
+const LAMBDA_FUNCTION_URL = process.env.LAMBDA_NAME_AVAILABILITY_URL ||
+  'https://wk3xyxceloos7e5xgslyvfntqa0thtxv.lambda-url.us-west-1.on.aws/';
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,53 +34,91 @@ export async function POST(request: NextRequest) {
       entityType: entityType || 'LLC', // Default to LLC if not provided
     };
 
-    console.log(`📤 Invoking Lambda: ${LAMBDA_FUNCTION_ARN}`);
     console.log(`📋 Payload:`, JSON.stringify(payload));
 
-    // Invoke Lambda function
-    const command = new InvokeCommand({
-      FunctionName: LAMBDA_FUNCTION_ARN,
-      Payload: JSON.stringify(payload),
-    });
-
-    const response = await lambdaClient.send(command);
-
-    console.log(`📡 Lambda response status: ${response.StatusCode}`);
-    console.log(`📡 Lambda response logResult: ${response.LogResult || 'N/A'}`);
-
-    if (response.FunctionError) {
-      console.error(`❌ Lambda function error: ${response.FunctionError}`);
-      const errorPayload = response.Payload ? JSON.parse(Buffer.from(response.Payload).toString()) : null;
-      return NextResponse.json(
-        { 
-          error: 'Lambda function error',
-          details: errorPayload || response.FunctionError,
-        },
-        { status: 500 }
-      );
-    }
-
-    // Parse Lambda response
-    const responsePayload = response.Payload 
-      ? JSON.parse(Buffer.from(response.Payload).toString())
-      : null;
-
-    console.log(`✅ Lambda response payload:`, JSON.stringify(responsePayload, null, 2));
-
-    // Lambda returns { statusCode: 200, body: "..." } where body is a JSON string
     let result;
-    if (responsePayload?.body) {
-      // Parse the body JSON string
-      try {
-        result = JSON.parse(responsePayload.body);
-      } catch (parseError) {
-        console.error('❌ Failed to parse Lambda body:', parseError);
-        // Fallback: try to use responsePayload directly
-        result = responsePayload;
+
+    if (LAMBDA_FUNCTION_URL) {
+      console.log(`📤 Invoking Lambda URL: ${LAMBDA_FUNCTION_URL}`);
+      const urlResponse = await fetch(LAMBDA_FUNCTION_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      console.log(`📡 Lambda URL response status: ${urlResponse.status}`);
+
+      if (!urlResponse.ok) {
+        const errorText = await urlResponse.text();
+        console.error(`❌ Lambda URL error response: ${errorText}`);
+        return NextResponse.json(
+          { error: 'Lambda function URL error', details: errorText },
+          { status: 500 }
+        );
+      }
+
+      const urlPayload = await urlResponse.json();
+      console.log(`✅ Lambda URL response payload:`, JSON.stringify(urlPayload, null, 2));
+
+      // Function URL may return { statusCode, body } or direct JSON
+      if (urlPayload?.body) {
+        try {
+          result = JSON.parse(urlPayload.body);
+        } catch (parseError) {
+          console.error('❌ Failed to parse Lambda URL body:', parseError);
+          result = urlPayload;
+        }
+      } else {
+        result = urlPayload;
       }
     } else {
-      // Fallback: use responsePayload directly if no body field
-      result = responsePayload;
+      console.log(`📤 Invoking Lambda ARN: ${LAMBDA_FUNCTION_ARN}`);
+
+      // Invoke Lambda function
+      const command = new InvokeCommand({
+        FunctionName: LAMBDA_FUNCTION_ARN,
+        Payload: JSON.stringify(payload),
+      });
+
+      const response = await lambdaClient.send(command);
+
+      console.log(`📡 Lambda response status: ${response.StatusCode}`);
+      console.log(`📡 Lambda response logResult: ${response.LogResult || 'N/A'}`);
+
+      if (response.FunctionError) {
+        console.error(`❌ Lambda function error: ${response.FunctionError}`);
+        const errorPayload = response.Payload ? JSON.parse(Buffer.from(response.Payload).toString()) : null;
+        return NextResponse.json(
+          { 
+            error: 'Lambda function error',
+            details: errorPayload || response.FunctionError,
+          },
+          { status: 500 }
+        );
+      }
+
+      // Parse Lambda response
+      const responsePayload = response.Payload 
+        ? JSON.parse(Buffer.from(response.Payload).toString())
+        : null;
+
+      console.log(`✅ Lambda response payload:`, JSON.stringify(responsePayload, null, 2));
+
+      if (responsePayload?.body) {
+        // Parse the body JSON string
+        try {
+          result = JSON.parse(responsePayload.body);
+        } catch (parseError) {
+          console.error('❌ Failed to parse Lambda body:', parseError);
+          // Fallback: try to use responsePayload directly
+          result = responsePayload;
+        }
+      } else {
+        // Fallback: use responsePayload directly if no body field
+        result = responsePayload;
+      }
     }
 
     console.log(`✅ Parsed result:`, JSON.stringify(result, null, 2));
