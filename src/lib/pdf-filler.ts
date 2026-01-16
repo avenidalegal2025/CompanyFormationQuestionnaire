@@ -149,17 +149,17 @@ function transformDataForSS4(formData: QuestionnaireData): any {
   if (isCorp && officersAllOwners === false) {
     const officersCount = admin.officersCount || 0;
     for (let i = 1; i <= Math.min(officersCount, 6); i++) {
-      const role = admin[`officer${i}Role`] || '';
+      const role = String(admin[`officer${i}Role`] ?? '');
       if (role === 'President') {
-        const firstName = admin[`officer${i}FirstName`] || '';
-        const lastName = admin[`officer${i}LastName`] || '';
-        const name = admin[`officer${i}Name`] || `${firstName} ${lastName}`.trim();
-        const ssn = admin[`officer${i}SSN`] || '';
+        const firstName = String(admin[`officer${i}FirstName`] ?? '');
+        const lastName = String(admin[`officer${i}LastName`] ?? '');
+        const name = String(admin[`officer${i}Name`] ?? `${firstName} ${lastName}`.trim());
+        const ssn = String(admin[`officer${i}SSN`] ?? '');
         responsibleOwner = {
           fullName: name,
           ssn,
           tin: ssn,
-          address: admin[`officer${i}Address`] || '',
+          address: String(admin[`officer${i}Address`] ?? ''),
         };
         hasValidSSN = hasValidSSNValue(ssn);
         lockedToPresident = true;
