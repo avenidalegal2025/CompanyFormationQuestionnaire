@@ -87,6 +87,15 @@ export interface QuestionnaireData {
 function transformDataForSS4(formData: QuestionnaireData): any {
   const company = formData.company || {};
   const owners = formData.owners || [];
+  const admin = formData.admin || {};
+  const entityType = company.entityType || 'LLC';
+  const isCorp = entityType === 'C-Corp' || entityType === 'S-Corp';
+
+  const hasValidSSNValue = (value: string): boolean => {
+    if (!value || value.trim() === '') return false;
+    const upper = value.toUpperCase();
+    return upper !== 'N/A' && !upper.includes('FOREIGN');
+  };
   
   // Find the first owner/partner with an SSN for responsible party (Line 7a and 7b)
   // If one of the partners has a SSN, use their full name for 7a and their SSN for 7b
@@ -94,13 +103,40 @@ function transformDataForSS4(formData: QuestionnaireData): any {
   // CRITICAL: Always start with owners[0] as fallback (same as SS-4 from Airtable uses Owner 1 Name)
   let responsibleOwner = owners.length > 0 ? owners[0] : null;
   let hasValidSSN = false;
+  let lockedToPresident = false;
+
+  // C-Corp/S-Corp when officers are not the owners: President must sign SS-4
+  const officersAllOwners = admin.officersAllOwners === 'Yes' || admin.officersAllOwners === true;
+  if (isCorp && officersAllOwners === false) {
+    const officersCount = admin.officersCount || 0;
+    for (let i = 1; i <= Math.min(officersCount, 6); i++) {
+      const role = admin[`officer${i}Role`] || '';
+      if (role === 'President') {
+        const firstName = admin[`officer${i}FirstName`] || '';
+        const lastName = admin[`officer${i}LastName`] || '';
+        const name = admin[`officer${i}Name`] || `${firstName} ${lastName}`.trim();
+        const ssn = admin[`officer${i}SSN`] || '';
+        responsibleOwner = {
+          fullName: name,
+          ssn,
+          tin: ssn,
+          address: admin[`officer${i}Address`] || '',
+        };
+        hasValidSSN = hasValidSSNValue(ssn);
+        lockedToPresident = true;
+        break;
+      }
+    }
+  }
   
-  for (const owner of owners) {
-    const ssn = owner.ssn || owner.tin || '';
-    if (ssn && ssn.trim() !== '' && ssn.toUpperCase() !== 'N/A' && !ssn.toUpperCase().includes('FOREIGN')) {
-      responsibleOwner = owner;
-      hasValidSSN = true;
-      break; // Use the first owner with valid SSN
+  if (!lockedToPresident) {
+    for (const owner of owners) {
+      const ssn = owner.ssn || owner.tin || '';
+      if (ssn && ssn.trim() !== '' && ssn.toUpperCase() !== 'N/A' && !ssn.toUpperCase().includes('FOREIGN')) {
+        responsibleOwner = owner;
+        hasValidSSN = true;
+        break; // Use the first owner with valid SSN
+      }
     }
   }
   

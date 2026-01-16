@@ -372,36 +372,43 @@ export interface AirtableFormationRecord {
   
   // Officers (C-Corp)
   'Officers Count'?: number;
+  'Officers All Owners'?: string;
   'Officer 1 Name'?: string;
   'Officer 1 First Name'?: string;
   'Officer 1 Last Name'?: string;
   'Officer 1 Address'?: string;
   'Officer 1 Role'?: string;
+  'Officer 1 SSN'?: string;
   'Officer 2 Name'?: string;
   'Officer 2 First Name'?: string;
   'Officer 2 Last Name'?: string;
   'Officer 2 Address'?: string;
   'Officer 2 Role'?: string;
+  'Officer 2 SSN'?: string;
   'Officer 3 Name'?: string;
   'Officer 3 First Name'?: string;
   'Officer 3 Last Name'?: string;
   'Officer 3 Address'?: string;
   'Officer 3 Role'?: string;
+  'Officer 3 SSN'?: string;
   'Officer 4 Name'?: string;
   'Officer 4 First Name'?: string;
   'Officer 4 Last Name'?: string;
   'Officer 4 Address'?: string;
   'Officer 4 Role'?: string;
+  'Officer 4 SSN'?: string;
   'Officer 5 Name'?: string;
   'Officer 5 First Name'?: string;
   'Officer 5 Last Name'?: string;
   'Officer 5 Address'?: string;
   'Officer 5 Role'?: string;
+  'Officer 5 SSN'?: string;
   'Officer 6 Name'?: string;
   'Officer 6 First Name'?: string;
   'Officer 6 Last Name'?: string;
   'Officer 6 Address'?: string;
   'Officer 6 Role'?: string;
+  'Officer 6 SSN'?: string;
   
   // Managers (LLC)
   'Managers Count'?: number;
@@ -905,8 +912,7 @@ export function mapQuestionnaireToAirtable(
     const officersCount = admin.officersCount || 0;
     const officersAllOwners = admin.officersAllOwners === 'Yes' || admin.officersAllOwners === true;
     record['Officers Count'] = officersCount;
-    // Note: 'Officers All Owners' field doesn't exist in Airtable, so we don't save it
-    // The logic can determine this by checking if Officer fields are populated vs using owner names
+    record['Officers All Owners'] = officersAllOwners ? 'Yes' : 'No';
     
     // Officers are stored as dynamic keys: officer1FirstName, officer1LastName, officer1Address, officer1Role, etc.
     // OR if officersAllOwners === "Yes", use shareholderOfficer${i}Role and owner names
@@ -955,6 +961,9 @@ export function mapQuestionnaireToAirtable(
       (record as any)[`Officer ${i} Last Name`] = finalLastName;
       (record as any)[`Officer ${i} Address`] = officerAddress;
       (record as any)[`Officer ${i} Role`] = officerRole;
+      (record as any)[`Officer ${i} SSN`] = officersAllOwners
+        ? (owners[i - 1]?.tin || owners[i - 1]?.ssn || '')
+        : (admin[`officer${i}SSN`] || '');
       
       console.log(`📋 Mapping Officer ${i}: Name="${officerName || `${finalFirstName} ${finalLastName}`.trim()}", Role="${officerRole}", officersAllOwners=${officersAllOwners}`);
     }

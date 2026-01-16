@@ -105,6 +105,11 @@ export function getResponsiblePartyFromAirtable(fields: any): {
         if (!officerName || officerName.trim() === '') continue;
         
         const officerRole = fields[`Officer ${i} Role`] || '';
+        const officerSSN = fields[`Officer ${i} SSN`] || '';
+        const officerFirstName = fields[`Officer ${i} First Name`] || '';
+        const officerLastName = fields[`Officer ${i} Last Name`] || '';
+        const officerAddress = fields[`Officer ${i} Address`] || '';
+        let matchedOwner = false;
         
         // Match to owner to get SSN and ownership
         for (let j = 1; j <= Math.min(ownerCount, 6); j++) {
@@ -122,15 +127,30 @@ export function getResponsiblePartyFromAirtable(fields: any): {
               officerIndex: i,
               ownerIndex: j,
               name: officerName,
-              firstName: fields[`Officer ${i} First Name`] || fields[`Owner ${j} First Name`] || '',
-              lastName: fields[`Officer ${i} Last Name`] || fields[`Owner ${j} Last Name`] || '',
-              ssn: ownerSSN,
-              address: fields[`Officer ${i} Address`] || fields[`Owner ${j} Address`] || '',
+              firstName: officerFirstName || fields[`Owner ${j} First Name`] || '',
+              lastName: officerLastName || fields[`Owner ${j} Last Name`] || '',
+              ssn: officerSSN || ownerSSN,
+              address: officerAddress || fields[`Owner ${j} Address`] || '',
               role: officerRole,
               ownershipPercent: ownershipPercent,
             });
+            matchedOwner = true;
             break;
           }
+        }
+
+        if (!matchedOwner) {
+          allOfficers.push({
+            officerIndex: i,
+            ownerIndex: 0,
+            name: officerName,
+            firstName: officerFirstName,
+            lastName: officerLastName,
+            ssn: officerSSN,
+            address: officerAddress,
+            role: officerRole,
+            ownershipPercent: 0,
+          });
         }
       }
     }

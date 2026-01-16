@@ -81,6 +81,18 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
         alert("Al menos uno de los oficiales debe ser presidente para continuar.");
         return false;
       }
+
+      // Require SSN for the President when officers are not the owners
+      const presidentHasSSN = Array.from({ length: currentOfficersCount }).some((_, idx) => {
+        const role = watch(fp(`admin.officer${idx + 1}Role`)) as string;
+        const ssn = watch(fp(`admin.officer${idx + 1}SSN`)) as string;
+        return role === "President" && ssn && ssn.trim() !== "";
+      });
+
+      if (!presidentHasSSN) {
+        alert("El oficial con rol de Presidente debe incluir su SSN.");
+        return false;
+      }
     }
     return true;
   };
@@ -932,6 +944,16 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
                           />
                         )}
                       />
+                    </div>
+
+                    <div>
+                      <label className="label">SSN del Oficial {idx + 1}</label>
+                      <input
+                        className="input"
+                        placeholder="XXX-XX-XXXX"
+                        {...register(fp(`admin.officer${idx + 1}SSN`))}
+                      />
+                      <p className="help">Debe incluir el SSN del Presidente.</p>
                     </div>
                   </div>
                 ))}
