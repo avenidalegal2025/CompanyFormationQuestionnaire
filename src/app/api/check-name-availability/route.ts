@@ -113,42 +113,53 @@ export async function POST(request: NextRequest) {
 
     let result = await invokeNameSearch(payload);
 
-    // If no entities returned and name has no spaces, try a fallback search by inserting a space
-    const deriveFallbackName = (input: string): string | null => {
-      if (!input || input.includes(' ')) return null;
-      const lower = input.toLowerCase();
+    // Fallback searches for single-token names (e.g., "Avenidalegal")
+    const buildFallbackQueries = (input: string): string[] => {
+      const queries: string[] = [];
+      if (!input || input.includes(' ')) return queries;
+      const trimmed = input.trim();
+      const lower = trimmed.toLowerCase();
       const suffixes = ['legal', 'group', 'holdings', 'capital', 'services', 'solutions', 'partners', 'ventures', 'company', 'co', 'inc', 'corp', 'llc', 'llp', 'pllc'];
+
       for (const suffix of suffixes) {
         const idx = lower.indexOf(suffix);
         if (idx > 0) {
-          return `${input.slice(0, idx)} ${input.slice(idx)}`.trim();
+          const spaced = `${trimmed.slice(0, idx)} ${trimmed.slice(idx)}`.trim();
+          queries.push(spaced);
+          const base = trimmed.slice(0, idx).trim();
+          if (base.length >= 4) {
+            queries.push(base);
+          }
         }
       }
-      return null;
+      return Array.from(new Set(queries));
     };
 
     const initialEntities = result?.existing_entities || [];
-    const fallbackName = deriveFallbackName(companyName.trim());
-    if (fallbackName && fallbackName !== companyName.trim()) {
-      console.log(`🔁 Fallback search with spaced name: ${fallbackName}`);
-      const fallbackPayload = {
-        companyName: fallbackName,
-        entityType: entityType || 'LLC',
-      };
-      try {
-        const fallbackResult = await invokeNameSearch(fallbackPayload);
-        const fallbackEntities = fallbackResult?.existing_entities || [];
-        if (fallbackEntities.length > 0) {
-          const merged = [...initialEntities];
+    const fallbackQueries = buildFallbackQueries(companyName.trim());
+    if (fallbackQueries.length > 0) {
+      const merged = [...initialEntities];
+      for (const query of fallbackQueries) {
+        if (!query || query.toUpperCase() === companyName.trim().toUpperCase()) continue;
+        console.log(`🔁 Fallback search with query: ${query}`);
+        const fallbackPayload = {
+          companyName: query,
+          entityType: entityType || 'LLC',
+        };
+        try {
+          const fallbackResult = await invokeNameSearch(fallbackPayload);
+          const fallbackEntities = fallbackResult?.existing_entities || [];
           for (const entity of fallbackEntities) {
             if (!merged.some((e: any) => e?.name?.toUpperCase() === entity?.name?.toUpperCase())) {
               merged.push(entity);
             }
           }
-          result = { ...result, existing_entities: merged };
+        } catch (fallbackError) {
+          console.warn('⚠️ Fallback name search failed:', fallbackError);
         }
-      } catch (fallbackError) {
-        console.warn('⚠️ Fallback name search failed:', fallbackError);
+      }
+      if (merged.length !== initialEntities.length) {
+        result = { ...result, existing_entities: merged };
       }
     }
 
