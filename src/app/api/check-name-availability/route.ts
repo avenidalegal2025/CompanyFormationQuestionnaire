@@ -426,8 +426,6 @@ export async function POST(request: NextRequest) {
         ? '⚠️ Le recomendamos no usar este nombre pero si aún así decide avanzar con este nombre necesitamos revisar su caso de forma especial.'
         : finalMessage,
       warningTerms: shouldWarn ? matchedWarnTerms : undefined,
-      debugCommit: process.env.VERCEL_GIT_COMMIT_SHA || process.env.GIT_COMMIT || 'unknown',
-      debugFallbackQueries: fallbackQueries,
       method: result?.method,
       existingEntities: entities,
       blockingEntities: blockingEntities,
