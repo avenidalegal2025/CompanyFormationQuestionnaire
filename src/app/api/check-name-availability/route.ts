@@ -121,6 +121,12 @@ export async function POST(request: NextRequest) {
       const lower = trimmed.toLowerCase();
       const suffixes = ['legal', 'group', 'holdings', 'capital', 'services', 'solutions', 'partners', 'ventures', 'company', 'co', 'inc', 'corp', 'llc', 'llp', 'pllc'];
 
+      // Add a prefix-based query to broaden search (Sunbiz "contains" results)
+      const prefixLength = Math.min(7, trimmed.length);
+      if (prefixLength >= 4) {
+        queries.push(trimmed.slice(0, prefixLength));
+      }
+
       for (const suffix of suffixes) {
         const idx = lower.indexOf(suffix);
         if (idx > 0) {
