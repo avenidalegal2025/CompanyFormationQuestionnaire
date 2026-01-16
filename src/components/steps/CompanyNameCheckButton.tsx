@@ -13,8 +13,16 @@ export default function CompanyNameCheckButton({
   entityType?: "LLC" | "C-Corp" | "S-Corp";
 }) {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<null | { status: "ok" | "warn" | "error"; message: string }>(null);
+  const [result, setResult] = useState<null | {
+    status: "ok" | "warn" | "error";
+    message: string;
+    warningTerms?: string[];
+  }>(null);
   const [showHelp, setShowHelp] = useState(false);
+  const [showWarningModal, setShowWarningModal] = useState(false);
+  const [warningName, setWarningName] = useState("");
+  const [warningEmail, setWarningEmail] = useState("");
+  const [warningDesiredName, setWarningDesiredName] = useState("");
 
   const stateToUrl: Record<string, string> = {
     Arizona: "https://ecorp.azcc.gov/EntitySearch/Index",
@@ -173,6 +181,15 @@ export default function CompanyNameCheckButton({
           return;
         }
 
+        if (data.status === "warn") {
+          setResult({
+            status: "warn",
+            message: data.message || "Le recomendamos no usar este nombre.",
+            warningTerms: data.warningTerms || [],
+          });
+          return;
+        }
+
         if (data.available) {
           setResult({ 
             status: "ok", 
@@ -206,38 +223,76 @@ export default function CompanyNameCheckButton({
     }
   };
 
+  const openWarningModal = () => {
+    setWarningName("");
+    setWarningEmail("");
+    setWarningDesiredName((getName() || "").trim());
+    setShowWarningModal(true);
+  };
+
+  const sendWarningRequest = () => {
+    const subject = "Revisión especial de nombre";
+    const bodyLines = [
+      `Nombre: ${warningName || "-"}`,
+      `Email de contacto: ${warningEmail || "-"}`,
+      `Nombre deseado: ${warningDesiredName || "-"}`,
+      "",
+      "Por favor revisar este caso de forma especial.",
+    ];
+    const body = bodyLines.join("\n");
+    const mailto = `mailto:info@avenidalegal.com,avenidalegal.2024@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailto;
+    setShowWarningModal(false);
+  };
+
   return (
-    <div className="flex items-center gap-2">
-      <button
-        type="button"
-        className={clsx(
-          "btn btn-primary text-sm px-4 py-2",
-          loading && "opacity-70 cursor-not-allowed"
-        )}
-        onClick={handleCheck}
-        disabled={loading}
-      >
-        {loading ? "Revisando..." : "Revisar disponibilidad"}
-      </button>
-      <button
-        type="button"
-        className="text-sm underline text-blue-600 hover:text-blue-700"
-        onMouseEnter={() => setShowHelp(true)}
-        onClick={() => setShowHelp(true)}
-      >
-        ¿Cómo buscar?
-      </button>
-      {result && (
-        <span
+    <div className="flex flex-col items-start gap-2">
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
           className={clsx(
-            "text-sm",
-            result.status === "ok" && "text-green-600",
-            result.status === "warn" && "text-amber-600",
-            result.status === "error" && "text-red-600"
+            "btn btn-primary text-sm px-4 py-2",
+            loading && "opacity-70 cursor-not-allowed"
           )}
+          onClick={handleCheck}
+          disabled={loading}
         >
-          {result.message}
-        </span>
+          {loading ? "Revisando..." : "Revisar disponibilidad"}
+        </button>
+        <button
+          type="button"
+          className="text-sm underline text-blue-600 hover:text-blue-700"
+          onMouseEnter={() => setShowHelp(true)}
+          onClick={() => setShowHelp(true)}
+        >
+          ¿Cómo buscar?
+        </button>
+        {result && (
+          <span
+            className={clsx(
+              "text-sm",
+              result.status === "ok" && "text-green-600",
+              result.status === "warn" && "text-amber-600",
+              result.status === "error" && "text-red-600"
+            )}
+          >
+            {result.message}
+          </span>
+        )}
+      </div>
+
+      {result?.status === "warn" && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 w-full">
+          Le recomendamos no usar este nombre pero si aún así decide avanzar con este nombre necesitamos revisar su caso de forma especial, por favor haga{" "}
+          <button
+            type="button"
+            className="text-amber-900 underline"
+            onClick={openWarningModal}
+          >
+            click aquí
+          </button>
+          .
+        </div>
       )}
 
       {showHelp && (
@@ -259,6 +314,60 @@ export default function CompanyNameCheckButton({
                 </a>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {showWarningModal && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40" onClick={() => setShowWarningModal(false)}>
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold">Revisión especial de nombre</h3>
+              <button className="text-gray-500 hover:text-gray-700" onClick={() => setShowWarningModal(false)}>✕</button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="label">Nombre</label>
+                <input
+                  className="input w-full"
+                  value={warningName}
+                  onChange={(e) => setWarningName(e.target.value)}
+                  placeholder="Tu nombre completo"
+                />
+              </div>
+              <div>
+                <label className="label">Email de contacto</label>
+                <input
+                  className="input w-full"
+                  type="email"
+                  value={warningEmail}
+                  onChange={(e) => setWarningEmail(e.target.value)}
+                  placeholder="tu@email.com"
+                />
+              </div>
+              <div>
+                <label className="label">Nombre deseado</label>
+                <input
+                  className="input w-full"
+                  value={warningDesiredName}
+                  onChange={(e) => setWarningDesiredName(e.target.value)}
+                  placeholder="Nombre de la empresa"
+                />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button className="btn" type="button" onClick={() => setShowWarningModal(false)}>
+                Cancelar
+              </button>
+              <button
+                className="btn btn-primary"
+                type="button"
+                onClick={sendWarningRequest}
+                disabled={!warningEmail.trim() || !warningDesiredName.trim()}
+              >
+                Enviar
+              </button>
+            </div>
           </div>
         </div>
       )}

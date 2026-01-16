@@ -157,6 +157,49 @@ export async function POST(request: NextRequest) {
     
     const inputName = companyName.trim();
     const entities = result?.existing_entities || [];
+
+    // Restricted term rules (Florida)
+    const hardDeniedTerms = [
+      'agency',
+      'bureau',
+      'commission',
+      'department',
+      'federal',
+      'state',
+      'county',
+    ];
+    const warnTerms = [
+      'bank',
+      'banking',
+      'trust',
+      'insurance',
+      'credit union',
+      'savings',
+      'attorney',
+      'doctor',
+      'engineer',
+      'cpa',
+    ];
+
+    const normalizedInputLower = inputName.toLowerCase();
+    const findTerms = (terms: string[], name: string) =>
+      terms.filter((term) => {
+        if (term.includes(' ')) {
+          return name.includes(term);
+        }
+        return new RegExp(`\\b${term}\\b`, 'i').test(name);
+      });
+
+    const matchedHardTerms = findTerms(hardDeniedTerms, normalizedInputLower);
+    if (matchedHardTerms.length > 0) {
+      return NextResponse.json({
+        success: true,
+        available: false,
+        status: 'error',
+        message: `❌ Nombre no disponible. Términos restringidos: ${matchedHardTerms.join(', ')}.`,
+        restrictedTerms: matchedHardTerms,
+      });
+    }
     
     // Helper: Check if entity is blocking (Active or INACT <2 years)
     const isBlockingEntity = (entity: any): boolean => {
@@ -212,6 +255,44 @@ export async function POST(request: NextRequest) {
       
       return normalized;
     };
+
+    // Helper: Normalize for Florida distinguishability rules
+    const normalizeForDistinctness = (name: string): string => {
+      const lower = name.toLowerCase();
+      const articles = new Set(['a', 'an', 'the']);
+      const suffixes = new Set(['llc', 'l.l.c', 'limited', 'limitedliabilitycompany', 'corp', 'corporation', 'inc', 'incorporated', 'ltd', 'company', 'co']);
+      const numberWordMap: Record<string, string> = {
+        zero: '0',
+        one: '1',
+        two: '2',
+        three: '3',
+        four: '4',
+        five: '5',
+        six: '6',
+        seven: '7',
+        eight: '8',
+        nine: '9',
+        ten: '10',
+      };
+
+      const tokens = lower
+        .replace(/&/g, ' and ')
+        .replace(/['’]/g, '')
+        .split(/[^a-z0-9]+/g)
+        .filter(Boolean)
+        .map((token) => {
+          if (articles.has(token)) return '';
+          if (suffixes.has(token)) return '';
+          if (numberWordMap[token]) return numberWordMap[token];
+          if (token.endsWith('s') && token.length > 3) {
+            return token.slice(0, -1);
+          }
+          return token;
+        })
+        .filter(Boolean);
+
+      return tokens.join('');
+    };
     
     // Tier 1: Exact match
     let blockingEntities: any[] = [];
@@ -237,6 +318,20 @@ export async function POST(request: NextRequest) {
         }
       }
     }
+
+    // Tier 3: Distinguishability match (articles, punctuation, symbols, plurals, numbers vs words)
+    if (blockingEntities.length === 0) {
+      const distinctInput = normalizeForDistinctness(inputName);
+      for (const entity of entities) {
+        const entityName = entity?.name || '';
+        const distinctEntity = normalizeForDistinctness(entityName);
+        if (distinctEntity === distinctInput && distinctInput.length > 0) {
+          if (isBlockingEntity(entity)) {
+            blockingEntities.push({ ...entity, matchType: 'distinct' });
+          }
+        }
+      }
+    }
     
     // Determine availability
     const finalAvailable = blockingEntities.length === 0;
@@ -255,6 +350,10 @@ export async function POST(request: NextRequest) {
     } else {
       finalMessage = `✅ Nombre disponible. No se encontraron entidades similares.`;
     }
+
+    // Warn-only restricted terms
+    const matchedWarnTerms = findTerms(warnTerms, normalizedInputLower);
+    const shouldWarn = matchedWarnTerms.length > 0 && blockingEntities.length === 0;
     
     console.log(`✅ Final availability result:`, {
       available: finalAvailable,
@@ -267,7 +366,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: result?.success ?? true,
       available: finalAvailable,
-      message: finalMessage,
+      status: shouldWarn ? 'warn' : (finalAvailable ? 'ok' : 'error'),
+      message: shouldWarn
+        ? '⚠️ Le recomendamos no usar este nombre pero si aún así decide avanzar con este nombre necesitamos revisar su caso de forma especial.'
+        : finalMessage,
+      warningTerms: shouldWarn ? matchedWarnTerms : undefined,
       method: result?.method,
       existingEntities: entities,
       blockingEntities: blockingEntities,
