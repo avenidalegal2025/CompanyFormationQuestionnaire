@@ -267,12 +267,11 @@ export default function CompanyNameCheckButton({
         >
           ¿Cómo buscar?
         </button>
-        {result && (
+        {result && result.status !== "warn" && (
           <span
             className={clsx(
               "text-sm",
               result.status === "ok" && "text-green-600",
-              result.status === "warn" && "text-amber-600",
               result.status === "error" && "text-red-600"
             )}
           >
