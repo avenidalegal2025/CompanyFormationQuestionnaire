@@ -127,8 +127,8 @@ export async function POST(request: NextRequest) {
       return null;
     };
 
-    const entities = result?.existing_entities || [];
-    if (entities.length === 0) {
+    const initialEntities = result?.existing_entities || [];
+    if (initialEntities.length === 0) {
       const fallbackName = deriveFallbackName(companyName.trim());
       if (fallbackName && fallbackName !== companyName.trim()) {
         console.log(`🔁 Fallback search with spaced name: ${fallbackName}`);
