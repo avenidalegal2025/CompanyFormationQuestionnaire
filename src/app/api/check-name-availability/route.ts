@@ -37,50 +37,47 @@ export async function POST(request: NextRequest) {
 
     console.log(`📋 Payload:`, JSON.stringify(payload));
 
-    let result;
+    const invokeNameSearch = async (requestPayload: { companyName: string; entityType: string }) => {
+      if (!HAS_AWS_CREDS && LAMBDA_FUNCTION_URL) {
+        console.log(`📤 Invoking Lambda URL: ${LAMBDA_FUNCTION_URL}`);
+        const urlResponse = await fetch(LAMBDA_FUNCTION_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestPayload),
+        });
 
-    if (!HAS_AWS_CREDS && LAMBDA_FUNCTION_URL) {
-      console.log(`📤 Invoking Lambda URL: ${LAMBDA_FUNCTION_URL}`);
-      const urlResponse = await fetch(LAMBDA_FUNCTION_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
+        console.log(`📡 Lambda URL response status: ${urlResponse.status}`);
 
-      console.log(`📡 Lambda URL response status: ${urlResponse.status}`);
-
-      if (!urlResponse.ok) {
-        const errorText = await urlResponse.text();
-        console.error(`❌ Lambda URL error response: ${errorText}`);
-        return NextResponse.json(
-          { error: 'Lambda function URL error', details: errorText },
-          { status: 500 }
-        );
-      }
-
-      const urlPayload = await urlResponse.json();
-      console.log(`✅ Lambda URL response payload:`, JSON.stringify(urlPayload, null, 2));
-
-      // Function URL may return { statusCode, body } or direct JSON
-      if (urlPayload?.body) {
-        try {
-          result = JSON.parse(urlPayload.body);
-        } catch (parseError) {
-          console.error('❌ Failed to parse Lambda URL body:', parseError);
-          result = urlPayload;
+        if (!urlResponse.ok) {
+          const errorText = await urlResponse.text();
+          console.error(`❌ Lambda URL error response: ${errorText}`);
+          throw new Error(`Lambda URL error: ${errorText}`);
         }
-      } else {
-        result = urlPayload;
+
+        const urlPayload = await urlResponse.json();
+        console.log(`✅ Lambda URL response payload:`, JSON.stringify(urlPayload, null, 2));
+
+        // Function URL may return { statusCode, body } or direct JSON
+        if (urlPayload?.body) {
+          try {
+            return JSON.parse(urlPayload.body);
+          } catch (parseError) {
+            console.error('❌ Failed to parse Lambda URL body:', parseError);
+            return urlPayload;
+          }
+        }
+
+        return urlPayload;
       }
-    } else {
+
       console.log(`📤 Invoking Lambda ARN: ${LAMBDA_FUNCTION_ARN}`);
 
       // Invoke Lambda function
       const command = new InvokeCommand({
         FunctionName: LAMBDA_FUNCTION_ARN,
-        Payload: JSON.stringify(payload),
+        Payload: JSON.stringify(requestPayload),
       });
 
       const response = await lambdaClient.send(command);
@@ -91,13 +88,7 @@ export async function POST(request: NextRequest) {
       if (response.FunctionError) {
         console.error(`❌ Lambda function error: ${response.FunctionError}`);
         const errorPayload = response.Payload ? JSON.parse(Buffer.from(response.Payload).toString()) : null;
-        return NextResponse.json(
-          { 
-            error: 'Lambda function error',
-            details: errorPayload || response.FunctionError,
-          },
-          { status: 500 }
-        );
+        throw new Error(JSON.stringify(errorPayload || response.FunctionError));
       }
 
       // Parse Lambda response
@@ -110,15 +101,49 @@ export async function POST(request: NextRequest) {
       if (responsePayload?.body) {
         // Parse the body JSON string
         try {
-          result = JSON.parse(responsePayload.body);
+          return JSON.parse(responsePayload.body);
         } catch (parseError) {
           console.error('❌ Failed to parse Lambda body:', parseError);
-          // Fallback: try to use responsePayload directly
-          result = responsePayload;
+          return responsePayload;
         }
-      } else {
-        // Fallback: use responsePayload directly if no body field
-        result = responsePayload;
+      }
+
+      return responsePayload;
+    };
+
+    let result = await invokeNameSearch(payload);
+
+    // If no entities returned and name has no spaces, try a fallback search by inserting a space
+    const deriveFallbackName = (input: string): string | null => {
+      if (!input || input.includes(' ')) return null;
+      const lower = input.toLowerCase();
+      const suffixes = ['legal', 'group', 'holdings', 'capital', 'services', 'solutions', 'partners', 'ventures', 'company', 'co', 'inc', 'corp', 'llc', 'llp', 'pllc'];
+      for (const suffix of suffixes) {
+        const idx = lower.indexOf(suffix);
+        if (idx > 0) {
+          return `${input.slice(0, idx)} ${input.slice(idx)}`.trim();
+        }
+      }
+      return null;
+    };
+
+    const entities = result?.existing_entities || [];
+    if (entities.length === 0) {
+      const fallbackName = deriveFallbackName(companyName.trim());
+      if (fallbackName && fallbackName !== companyName.trim()) {
+        console.log(`🔁 Fallback search with spaced name: ${fallbackName}`);
+        const fallbackPayload = {
+          companyName: fallbackName,
+          entityType: entityType || 'LLC',
+        };
+        try {
+          const fallbackResult = await invokeNameSearch(fallbackPayload);
+          if (fallbackResult?.existing_entities?.length) {
+            result = fallbackResult;
+          }
+        } catch (fallbackError) {
+          console.warn('⚠️ Fallback name search failed:', fallbackError);
+        }
       }
     }
 
