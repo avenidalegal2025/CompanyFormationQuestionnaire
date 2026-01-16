@@ -116,17 +116,19 @@ export async function POST(request: NextRequest) {
     // Fallback searches for single-token names (e.g., "Avenidalegal")
     const buildFallbackQueries = (input: string): string[] => {
       const queries: string[] = [];
-      if (!input || input.includes(' ')) return queries;
+      if (!input) return queries;
       const trimmed = input.trim();
-      const lower = trimmed.toLowerCase();
+      const compact = trimmed.replace(/\s+/g, '');
+      if (!compact) return queries;
+      const lower = compact.toLowerCase();
       const suffixes = ['legal', 'group', 'holdings', 'capital', 'services', 'solutions', 'partners', 'ventures', 'company', 'co', 'inc', 'corp', 'llc', 'llp', 'pllc'];
 
       for (const suffix of suffixes) {
         const idx = lower.indexOf(suffix);
         if (idx > 0) {
-          const spaced = `${trimmed.slice(0, idx)} ${trimmed.slice(idx)}`.trim();
+          const spaced = `${compact.slice(0, idx)} ${compact.slice(idx)}`.trim();
           queries.push(spaced);
-          const base = trimmed.slice(0, idx).trim();
+          const base = compact.slice(0, idx).trim();
           if (base.length >= 4) {
             queries.push(base);
           }
