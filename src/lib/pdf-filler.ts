@@ -112,6 +112,7 @@ export interface QuestionnaireData {
     officer6Address?: string;
     officer6Role?: string;
     officer6SSN?: string;
+    [key: string]: string | number | boolean | undefined;
   };
   agreement?: {
     corp_taxOwner?: string;
