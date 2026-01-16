@@ -128,22 +128,27 @@ export async function POST(request: NextRequest) {
     };
 
     const initialEntities = result?.existing_entities || [];
-    if (initialEntities.length === 0) {
-      const fallbackName = deriveFallbackName(companyName.trim());
-      if (fallbackName && fallbackName !== companyName.trim()) {
-        console.log(`🔁 Fallback search with spaced name: ${fallbackName}`);
-        const fallbackPayload = {
-          companyName: fallbackName,
-          entityType: entityType || 'LLC',
-        };
-        try {
-          const fallbackResult = await invokeNameSearch(fallbackPayload);
-          if (fallbackResult?.existing_entities?.length) {
-            result = fallbackResult;
+    const fallbackName = deriveFallbackName(companyName.trim());
+    if (fallbackName && fallbackName !== companyName.trim()) {
+      console.log(`🔁 Fallback search with spaced name: ${fallbackName}`);
+      const fallbackPayload = {
+        companyName: fallbackName,
+        entityType: entityType || 'LLC',
+      };
+      try {
+        const fallbackResult = await invokeNameSearch(fallbackPayload);
+        const fallbackEntities = fallbackResult?.existing_entities || [];
+        if (fallbackEntities.length > 0) {
+          const merged = [...initialEntities];
+          for (const entity of fallbackEntities) {
+            if (!merged.some((e: any) => e?.name?.toUpperCase() === entity?.name?.toUpperCase())) {
+              merged.push(entity);
+            }
           }
-        } catch (fallbackError) {
-          console.warn('⚠️ Fallback name search failed:', fallbackError);
+          result = { ...result, existing_entities: merged };
         }
+      } catch (fallbackError) {
+        console.warn('⚠️ Fallback name search failed:', fallbackError);
       }
     }
 
