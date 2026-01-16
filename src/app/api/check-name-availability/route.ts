@@ -114,14 +114,50 @@ export async function POST(request: NextRequest) {
     let result = await invokeNameSearch(payload);
 
     // Fallback searches for single-token names (e.g., "Avenidalegal")
+    const stripEntitySuffix = (name: string): string => {
+      let cleaned = name.trim();
+      if (!cleaned) return cleaned;
+      const suffixes = [
+        'llc',
+        'l.l.c',
+        'limited liability company',
+        'corp',
+        'corporation',
+        'inc',
+        'incorporated',
+        'ltd',
+        'limited',
+        'company',
+        'co',
+      ];
+
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const suffix of suffixes) {
+          const regex = new RegExp(`\\b${suffix.replace(/\./g, '\\.')}(\\.|,)?\\b$`, 'i');
+          if (regex.test(cleaned)) {
+            cleaned = cleaned.replace(regex, '').trim();
+            changed = true;
+          }
+        }
+      }
+      return cleaned;
+    };
+
     const buildFallbackQueries = (input: string): string[] => {
       const queries: string[] = [];
       if (!input) return queries;
       const trimmed = input.trim();
-      const compact = trimmed.replace(/\s+/g, '');
+      const baseInput = stripEntitySuffix(trimmed);
+      const compact = baseInput.replace(/\s+/g, '');
       if (!compact) return queries;
       const lower = compact.toLowerCase();
-      const suffixes = ['legal', 'group', 'holdings', 'capital', 'services', 'solutions', 'partners', 'ventures', 'company', 'co', 'inc', 'corp', 'llc', 'llp', 'pllc'];
+      const suffixes = ['legal', 'group', 'holdings', 'capital', 'services', 'solutions', 'partners', 'ventures'];
+
+      if (baseInput && baseInput !== trimmed) {
+        queries.push(baseInput);
+      }
 
       for (const suffix of suffixes) {
         const idx = lower.indexOf(suffix);
@@ -134,6 +170,7 @@ export async function POST(request: NextRequest) {
           }
         }
       }
+
       return Array.from(new Set(queries));
     };
 
