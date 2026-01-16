@@ -14,6 +14,7 @@ const lambdaClient = new LambdaClient({
 const LAMBDA_FUNCTION_ARN = 'arn:aws:lambda:us-west-1:043206426879:function:sunbiz-lambda-latest';
 const LAMBDA_FUNCTION_URL = process.env.LAMBDA_NAME_AVAILABILITY_URL ||
   'https://wk3xyxceloos7e5xgslyvfntqa0thtxv.lambda-url.us-west-1.on.aws/';
+const HAS_AWS_CREDS = !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
 
     let result;
 
-    if (LAMBDA_FUNCTION_URL) {
+    if (!HAS_AWS_CREDS && LAMBDA_FUNCTION_URL) {
       console.log(`📤 Invoking Lambda URL: ${LAMBDA_FUNCTION_URL}`);
       const urlResponse = await fetch(LAMBDA_FUNCTION_URL, {
         method: 'POST',
