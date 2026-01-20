@@ -78,6 +78,18 @@ async function callOrganizationalResolutionLambda(formData: any, s3Bucket: strin
     throw new Error(`Lambda failed: ${response.status} - ${errorText}`);
   }
   
+  const contentType = response.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    const json = await response.json();
+    const base64 = json?.docx_base64;
+    if (!base64) {
+      throw new Error('Lambda response missing docx_base64');
+    }
+    const buffer = Buffer.from(base64, 'base64');
+    console.log(`✅ Decoded DOCX from Lambda JSON: ${buffer.length} bytes`);
+    return buffer;
+  }
+
   const arrayBuffer = await response.arrayBuffer();
   console.log(`✅ Received DOCX from Lambda: ${arrayBuffer.byteLength} bytes`);
   return Buffer.from(arrayBuffer);
