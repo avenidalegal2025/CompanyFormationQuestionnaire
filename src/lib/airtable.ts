@@ -957,8 +957,9 @@ export function mapQuestionnaireToAirtable(
   
   // Map Officers (C-Corp)
   if (isCorp) {
-    const officersCount = admin.officersCount || 0;
     const officersAllOwners = admin.officersAllOwners === 'Yes' || admin.officersAllOwners === true;
+    const derivedOfficersCount = officersAllOwners ? (owners.length || admin.officersCount || 0) : (admin.officersCount || 0);
+    const officersCount = Math.min(derivedOfficersCount || 0, 6);
     record['Officers Count'] = officersCount;
     record['Officers All Owners'] = officersAllOwners ? 'Yes' : 'No';
     
