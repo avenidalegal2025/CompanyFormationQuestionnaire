@@ -1019,14 +1019,21 @@ export function mapQuestionnaireToAirtable(
   
   // Map Managers (LLC)
   if (isLLC) {
-    const managersCount = admin.managersCount || 0;
+    const managersAllOwners = admin.managersAllOwners === 'Yes' || admin.managersAllOwners === true;
+    const derivedManagersCount = managersAllOwners ? (owners.length || admin.managersCount || 0) : (admin.managersCount || 0);
+    const managersCount = Math.min(derivedManagersCount || 0, 6);
     record['Managers Count'] = managersCount;
     
     // Managers are stored as dynamic keys: manager1FirstName, manager1LastName, manager1Address, etc.
-    for (let i = 1; i <= Math.min(managersCount, 6); i++) {
-      const managerFirstName = admin[`manager${i}FirstName`] || '';
-      const managerLastName = admin[`manager${i}LastName`] || '';
-      const managerName = admin[`manager${i}Name`] || `${managerFirstName} ${managerLastName}`.trim();
+    for (let i = 1; i <= managersCount; i++) {
+      const owner = owners[i - 1] || {};
+      const managerFirstName = managersAllOwners ? (owner.firstName || '') : (admin[`manager${i}FirstName`] || '');
+      const managerLastName = managersAllOwners ? (owner.lastName || '') : (admin[`manager${i}LastName`] || '');
+      const managerName = managersAllOwners
+        ? (owner.fullName || `${managerFirstName} ${managerLastName}`.trim())
+        : (admin[`manager${i}Name`] || `${managerFirstName} ${managerLastName}`.trim());
+      const managerAddress = managersAllOwners ? (owner.address || '') : (admin[`manager${i}Address`] || '');
+      const managerSSN = managersAllOwners ? (owner.tin || owner.ssn || '') : (admin[`manager${i}SSN`] || '');
       
       let finalFirstName = managerFirstName;
       let finalLastName = managerLastName;
@@ -1039,8 +1046,8 @@ export function mapQuestionnaireToAirtable(
       (record as any)[`Manager ${i} Name`] = managerName || `${finalFirstName} ${finalLastName}`.trim();
       (record as any)[`Manager ${i} First Name`] = finalFirstName;
       (record as any)[`Manager ${i} Last Name`] = finalLastName;
-      (record as any)[`Manager ${i} Address`] = admin[`manager${i}Address`];
-      (record as any)[`Manager ${i} SSN`] = admin[`manager${i}SSN`] || '';
+      (record as any)[`Manager ${i} Address`] = managerAddress;
+      (record as any)[`Manager ${i} SSN`] = managerSSN;
     }
   }
   
