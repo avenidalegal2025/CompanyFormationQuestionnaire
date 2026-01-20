@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Airtable from 'airtable';
-import { mapAirtableToMembershipRegistry, getOrganizationalResolutionTemplateName } from '@/lib/airtable-to-forms';
+import { mapAirtableToMembershipRegistry, getOrganizationalResolutionTemplateName, mapAirtableToCorpOrganizationalResolution } from '@/lib/airtable-to-forms';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
 // Airtable configuration
@@ -13,6 +13,7 @@ const LAMBDA_ORGANIZATIONAL_RESOLUTION_URL = process.env.LAMBDA_ORGANIZATIONAL_R
 const TEMPLATE_BUCKET = process.env.TEMPLATE_BUCKET || 'company-formation-template-llc-and-inc';
 const TEMPLATE_BASE_URL = `https://${TEMPLATE_BUCKET}.s3.${process.env.AWS_REGION || 'us-west-1'}.amazonaws.com`;
 const S3_BUCKET = process.env.S3_DOCUMENTS_BUCKET || 'avenida-legal-documents';
+const CORPORATE_TEMPLATE_PATH = process.env.ORGANIZATIONAL_RESOLUTION_INC_TEMPLATE_PATH || 'templates/organizational-resolution-inc-template.docx';
 
 // Initialize Airtable
 const base = new Airtable({ apiKey: AIRTABLE_API_KEY }).base(AIRTABLE_BASE_ID);
@@ -131,17 +132,19 @@ export async function POST(request: NextRequest) {
     
     console.log(`✅ Found record: ${fields['Company Name']}`);
     
-    // Step 2: Verify it's an LLC
+    // Step 2: Verify it's a supported entity type
     const entityType = fields['Entity Type'] || 'LLC';
-    if (entityType !== 'LLC') {
+    if (entityType !== 'LLC' && entityType !== 'C-Corp' && entityType !== 'S-Corp') {
       return NextResponse.json(
-        { error: 'Organizational Resolution is only for LLCs' },
+        { error: 'Organizational Resolution is only for LLCs or Corporations' },
         { status: 400 }
       );
     }
     
-    // Step 3: Map Airtable fields to Organizational Resolution format (same as Membership Registry)
-    const orgResolutionData = mapAirtableToMembershipRegistry(record);
+    // Step 3: Map Airtable fields to Organizational Resolution format
+    const orgResolutionData = entityType === 'LLC'
+      ? mapAirtableToMembershipRegistry(record)
+      : mapAirtableToCorpOrganizationalResolution(record);
     
     console.log('📋 Organizational Resolution Data:', {
       companyName: orgResolutionData.companyName,
@@ -149,11 +152,13 @@ export async function POST(request: NextRequest) {
       managerCount: orgResolutionData.managerCount,
     });
     
-    // Step 4: Determine correct template based on member and manager counts
-    const templatePath = getOrganizationalResolutionTemplateName(
-      orgResolutionData.memberCount,
-      orgResolutionData.managerCount
-    );
+    // Step 4: Determine correct template
+    const templatePath = entityType === 'LLC'
+      ? getOrganizationalResolutionTemplateName(
+          orgResolutionData.memberCount,
+          orgResolutionData.managerCount
+        )
+      : CORPORATE_TEMPLATE_PATH;
     const templateUrl = `${TEMPLATE_BASE_URL}/${templatePath}`;
     
     console.log(`📄 Using template: ${templatePath}`);

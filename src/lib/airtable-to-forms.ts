@@ -860,6 +860,126 @@ export function mapAirtableToMembershipRegistry(record: any): any {
 }
 
 /**
+ * Map Airtable record to Organizational Resolution format for corporations.
+ * Uses the same placeholder structure as the LLC template (members/managers).
+ */
+export function mapAirtableToCorpOrganizationalResolution(record: any): any {
+  const fields = record.fields || record;
+  const entityType = fields['Entity Type'] || 'LLC';
+  const isCorp = entityType === 'C-Corp' || entityType === 'S-Corp';
+
+  if (!isCorp) {
+    throw new Error('Corporate Organizational Resolution is only for C-Corp or S-Corp');
+  }
+
+  // Parse company address
+  const address = parseCompanyAddress(fields);
+
+  const companyName = fields['Company Name'] || '';
+  const formationState = fields['Formation State'] || '';
+
+  // Use Payment Date as formation date (same as LLC mapping)
+  const paymentDate = fields['Payment Date'];
+  let formationDate = '';
+  if (paymentDate) {
+    const date = new Date(paymentDate);
+    if (!isNaN(date.getTime())) {
+      formationDate = `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}/${date.getFullYear()}`;
+    }
+  }
+  if (!formationDate) {
+    const now = new Date();
+    formationDate = `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}/${now.getFullYear()}`;
+  }
+
+  // Build full company address
+  const rawCompanyAddress = (fields['Company Address'] || '').toString().trim();
+  let companyAddress: string;
+  if (address.city || address.state || address.zip) {
+    const companyAddressParts = [
+      address.street,
+      address.city ? `${address.city}, ${address.state || ''} ${address.zip || ''}`.trim() : '',
+    ].filter(Boolean);
+    companyAddress = companyAddressParts.join('\n');
+  } else if (rawCompanyAddress) {
+    companyAddress = rawCompanyAddress;
+  } else {
+    const companyAddressParts = [
+      address.street,
+      address.city ? `${address.city}, ${address.state || ''} ${address.zip || ''}`.trim() : '',
+    ].filter(Boolean);
+    companyAddress = companyAddressParts.join('\n');
+  }
+
+  // Shareholders -> members placeholders
+  const members: Array<{
+    name: string;
+    address: string;
+    ownershipPercent: number;
+    ssn?: string;
+  }> = [];
+
+  let actualOwnerCount = 0;
+  for (let i = 1; i <= 6; i++) {
+    const ownerName = fields[`Owner ${i} Name`] || '';
+    if (ownerName && ownerName.trim() !== '') {
+      actualOwnerCount++;
+    }
+  }
+  const ownerCount = actualOwnerCount || fields['Owner Count'] || 0;
+
+  for (let i = 1; i <= Math.min(ownerCount, 6); i++) {
+    const ownerName = fields[`Owner ${i} Name`] || '';
+    if (!ownerName || ownerName.trim() === '') continue;
+
+    let ownershipPercent = fields[`Owner ${i} Ownership %`] || 0;
+    if (ownershipPercent > 0 && ownershipPercent <= 1) {
+      ownershipPercent = ownershipPercent * 100;
+    }
+
+    const ownerAddress = formatAddress(fields[`Owner ${i} Address`] || '');
+    const ownerSSN = fields[`Owner ${i} SSN`] || '';
+
+    members.push({
+      name: ownerName.trim(),
+      address: ownerAddress,
+      ownershipPercent: ownershipPercent,
+      ssn: ownerSSN && ownerSSN.toUpperCase() !== 'N/A' && !ownerSSN.toUpperCase().includes('FOREIGN') ? ownerSSN : undefined,
+    });
+  }
+
+  members.sort((a, b) => b.ownershipPercent - a.ownershipPercent);
+
+  // Officers -> managers placeholders (use President as Manager_1)
+  const managers: Array<{ name: string; address: string }> = [];
+  const officersCount = fields['Officers Count'] || 0;
+  for (let i = 1; i <= Math.min(officersCount, 6); i++) {
+    const officerName = fields[`Officer ${i} Name`] || '';
+    if (!officerName || officerName.trim() === '') continue;
+    const officerAddress = formatAddress(fields[`Officer ${i} Address`] || '');
+    managers.push({
+      name: officerName.trim(),
+      address: officerAddress,
+    });
+  }
+
+  if (managers.length === 0 && members.length > 0) {
+    managers.push({ name: members[0].name, address: members[0].address });
+  }
+
+  return {
+    companyName: companyName,
+    companyAddress: companyAddress,
+    formationState: formationState,
+    formationDate: formationDate,
+    members: members,
+    managers: managers,
+    memberCount: members.length,
+    managerCount: managers.length,
+  };
+}
+
+/**
  * Get the template path for Membership Registry based on member and manager counts
  * 
  * ACTUAL S3 STRUCTURE (from AWS Console):

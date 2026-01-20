@@ -703,8 +703,10 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
           'Membership Registry',
           `${baseUrl}/api/airtable/generate-membership-registry`
         );
-        
-        // Regenerate Organizational Resolution from Airtable (for LLCs only)
+      }
+
+      // Regenerate Organizational Resolution from Airtable (LLC + Corporations)
+      if (entityType === 'LLC' || entityType === 'C-Corp' || entityType === 'S-Corp') {
         await regenerateFormFromAirtable(
           'organizational-resolution',
           'Organizational Resolution',
