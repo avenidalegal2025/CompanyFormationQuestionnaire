@@ -543,26 +543,48 @@ export interface AirtableFormationRecord {
  * Create a new formation record in Airtable
  */
 export async function createFormationRecord(data: AirtableFormationRecord): Promise<string> {
-  try {
-    console.log('📝 Creating Airtable record for:', data['Company Name']);
-    
-    const records = await base(AIRTABLE_TABLE_NAME).create([
-      {
-        fields: data as any,
-      },
-    ]);
-    
-    const recordId = records[0].id;
-    console.log('✅ Airtable record created:', recordId);
-    
-    return recordId;
-  } catch (error: any) {
-    console.error('❌ Failed to create Airtable record:', error.message);
-    if (error.statusCode === 404) {
-      console.error('💡 Table not found. Please create the "Formations" table in Airtable first.');
+  const fields = { ...(data as any) };
+  const maxRetries = 5;
+  let attempt = 0;
+
+  const getUnknownFieldName = (error: any): string | null => {
+    const message = error?.message || error?.error?.message || '';
+    const match = message.match(/Unknown field name: \"([^\"]+)\"/);
+    return match ? match[1] : null;
+  };
+
+  while (attempt <= maxRetries) {
+    try {
+      console.log('📝 Creating Airtable record for:', fields['Company Name']);
+
+      const records = await base(AIRTABLE_TABLE_NAME).create([
+        {
+          fields: fields as any,
+        },
+      ]);
+
+      const recordId = records[0].id;
+      console.log('✅ Airtable record created:', recordId);
+
+      return recordId;
+    } catch (error: any) {
+      const unknownField = getUnknownFieldName(error);
+      if (unknownField && unknownField in fields && attempt < maxRetries) {
+        console.warn(`⚠️ Airtable unknown field "${unknownField}" - removing and retrying (${attempt + 1}/${maxRetries})`);
+        delete (fields as any)[unknownField];
+        attempt += 1;
+        continue;
+      }
+
+      console.error('❌ Failed to create Airtable record:', error.message);
+      if (error.statusCode === 404) {
+        console.error('💡 Table not found. Please create the "Formations" table in Airtable first.');
+      }
+      throw error;
     }
-    throw error;
   }
+
+  throw new Error('Failed to create Airtable record after retries');
 }
 
 /**
@@ -572,20 +594,41 @@ export async function updateFormationRecord(
   recordId: string,
   data: Partial<AirtableFormationRecord>
 ): Promise<void> {
-  try {
-    console.log('📝 Updating Airtable record:', recordId);
-    
-    await base(AIRTABLE_TABLE_NAME).update([
-      {
-        id: recordId,
-        fields: data as any,
-      },
-    ]);
-    
-    console.log('✅ Airtable record updated:', recordId);
-  } catch (error: any) {
-    console.error('❌ Failed to update Airtable record:', error.message);
-    throw error;
+  const fields = { ...(data as any) };
+  const maxRetries = 5;
+  let attempt = 0;
+
+  const getUnknownFieldName = (error: any): string | null => {
+    const message = error?.message || error?.error?.message || '';
+    const match = message.match(/Unknown field name: \"([^\"]+)\"/);
+    return match ? match[1] : null;
+  };
+
+  while (attempt <= maxRetries) {
+    try {
+      console.log('📝 Updating Airtable record:', recordId);
+
+      await base(AIRTABLE_TABLE_NAME).update([
+        {
+          id: recordId,
+          fields: fields as any,
+        },
+      ]);
+
+      console.log('✅ Airtable record updated:', recordId);
+      return;
+    } catch (error: any) {
+      const unknownField = getUnknownFieldName(error);
+      if (unknownField && unknownField in fields && attempt < maxRetries) {
+        console.warn(`⚠️ Airtable unknown field "${unknownField}" - removing and retrying (${attempt + 1}/${maxRetries})`);
+        delete (fields as any)[unknownField];
+        attempt += 1;
+        continue;
+      }
+
+      console.error('❌ Failed to update Airtable record:', error.message);
+      throw error;
+    }
   }
 }
 

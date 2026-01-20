@@ -366,6 +366,78 @@ export function parseCompanyAddress(fields: any): {
 }
 
 /**
+ * Format a date into "14th day of January, 2025" for bylaws.
+ */
+function formatLegalDate(input?: string | Date): string {
+  const date = input ? new Date(input) : new Date();
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  const day = date.getDate();
+  const month = date.toLocaleString('en-US', { month: 'long' });
+  const year = date.getFullYear();
+
+  const suffix = (() => {
+    if (day >= 11 && day <= 13) return 'th';
+    switch (day % 10) {
+      case 1:
+        return 'st';
+      case 2:
+        return 'nd';
+      case 3:
+        return 'rd';
+      default:
+        return 'th';
+    }
+  })();
+
+  return `${day}${suffix} day of ${month}, ${year}`;
+}
+
+/**
+ * Format a date into "January 14th, 2025" for shareholder registry.
+ */
+function formatMonthDayYear(input?: string | Date): string {
+  const date = input ? new Date(input) : new Date();
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  const day = date.getDate();
+  const month = date.toLocaleString('en-US', { month: 'long' });
+  const year = date.getFullYear();
+
+  const suffix = (() => {
+    if (day >= 11 && day <= 13) return 'th';
+    switch (day % 10) {
+      case 1:
+        return 'st';
+      case 2:
+        return 'nd';
+      case 3:
+        return 'rd';
+      default:
+        return 'th';
+    }
+  })();
+
+  return `${month} ${day}${suffix}, ${year}`;
+}
+
+function formatOwnershipPercent(value: any): string {
+  if (value === null || value === undefined || value === '') {
+    return '';
+  }
+  let num = Number(value);
+  if (Number.isNaN(num)) {
+    return '';
+  }
+  if (num > 0 && num <= 1) {
+    num = num * 100;
+  }
+  return `${num.toFixed(2)}%`;
+}
+
+/**
  * Map Airtable record to Form 2848 (Power of Attorney) format
  */
 export function mapAirtableTo2848(record: any): any {
@@ -543,6 +615,104 @@ export function mapAirtableTo8821(record: any): any {
     // Signature information
     signatureName: responsibleParty.name || fields['Owner 1 Name'] || '',
     signatureTitle: responsibleParty.title || signatureTitle,
+  };
+}
+
+/**
+ * Map Airtable record to Bylaws format (for C-Corp / S-Corp)
+ */
+export function mapAirtableToBylaws(record: any): any {
+  const fields = record.fields || record;
+  const entityType = fields['Entity Type'] || 'LLC';
+  const isCorp = entityType === 'C-Corp' || entityType === 'S-Corp';
+
+  if (!isCorp) {
+    throw new Error('Bylaws are only for C-Corp or S-Corp');
+  }
+
+  const companyName = fields['Company Name'] || '';
+  const formationState = fields['Formation State'] || '';
+  const paymentDate = formatLegalDate(fields['Payment Date']);
+  const numberOfShares = fields['Number of Shares'] || 1000;
+
+  const officer1Name = fields['Officer 1 Name'] || fields['Owner 1 Name'] || '';
+  const officer1Role = fields['Officer 1 Role'] || 'PRESIDENT';
+  const owner1Name = fields['Owner 1 Name'] || officer1Name || '';
+
+  return {
+    companyName,
+    formationState,
+    paymentDate,
+    numberOfShares,
+    officer1Name,
+    officer1Role,
+    owner1Name,
+  };
+}
+
+/**
+ * Map Airtable record to Shareholder Registry format (for C-Corp / S-Corp)
+ */
+export function mapAirtableToShareholderRegistry(record: any): any {
+  const fields = record.fields || record;
+  const entityType = fields['Entity Type'] || 'LLC';
+  const isCorp = entityType === 'C-Corp' || entityType === 'S-Corp';
+
+  if (!isCorp) {
+    throw new Error('Shareholder Registry is only for C-Corp or S-Corp');
+  }
+
+  const companyName = fields['Company Name'] || '';
+  const formationState = fields['Formation State'] || '';
+  const companyAddress = fields['Company Address'] || '';
+  const paymentDate = formatMonthDayYear(fields['Payment Date']);
+  const authorizedShares = fields['Number of Shares'] || 1000;
+  const outstandingShares = fields['Number of Shares'] || 1000;
+
+  const officer1Name = fields['Officer 1 Name'] || fields['Owner 1 Name'] || '';
+  const officer1Role = fields['Officer 1 Role'] || 'PRESIDENT';
+
+  const ownersCount = Math.min(fields['Owner Count'] || 0, 6);
+  const shareholders = [];
+
+  for (let i = 1; i <= ownersCount; i += 1) {
+    const ownerName = fields[`Owner ${i} Name`] || '';
+    if (!ownerName) continue;
+    const ownershipPercent = fields[`Owner ${i} Ownership %`];
+    const percentNumber = (() => {
+      if (ownershipPercent === null || ownershipPercent === undefined || ownershipPercent === '') {
+        return undefined;
+      }
+      let num = Number(ownershipPercent);
+      if (Number.isNaN(num)) return undefined;
+      if (num > 0 && num <= 1) num = num * 100;
+      return num;
+    })();
+    const sharesOwned =
+      percentNumber !== undefined
+        ? Math.round((outstandingShares * percentNumber) / 100)
+        : '';
+
+    shareholders.push({
+      date: paymentDate,
+      name: ownerName,
+      transaction: 'Allotted',
+      shares: sharesOwned ? String(sharesOwned) : '',
+      class: 'Common Stock',
+      percent: formatOwnershipPercent(ownershipPercent),
+    });
+  }
+
+  return {
+    companyName,
+    formationState,
+    companyAddress,
+    paymentDate,
+    authorizedShares,
+    outstandingShares,
+    officer1Name,
+    officer1Role,
+    shareholders,
   };
 }
 

@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
+export async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
   console.log('Checkout session completed:', session.id);
   
   if (session.metadata?.type === 'domain_purchase') {
@@ -709,6 +709,21 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
           'organizational-resolution',
           'Organizational Resolution',
           `${baseUrl}/api/airtable/generate-organizational-resolution`
+        );
+      }
+
+      // Regenerate Bylaws from Airtable (for corporations only)
+      if (entityType === 'C-Corp' || entityType === 'S-Corp') {
+        await regenerateFormFromAirtable(
+          'shareholder-registry',
+          'Shareholder Registry',
+          `${baseUrl}/api/airtable/generate-shareholder-registry`
+        );
+
+        await regenerateFormFromAirtable(
+          'bylaws',
+          'Bylaws',
+          `${baseUrl}/api/airtable/generate-bylaws`
         );
       }
       

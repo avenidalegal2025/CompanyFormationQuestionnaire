@@ -27,6 +27,7 @@ function CheckoutSuccessContent() {
   const [entityType, setEntityType] = useState<'LLC' | 'C-Corp' | 'S-Corp' | null>(null);
   const [documentsTimedOut, setDocumentsTimedOut] = useState(false);
   const [hasAgreementDoc, setHasAgreementDoc] = useState(false);
+  const [documentsAuthRequired, setDocumentsAuthRequired] = useState(false);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const maxWaitTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const startCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -36,6 +37,11 @@ function CheckoutSuccessContent() {
   const checkDocumentsReady = async (): Promise<boolean> => {
     try {
       const response = await fetch('/api/documents');
+      if (response.status === 401) {
+        // User isn't logged in; stop polling and show message
+        setDocumentsAuthRequired(true);
+        return false;
+      }
       if (response.ok) {
         const data = await response.json();
         const documents = data.documents || [];
@@ -100,6 +106,19 @@ function CheckoutSuccessContent() {
       };
 
       fetchSessionEmail();
+
+      // Fallback: attempt to sync the checkout session if webhook didn't run.
+      const syncKey = `stripeSyncAttempted:${sessionId}`;
+      if (typeof window !== 'undefined' && !localStorage.getItem(syncKey)) {
+        localStorage.setItem(syncKey, 'true');
+        fetch('/api/stripe/sync-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId }),
+        }).catch((error) => {
+          console.error('Manual Stripe sync failed:', error);
+        });
+      }
       
       // Set a flag in localStorage to indicate payment completion
       if (typeof window !== 'undefined') {
@@ -341,25 +360,22 @@ function CheckoutSuccessContent() {
               </div>
             </div>
           </>
-        ) : !documentsReady && documentsTimedOut ? (
+        ) : documentsAuthRequired ? (
           <>
             <div className="mb-6">
               <div className="w-20 h-20 mx-auto mb-4 relative">
                 <div className="absolute inset-0 rounded-full border-4 border-amber-200"></div>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-2xl">⏳</span>
+                  <span className="text-2xl">🔐</span>
                 </div>
               </div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Tu pago fue recibido correctamente</h1>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Inicia sesión para continuar</h1>
               <p className="text-gray-600 mb-4">
-                Estamos terminando de procesar la formación de tu empresa y generando tus documentos.
-              </p>
-              <p className="text-sm text-gray-500 mb-6">
-                Esto puede tardar unos minutos adicionales. Te avisaremos por email cuando todo esté listo.
+                Necesitamos que inicies sesión para mostrarte tus documentos y tu empresa.
               </p>
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-left">
                 <p className="text-sm text-amber-800">
-                  Puedes entrar a tu Hub Empresarial ahora, pero es posible que algunos documentos aún no aparezcan.
+                  Si acabas de pagar, tu empresa se está creando. Inicia sesión y te llevaremos a tu dashboard.
                 </p>
               </div>
             </div>
@@ -370,6 +386,30 @@ function CheckoutSuccessContent() {
               >
                 Ir a Mi Hub Empresarial →
               </Link>
+            </div>
+          </>
+        ) : !documentsReady && documentsTimedOut ? (
+          <>
+            <div className="mb-6">
+              <div className="w-20 h-20 mx-auto mb-4 relative">
+                <div className="absolute inset-0 rounded-full border-4 border-amber-200"></div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-2xl">⏳</span>
+                </div>
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Listo, estamos creando tus documentos</h1>
+              <p className="text-gray-600 mb-4">
+                Te avisaremos por email cuando estén listos. Puedes cerrar esta ventana.
+              </p>
+            </div>
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => window.close()}
+                className="block w-full bg-gray-100 text-gray-800 py-4 px-6 rounded-lg hover:bg-gray-200 font-semibold text-lg shadow-sm transition-all duration-200"
+              >
+                Cerrar
+              </button>
             </div>
           </>
         ) : (
