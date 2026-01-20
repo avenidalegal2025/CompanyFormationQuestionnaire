@@ -14,6 +14,7 @@ import base64
 from datetime import datetime
 
 import boto3
+import requests
 from pyairtable import Api
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -30,6 +31,7 @@ AIRTABLE_TABLE_NAME = os.environ.get("AIRTABLE_TABLE_NAME", "Formations")
 # AWS Configuration
 S3_BUCKET = 'llc-filing-audit-trail-rodolfo'
 REGION = 'us-west-1'
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
 # ==== UTILITIES ====
 def human_typing(element, text, min_delay=0.03, max_delay=0.12):
@@ -175,6 +177,17 @@ def fetch_llc_data_from_airtable(record_id=None):
         manager_name = f"{manager_first_name} {manager_last_name}".strip()
     
     manager_address = fields.get('Manager 1 Address', '')
+
+    # Fallback: if manager fields are missing, use Owner 1 (when members are managers)
+    if not manager_name and not manager_first_name and not manager_last_name:
+        owner1_first = fields.get('Owner 1 First Name', '')
+        owner1_last = fields.get('Owner 1 Last Name', '')
+        owner1_name = fields.get('Owner 1 Name', '')
+        manager_first_name = owner1_first
+        manager_last_name = owner1_last
+        manager_name = owner1_name or f"{owner1_first} {owner1_last}".strip()
+    if not manager_address:
+        manager_address = fields.get('Owner 1 Address', '')
     manager_addr_parts = parse_address(manager_address, is_international=True)
     
     # Determine country for manager - check if international
@@ -197,7 +210,7 @@ def fetch_llc_data_from_airtable(record_id=None):
     llc_data = {
         "llc": {
             "name": fields.get('Company Name', ''),
-            "purpose": fields.get('Business Purpose', 'Any lawful purpose'),
+            "purpose": translate_business_purpose(fields.get('Business Purpose', 'Any lawful purpose')),
             "principal_address": {
                 "line1": address_parts.get('line1', AVENIDA_LEGAL_ADDRESS['line1']),
                 "line2": address_parts.get('line2', AVENIDA_LEGAL_ADDRESS['line2']),
@@ -234,7 +247,7 @@ def fetch_llc_data_from_airtable(record_id=None):
             "signature": manager_name
         },
         "return_contact": {
-            "name": fields.get('Customer Name', ''),
+            "name": manager_name or fields.get('Owner 1 Name', '') or fields.get('Customer Name', ''),
             "email": fields.get('Customer Email', '')
         },
         "_airtable_record_id": record['id']
@@ -331,6 +344,38 @@ def parse_name(name_str):
     elif len(parts) == 1:
         return {'first': parts[0], 'last': ''}
     return {'first': '', 'last': ''}
+
+def translate_business_purpose(text):
+    """Translate business purpose to English using OpenAI. Falls back to original."""
+    if not text:
+        return 'Any lawful purpose'
+    if not OPENAI_API_KEY:
+        return text
+    try:
+        payload = {
+            "model": "gpt-4o-mini",
+            "messages": [
+                {"role": "system", "content": "Translate to concise business-purpose English. Return only the translation."},
+                {"role": "user", "content": str(text)}
+            ],
+            "temperature": 0.2
+        }
+        res = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {OPENAI_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json=payload,
+            timeout=20
+        )
+        if not res.ok:
+            return text
+        data = res.json()
+        translated = (data.get("choices") or [{}])[0].get("message", {}).get("content", "").strip()
+        return translated or text
+    except Exception:
+        return text
 
 def update_airtable_status(record_id, new_status, notes=None):
     """Update the formation status in Airtable"""
