@@ -13,7 +13,8 @@ const LAMBDA_ORGANIZATIONAL_RESOLUTION_URL = process.env.LAMBDA_ORGANIZATIONAL_R
 const TEMPLATE_BUCKET = process.env.TEMPLATE_BUCKET || 'company-formation-template-llc-and-inc';
 const TEMPLATE_BASE_URL = `https://${TEMPLATE_BUCKET}.s3.${process.env.AWS_REGION || 'us-west-1'}.amazonaws.com`;
 const S3_BUCKET = process.env.S3_DOCUMENTS_BUCKET || 'avenida-legal-documents';
-const CORPORATE_TEMPLATE_PATH = process.env.ORGANIZATIONAL_RESOLUTION_INC_TEMPLATE_PATH || 'templates/organizational-resolution-inc-template.docx';
+const CORPORATE_TEMPLATE_BASE_PATH =
+  process.env.ORGANIZATIONAL_RESOLUTION_INC_TEMPLATE_BASE_PATH || 'templates/organizational-resolution-inc';
 
 // Initialize Airtable
 const base = new Airtable({ apiKey: AIRTABLE_API_KEY }).base(AIRTABLE_BASE_ID);
@@ -158,7 +159,7 @@ export async function POST(request: NextRequest) {
           orgResolutionData.memberCount,
           orgResolutionData.managerCount
         )
-      : CORPORATE_TEMPLATE_PATH;
+      : `${CORPORATE_TEMPLATE_BASE_PATH}/organizational-resolution-inc-${Math.min(Math.max(orgResolutionData.memberCount || 1, 1), 6)}.docx`;
     const templateUrl = `${TEMPLATE_BASE_URL}/${templatePath}`;
     
     console.log(`📄 Using template: ${templatePath}`);
