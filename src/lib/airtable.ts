@@ -753,22 +753,21 @@ export function mapQuestionnaireToAirtable(
           const city = company.city || '';
           const state = company.state || '';
           const zip = company.postalCode || company.zipCode || '';
+          const cityStateZip = [city, state, zip].filter(Boolean).join(' ');
+          const rawFullAddress = company.fullAddress || company.address || '';
           
-          // If we have a full address already, use it
-          if (company.fullAddress || company.address) {
-            return company.fullAddress || company.address || '';
+          // If we already have a full address and it includes city/state/zip, use it
+          if (rawFullAddress && (!cityStateZip || rawFullAddress.includes(cityStateZip))) {
+            return rawFullAddress;
           }
           
-          // Otherwise, build from components
+          // Otherwise, build from components (ensures city/state/zip are present)
           const parts = [street];
-          if (city || state || zip) {
-            const cityStateZip = [city, state, zip].filter(Boolean).join(' ');
-            if (cityStateZip) {
-              parts.push(cityStateZip);
-            }
+          if (cityStateZip) {
+            parts.push(cityStateZip);
           }
           
-          return parts.filter(Boolean).join(', ') || '';
+          return parts.filter(Boolean).join(', ') || rawFullAddress || '';
         })(),
     'Business Purpose': company.businessPurpose || '',
     'Number of Shares': (isCorp || entityType === 'S-Corp') ? (company.numberOfShares || 0) : undefined,
