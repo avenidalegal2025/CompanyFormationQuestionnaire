@@ -1224,17 +1224,17 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                               )}
                             </div>
                             <div>
-                              <span className="font-bold text-gray-700">SSN:</span>
+                              <span className="font-bold text-gray-700">SSN (opcional):</span>
                               {editingSection === "admin" ? (
                                 <Controller
                                   name={`admin.officer${idx + 1}SSN` as never}
                                   control={control}
                                   render={({ field }) => (
                                     <SSNEINInput
-                                      label="SSN"
                                       value={(field.value as string) ?? ""}
-                                      onChange={field.onChange}
-                                      className="mt-1"
+                                      onChange={(digits) => field.onChange(digits)}
+                                      label="SSN"
+                                      showLabel={false}
                                     />
                                   )}
                                 />
@@ -1311,17 +1311,17 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                           )}
                         </div>
                         <div>
-                          <span className="font-bold text-gray-700">SSN:</span>
+                          <span className="font-bold text-gray-700">SSN (opcional):</span>
                           {editingSection === "admin" ? (
                             <Controller
                               name={`admin.manager${idx + 1}SSN` as never}
                               control={control}
                               render={({ field }) => (
                                 <SSNEINInput
-                                  label="SSN"
                                   value={(field.value as string) ?? ""}
-                                  onChange={field.onChange}
-                                  className="mt-1"
+                                  onChange={(digits) => field.onChange(digits)}
+                                  label="SSN"
+                                  showLabel={false}
                                 />
                               )}
                             />
