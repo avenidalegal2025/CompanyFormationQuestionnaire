@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { Controller, type FieldPath } from "react-hook-form";
 import HeroMiami1 from "@/components/HeroMiami1";
 import SegmentedToggle from "@/components/SegmentedToggle";
+import SSNEINInput from "@/components/SSNEINInput";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import InfoTooltip from "@/components/InfoTooltip";
 import type { AllSteps } from "@/lib/schema";
@@ -574,10 +575,17 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
 
                     <div>
                       <label className="label">SSN del Gerente {idx + 1}</label>
-                      <input
-                        className="input"
-                        placeholder="XXX-XX-XXXX"
-                        {...register(fp(`admin.manager${idx + 1}SSN`))}
+                      <Controller
+                        name={fp(`admin.manager${idx + 1}SSN`)}
+                        control={control}
+                        render={({ field }) => (
+                          <SSNEINInput
+                            value={(field.value as string) ?? ""}
+                            onChange={(digits) => field.onChange(digits)}
+                            label="SSN"
+                            showLabel={false}
+                          />
+                        )}
                       />
                       <p className="help">Solo si el gerente no es socio.</p>
                     </div>
@@ -960,10 +968,17 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
 
                     <div>
                       <label className="label">SSN del Oficial {idx + 1}</label>
-                      <input
-                        className="input"
-                        placeholder="XXX-XX-XXXX"
-                        {...register(fp(`admin.officer${idx + 1}SSN`))}
+                      <Controller
+                        name={fp(`admin.officer${idx + 1}SSN`)}
+                        control={control}
+                        render={({ field }) => (
+                          <SSNEINInput
+                            value={(field.value as string) ?? ""}
+                            onChange={(digits) => field.onChange(digits)}
+                            label="SSN"
+                            showLabel={false}
+                          />
+                        )}
                       />
                       <p className="help">Debe incluir el SSN del Presidente.</p>
                     </div>
