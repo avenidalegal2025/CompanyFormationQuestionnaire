@@ -416,26 +416,32 @@ export interface AirtableFormationRecord {
   'Manager 1 First Name'?: string;
   'Manager 1 Last Name'?: string;
   'Manager 1 Address'?: string;
+  'Manager 1 SSN'?: string;
   'Manager 2 Name'?: string;
   'Manager 2 First Name'?: string;
   'Manager 2 Last Name'?: string;
   'Manager 2 Address'?: string;
+  'Manager 2 SSN'?: string;
   'Manager 3 Name'?: string;
   'Manager 3 First Name'?: string;
   'Manager 3 Last Name'?: string;
   'Manager 3 Address'?: string;
+  'Manager 3 SSN'?: string;
   'Manager 4 Name'?: string;
   'Manager 4 First Name'?: string;
   'Manager 4 Last Name'?: string;
   'Manager 4 Address'?: string;
+  'Manager 4 SSN'?: string;
   'Manager 5 Name'?: string;
   'Manager 5 First Name'?: string;
   'Manager 5 Last Name'?: string;
   'Manager 5 Address'?: string;
+  'Manager 5 SSN'?: string;
   'Manager 6 Name'?: string;
   'Manager 6 First Name'?: string;
   'Manager 6 Last Name'?: string;
   'Manager 6 Address'?: string;
+  'Manager 6 SSN'?: string;
   
   // Documents
   'Membership Registry URL'?: string;
@@ -1035,6 +1041,7 @@ export function mapQuestionnaireToAirtable(
       (record as any)[`Manager ${i} First Name`] = finalFirstName;
       (record as any)[`Manager ${i} Last Name`] = finalLastName;
       (record as any)[`Manager ${i} Address`] = admin[`manager${i}Address`];
+      (record as any)[`Manager ${i} SSN`] = admin[`manager${i}SSN`] || '';
     }
   }
   

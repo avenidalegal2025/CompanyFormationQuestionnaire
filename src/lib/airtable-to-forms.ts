@@ -219,6 +219,13 @@ export function getResponsiblePartyFromAirtable(fields: any): {
       address: string;
       ownershipPercent: number;
     }> = [];
+    const managers: Array<{
+      name: string;
+      firstName: string;
+      lastName: string;
+      ssn: string;
+      address: string;
+    }> = [];
     
     for (let i = 1; i <= Math.min(ownerCount, 6); i++) {
       const ownerName = fields[`Owner ${i} Name`] || '';
@@ -238,6 +245,24 @@ export function getResponsiblePartyFromAirtable(fields: any): {
         ownershipPercent: ownershipPercent,
       });
     }
+
+    const managersCount = fields['Managers Count'] || 0;
+    const maxManagers = managersCount ? Math.min(managersCount, 6) : 6;
+    for (let i = 1; i <= maxManagers; i++) {
+      const managerName = fields[`Manager ${i} Name`] || '';
+      const managerFirstName = fields[`Manager ${i} First Name`] || '';
+      const managerLastName = fields[`Manager ${i} Last Name`] || '';
+      if (!managerName && !managerFirstName && !managerLastName) {
+        continue;
+      }
+      managers.push({
+        name: managerName || `${managerFirstName} ${managerLastName}`.trim(),
+        firstName: managerFirstName,
+        lastName: managerLastName,
+        ssn: fields[`Manager ${i} SSN`] || '',
+        address: fields[`Manager ${i} Address`] || '',
+      });
+    }
     
     // Priority 1: Highest % owner with SSN
     const ownersWithSSN = owners.filter(o => hasValidSSN(o.ssn));
@@ -250,23 +275,37 @@ export function getResponsiblePartyFromAirtable(fields: any): {
       responsiblePartySSN = highestOwnerWithSSN.ssn;
       responsiblePartyAddress = highestOwnerWithSSN.address;
     } else {
-      // Priority 2: Highest % owner (if no SSN)
-      const sortedByOwnership = [...owners].sort((a, b) => b.ownershipPercent - a.ownershipPercent);
-      if (sortedByOwnership.length > 0) {
-        const highestOwner = sortedByOwnership[0];
-        responsiblePartyName = highestOwner.name;
-        responsiblePartyFirstName = highestOwner.firstName;
-        responsiblePartyLastName = highestOwner.lastName;
-        responsiblePartySSN = highestOwner.ssn || 'N/A-FOREIGN';
-        responsiblePartyAddress = highestOwner.address;
+      // Priority 2: Manager with SSN (when no owners have SSN)
+      const managersWithSSN = managers.filter(m => hasValidSSN(m.ssn));
+      if (managersWithSSN.length > 0) {
+        const manager = managersWithSSN[0];
+        responsiblePartyName = manager.name;
+        responsiblePartyFirstName = manager.firstName;
+        responsiblePartyLastName = manager.lastName;
+        responsiblePartySSN = manager.ssn;
+        responsiblePartyAddress = manager.address;
+        signatureTitle = 'MANAGER';
+      } else {
+        // Priority 3: Highest % owner (if no SSN)
+        const sortedByOwnership = [...owners].sort((a, b) => b.ownershipPercent - a.ownershipPercent);
+        if (sortedByOwnership.length > 0) {
+          const highestOwner = sortedByOwnership[0];
+          responsiblePartyName = highestOwner.name;
+          responsiblePartyFirstName = highestOwner.firstName;
+          responsiblePartyLastName = highestOwner.lastName;
+          responsiblePartySSN = highestOwner.ssn || 'N/A-FOREIGN';
+          responsiblePartyAddress = highestOwner.address;
+        }
       }
     }
     
     // Determine title for LLC
-    if (ownerCount === 1) {
-      signatureTitle = 'SOLE MEMBER';
-    } else {
-      signatureTitle = 'MEMBER';
+    if (!signatureTitle) {
+      if (ownerCount === 1) {
+        signatureTitle = 'SOLE MEMBER';
+      } else {
+        signatureTitle = 'MEMBER';
+      }
     }
   }
   

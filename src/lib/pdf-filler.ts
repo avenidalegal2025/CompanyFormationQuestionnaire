@@ -71,8 +71,22 @@ export interface QuestionnaireData {
     managersCount?: number;
     manager1Name?: string;
     manager1Address?: string;
+    manager1SSN?: string;
     manager2Name?: string;
     manager2Address?: string;
+    manager2SSN?: string;
+    manager3Name?: string;
+    manager3Address?: string;
+    manager3SSN?: string;
+    manager4Name?: string;
+    manager4Address?: string;
+    manager4SSN?: string;
+    manager5Name?: string;
+    manager5Address?: string;
+    manager5SSN?: string;
+    manager6Name?: string;
+    manager6Address?: string;
+    manager6SSN?: string;
     // ... more managers
     officersAllOwners?: string | boolean;
     officersCount?: number;
@@ -169,12 +183,35 @@ function transformDataForSS4(formData: QuestionnaireData): any {
   }
   
   if (!lockedToPresident) {
-    for (const owner of owners) {
-      const ssn = owner.ssn || owner.tin || '';
-      if (ssn && ssn.trim() !== '' && ssn.toUpperCase() !== 'N/A' && !ssn.toUpperCase().includes('FOREIGN')) {
-        responsibleOwner = owner;
-        hasValidSSN = true;
-        break; // Use the first owner with valid SSN
+    const managersAllOwners = admin.managersAllOwners === 'Yes' || admin.managersAllOwners === true;
+    if (entityType === 'LLC' && managersAllOwners === false) {
+      const managersCount = Number(admin.managersCount) || 0;
+      for (let i = 1; i <= Math.min(managersCount, 6); i++) {
+        const ssn = String(admin[`manager${i}SSN`] ?? '');
+        if (hasValidSSNValue(ssn)) {
+          const firstName = String(admin[`manager${i}FirstName`] ?? '');
+          const lastName = String(admin[`manager${i}LastName`] ?? '');
+          const name = String(admin[`manager${i}Name`] ?? `${firstName} ${lastName}`.trim());
+          responsibleOwner = {
+            fullName: name,
+            ssn,
+            tin: ssn,
+            address: String(admin[`manager${i}Address`] ?? ''),
+          };
+          hasValidSSN = true;
+          break;
+        }
+      }
+    }
+
+    if (!hasValidSSN) {
+      for (const owner of owners) {
+        const ssn = owner.ssn || owner.tin || '';
+        if (ssn && ssn.trim() !== '' && ssn.toUpperCase() !== 'N/A' && !ssn.toUpperCase().includes('FOREIGN')) {
+          responsibleOwner = owner;
+          hasValidSSN = true;
+          break; // Use the first owner with valid SSN
+        }
       }
     }
   }

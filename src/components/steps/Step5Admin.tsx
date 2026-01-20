@@ -442,6 +442,7 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
                                 ? [ownerAddress, ownerCity, ownerState, ownerZipCode].filter(Boolean).join(", ")
                                 : "");
                             setValue(fp(`admin.manager${idx + 1}Address`), fullOwnerAddress, { shouldValidate: false });
+                            setValue(fp(`admin.manager${idx + 1}SSN`), "", { shouldValidate: false });
                           });
                         } else {
                           // Clear managersCount and manager data when "No" is selected
@@ -451,6 +452,7 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
                           Array.from({ length: 6 }).forEach((_, idx) => {
                             setValue(fp(`admin.manager${idx + 1}Name`), "", { shouldValidate: false });
                             setValue(fp(`admin.manager${idx + 1}Address`), "", { shouldValidate: false });
+                            setValue(fp(`admin.manager${idx + 1}SSN`), "", { shouldValidate: false });
                           });
                         }
                       }}
@@ -568,6 +570,16 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
                           />
                         )}
                       />
+                    </div>
+
+                    <div>
+                      <label className="label">SSN del Gerente {idx + 1}</label>
+                      <input
+                        className="input"
+                        placeholder="XXX-XX-XXXX"
+                        {...register(fp(`admin.manager${idx + 1}SSN`))}
+                      />
+                      <p className="help">Solo si el gerente no es socio.</p>
                     </div>
                   </div>
                 ))}

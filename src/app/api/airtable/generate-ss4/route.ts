@@ -624,7 +624,16 @@ async function mapAirtableToSS4(record: any): Promise<any> {
       address: string;
       ownershipPercent: number;
     }
+    interface ManagerInfo {
+      managerIndex: number;
+      name: string;
+      firstName: string;
+      lastName: string;
+      ssn: string;
+      address: string;
+    }
     const allOwners: OwnerInfo[] = [];
+    const allManagers: ManagerInfo[] = [];
     
     for (let i = 1; i <= Math.min(ownerCount, 6); i++) {
       const ownerName = (fields[`Owner ${i} Name`] || '').trim();
@@ -647,6 +656,24 @@ async function mapAirtableToSS4(record: any): Promise<any> {
           address: fields[`Owner ${i} Address`] || '',
           ownershipPercent: ownershipPercent,
         });
+    }
+
+    const managersCount = fields['Managers Count'] || 0;
+    const maxManagers = managersCount ? Math.min(managersCount, 6) : 6;
+    for (let i = 1; i <= maxManagers; i++) {
+      const managerName = (fields[`Manager ${i} Name`] || '').trim();
+      const managerFirstName = (fields[`Manager ${i} First Name`] || '').trim();
+      const managerLastName = (fields[`Manager ${i} Last Name`] || '').trim();
+      if (!managerName && !managerFirstName && !managerLastName) continue;
+      const managerSSN = (fields[`Manager ${i} SSN`] || '').trim();
+      allManagers.push({
+        managerIndex: i,
+        name: managerName || `${managerFirstName} ${managerLastName}`.trim(),
+        firstName: managerFirstName,
+        lastName: managerLastName,
+        ssn: managerSSN,
+        address: fields[`Manager ${i} Address`] || '',
+      });
     }
     
     // Priority 1: Highest % owner with SSN
@@ -672,15 +699,25 @@ async function mapAirtableToSS4(record: any): Promise<any> {
       responsiblePartyAddress = owner.address;
       console.log(`✅ LLC: Priority 2 - Owner with SSN: ${responsiblePartyName} (highest % owner doesn't have SSN)`);
     } else {
-      // Priority 3: Highest % owner (if no SSN)
-      if (allOwners.length > 0) {
+      // Priority 3: Manager with SSN (when no owners have SSN)
+      const managersWithSSN = allManagers.filter(m => hasValidSSN(m.ssn));
+      if (managersWithSSN.length > 0) {
+        const manager = managersWithSSN[0];
+        responsiblePartyName = manager.name;
+        responsiblePartyFirstName = manager.firstName;
+        responsiblePartyLastName = manager.lastName;
+        responsiblePartySSN = manager.ssn;
+        responsiblePartyAddress = manager.address;
+        console.log(`✅ LLC: Priority 3 - Manager with SSN: ${responsiblePartyName}`);
+      } else if (allOwners.length > 0) {
+        // Priority 4: Highest % owner (if no SSN)
         const owner = sortedByOwnership[0];
         responsiblePartyName = owner.name;
         responsiblePartyFirstName = owner.firstName;
         responsiblePartyLastName = owner.lastName;
         responsiblePartySSN = 'N/A-FOREIGN';
         responsiblePartyAddress = owner.address;
-        console.log(`✅ LLC: Priority 3 - Highest % owner (no SSN): ${responsiblePartyName} (${owner.ownershipPercent}%)`);
+        console.log(`✅ LLC: Priority 4 - Highest % owner (no SSN): ${responsiblePartyName} (${owner.ownershipPercent}%)`);
       } else {
         // Fallback: Use Owner 1
         responsiblePartyName = fields['Owner 1 Name'] || '';

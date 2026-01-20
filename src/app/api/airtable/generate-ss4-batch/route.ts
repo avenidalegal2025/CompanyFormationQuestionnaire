@@ -471,11 +471,30 @@ async function mapAirtableToSS4(record: any): Promise<any> {
     
     // If no owner has a valid SSN, use Owner 1's name but set SSN to "N/A-FOREIGN"
     if (!responsiblePartySSN) {
-      responsiblePartyName = fields['Owner 1 Name'] || fields['Manager 1 Name'] || fields['Customer Name'] || '';
-      responsiblePartyFirstName = fields['Owner 1 First Name'] || fields['Manager 1 First Name'] || '';
-      responsiblePartyLastName = fields['Owner 1 Last Name'] || fields['Manager 1 Last Name'] || '';
-      responsiblePartySSN = 'N/A-FOREIGN'; // Set to N/A-FOREIGN if no one has SSN
-      responsiblePartyAddress = fields['Owner 1 Address'] || '';
+      let managerWithSSNIndex: number | null = null;
+      for (let i = 1; i <= 6; i++) {
+        const managerSSN = fields[`Manager ${i} SSN`] || '';
+        if (managerSSN && managerSSN.trim() !== '' && 
+            managerSSN.toUpperCase() !== 'N/A' && 
+            !managerSSN.toUpperCase().includes('FOREIGN')) {
+          managerWithSSNIndex = i;
+          responsiblePartySSN = managerSSN;
+          break;
+        }
+      }
+      
+      if (managerWithSSNIndex) {
+        responsiblePartyName = fields[`Manager ${managerWithSSNIndex} Name`] || fields['Customer Name'] || '';
+        responsiblePartyFirstName = fields[`Manager ${managerWithSSNIndex} First Name`] || '';
+        responsiblePartyLastName = fields[`Manager ${managerWithSSNIndex} Last Name`] || '';
+        responsiblePartyAddress = fields[`Manager ${managerWithSSNIndex} Address`] || '';
+      } else {
+        responsiblePartyName = fields['Owner 1 Name'] || fields['Manager 1 Name'] || fields['Customer Name'] || '';
+        responsiblePartyFirstName = fields['Owner 1 First Name'] || fields['Manager 1 First Name'] || '';
+        responsiblePartyLastName = fields['Owner 1 Last Name'] || fields['Manager 1 Last Name'] || '';
+        responsiblePartySSN = 'N/A-FOREIGN'; // Set to N/A-FOREIGN if no one has SSN
+        responsiblePartyAddress = fields['Owner 1 Address'] || '';
+      }
     }
   }
   
