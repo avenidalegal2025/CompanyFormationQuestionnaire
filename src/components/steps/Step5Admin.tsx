@@ -83,17 +83,7 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
         return false;
       }
 
-      // Require SSN for the President when officers are not the owners
-      const presidentHasSSN = Array.from({ length: currentOfficersCount }).some((_, idx) => {
-        const role = watch(fp(`admin.officer${idx + 1}Role`)) as string;
-        const ssn = watch(fp(`admin.officer${idx + 1}SSN`)) as string;
-        return role === "President" && ssn && ssn.trim() !== "";
-      });
-
-      if (!presidentHasSSN) {
-        alert("El oficial con rol de Presidente debe incluir su SSN.");
-        return false;
-      }
+      // SSN for officers is optional when officers are not owners (C-Corp)
     }
     return true;
   };
@@ -573,22 +563,7 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
                       />
                     </div>
 
-                    <div>
-                      <label className="label">SSN del Gerente {idx + 1}</label>
-                      <Controller
-                        name={fp(`admin.manager${idx + 1}SSN`)}
-                        control={control}
-                        render={({ field }) => (
-                          <SSNEINInput
-                            value={(field.value as string) ?? ""}
-                            onChange={(digits) => field.onChange(digits)}
-                            label="SSN"
-                            showLabel={false}
-                          />
-                        )}
-                      />
-                      <p className="help">Solo si el gerente no es socio.</p>
-                    </div>
+                    {/* SSN no requerido para gerentes en LLC */}
                   </div>
                 ))}
               </>
@@ -966,22 +941,24 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
                       />
                     </div>
 
-                    <div>
-                      <label className="label">SSN del Oficial {idx + 1}</label>
-                      <Controller
-                        name={fp(`admin.officer${idx + 1}SSN`)}
-                        control={control}
-                        render={({ field }) => (
-                          <SSNEINInput
-                            value={(field.value as string) ?? ""}
-                            onChange={(digits) => field.onChange(digits)}
-                            label="SSN"
-                            showLabel={false}
-                          />
-                        )}
-                      />
-                      <p className="help">Debe incluir el SSN del Presidente.</p>
-                    </div>
+                    {entityType === "C-Corp" && (
+                      <div>
+                        <label className="label">SSN del Oficial {idx + 1}</label>
+                        <Controller
+                          name={fp(`admin.officer${idx + 1}SSN`)}
+                          control={control}
+                          render={({ field }) => (
+                            <SSNEINInput
+                              value={(field.value as string) ?? ""}
+                              onChange={(digits) => field.onChange(digits)}
+                              label="SSN"
+                              showLabel={false}
+                            />
+                          )}
+                        />
+                        <p className="help">SSN opcional.</p>
+                      </div>
+                    )}
                   </div>
                 ))}
               </>

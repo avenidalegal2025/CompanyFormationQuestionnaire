@@ -1117,16 +1117,14 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                       const lastName = watch(`admin.officer${idx + 1}LastName`);
                       const role = watch(`admin.officer${idx + 1}Role`);
                       const address = watch(`admin.officer${idx + 1}Address`);
-                      const ssn = watch(`admin.officer${idx + 1}SSN`);
                       const firstNameStr = (firstName as string | undefined) || "";
                       const lastNameStr = (lastName as string | undefined) || "";
                       const nameStr = `${firstNameStr} ${lastNameStr}`.trim() || "No especificado";
                       const roleStr = (role as string | undefined) || "No especificado";
                       const addressStr = (address as string | undefined) || "No especificado";
-                      const ssnStr = (ssn as string | undefined) || "";
                       return (
                         <div key={idx} className="rounded-lg border border-gray-100 p-4">
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className={`grid grid-cols-1 ${entityType === "C-Corp" ? "md:grid-cols-3" : "md:grid-cols-2"} gap-4`}>
                             <div>
                               <span className="font-bold text-gray-700">Nombre:</span>
                               {editingSection === "admin" ? (
@@ -1223,25 +1221,27 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                                 <p className="text-gray-900">{addressStr}</p>
                               )}
                             </div>
-                            <div>
-                              <span className="font-bold text-gray-700">SSN (opcional):</span>
-                              {editingSection === "admin" ? (
-                                <Controller
-                                  name={`admin.officer${idx + 1}SSN` as never}
-                                  control={control}
-                                  render={({ field }) => (
-                                    <SSNEINInput
-                                      value={(field.value as string) ?? ""}
-                                      onChange={(digits) => field.onChange(digits)}
-                                      label="SSN"
-                                      showLabel={false}
-                                    />
-                                  )}
-                                />
-                              ) : (
-                                <p className="text-gray-900">{String(obfuscateSSNEIN(ssnStr, true))}</p>
-                              )}
-                            </div>
+                            {entityType === "C-Corp" && (
+                              <div>
+                                <span className="font-bold text-gray-700">SSN (opcional):</span>
+                                {editingSection === "admin" ? (
+                                  <Controller
+                                    name={`admin.officer${idx + 1}SSN` as never}
+                                    control={control}
+                                    render={({ field }) => (
+                                      <SSNEINInput
+                                        value={(field.value as string) ?? ""}
+                                        onChange={(digits) => field.onChange(digits)}
+                                        label="SSN"
+                                        showLabel={false}
+                                      />
+                                    )}
+                                  />
+                                ) : (
+                                  <p className="text-gray-900">{String(obfuscateSSNEIN(watch(`admin.officer${idx + 1}SSN`) as string, true))}</p>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
@@ -1259,15 +1259,13 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                   const firstName = watch(`admin.manager${idx + 1}FirstName`);
                   const lastName = watch(`admin.manager${idx + 1}LastName`);
                   const address = watch(`admin.manager${idx + 1}Address`);
-                  const ssn = watch(`admin.manager${idx + 1}SSN`);
                   const firstNameStr = (firstName as string | undefined) || "";
                   const lastNameStr = (lastName as string | undefined) || "";
                   const nameStr = `${firstNameStr} ${lastNameStr}`.trim() || "No especificado";
                   const addressStr = (address as string | undefined) || "No especificado";
-                  const ssnStr = (ssn as string | undefined) || "";
                   return (
                     <div key={idx} className="rounded-lg border border-gray-100 p-4">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <span className="font-bold text-gray-700">Nombre:</span>
                           {editingSection === "admin" ? (
@@ -1308,25 +1306,6 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                             />
                           ) : (
                             <p className="text-gray-900">{addressStr}</p>
-                          )}
-                        </div>
-                        <div>
-                          <span className="font-bold text-gray-700">SSN (opcional):</span>
-                          {editingSection === "admin" ? (
-                            <Controller
-                              name={`admin.manager${idx + 1}SSN` as never}
-                              control={control}
-                              render={({ field }) => (
-                                <SSNEINInput
-                                  value={(field.value as string) ?? ""}
-                                  onChange={(digits) => field.onChange(digits)}
-                                  label="SSN"
-                                  showLabel={false}
-                                />
-                              )}
-                            />
-                          ) : (
-                            <p className="text-gray-900">{String(obfuscateSSNEIN(ssnStr, true))}</p>
                           )}
                         </div>
                       </div>

@@ -1010,9 +1010,11 @@ export function mapQuestionnaireToAirtable(
       (record as any)[`Officer ${i} Last Name`] = finalLastName;
       (record as any)[`Officer ${i} Address`] = officerAddress;
       (record as any)[`Officer ${i} Role`] = officerRole;
-      (record as any)[`Officer ${i} SSN`] = officersAllOwners
-        ? (owners[i - 1]?.tin || owners[i - 1]?.ssn || '')
-        : (admin[`officer${i}SSN`] || '');
+      (record as any)[`Officer ${i} SSN`] = entityType === 'C-Corp'
+        ? (officersAllOwners
+            ? (owners[i - 1]?.tin || owners[i - 1]?.ssn || '')
+            : (admin[`officer${i}SSN`] || ''))
+        : '';
       
       console.log(`📋 Mapping Officer ${i}: Name="${officerName || `${finalFirstName} ${finalLastName}`.trim()}", Role="${officerRole}", officersAllOwners=${officersAllOwners}`);
     }
@@ -1034,7 +1036,7 @@ export function mapQuestionnaireToAirtable(
         ? (owner.fullName || `${managerFirstName} ${managerLastName}`.trim())
         : (admin[`manager${i}Name`] || `${managerFirstName} ${managerLastName}`.trim());
       const managerAddress = managersAllOwners ? (owner.address || '') : (admin[`manager${i}Address`] || '');
-      const managerSSN = managersAllOwners ? (owner.tin || owner.ssn || '') : (admin[`manager${i}SSN`] || '');
+      const managerSSN = managersAllOwners ? (owner.tin || owner.ssn || '') : '';
       
       let finalFirstName = managerFirstName;
       let finalLastName = managerLastName;

@@ -134,6 +134,42 @@ export interface QuestionnaireData {
   };
 }
 
+const parseAddressComponents = (fullAddress: string) => {
+  const result = { street: '', city: '', state: '', zip: '' };
+  if (!fullAddress) return result;
+  const parts = fullAddress.split(',').map((p) => p.trim()).filter(Boolean);
+  if (parts.length >= 3) {
+    result.street = parts[0];
+    result.city = parts.slice(1, -1).join(', ');
+    const stateZipStr = parts[parts.length - 1] || '';
+    const stateZipMatch = stateZipStr.match(/^([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/);
+    if (stateZipMatch) {
+      result.state = stateZipMatch[1];
+      result.zip = stateZipMatch[2];
+    } else {
+      const tokens = stateZipStr.split(/\s+/);
+      if (tokens.length >= 2) {
+        result.state = tokens[0];
+        result.zip = tokens.slice(1).join(' ');
+      }
+    }
+  } else if (parts.length === 2) {
+    result.street = parts[0];
+    const cityStateZip = parts[1];
+    const match = cityStateZip.match(/^(.+?)\s+([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/);
+    if (match) {
+      result.city = match[1];
+      result.state = match[2];
+      result.zip = match[3];
+    } else {
+      result.city = parts[1];
+    }
+  } else {
+    result.street = fullAddress;
+  }
+  return result;
+};
+
 /**
  * Transforms questionnaire data to SS-4 (EIN Application) format
  */
@@ -158,60 +194,46 @@ function transformDataForSS4(formData: QuestionnaireData): any {
   let hasValidSSN = false;
   let lockedToPresident = false;
 
-  // C-Corp/S-Corp when officers are not the owners: President must sign SS-4
+  // C-Corp when officers are not the owners: prioritize officer with SSN
   const officersAllOwners = admin.officersAllOwners === 'Yes' || admin.officersAllOwners === true;
-  if (isCorp && officersAllOwners === false) {
+  if (entityType === 'C-Corp' && officersAllOwners === false) {
     const officersCount = admin.officersCount || 0;
+    let selectedOfficerIndex: number | null = null;
     for (let i = 1; i <= Math.min(officersCount, 6); i++) {
-      const role = String(admin[`officer${i}Role`] ?? '');
-      if (role === 'President') {
-        const firstName = String(admin[`officer${i}FirstName`] ?? '');
-        const lastName = String(admin[`officer${i}LastName`] ?? '');
-        const name = String(admin[`officer${i}Name`] ?? `${firstName} ${lastName}`.trim());
-        const ssn = String(admin[`officer${i}SSN`] ?? '');
-        responsibleOwner = {
-          fullName: name,
-          ssn,
-          tin: ssn,
-          address: String(admin[`officer${i}Address`] ?? ''),
-        };
-        hasValidSSN = hasValidSSNValue(ssn);
-        lockedToPresident = true;
-        break;
-      }
-    }
-  }
-  
-  if (!lockedToPresident) {
-    const managersAllOwners = admin.managersAllOwners === 'Yes' || admin.managersAllOwners === true;
-    if (entityType === 'LLC' && managersAllOwners === false) {
-      const managersCount = Number(admin.managersCount) || 0;
-      for (let i = 1; i <= Math.min(managersCount, 6); i++) {
-        const ssn = String(admin[`manager${i}SSN`] ?? '');
-        if (hasValidSSNValue(ssn)) {
-          const firstName = String(admin[`manager${i}FirstName`] ?? '');
-          const lastName = String(admin[`manager${i}LastName`] ?? '');
-          const name = String(admin[`manager${i}Name`] ?? `${firstName} ${lastName}`.trim());
-          responsibleOwner = {
-            fullName: name,
-            ssn,
-            tin: ssn,
-            address: String(admin[`manager${i}Address`] ?? ''),
-          };
-          hasValidSSN = true;
+      const ssn = String(admin[`officer${i}SSN`] ?? '');
+      if (hasValidSSNValue(ssn)) {
+        selectedOfficerIndex = i;
+        const role = String(admin[`officer${i}Role`] ?? '');
+        if (role === 'President') {
           break;
         }
       }
     }
 
-    if (!hasValidSSN) {
-      for (const owner of owners) {
-        const ssn = owner.ssn || owner.tin || '';
-        if (ssn && ssn.trim() !== '' && ssn.toUpperCase() !== 'N/A' && !ssn.toUpperCase().includes('FOREIGN')) {
-          responsibleOwner = owner;
-          hasValidSSN = true;
-          break; // Use the first owner with valid SSN
-        }
+    if (selectedOfficerIndex) {
+      const i = selectedOfficerIndex;
+      const firstName = String(admin[`officer${i}FirstName`] ?? '');
+      const lastName = String(admin[`officer${i}LastName`] ?? '');
+      const name = String(admin[`officer${i}Name`] ?? `${firstName} ${lastName}`.trim());
+      const ssn = String(admin[`officer${i}SSN`] ?? '');
+      responsibleOwner = {
+        fullName: name,
+        ssn,
+        tin: ssn,
+        address: String(admin[`officer${i}Address`] ?? ''),
+      };
+      hasValidSSN = hasValidSSNValue(ssn);
+      lockedToPresident = true;
+    }
+  }
+  
+  if (!lockedToPresident) {
+    for (const owner of owners) {
+      const ssn = owner.ssn || owner.tin || '';
+      if (ssn && ssn.trim() !== '' && ssn.toUpperCase() !== 'N/A' && !ssn.toUpperCase().includes('FOREIGN')) {
+        responsibleOwner = owner;
+        hasValidSSN = true;
+        break; // Use the first owner with valid SSN
       }
     }
   }
@@ -368,40 +390,20 @@ function transformDataFor2848(formData: QuestionnaireData): any {
     companyZip = company.zipCode || company.postalCode || '';
   }
   
-  // If companyAddress is in Airtable format "Street, City, State ZIP", parse it
-  if (companyAddress && companyAddress.includes(',')) {
-    const parts = companyAddress.split(',').map(p => p.trim());
-    if (parts.length >= 2) {
-      companyAddress = parts[0]; // Street address
-      if (parts.length >= 3) {
-        // Last part should be "State ZIP"
-        const lastPart = parts[parts.length - 1];
-        const stateZipMatch = lastPart.match(/^([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/);
-        if (stateZipMatch) {
-          companyState = stateZipMatch[1];
-          companyZip = stateZipMatch[2];
-          // Everything in between is city
-          companyCity = parts.slice(1, -1).join(', ');
-        } else {
-          // Fallback: assume last part is state+zip, everything else is city
-          companyCity = parts.slice(1, -1).join(', ');
-          const stateZipParts = parts[parts.length - 1].split(/\s+/);
-          if (stateZipParts.length >= 2) {
-            companyState = stateZipParts[0];
-            companyZip = stateZipParts.slice(1).join(' ');
-          }
-        }
-      } else {
-        // Only 2 parts: street and city/state/zip
-        const cityStateZip = parts[1];
-        const stateZipMatch = cityStateZip.match(/^(.+?)\s+([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/);
-        if (stateZipMatch) {
-          companyCity = stateZipMatch[1];
-          companyState = stateZipMatch[2];
-          companyZip = stateZipMatch[3];
-        }
-      }
+  const parsedCompanyAddress = parseAddressComponents(company.fullAddress || company.address || '');
+  if (!companyAddress || companyAddress.includes(',')) {
+    if (parsedCompanyAddress.street) {
+      companyAddress = parsedCompanyAddress.street;
     }
+  }
+  if (!companyCity && parsedCompanyAddress.city) {
+    companyCity = parsedCompanyAddress.city;
+  }
+  if (!companyState && parsedCompanyAddress.state) {
+    companyState = parsedCompanyAddress.state;
+  }
+  if (!companyZip && parsedCompanyAddress.zip) {
+    companyZip = parsedCompanyAddress.zip;
   }
   
   // Get company phone (same priority as 8821)
@@ -660,43 +662,20 @@ function transformDataFor8821(formData: QuestionnaireData): any {
     companyZip = company.postalCode || company.zipCode || '';
   }
   
-  // Parse full address string (Airtable format: "12550 Biscayne Blvd Ste 110, North Miami, FL 33181")
-  // This should be split into:
-  // Line 2: "12550 Biscayne Blvd Ste 110" (street address)
-  // Line 3: "North Miami, FL 33181" (city, state, zip)
-  // Always try to parse if we have a full address string, even if city/state are already set
-  if (companyAddress) {
-    // Try to parse "Street, City, State ZIP" format (Airtable format)
-    const addressParts = companyAddress.split(',').map(p => p.trim());
-    if (addressParts.length >= 3) {
-      // Format: "Street, City, State ZIP"
-      companyAddress = addressParts[0]; // Street address (Line 2)
-      companyCity = addressParts[1] || companyCity || ''; // City (prefer parsed, fallback to existing)
-      const stateZipStr = addressParts[2] || ''; // "State ZIP"
-      // Extract state and zip from "State ZIP"
-      const stateZipMatch = stateZipStr.match(/^([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/);
-      if (stateZipMatch) {
-        companyState = stateZipMatch[1] || companyState || '';
-        companyZip = stateZipMatch[2] || companyZip || '';
-      } else {
-        // Fallback: try to split by space
-        const parts = stateZipStr.split(/\s+/);
-        if (parts.length >= 2) {
-          companyState = parts[0] || companyState || '';
-          companyZip = parts[1] || companyZip || '';
-        }
-      }
-    } else if (addressParts.length === 2) {
-      // Format: "Street, City State ZIP"
-      companyAddress = addressParts[0]; // Street address
-      const cityStateZip = addressParts[1];
-      const parts = cityStateZip.split(/\s+/);
-      if (parts.length >= 2) {
-        companyState = parts[parts.length - 2] || companyState || '';
-        companyZip = parts[parts.length - 1] || companyZip || '';
-        companyCity = parts.slice(0, -2).join(' ') || companyCity || cityStateZip;
-      }
+  const parsedTaxpayerAddress = parseAddressComponents(company.fullAddress || company.address || '');
+  if (!companyAddress || companyAddress.includes(',')) {
+    if (parsedTaxpayerAddress.street) {
+      companyAddress = parsedTaxpayerAddress.street;
     }
+  }
+  if (!companyCity && parsedTaxpayerAddress.city) {
+    companyCity = parsedTaxpayerAddress.city;
+  }
+  if (!companyState && parsedTaxpayerAddress.state) {
+    companyState = parsedTaxpayerAddress.state;
+  }
+  if (!companyZip && parsedTaxpayerAddress.zip) {
+    companyZip = parsedTaxpayerAddress.zip;
   }
   
   // For 8821, we want:

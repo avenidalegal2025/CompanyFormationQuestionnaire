@@ -216,6 +216,7 @@ export async function POST(request: NextRequest) {
     // Restricted term rules (Florida)
     const hardDeniedTerms = [
       'agency',
+      'bank',
       'bureau',
       'commission',
       'department',
@@ -224,16 +225,18 @@ export async function POST(request: NextRequest) {
       'county',
     ];
     const warnTerms = [
-      'bank',
       'banking',
       'trust',
-      'insurance',
-      'credit union',
       'savings',
-      'attorney',
+      'credit union',
+      'insurance',
+      'actuarial',
+      'brokerage',
+      'architect',
+      'surveyor',
+      'cpa',
       'doctor',
       'engineer',
-      'cpa',
     ];
 
     const normalizedInputLower = inputName.toLowerCase();
@@ -423,7 +426,7 @@ export async function POST(request: NextRequest) {
       available: finalAvailable,
       status: shouldWarn ? 'warn' : (finalAvailable ? 'ok' : 'error'),
       message: shouldWarn
-        ? '⚠️ Le recomendamos no usar este nombre pero si aún así decide avanzar con este nombre necesitamos revisar su caso de forma especial.'
+        ? '⚠️ Le recomendamos no usar este nombre pero si aún así decide avanzar con este nombre necesitamos revisar su caso de forma especial ya que se requieren licencias para operar, haga click aquí.'
         : finalMessage,
       warningTerms: shouldWarn ? matchedWarnTerms : undefined,
       method: result?.method,
