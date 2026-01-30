@@ -1,0 +1,63 @@
+STOCK REGISTRY FOR
+{{Company Name}}
+A {{Formation State}} CORPORATION
+
+
+Corporation Name:		{{Company Name}}, a {{Formation State}} corporation
+
+Corporation Address:	{{Company Address}}
+
+Authorized Shares:		{{Authorized Shares}}
+
+Outstanding Shares:		{{Outstanding Shares}}
+
+Date of Formation: 		{{Payment Date}}
+
+Particulars of Ownership Interest Transactions
+Common Stock
+		  
+Date Acquired
+Name
+Transaction
+Number of Shares Owned
+
+Class of Shares
+Percentage Ownership Interest 
+(out of 100%)
+{{shareholder_01_date}}
+{{shareholder_01_name}}
+{{shareholder_01_transaction}}
+{{shareholder_01_shares}}
+{{shareholder_01_class}}
+{{shareholder_01_percent}}
+{{shareholder_02_date}}
+{{shareholder_02_name}}
+{{shareholder_02_transaction}}
+{{shareholder_02_shares}}
+{{shareholder_02_class}}
+{{shareholder_02_percent}}
+{{shareholder_03_date}}
+{{shareholder_03_name}}
+{{shareholder_03_transaction}}
+{{shareholder_03_shares}}
+{{shareholder_03_class}}
+{{shareholder_03_percent}}
+
+
+
+
+
+
+
+
+	
+I hereby certify that this Stock Registry is a true and accurate reflection of the ownership structure of {{Company Name}} as of {{Payment Date}}.  
+
+
+
+By: _____________________
+Name: {{Officer 1 Name}}
+Title: {{Officer 1 Role}}
+
+
+

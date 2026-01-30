@@ -47,14 +47,16 @@ function CheckoutSuccessContent() {
         const documents = data.documents || [];
         
         // Check if we have at least some key documents generated
-        // We expect at least SS-4, Membership Registry, and Organizational Resolution
-        const keyDocuments = [
-          'ss4-ein-application',
-          'membership-registry',
-          'shareholder-registry',
-          'organizational-resolution',
-          'bylaws',
-        ];
+        // Make this entity-specific so we don't wait on irrelevant docs.
+        const keyDocuments = (() => {
+          if (entityType === 'C-Corp' || entityType === 'S-Corp') {
+            return ['ss4-ein-application', 'shareholder-registry', 'bylaws'];
+          }
+          if (entityType === 'LLC') {
+            return ['ss4-ein-application', 'membership-registry', 'organizational-resolution'];
+          }
+          return ['ss4-ein-application'];
+        })();
         
         const hasKeyDocuments = keyDocuments.some(docId => 
           documents.some((doc: any) => doc.id === docId && (doc.s3Key || doc.status === 'generated' || doc.status === 'signed'))

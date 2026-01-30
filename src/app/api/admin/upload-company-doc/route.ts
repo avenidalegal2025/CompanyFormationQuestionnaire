@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import Airtable from 'airtable';
-import { getUserDocuments, saveUserDocuments, getVaultMetadata } from '@/lib/dynamo';
-import { uploadDocument } from '@/lib/s3-vault';
+import { getUserDocuments, getVaultMetadata, saveUserCompanyDocuments } from '@/lib/dynamo';
+import { uploadDocument, getDocumentDownloadUrl } from '@/lib/s3-vault';
 import { updateFormationRecord } from '@/lib/airtable';
+import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 
 const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY?.trim() || '';
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID?.trim() || '';
@@ -15,6 +16,14 @@ if (!AIRTABLE_API_KEY || !AIRTABLE_BASE_ID) {
 }
 
 const base = new Airtable({ apiKey: AIRTABLE_API_KEY }).base(AIRTABLE_BASE_ID);
+
+const sesClient = new SESClient({
+  region: process.env.AWS_REGION || 'us-east-1',
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+  },
+});
 
 // Same authorized emails as screenshots admin
 const AUTHORIZED_EMAILS = [
@@ -171,7 +180,7 @@ export async function POST(request: NextRequest) {
       return docs;
     })();
 
-    await saveUserDocuments(customerEmail, updatedDocuments);
+    await saveUserCompanyDocuments(customerEmail, recordId, updatedDocuments);
 
     // Update Airtable with URL for Articles fields if applicable
     if (airtableField) {
@@ -187,6 +196,37 @@ export async function POST(request: NextRequest) {
       } catch (airtableError: any) {
         console.error('❌ Failed to update Airtable with Articles URL:', airtableError.message);
       }
+    }
+
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://company-formation-questionnaire.vercel.app';
+      const dashboardUrl = `${baseUrl}/client/documents?tab=firmado`;
+      const downloadUrl = await getDocumentDownloadUrl(uploadResult.s3Key, 3600);
+
+      const subject = `✅ Documento disponible: ${documentName}`;
+      const body = `
+        <h2>Tu documento está listo</h2>
+        <p>Hemos subido el documento <strong>${documentName}</strong> para tu empresa.</p>
+        <p>Entra a tu dashboard para verlo en la sección <strong>Completado</strong>:</p>
+        <p><a href="${dashboardUrl}">${dashboardUrl}</a></p>
+        <p><strong>Enlace directo de descarga (PDF):</strong></p>
+        <p><a href="${downloadUrl}">${downloadUrl}</a></p>
+        <p style="color:#555;">El enlace expira en 1 hora.</p>
+      `;
+
+      const command = new SendEmailCommand({
+        Source: 'avenidalegal.2024@gmail.com',
+        Destination: { ToAddresses: [customerEmail] },
+        Message: {
+          Subject: { Data: subject },
+          Body: { Html: { Data: body } },
+        },
+      });
+
+      await sesClient.send(command);
+      console.log(`📧 Sent client document email to ${customerEmail}`);
+    } catch (emailError: any) {
+      console.error('❌ Failed to send client document email:', emailError.message);
     }
 
     return NextResponse.json({

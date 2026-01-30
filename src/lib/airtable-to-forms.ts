@@ -917,19 +917,8 @@ export function mapAirtableToCorpOrganizationalResolution(record: any): any {
   const companyName = fields['Company Name'] || '';
   const formationState = fields['Formation State'] || '';
 
-  // Use Payment Date as formation date (same as LLC mapping)
-  const paymentDate = fields['Payment Date'];
-  let formationDate = '';
-  if (paymentDate) {
-    const date = new Date(paymentDate);
-    if (!isNaN(date.getTime())) {
-      formationDate = `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}/${date.getFullYear()}`;
-    }
-  }
-  if (!formationDate) {
-    const now = new Date();
-    formationDate = `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}/${now.getFullYear()}`;
-  }
+  // Use Payment Date as formation date (legal long format)
+  const formationDate = formatLegalDate(fields['Payment Date']);
 
   // Build full company address
   const rawCompanyAddress = (fields['Company Address'] || '').toString().trim();

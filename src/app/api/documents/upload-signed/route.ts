@@ -2,8 +2,56 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getUserDocuments, getUserCompanyDocuments, saveUserCompanyDocuments, getVaultMetadata } from '@/lib/dynamo';
-import { uploadDocument } from '@/lib/s3-vault';
+import { uploadDocument, getDocumentDownloadUrl } from '@/lib/s3-vault';
 import { findFormationByEmail, updateFormationRecord } from '@/lib/airtable';
+import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
+
+const sesClient = new SESClient({
+  region: process.env.AWS_REGION || 'us-east-1',
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+  },
+});
+
+async function sendSignedDocumentNotification(params: {
+  documentId: string;
+  documentName: string;
+  userEmail: string;
+  companyName?: string;
+  downloadUrl: string;
+}) {
+  const { documentId, documentName, userEmail, companyName, downloadUrl } = params;
+  const isSS4 = documentId === 'ss4-ein-application';
+  const subject = isSS4
+    ? `❗ SS-4 firmada: ${documentName}`
+    : `✅ Documento firmado: ${documentName}`;
+
+  const body = `
+    <h2>Documento firmado recibido</h2>
+    <table style="border-collapse: collapse; margin: 16px 0;">
+      ${companyName ? `<tr><td style="padding: 6px 10px; border: 1px solid #ddd;"><strong>Empresa:</strong></td><td style="padding: 6px 10px; border: 1px solid #ddd;">${companyName}</td></tr>` : ''}
+      <tr><td style="padding: 6px 10px; border: 1px solid #ddd;"><strong>Documento:</strong></td><td style="padding: 6px 10px; border: 1px solid #ddd;">${documentName}</td></tr>
+      <tr><td style="padding: 6px 10px; border: 1px solid #ddd;"><strong>Cliente:</strong></td><td style="padding: 6px 10px; border: 1px solid #ddd;">${userEmail}</td></tr>
+    </table>
+    <p><strong>Descargar documento firmado (PDF):</strong></p>
+    <p><a href="${downloadUrl}">${downloadUrl}</a></p>
+    <p style="color: #555;">El enlace expira en 1 hora.</p>
+  `;
+
+  const command = new SendEmailCommand({
+    Source: 'avenidalegal.2024@gmail.com',
+    Destination: {
+      ToAddresses: ['avenidalegal.2024@gmail.com'],
+    },
+    Message: {
+      Subject: { Data: subject },
+      Body: { Html: { Data: body } },
+    },
+  });
+
+  await sesClient.send(command);
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -136,9 +184,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Update Airtable with signed document URL
+    let companyName: string | undefined;
     try {
       const airtableRecord = await findFormationByEmail(userId);
       if (airtableRecord) {
+        companyName = airtableRecord.fields?.['Company Name'] as string | undefined;
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://company-formation-questionnaire.vercel.app';
         const signedUrl = `${baseUrl}/api/documents/view?key=${encodeURIComponent(uploadResult.s3Key)}`;
         
@@ -164,6 +214,21 @@ export async function POST(request: NextRequest) {
     } catch (airtableError: any) {
       console.error('❌ Failed to update Airtable with signed document:', airtableError.message);
       // Don't fail the upload if Airtable update fails
+    }
+
+    try {
+      const downloadUrl = await getDocumentDownloadUrl(uploadResult.s3Key);
+      const docName = document.name || documentId;
+      await sendSignedDocumentNotification({
+        documentId,
+        documentName: docName,
+        userEmail: userId,
+        companyName,
+        downloadUrl,
+      });
+      console.log(`📧 Signed document email sent for ${documentId}`);
+    } catch (emailError: any) {
+      console.error('❌ Failed to send signed document email:', emailError.message);
     }
 
     // Return the full updated document (not just the changed fields)

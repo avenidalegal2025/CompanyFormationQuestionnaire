@@ -24,6 +24,7 @@ function DocumentsContent() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState<{ [key: string]: boolean }>({});
   const [downloadedDocs, setDownloadedDocs] = useState<Set<string>>(new Set());
+  const [directLinks, setDirectLinks] = useState<Record<string, string>>({});
 
   const handleNewCompany = () => {
     // Clear ALL localStorage data to start completely fresh
@@ -232,6 +233,22 @@ function DocumentsContent() {
     } catch (error) {
       console.error('Error downloading document:', error);
       alert('Error al descargar el documento. Por favor, intenta de nuevo.');
+    }
+  };
+
+  const handleGetDirectLink = async (documentId: string) => {
+    try {
+      const response = await fetch(`/api/documents/${encodeURIComponent(documentId)}/download`);
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'No se pudo generar el enlace');
+      }
+      const data = await response.json();
+      if (data?.url) {
+        setDirectLinks(prev => ({ ...prev, [documentId]: data.url }));
+      }
+    } catch (error: any) {
+      alert(error.message || 'Error al generar el enlace');
     }
   };
 
@@ -652,6 +669,25 @@ function DocumentsContent() {
                               </>
                             )}
                           </label>
+                        </div>
+                      )}
+
+                      {category === 'firmado' && ['ein-letter', 'articles-inc', 'articles-llc'].includes((doc.id || '').toLowerCase()) && (
+                        <div className="mt-3 text-xs text-gray-600">
+                          <button
+                            type="button"
+                            className="text-blue-600 hover:text-blue-800 underline"
+                            onClick={() => handleGetDirectLink(doc.id)}
+                          >
+                            Obtener enlace directo de descarga
+                          </button>
+                          {directLinks[doc.id] && (
+                            <div className="mt-2 break-all">
+                              <a href={directLinks[doc.id]} className="text-blue-600 hover:text-blue-800">
+                                {directLinks[doc.id]}
+                              </a>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
