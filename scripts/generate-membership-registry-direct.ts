@@ -10,7 +10,7 @@
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 
                  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://company-formation-questionnaire.vercel.app');
 
-async function generateMembershipRegistry(recordId) {
+async function generateMembershipRegistry(recordId: string | undefined) {
   if (!recordId) {
     console.log('🔍 No recordId provided. Searching for an LLC record...');
     console.log('   (You can provide a recordId as the first argument)');
@@ -21,7 +21,7 @@ async function generateMembershipRegistry(recordId) {
       const companiesResponse = await fetch(`${BASE_URL}/api/companies?limit=10`);
       if (companiesResponse.ok) {
         const data = await companiesResponse.json();
-        const llcCompanies = (data.companies || []).filter(c => c.entityType === 'LLC');
+        const llcCompanies = (data.companies || []).filter((c: { entityType?: string }) => c.entityType === 'LLC');
         if (llcCompanies.length > 0) {
           recordId = llcCompanies[0].id;
           console.log(`✅ Found LLC company: ${llcCompanies[0].companyName}`);
@@ -31,7 +31,7 @@ async function generateMembershipRegistry(recordId) {
           process.exit(1);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error searching for companies:', error.message);
       console.error('   Please provide a recordId manually');
       process.exit(1);
@@ -79,7 +79,7 @@ async function generateMembershipRegistry(recordId) {
       }
       process.exit(1);
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error(`❌ Error calling API:`, error.message);
     console.error(`❌ Stack:`, error.stack);
     process.exit(1);
@@ -87,7 +87,7 @@ async function generateMembershipRegistry(recordId) {
 }
 
 const recordId = process.argv[2];
-generateMembershipRegistry(recordId).catch(error => {
+generateMembershipRegistry(recordId).catch((error: any) => {
   console.error('❌ Fatal error:', error);
   process.exit(1);
 });
