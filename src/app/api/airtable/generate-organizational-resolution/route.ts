@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Airtable from 'airtable';
 import { mapAirtableToMembershipRegistry, getOrganizationalResolutionTemplateName, mapAirtableToCorpOrganizationalResolution } from '@/lib/airtable-to-forms';
+import { getUserCompanyDocuments, saveUserCompanyDocuments } from '@/lib/dynamo';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
 // Airtable configuration
@@ -183,7 +184,28 @@ export async function POST(request: NextRequest) {
     
     console.log(`✅ Organizational Resolution DOCX generated and uploaded: ${s3Key}`);
     
-    // Step 7: Update Airtable with DOCX URL (if requested)
+    // Step 7: Update DynamoDB document record to use new filename
+    const customerEmail = ((fields['Customer Email'] as string) || '').toLowerCase().trim();
+    if (customerEmail) {
+      try {
+        const existingDocs = await getUserCompanyDocuments(customerEmail, recordId);
+        const updatedDocs = existingDocs.map(doc => {
+          if (doc.id !== 'organizational-resolution') return doc;
+          return {
+            ...doc,
+            name: `${fields['Company Name'] || 'Company'} Organizational Resolution`,
+            s3Key,
+            status: 'generated' as const,
+          };
+        });
+        await saveUserCompanyDocuments(customerEmail, recordId, updatedDocs);
+        console.log('✅ Updated DynamoDB Organizational Resolution document key');
+      } catch (dbError) {
+        console.error('⚠️ Failed to update DynamoDB org resolution key:', dbError);
+      }
+    }
+
+    // Step 8: Update Airtable with DOCX URL (if requested)
     if (updateAirtable) {
       try {
         const docxUrl = `https://${S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-west-1'}.amazonaws.com/${s3Key}`;
