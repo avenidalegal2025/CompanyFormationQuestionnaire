@@ -315,6 +315,10 @@ export default function ClientPage() {
       const formData = new FormData();
       formData.append('documentId', documentId);
       formData.append('file', file);
+      const companyIdForDocs = selectedCompanyId || localStorage.getItem('selectedCompanyId');
+      if (companyIdForDocs) {
+        formData.append('companyId', companyIdForDocs);
+      }
 
       const response = await fetch('/api/documents/upload-signed', {
         method: 'POST',
