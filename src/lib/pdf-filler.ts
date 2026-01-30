@@ -390,7 +390,7 @@ function transformDataFor2848(formData: QuestionnaireData): any {
     companyZip = company.zipCode || company.postalCode || '';
   }
   
-  const parsedCompanyAddress = parseAddressComponents(company.fullAddress || company.address || '');
+  const parsedCompanyAddress = parseAddressComponents(company.fullAddress || company.address || company.addressLine1 || '');
   if (!companyAddress || companyAddress.includes(',')) {
     if (parsedCompanyAddress.street) {
       companyAddress = parsedCompanyAddress.street;
@@ -404,6 +404,11 @@ function transformDataFor2848(formData: QuestionnaireData): any {
   }
   if (!companyZip && parsedCompanyAddress.zip) {
     companyZip = parsedCompanyAddress.zip;
+  }
+
+  // Force line 3 to use city/state/zip when available
+  if (companyCity || companyState || companyZip) {
+    companyAddressLine2 = '';
   }
   
   // Get company phone (same priority as 8821)
@@ -662,7 +667,7 @@ function transformDataFor8821(formData: QuestionnaireData): any {
     companyZip = company.postalCode || company.zipCode || '';
   }
   
-  const parsedTaxpayerAddress = parseAddressComponents(company.fullAddress || company.address || '');
+  const parsedTaxpayerAddress = parseAddressComponents(company.fullAddress || company.address || company.addressLine1 || '');
   if (!companyAddress || companyAddress.includes(',')) {
     if (parsedTaxpayerAddress.street) {
       companyAddress = parsedTaxpayerAddress.street;

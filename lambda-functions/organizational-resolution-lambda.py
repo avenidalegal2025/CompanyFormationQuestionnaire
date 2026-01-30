@@ -313,9 +313,20 @@ def replace_placeholders(doc, data):
             if 'RESOLVED,' in run.text:
                 run.bold = True
 
+    def replace_date_in_paragraph(paragraph, date_value):
+        if "IN WITNESS WHEREOF" not in paragraph.text:
+            return
+        full_text = ''.join(run.text for run in paragraph.runs)
+        match = re.search(r'\b\d{2}/\d{2}/\d{4}\b', full_text)
+        if not match:
+            return
+        replace_span_in_paragraph(paragraph, match.start(), match.end(), date_value, False)
+
     def replace_all_in_paragraph(paragraph):
         if '{{' not in paragraph.text:
+            replace_date_in_paragraph(paragraph, formation_date)
             return
+        replace_date_in_paragraph(paragraph, formation_date)
         normalize_bold_for_name_paragraph(paragraph)
         for placeholder, value, bold_value in replacements:
             replace_placeholder_in_paragraph(paragraph, placeholder, value, bold_value)
