@@ -362,37 +362,37 @@ export function parseCompanyAddress(fields: any): {
     };
   }
   
-  // Parse "Street, City, State ZIP" format
-  const parts = companyAddress.split(',').map((p: string) => p.trim());
+  const zipMatch = companyAddress.match(/(\d{5}(?:-\d{4})?)\s*$/);
+  const zipFromRaw = zipMatch ? zipMatch[1] : '';
+  const withoutZip = zipMatch
+    ? companyAddress.replace(zipMatch[0], '').replace(/[,\s]+$/, '')
+    : companyAddress;
+
+  // Parse "Street, City, State ZIP" format (also supports full state names)
+  const parts = withoutZip.split(',').map((p: string) => p.trim()).filter(Boolean);
   let street = '';
   let addressLine2 = '';
   let city = '';
   let state = '';
-  let zip = '';
+  let zip = zipFromRaw;
   
   if (parts.length >= 3) {
     // Format: "Street, City, State ZIP"
     street = parts[0];
-    city = parts[1];
-    const stateZipStr = parts[2];
-    const stateZipMatch = stateZipStr.match(/^([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/);
-    if (stateZipMatch) {
-      state = stateZipMatch[1];
-      zip = stateZipMatch[2];
-    }
+    state = parts[parts.length - 1];
+    city = parts.slice(1, -1).join(', ');
   } else if (parts.length === 2) {
     // Format: "Street, City State ZIP"
     street = parts[0];
     const cityStateZip = parts[1];
-    const match = cityStateZip.match(/^(.+?)\s+([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/);
-    if (match) {
-      city = match[1];
-      state = match[2];
-      zip = match[3];
+    const tokens = cityStateZip.split(/\s+/).filter(Boolean);
+    if (tokens.length >= 2) {
+      state = tokens[tokens.length - 1];
+      city = tokens.slice(0, -1).join(' ');
     }
   } else {
     // Fallback: use as-is
-    street = companyAddress;
+    street = withoutZip.trim();
   }
 
   // If we still couldn't parse city/state/zip (e.g. "New York New York 10001"),

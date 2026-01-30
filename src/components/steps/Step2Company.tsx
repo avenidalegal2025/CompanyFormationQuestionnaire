@@ -446,7 +446,12 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="label">Dirección línea 1</label>
+                <label className="label">
+                  Dirección línea 1
+                  {hasUsaAddress === "Yes" && (
+                    <span className="ml-1 text-red-600 text-xs">(requerido)</span>
+                  )}
+                </label>
                 <input
                   className={`input ${errors.company?.addressLine1 ? 'border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500' : ''}`}
                   {...register("company.addressLine1")}
@@ -462,7 +467,12 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
                 <input className="input" {...register("company.addressLine2")} />
               </div>
               <div>
-                <label className="label">Ciudad</label>
+                <label className="label">
+                  Ciudad
+                  {hasUsaAddress === "Yes" && (
+                    <span className="ml-1 text-red-600 text-xs">(requerido)</span>
+                  )}
+                </label>
                 <input
                   className={`input ${errors.company?.city ? 'border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500' : ''}`}
                   {...register("company.city")}
@@ -474,7 +484,12 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
                 )}
               </div>
               <div>
-                <label className="label">Estado/Provincia</label>
+                <label className="label">
+                  Estado/Provincia
+                  {hasUsaAddress === "Yes" && (
+                    <span className="ml-1 text-red-600 text-xs">(requerido)</span>
+                  )}
+                </label>
                 <input
                   className={`input ${errors.company?.state ? 'border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500' : ''}`}
                   {...register("company.state")}
@@ -486,7 +501,12 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
                 )}
               </div>
               <div>
-                <label className="label">Código postal</label>
+                <label className="label">
+                  Código postal
+                  {hasUsaAddress === "Yes" && (
+                    <span className="ml-1 text-red-600 text-xs">(requerido)</span>
+                  )}
+                </label>
                 <input
                   className={`input ${errors.company?.postalCode ? 'border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500' : ''}`}
                   {...register("company.postalCode")}

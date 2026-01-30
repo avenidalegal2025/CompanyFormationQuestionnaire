@@ -137,36 +137,36 @@ export interface QuestionnaireData {
 const parseAddressComponents = (fullAddress: string) => {
   const result = { street: '', city: '', state: '', zip: '' };
   if (!fullAddress) return result;
-  const parts = fullAddress.split(',').map((p) => p.trim()).filter(Boolean);
+
+  const zipMatch = fullAddress.match(/(\d{5}(?:-\d{4})?)\s*$/);
+  if (zipMatch) {
+    result.zip = zipMatch[1];
+  }
+
+  const withoutZip = zipMatch
+    ? fullAddress.replace(zipMatch[0], '').replace(/[,\s]+$/, '')
+    : fullAddress;
+
+  const parts = withoutZip.split(',').map((p) => p.trim()).filter(Boolean);
+
   if (parts.length >= 3) {
     result.street = parts[0];
+    result.state = parts[parts.length - 1];
     result.city = parts.slice(1, -1).join(', ');
-    const stateZipStr = parts[parts.length - 1] || '';
-    const stateZipMatch = stateZipStr.match(/^([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/);
-    if (stateZipMatch) {
-      result.state = stateZipMatch[1];
-      result.zip = stateZipMatch[2];
-    } else {
-      const tokens = stateZipStr.split(/\s+/);
-      if (tokens.length >= 2) {
-        result.state = tokens[0];
-        result.zip = tokens.slice(1).join(' ');
-      }
-    }
   } else if (parts.length === 2) {
     result.street = parts[0];
-    const cityStateZip = parts[1];
-    const match = cityStateZip.match(/^(.+?)\s+([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/);
-    if (match) {
-      result.city = match[1];
-      result.state = match[2];
-      result.zip = match[3];
+    const cityState = parts[1];
+    const tokens = cityState.split(/\s+/).filter(Boolean);
+    if (tokens.length >= 2) {
+      result.state = tokens[tokens.length - 1];
+      result.city = tokens.slice(0, -1).join(' ');
     } else {
-      result.city = parts[1];
+      result.city = cityState;
     }
   } else {
-    result.street = fullAddress;
+    result.street = withoutZip.trim();
   }
+
   return result;
 };
 

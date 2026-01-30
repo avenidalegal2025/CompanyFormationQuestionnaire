@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { getAuth0SignupUrl } from "@/lib/auth0-client";
+import { AllStepsSchema } from "@/lib/schema";
 
 import Step2Company from "@/components/steps/Step2Company";
 import Step3Owners from "@/components/steps/Step3Owners";
@@ -65,6 +67,7 @@ function QuestionnaireContent() {
   // Initialize form
   const form = useForm<AllSteps>({
     defaultValues: defaultFormValues,
+    resolver: zodResolver(AllStepsSchema),
   });
 
   // We now have a 4-step flow (2, 3, 4, 5)
@@ -547,6 +550,10 @@ function QuestionnaireContent() {
 
   const onContinuar = async () => {
     try {
+      const isValid = await form.trigger(undefined, { shouldFocus: true });
+      if (!isValid) {
+        return;
+      }
       await doSave();
       
       // Check if user needs to sign up (for any step after 1)
