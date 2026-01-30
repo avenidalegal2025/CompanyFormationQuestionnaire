@@ -167,8 +167,8 @@ export async function POST(request: NextRequest) {
     
     // Step 5: Generate DOCX
     const vaultPath = fields['Vault Path'] || sanitizeCompanyName(fields['Company Name'] || 'Company');
-    // Always use the standard filename so the client dashboard points to the filled file.
-    const fileName = 'organizational-resolution.docx';
+    const safeCompanyName = sanitizeCompanyName(fields['Company Name'] || 'Company');
+    const fileName = `organizational-resolution-${safeCompanyName}.docx`;
     const s3Key = `${vaultPath}/formation/${fileName}`;
     
     const docxBuffer = await callOrganizationalResolutionLambda(orgResolutionData, S3_BUCKET, s3Key, templateUrl);
