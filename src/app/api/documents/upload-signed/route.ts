@@ -150,6 +150,7 @@ export async function POST(request: NextRequest) {
       : await getUserDocuments(userId);
 
     // Update document record with signed version
+    let updatedDoc: any = null;
     const updatedDocuments = currentDocuments.map(doc => {
       if (doc.id === documentId) {
         const updated = {
@@ -158,6 +159,7 @@ export async function POST(request: NextRequest) {
           status: 'signed' as const,
           signedAt: new Date().toISOString(),
         };
+        updatedDoc = updated;
         console.log(`📝 Updating document ${documentId}:`, {
           before: { status: doc.status, signedS3Key: doc.signedS3Key },
           after: { status: updated.status, signedS3Key: updated.signedS3Key }
@@ -166,6 +168,19 @@ export async function POST(request: NextRequest) {
       }
       return doc;
     });
+
+    // If the document was found outside this company list (legacy/default),
+    // add it here so it moves to "firmado" for the selected company.
+    if (!updatedDoc && document) {
+      updatedDoc = {
+        ...document,
+        signedS3Key: uploadResult.s3Key,
+        status: 'signed' as const,
+        signedAt: new Date().toISOString(),
+      };
+      updatedDocuments.push(updatedDoc);
+      console.log(`➕ Added document ${documentId} to company documents with signed status`);
+    }
 
     // Save using company-specific function to ensure it's stored in the right place
     await saveUserCompanyDocuments(userId, effectiveCompanyId, updatedDocuments);
@@ -232,11 +247,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Return the full updated document (not just the changed fields)
-    const updatedDoc = updatedDocuments.find(d => d.id === documentId);
+    const finalUpdatedDoc = updatedDoc || updatedDocuments.find(d => d.id === documentId);
 
     return NextResponse.json({
       success: true,
-      document: updatedDoc || {
+      document: finalUpdatedDoc || {
         id: document.id,
         signedS3Key: uploadResult.s3Key,
         status: 'signed',
