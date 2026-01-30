@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Airtable from 'airtable';
 import { mapAirtableTo8821 } from '@/lib/airtable-to-forms';
+import { getFormData } from '@/lib/dynamo';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
 // Airtable configuration
@@ -115,6 +116,37 @@ export async function POST(request: NextRequest) {
     
     // Step 2: Map Airtable fields to 8821 format
     const form8821Data = mapAirtableTo8821(record);
+
+    // Step 2b: If city/state/zip are missing in Airtable, fall back to Dynamo formData
+    const customerEmail = ((fields['Customer Email'] as string) || '').toLowerCase().trim();
+    if (customerEmail) {
+      try {
+        const savedFormData = await getFormData(customerEmail);
+        const savedCompany = savedFormData?.company || {};
+        const savedCity = (savedCompany.city || '').toString().trim();
+        const savedState = (savedCompany.state || '').toString().trim();
+        const savedZip = (savedCompany.postalCode || savedCompany.zipCode || '').toString().trim();
+        const savedStreet = (savedCompany.addressLine1 || savedCompany.address || savedCompany.fullAddress || '').toString().trim();
+
+        if (!form8821Data.taxpayerAddress && savedStreet) {
+          form8821Data.taxpayerAddress = savedStreet;
+        }
+        if (!form8821Data.taxpayerCity && savedCity) {
+          form8821Data.taxpayerCity = savedCity;
+        }
+        if (!form8821Data.taxpayerState && savedState) {
+          form8821Data.taxpayerState = savedState;
+        }
+        if (!form8821Data.taxpayerZip && savedZip) {
+          form8821Data.taxpayerZip = savedZip;
+        }
+        if ((savedCity || savedState || savedZip) && form8821Data.taxpayerAddressLine2) {
+          form8821Data.taxpayerAddressLine2 = '';
+        }
+      } catch (fallbackError) {
+        console.error('⚠️ Failed to load formData address fallback:', fallbackError);
+      }
+    }
     
     console.log('📋 8821 Form Data:', {
       companyName: form8821Data.companyName,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Airtable from 'airtable';
 import { mapAirtableTo2848 } from '@/lib/airtable-to-forms';
+import { getFormData } from '@/lib/dynamo';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
 // Airtable configuration
@@ -115,6 +116,37 @@ export async function POST(request: NextRequest) {
     
     // Step 2: Map Airtable fields to 2848 format
     const form2848Data = mapAirtableTo2848(record);
+
+    // Step 2b: If city/state/zip are missing in Airtable, fall back to Dynamo formData
+    const customerEmail = ((fields['Customer Email'] as string) || '').toLowerCase().trim();
+    if (customerEmail) {
+      try {
+        const savedFormData = await getFormData(customerEmail);
+        const savedCompany = savedFormData?.company || {};
+        const savedCity = (savedCompany.city || '').toString().trim();
+        const savedState = (savedCompany.state || '').toString().trim();
+        const savedZip = (savedCompany.postalCode || savedCompany.zipCode || '').toString().trim();
+        const savedStreet = (savedCompany.addressLine1 || savedCompany.address || savedCompany.fullAddress || '').toString().trim();
+
+        if (!form2848Data.companyAddress && savedStreet) {
+          form2848Data.companyAddress = savedStreet;
+        }
+        if (!form2848Data.companyCity && savedCity) {
+          form2848Data.companyCity = savedCity;
+        }
+        if (!form2848Data.companyState && savedState) {
+          form2848Data.companyState = savedState;
+        }
+        if (!form2848Data.companyZip && savedZip) {
+          form2848Data.companyZip = savedZip;
+        }
+        if ((savedCity || savedState || savedZip) && form2848Data.companyAddressLine2) {
+          form2848Data.companyAddressLine2 = '';
+        }
+      } catch (fallbackError) {
+        console.error('⚠️ Failed to load formData address fallback:', fallbackError);
+      }
+    }
     
     console.log('📋 2848 Form Data:', {
       companyName: form2848Data.companyName,
