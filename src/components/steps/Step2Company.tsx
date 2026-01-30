@@ -447,7 +447,15 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="label">Dirección línea 1</label>
-                <input className="input" {...register("company.addressLine1")} />
+                <input
+                  className={`input ${errors.company?.addressLine1 ? 'border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500' : ''}`}
+                  {...register("company.addressLine1")}
+                />
+                {errors.company?.addressLine1 && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {(errors.company?.addressLine1?.message as string) || 'Campo requerido'}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="label">Dirección línea 2</label>
@@ -455,15 +463,39 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
               </div>
               <div>
                 <label className="label">Ciudad</label>
-                <input className="input" {...register("company.city")} />
+                <input
+                  className={`input ${errors.company?.city ? 'border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500' : ''}`}
+                  {...register("company.city")}
+                />
+                {errors.company?.city && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {(errors.company?.city?.message as string) || 'Campo requerido'}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="label">Estado/Provincia</label>
-                <input className="input" {...register("company.state")} />
+                <input
+                  className={`input ${errors.company?.state ? 'border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500' : ''}`}
+                  {...register("company.state")}
+                />
+                {errors.company?.state && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {(errors.company?.state?.message as string) || 'Campo requerido'}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="label">Código postal</label>
-                <input className="input" {...register("company.postalCode")} />
+                <input
+                  className={`input ${errors.company?.postalCode ? 'border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500' : ''}`}
+                  {...register("company.postalCode")}
+                />
+                {errors.company?.postalCode && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {(errors.company?.postalCode?.message as string) || 'Campo requerido'}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="label">País</label>

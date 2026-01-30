@@ -23,7 +23,8 @@ const numberFromInput = z.preprocess((val) => {
   return val;
 }, z.number().int().min(1, "Debe ser un entero positivo"));
 
-export const CompanySchema = z.object({
+export const CompanySchema = z
+  .object({
   formationState: z.string().optional(),
 
   entityType: EntityTypeEnum.optional(),
@@ -51,7 +52,39 @@ export const CompanySchema = z.object({
   usPhoneNumber: z.string().optional(),
   // Forwarding target for provided business phone (E.164, any country)
   forwardPhoneE164: z.string().optional(),
-});
+})
+  .superRefine((data, ctx) => {
+    if (data.hasUsaAddress === "Yes") {
+      if (!data.addressLine1 || data.addressLine1.trim() === "") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Dirección línea 1 es requerida",
+          path: ["addressLine1"],
+        });
+      }
+      if (!data.city || data.city.trim() === "") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Ciudad es requerida",
+          path: ["city"],
+        });
+      }
+      if (!data.state || data.state.trim() === "") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Estado/Provincia es requerido",
+          path: ["state"],
+        });
+      }
+      if (!data.postalCode || data.postalCode.trim() === "") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Código postal es requerido",
+          path: ["postalCode"],
+        });
+      }
+    }
+  });
 
 /** ------------ Nested Owner (for company owners) ------------ */
 export const NestedOwnerSchema = z.object({
