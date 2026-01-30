@@ -167,8 +167,8 @@ export async function POST(request: NextRequest) {
     
     // Step 5: Generate DOCX
     const vaultPath = fields['Vault Path'] || sanitizeCompanyName(fields['Company Name'] || 'Company');
-    const safeCompanyName = sanitizeCompanyName(fields['Company Name'] || 'Company');
-    const fileName = `organizational-resolution-${safeCompanyName}.docx`;
+    const safeCompanyName = sanitizeFilename(fields['Company Name'] || 'Company');
+    const fileName = `${safeCompanyName} Organizational Resolution.docx`;
     const s3Key = `${vaultPath}/formation/${fileName}`;
     
     const docxBuffer = await callOrganizationalResolutionLambda(orgResolutionData, S3_BUCKET, s3Key, templateUrl);
@@ -224,9 +224,11 @@ export async function POST(request: NextRequest) {
 /**
  * Sanitize company name for filename
  */
-function sanitizeCompanyName(name: string): string {
-  return name
+function sanitizeFilename(name: string): string {
+  const cleaned = name
     .replace(/[^a-zA-Z0-9\s-]/g, '')
-    .replace(/\s+/g, '_')
-    .substring(0, 50);
+    .replace(/\s+/g, ' ')
+    .trim()
+    .substring(0, 80);
+  return cleaned || 'Company';
 }

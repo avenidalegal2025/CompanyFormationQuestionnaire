@@ -775,21 +775,8 @@ export function mapAirtableToMembershipRegistry(record: any): any {
   // Get formation state
   const formationState = fields['Formation State'] || '';
   
-  // Get formation date (use Payment Date as proxy, or current date)
-  const paymentDate = fields['Payment Date'];
-  let formationDate = '';
-  if (paymentDate) {
-    // Format date as MM/DD/YYYY
-    const date = new Date(paymentDate);
-    if (!isNaN(date.getTime())) {
-      formationDate = `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}/${date.getFullYear()}`;
-    }
-  }
-  if (!formationDate) {
-    // Use current date as fallback
-    const now = new Date();
-    formationDate = `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}/${now.getFullYear()}`;
-  }
+  // Get formation date (legal long format)
+  const formationDate = formatLegalDate(fields['Payment Date']);
   
   // Build full company address
   // Prefer parsed components, but if parsing fails (e.g. "New York New York 10001"),
