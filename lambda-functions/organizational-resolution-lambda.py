@@ -6,6 +6,7 @@ from docx import Document
 import re
 import base64
 from copy import deepcopy
+from datetime import datetime
 
 # Constants
 TEMPLATE_BUCKET = os.environ.get('TEMPLATE_BUCKET', 'company-formation-template-llc-and-inc')
@@ -88,6 +89,68 @@ def replace_placeholders(doc, data):
     company_address = format_address(data.get('companyAddress', ''))
     formation_state = data.get('formationState', '')
     formation_date = data.get('formationDate', '')
+
+    def number_to_word(n: int) -> str:
+        words = {
+            1: 'first',
+            2: 'second',
+            3: 'third',
+            4: 'fourth',
+            5: 'fifth',
+            6: 'sixth',
+            7: 'seventh',
+            8: 'eighth',
+            9: 'ninth',
+            10: 'tenth',
+            11: 'eleventh',
+            12: 'twelfth',
+            13: 'thirteenth',
+            14: 'fourteenth',
+            15: 'fifteenth',
+            16: 'sixteenth',
+            17: 'seventeenth',
+            18: 'eighteenth',
+            19: 'nineteenth',
+            20: 'twentieth',
+            21: 'twenty-first',
+            22: 'twenty-second',
+            23: 'twenty-third',
+            24: 'twenty-fourth',
+            25: 'twenty-fifth',
+            26: 'twenty-sixth',
+            27: 'twenty-seventh',
+            28: 'twenty-eighth',
+            29: 'twenty-ninth',
+            30: 'thirtieth',
+            31: 'thirty-first',
+        }
+        return words.get(n, str(n))
+
+    def format_legal_date_from_string(value: str) -> str:
+        if not value:
+            return value
+        if 'day of' in value:
+            # Normalize numeric ordinal to written word, if present.
+            match_words = re.match(r'^\s*(\d{1,2})(st|nd|rd|th)\s+day of\s+(.+)\s*$', value, re.IGNORECASE)
+            if match_words:
+                day_num = int(match_words.group(1))
+                rest = match_words.group(3).strip()
+                return f"{number_to_word(day_num)} day of {rest}"
+            return value
+        match = re.match(r'^\s*(\d{1,2})/(\d{1,2})/(\d{4})\s*$', value)
+        if not match:
+            return value
+        month = int(match.group(1))
+        day = int(match.group(2))
+        year = int(match.group(3))
+        try:
+            date = datetime(year, month, day)
+        except ValueError:
+            return value
+        month_name = date.strftime('%B')
+        return f"{number_to_word(day)} day of {month_name}, {year}"
+
+    formation_date = format_legal_date_from_string(formation_date)
 
     # Members / managers
     members = data.get('members', []) or []

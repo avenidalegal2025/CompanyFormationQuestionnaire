@@ -61,6 +61,7 @@ export async function GET(request: NextRequest) {
     }
 
     let finalS3Key = s3Key;
+    let preferredFileName: string | null = null;
 
     // If accessing by document ID (client dashboard), verify ownership
     // Prefer signed version if available, otherwise use original.
@@ -83,6 +84,9 @@ export async function GET(request: NextRequest) {
       
       // Prefer signed version if available, otherwise use original
       finalS3Key = document.signedS3Key || document.s3Key;
+      if (document.name) {
+        preferredFileName = document.name;
+      }
     }
 
     // If accessing by S3 key (Airtable link), verify authorization
@@ -192,7 +196,17 @@ export async function GET(request: NextRequest) {
        'application/octet-stream');
 
     // Extract filename from S3 key
-    const fileName = finalS3Key.split('/').pop() || 'document';
+    const fileName = (() => {
+      if (preferredFileName) {
+        const extMatch = (finalS3Key || '').match(/\.[a-zA-Z0-9]+$/);
+        const ext = extMatch ? extMatch[0] : '';
+        if (ext && preferredFileName.toLowerCase().endsWith(ext.toLowerCase())) {
+          return preferredFileName;
+        }
+        return `${preferredFileName}${ext}`;
+      }
+      return finalS3Key.split('/').pop() || 'document';
+    })();
 
     // Return the document directly with proper headers
     return new NextResponse(buffer, {
