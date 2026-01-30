@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
     console.log(`📄 Template URL: ${templateUrl}`);
     
     // Step 5: Generate DOCX
-    const vaultPath = fields['Vault Path'] || sanitizeCompanyName(fields['Company Name'] || 'Company');
+    const vaultPath = fields['Vault Path'] || sanitizeFilename(fields['Company Name'] || 'Company');
     const safeCompanyName = sanitizeFilename(fields['Company Name'] || 'Company');
     const fileName = `${safeCompanyName} Organizational Resolution.docx`;
     const s3Key = `${vaultPath}/formation/${fileName}`;
