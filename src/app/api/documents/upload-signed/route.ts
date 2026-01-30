@@ -182,8 +182,23 @@ export async function POST(request: NextRequest) {
       console.log(`➕ Added document ${documentId} to company documents with signed status`);
     }
 
+    // Remove duplicates by doc id (prefer signed)
+    const dedupedById = new Map<string, any>();
+    for (const doc of updatedDocuments) {
+      const existing = dedupedById.get(doc.id);
+      if (!existing) {
+        dedupedById.set(doc.id, doc);
+        continue;
+      }
+      const existingSigned = existing.signedS3Key || existing.status === 'signed';
+      const nextSigned = doc.signedS3Key || doc.status === 'signed';
+      if (nextSigned && !existingSigned) {
+        dedupedById.set(doc.id, doc);
+      }
+    }
+
     // Save using company-specific function to ensure it's stored in the right place
-    await saveUserCompanyDocuments(userId, effectiveCompanyId, updatedDocuments);
+    await saveUserCompanyDocuments(userId, effectiveCompanyId, Array.from(dedupedById.values()));
 
     console.log(`✅ Signed document uploaded: ${uploadResult.s3Key} for document ${documentId}`);
     console.log(`📋 Document saved with companyId: ${effectiveCompanyId || 'default'}`);
