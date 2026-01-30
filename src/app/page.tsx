@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { getAuth0SignupUrl } from "@/lib/auth0-client";
 
 import Step2Company from "@/components/steps/Step2Company";
@@ -24,7 +25,22 @@ type SaveState = "idle" | "saving" | "saved" | "error";
 function QuestionnaireContent() {
   // Session management
   const { data: session, status } = useSession();
+  const router = useRouter();
   const isSignedUp = status === 'authenticated';
+
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+    const email = (session?.user?.email || '').toLowerCase().trim();
+    if (!email) return;
+    const adminEmails = [
+      'avenidalegal.2024@gmail.com',
+      'info@avenidalegal.com',
+      'rodolfo@avenidalegal.lat',
+    ];
+    if (adminEmails.includes(email)) {
+      router.replace('/admin/documents');
+    }
+  }, [status, session, router]);
   
   // Default form values - used for resetting
   const defaultFormValues: AllSteps = {
