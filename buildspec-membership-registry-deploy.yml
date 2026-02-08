@@ -30,7 +30,6 @@ phases:
       - |
         cd $CDK_DIR
         pip install -r requirements.txt
-        cdk bootstrap aws://$(aws sts get-caller-identity --query Account --output text)/$AWS_REGION || true
         cdk deploy --require-approval never -c python-docx-layer-arn="$LAYER_ARN" --outputs-file cdk-outputs.json
 artifacts:
   files:
