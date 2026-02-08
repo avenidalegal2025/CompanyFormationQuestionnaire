@@ -25,11 +25,13 @@ phases:
   build:
     commands:
       - echo "Publishing Lambda layer..."
-      - LAYER_ARN=$(aws lambda publish-layer-version --layer-name "$LAYER_NAME" --zip-file "fileb://python-docx-layer.zip" --compatible-runtimes python3.11 --region "$AWS_REGION" --query 'LayerVersionArn' --output text)
+      - export LAYER_ARN=$(aws lambda publish-layer-version --layer-name "$LAYER_NAME" --zip-file "fileb://python-docx-layer.zip" --compatible-runtimes python3.11 --region "$AWS_REGION" --query 'LayerVersionArn' --output text)
       - echo "LAYER_ARN=$LAYER_ARN"
-      - echo "Deploying Membership Registry stack with CDK..."
-      - cd $CDK_DIR && pip install -r requirements.txt
-      - cd $CDK_DIR && cdk deploy --require-approval never -c python-docx-layer-arn="$LAYER_ARN" --outputs-file cdk-outputs.json
+      - |
+        cd $CDK_DIR
+        pip install -r requirements.txt
+        cdk bootstrap aws://$(aws sts get-caller-identity --query Account --output text)/$AWS_REGION || true
+        cdk deploy --require-approval never -c python-docx-layer-arn="$LAYER_ARN" --outputs-file cdk-outputs.json
 artifacts:
   files:
     - membership-registry-cdk/cdk-outputs.json
