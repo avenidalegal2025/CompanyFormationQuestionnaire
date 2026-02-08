@@ -789,7 +789,7 @@ export function mapAirtableToMembershipRegistry(record: any): any {
       address.street,
       address.city ? `${address.city}, ${address.state || ''} ${address.zip || ''}`.trim() : '',
     ].filter(Boolean);
-    companyAddress = companyAddressParts.join('\n');
+    companyAddress = companyAddressParts.join(', ');
   } else if (rawCompanyAddress) {
     companyAddress = rawCompanyAddress;
   } else {
@@ -797,7 +797,7 @@ export function mapAirtableToMembershipRegistry(record: any): any {
       address.street,
       address.city ? `${address.city}, ${address.state || ''} ${address.zip || ''}`.trim() : '',
     ].filter(Boolean);
-    companyAddress = companyAddressParts.join('\n');
+    companyAddress = companyAddressParts.join(', ');
   }
   
   // Collect all members (owners)
