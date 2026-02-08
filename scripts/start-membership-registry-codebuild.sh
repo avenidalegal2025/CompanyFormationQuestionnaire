@@ -42,6 +42,10 @@ aws iam attach-role-policy --role-name "$SERVICE_ROLE_NAME" --policy-arn arn:aws
 # CDK needs CloudFormation
 aws iam attach-role-policy --role-name "$SERVICE_ROLE_NAME" --policy-arn arn:aws:iam::aws:policy/AWSCloudFormationFullAccess 2>/dev/null || true
 
+# CDK deploy checks bootstrap version via SSM
+aws iam put-role-policy --role-name "$SERVICE_ROLE_NAME" --policy-name CDKBootstrapSSM \
+  --policy-document "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"ssm:GetParameter\",\"ssm:GetParameters\"],\"Resource\":\"arn:aws:ssm:${AWS_REGION}:${AWS_ACCOUNT_ID}:parameter/cdk-bootstrap/*\"}]}" 2>/dev/null || true
+
 echo "Creating or updating CodeBuild project..."
 aws codebuild create-project \
   --name "$PROJECT_NAME" \
