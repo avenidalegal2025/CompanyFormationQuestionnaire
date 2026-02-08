@@ -407,7 +407,7 @@ export function parseCompanyAddress(fields: any): {
 /**
  * Format a date into "14th day of January, 2025" for bylaws.
  */
-function formatLegalDate(input?: string | Date): string {
+export function formatLegalDate(input?: string | Date): string {
   const date = input ? new Date(input) : new Date();
   if (Number.isNaN(date.getTime())) {
     return '';
@@ -775,8 +775,8 @@ export function mapAirtableToMembershipRegistry(record: any): any {
   // Get formation state
   const formationState = fields['Formation State'] || '';
   
-  // Get formation date (legal long format)
-  const formationDate = formatLegalDate(fields['Payment Date']);
+  // Get formation date (numeric format for registry tables)
+  const formationDate = formatMonthDayYear(fields['Payment Date']);
   
   // Build full company address
   // Prefer parsed components, but if parsing fails (e.g. "New York New York 10001"),

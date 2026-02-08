@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Airtable from 'airtable';
-import { mapAirtableToMembershipRegistry, getOrganizationalResolutionTemplateName, mapAirtableToCorpOrganizationalResolution } from '@/lib/airtable-to-forms';
+import { mapAirtableToMembershipRegistry, getOrganizationalResolutionTemplateName, mapAirtableToCorpOrganizationalResolution, formatLegalDate } from '@/lib/airtable-to-forms';
 import { formatCompanyFileName, formatCompanyDocumentTitle } from '@/lib/document-names';
 import { getUserCompanyDocuments, saveUserCompanyDocuments } from '@/lib/dynamo';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
@@ -148,6 +148,9 @@ export async function POST(request: NextRequest) {
     const orgResolutionData = entityType === 'LLC'
       ? mapAirtableToMembershipRegistry(record)
       : mapAirtableToCorpOrganizationalResolution(record);
+    if (entityType === 'LLC') {
+      orgResolutionData.formationDate = formatLegalDate(fields['Payment Date']);
+    }
     
     console.log('📋 Organizational Resolution Data:', {
       companyName: orgResolutionData.companyName,
