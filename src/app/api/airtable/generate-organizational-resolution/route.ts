@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Airtable from 'airtable';
 import { mapAirtableToMembershipRegistry, getOrganizationalResolutionTemplateName, mapAirtableToCorpOrganizationalResolution } from '@/lib/airtable-to-forms';
+import { formatCompanyFileName, formatCompanyDocumentTitle } from '@/lib/document-names';
 import { getUserCompanyDocuments, saveUserCompanyDocuments } from '@/lib/dynamo';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
@@ -168,8 +169,7 @@ export async function POST(request: NextRequest) {
     
     // Step 5: Generate DOCX
     const vaultPath = fields['Vault Path'] || sanitizeFilename(fields['Company Name'] || 'Company');
-    const safeCompanyName = sanitizeFilename(fields['Company Name'] || 'Company');
-    const fileName = `${safeCompanyName} Organizational Resolution.docx`;
+    const fileName = formatCompanyFileName(fields['Company Name'] || 'Company', 'Organizational Resolution', 'docx');
     const s3Key = `${vaultPath}/formation/${fileName}`;
     
     const docxBuffer = await callOrganizationalResolutionLambda(orgResolutionData, S3_BUCKET, s3Key, templateUrl);
@@ -193,7 +193,7 @@ export async function POST(request: NextRequest) {
           if (doc.id !== 'organizational-resolution') return doc;
           return {
             ...doc,
-            name: `${fields['Company Name'] || 'Company'} Organizational Resolution`,
+            name: formatCompanyDocumentTitle(fields['Company Name'] || 'Company', 'Organizational Resolution'),
             s3Key,
             status: 'generated' as const,
           };

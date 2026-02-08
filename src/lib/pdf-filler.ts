@@ -6,6 +6,7 @@
  */
 
 import { uploadDocument } from './s3-vault';
+import { formatCompanyFileName } from './document-names';
 
 // Lambda function URLs
 const LAMBDA_SS4_URL = process.env.LAMBDA_SS4_URL || 'https://sk5p2uuxrdubzaf2uh7vvqc2bu0kcaoz.lambda-url.us-west-1.on.aws/';
@@ -844,13 +845,7 @@ export async function generateSS4PDF(
     // Transform data for SS-4
     const data = transformDataForSS4(formData);
     
-    // Sanitize company name for filename
-    const sanitizedName = companyName
-      .replace(/[^a-zA-Z0-9\s-]/g, '')
-      .replace(/\s+/g, '_')
-      .substring(0, 50);
-    
-    const fileName = `SS-4_${sanitizedName}.pdf`;
+    const fileName = formatCompanyFileName(companyName, 'SS4', 'pdf');
     const s3Key = `${vaultPath}/formation/${fileName}`;
     
     // Call Lambda function (Lambda will upload to S3 and return PDF)
@@ -904,13 +899,7 @@ export async function generate2848PDF(
     // Transform data for 2848
     const data = transformDataFor2848(formData);
     
-    // Sanitize company name for filename
-    const sanitizedName = companyName
-      .replace(/[^a-zA-Z0-9\s-]/g, '')
-      .replace(/\s+/g, '_')
-      .substring(0, 50);
-    
-    const fileName = `2848_${sanitizedName}.pdf`;
+    const fileName = formatCompanyFileName(companyName, 'Form 2848', 'pdf');
     const s3Key = `${vaultPath}/formation/${fileName}`;
     
     // Call Lambda function (Lambda will upload to S3 and return PDF)
@@ -964,13 +953,7 @@ export async function generate8821PDF(
     // Transform data for 8821
     const data = transformDataFor8821(formData);
     
-    // Sanitize company name for filename
-    const sanitizedName = companyName
-      .replace(/[^a-zA-Z0-9\s-]/g, '')
-      .replace(/\s+/g, '_')
-      .substring(0, 50);
-    
-    const fileName = `8821_${sanitizedName}.pdf`;
+    const fileName = formatCompanyFileName(companyName, 'Form 8821', 'pdf');
     const s3Key = `${vaultPath}/formation/${fileName}`;
     
     // Call Lambda function (Lambda will upload to S3 and return PDF)

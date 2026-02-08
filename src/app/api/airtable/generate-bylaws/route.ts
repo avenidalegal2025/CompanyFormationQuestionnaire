@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Airtable from 'airtable';
 import { mapAirtableToBylaws } from '@/lib/airtable-to-forms';
+import { formatCompanyFileName } from '@/lib/document-names';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
 // Airtable configuration
@@ -158,7 +159,8 @@ export async function POST(request: NextRequest) {
 
     // Step 4: Generate DOCX
     const vaultPath = fields['Vault Path'] || sanitizeCompanyName(fields['Company Name'] || 'Company');
-    const s3Key = `${vaultPath}/formation/bylaws.docx`;
+    const fileName = formatCompanyFileName(fields['Company Name'] || 'Company', 'Bylaws', 'docx');
+    const s3Key = `${vaultPath}/formation/${fileName}`;
 
     const docxBuffer = await callBylawsLambda(bylawsData, S3_BUCKET, s3Key, BYLAWS_TEMPLATE_URL);
 

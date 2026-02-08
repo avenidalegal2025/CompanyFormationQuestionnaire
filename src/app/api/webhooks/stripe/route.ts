@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import { saveDomainRegistration, type DomainRegistration, saveBusinessPhone, saveGoogleWorkspace, type GoogleWorkspaceRecord, saveUserCompanyDocuments, type DocumentRecord, saveVaultMetadata, type VaultMetadata, getFormData, addUserCompanyDocument } from '@/lib/dynamo';
+import { formatCompanyDocumentTitle, formatCompanyFileName } from '@/lib/document-names';
 import { createVaultStructure, copyTemplateToVault, getFormDataSnapshot } from '@/lib/s3-vault';
 import { createFormationRecord, mapQuestionnaireToAirtable, findFormationByStripeId } from '@/lib/airtable';
 import { generate2848PDF, generate8821PDF } from '@/lib/pdf-filler';
@@ -277,14 +278,15 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
       // LLC: Copy Membership Registry
       console.log('📄 Copying Membership Registry template...');
       try {
+        const membershipFileName = formatCompanyFileName(companyName, 'Membership Registry', 'docx');
         const membershipResult = await copyTemplateToVault(
           vaultPath,
           'membership-registry-template.docx',
-          'formation/membership-registry.docx'
+          `formation/${membershipFileName}`
         );
         documents.push({
           id: 'membership-registry',
-          name: 'Membership Registry',
+          name: formatCompanyDocumentTitle(companyName, 'Membership Registry'),
           type: 'formation',
           s3Key: membershipResult.s3Key,
           status: 'template',
@@ -299,14 +301,15 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
       // Corporation: Copy Shareholder Registry
       console.log('📄 Copying Shareholder Registry template...');
       try {
+        const shareholderFileName = formatCompanyFileName(companyName, 'Shareholder Registry', 'docx');
         const shareholderResult = await copyTemplateToVault(
           vaultPath,
           'shareholder-registry-template.docx',
-          'formation/shareholder-registry.docx'
+          `formation/${shareholderFileName}`
         );
         documents.push({
           id: 'shareholder-registry',
-          name: 'Shareholder Registry',
+          name: formatCompanyDocumentTitle(companyName, 'Shareholder Registry'),
           type: 'formation',
           s3Key: shareholderResult.s3Key,
           status: 'template',
@@ -321,14 +324,15 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
       // Corporation: Copy Bylaws
       console.log('📄 Copying Bylaws template...');
       try {
+        const bylawsFileName = formatCompanyFileName(companyName, 'Bylaws', 'docx');
         const bylawsResult = await copyTemplateToVault(
           vaultPath,
           'bylaws-template.docx',
-          'formation/bylaws.docx'
+          `formation/${bylawsFileName}`
         );
         documents.push({
           id: 'bylaws',
-          name: 'Bylaws',
+          name: formatCompanyDocumentTitle(companyName, 'Bylaws'),
           type: 'formation',
           s3Key: bylawsResult.s3Key,
           status: 'template',
@@ -343,14 +347,15 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
     
     // Always copy Organizational Resolution
     console.log('📄 Copying Organizational Resolution template...');
+    const resolutionFileName = formatCompanyFileName(companyName, 'Organizational Resolution', 'docx');
     const resolutionResult = await copyTemplateToVault(
       vaultPath,
       'organizational-resolution-template.docx',
-      'formation/organizational-resolution.docx'
+      `formation/${resolutionFileName}`
     );
     documents.push({
       id: 'organizational-resolution',
-      name: 'Organizational Resolution',
+      name: formatCompanyDocumentTitle(companyName, 'Organizational Resolution'),
       type: 'formation',
       s3Key: resolutionResult.s3Key,
       status: 'template',
@@ -368,9 +373,11 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
           ? 'operating-agreement-llc-template.docx'
           : 'shareholder-agreement-corp-template.docx';
         
-        const agreementFileName = entityType === 'LLC'
-          ? 'operating-agreement.docx'
-          : 'shareholder-agreement.docx';
+        const agreementFileName = formatCompanyFileName(
+          companyName,
+          entityType === 'LLC' ? 'Operating Agreement' : 'Shareholder Agreement',
+          'docx'
+        );
         
         const agreementResult = await copyTemplateToVault(
           vaultPath,
@@ -380,7 +387,10 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
         
         documents.push({
           id: entityType === 'LLC' ? 'operating-agreement' : 'shareholder-agreement',
-          name: entityType === 'LLC' ? 'Operating Agreement' : 'Shareholder Agreement',
+          name: formatCompanyDocumentTitle(
+            companyName,
+            entityType === 'LLC' ? 'Operating Agreement' : 'Shareholder Agreement'
+          ),
           type: 'agreement',
           s3Key: agreementResult.s3Key,
           status: 'template',
@@ -469,7 +479,7 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
         if (taxForms.form2848.success && taxForms.form2848.s3Key) {
           const doc = {
             id: 'form-2848-power-of-attorney',
-            name: 'Form 2848 Power of Attorney',
+            name: formatCompanyDocumentTitle(companyName, 'Form 2848 Power of Attorney'),
             type: 'tax' as const,
             s3Key: taxForms.form2848.s3Key,
             status: 'generated' as const,
@@ -486,7 +496,7 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
         if (taxForms.form8821.success && taxForms.form8821.s3Key) {
           const doc = {
             id: 'form-8821-tax-authorization',
-            name: 'Form 8821 Tax Information Authorization',
+            name: formatCompanyDocumentTitle(companyName, 'Form 8821 Tax Information Authorization'),
             type: 'tax' as const,
             s3Key: taxForms.form8821.s3Key,
             status: 'generated' as const,
@@ -678,21 +688,21 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
       // Regenerate SS-4 from Airtable
       await regenerateFormFromAirtable(
         'ss4-ein-application',
-        'SS-4 EIN Application',
+        formatCompanyDocumentTitle(companyName, 'SS4'),
         `${baseUrl}/api/airtable/generate-ss4`
       );
       
       // Regenerate 2848 from Airtable
       await regenerateFormFromAirtable(
         'form-2848-power-of-attorney',
-        'Form 2848 Power of Attorney',
+        formatCompanyDocumentTitle(companyName, 'Form 2848 Power of Attorney'),
         `${baseUrl}/api/airtable/generate-2848`
       );
       
       // Regenerate 8821 from Airtable
       await regenerateFormFromAirtable(
         'form-8821-tax-authorization',
-        'Form 8821 Tax Information Authorization',
+        formatCompanyDocumentTitle(companyName, 'Form 8821 Tax Information Authorization'),
         `${baseUrl}/api/airtable/generate-8821`
       );
       
@@ -700,7 +710,7 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
       if (entityType === 'LLC') {
         await regenerateFormFromAirtable(
           'membership-registry',
-          'Membership Registry',
+          formatCompanyDocumentTitle(companyName, 'Membership Registry'),
           `${baseUrl}/api/airtable/generate-membership-registry`
         );
       }
@@ -709,7 +719,7 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
       if (entityType === 'LLC' || entityType === 'C-Corp' || entityType === 'S-Corp') {
         await regenerateFormFromAirtable(
           'organizational-resolution',
-          'Organizational Resolution',
+          formatCompanyDocumentTitle(companyName, 'Organizational Resolution'),
           `${baseUrl}/api/airtable/generate-organizational-resolution`
         );
       }
@@ -718,13 +728,13 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
       if (entityType === 'C-Corp' || entityType === 'S-Corp') {
         await regenerateFormFromAirtable(
           'shareholder-registry',
-          'Shareholder Registry',
+          formatCompanyDocumentTitle(companyName, 'Shareholder Registry'),
           `${baseUrl}/api/airtable/generate-shareholder-registry`
         );
 
         await regenerateFormFromAirtable(
           'bylaws',
-          'Bylaws',
+          formatCompanyDocumentTitle(companyName, 'Bylaws'),
           `${baseUrl}/api/airtable/generate-bylaws`
         );
       }

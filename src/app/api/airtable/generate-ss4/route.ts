@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Airtable from 'airtable';
+import { formatCompanyFileName } from '@/lib/document-names';
 
 // Airtable configuration
 const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY?.trim() || '';
@@ -1247,7 +1248,7 @@ export async function POST(request: NextRequest) {
     
     // Step 3: Determine S3 path
     const vaultPath = fields['Vault Path'] || sanitizeCompanyName(fields['Company Name'] || 'unknown');
-    const fileName = `SS-4_${sanitizeCompanyName(fields['Company Name'] || 'company')}.pdf`;
+    const fileName = formatCompanyFileName(fields['Company Name'] || 'Company', 'SS4', 'pdf');
     const s3Key = `${vaultPath}/formation/${fileName}`;
     
     console.log(`📁 S3 destination: s3://${S3_BUCKET}/${s3Key}`);

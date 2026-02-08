@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import Airtable from 'airtable';
 import { getUserDocuments, getVaultMetadata, saveUserCompanyDocuments } from '@/lib/dynamo';
+import { formatCompanyDocumentTitle, formatCompanyFileName } from '@/lib/document-names';
 import { uploadDocument, getDocumentDownloadUrl } from '@/lib/s3-vault';
 import { updateFormationRecord } from '@/lib/airtable';
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
@@ -66,6 +67,7 @@ export async function POST(request: NextRequest) {
     const fields = record.fields;
 
     const customerEmail = ((fields['Customer Email'] as string) || '').toLowerCase().trim();
+    const companyName = (fields['Company Name'] as string) || 'Company';
     const vaultPathField = (fields['Vault Path'] as string) || '';
     const entityType = (fields['Entity Type'] as string) || 'LLC';
 
@@ -101,18 +103,18 @@ export async function POST(request: NextRequest) {
 
     if (docType === 'ein') {
       documentId = 'ein-letter';
-      documentName = 'EIN Confirmation Letter';
-      fileName = 'ein-letter.pdf';
+      documentName = formatCompanyDocumentTitle(companyName, 'EIN Confirmation Letter');
+      fileName = formatCompanyFileName(companyName, 'EIN Confirmation Letter', 'pdf');
       // Optional: add an Airtable field later if desired
     } else if (docType === 'articles_inc') {
       documentId = 'articles-inc';
-      documentName = 'Articles of Incorporation';
-      fileName = 'articles-of-incorporation.pdf';
+      documentName = formatCompanyDocumentTitle(companyName, 'Articles of Incorporation');
+      fileName = formatCompanyFileName(companyName, 'Articles of Incorporation', 'pdf');
       airtableField = 'Articles of incorporation Inc URL';
     } else if (docType === 'articles_llc') {
       documentId = 'articles-llc';
-      documentName = 'Articles of Organization';
-      fileName = 'articles-of-organization.pdf';
+      documentName = formatCompanyDocumentTitle(companyName, 'Articles of Organization');
+      fileName = formatCompanyFileName(companyName, 'Articles of Organization', 'pdf');
       airtableField = 'Articles of organization LLC URL';
     } else {
       return NextResponse.json(

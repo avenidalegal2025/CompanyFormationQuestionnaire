@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Airtable from 'airtable';
+import { formatCompanyFileName } from '@/lib/document-names';
 import { mapAirtableTo8821 } from '@/lib/airtable-to-forms';
 import { getFormData } from '@/lib/dynamo';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
@@ -156,7 +157,7 @@ export async function POST(request: NextRequest) {
     
     // Step 3: Generate PDF
     const vaultPath = fields['Vault Path'] || sanitizeCompanyName(fields['Company Name'] || 'Company');
-    const fileName = `8821_${sanitizeCompanyName(fields['Company Name'] || 'Company')}.pdf`;
+    const fileName = formatCompanyFileName(fields['Company Name'] || 'Company', 'Form 8821', 'pdf');
     const s3Key = `${vaultPath}/formation/${fileName}`;
     
     const pdfBuffer = await call8821Lambda(form8821Data, S3_BUCKET, s3Key);

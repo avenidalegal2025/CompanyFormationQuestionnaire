@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Airtable from 'airtable';
+import { formatCompanyFileName } from '@/lib/document-names';
 
 // Airtable configuration
 const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY?.trim() || '';
@@ -737,7 +738,7 @@ async function processRecord(record: any): Promise<{
     ss4Data.line16OtherSpecify = line16Category.otherSpecify; // For Line 16 "Other" specification
     ss4Data.line17PrincipalMerchandise = line17Content; // For Line 17
     const vaultPath = record.fields['Vault Path'] || sanitizeCompanyName(companyName);
-    const fileName = `SS-4_${sanitizeCompanyName(companyName)}.pdf`;
+    const fileName = formatCompanyFileName(companyName, 'SS4', 'pdf');
     const s3Key = `${vaultPath}/formation/${fileName}`;
     
     const pdfBuffer = await callSS4Lambda(ss4Data, S3_BUCKET, s3Key);

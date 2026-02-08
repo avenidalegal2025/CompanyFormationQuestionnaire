@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Airtable from 'airtable';
 import { mapAirtableToMembershipRegistry, getMembershipRegistryTemplateName } from '@/lib/airtable-to-forms';
+import { formatCompanyFileName } from '@/lib/document-names';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
 // Airtable configuration
@@ -162,7 +163,7 @@ export async function POST(request: NextRequest) {
     
     // Step 5: Generate DOCX
     const vaultPath = fields['Vault Path'] || sanitizeCompanyName(fields['Company Name'] || 'Company');
-    const fileName = `membership-registry-${sanitizeCompanyName(fields['Company Name'] || 'Company')}.docx`;
+    const fileName = formatCompanyFileName(fields['Company Name'] || 'Company', 'Membership Registry', 'docx');
     const s3Key = `${vaultPath}/formation/${fileName}`;
     
     const docxBuffer = await callMembershipRegistryLambda(membershipRegistryData, S3_BUCKET, s3Key, templateUrl);
