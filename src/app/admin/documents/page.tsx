@@ -25,6 +25,7 @@ export default function AdminDocumentsPage() {
   const [documents, setDocuments] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<"por-firmar" | "firmado" | "en-proceso">("por-firmar");
   const [loading, setLoading] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
   const [uploading, setUploading] = useState<{ [key: string]: boolean }>({});
   const [error, setError] = useState<string | null>(null);
 
@@ -167,7 +168,7 @@ export default function AdminDocumentsPage() {
         throw new Error(data.error || "Error al subir documento firmado");
       }
 
-      setDocuments(prev => prev.map(doc => doc.id === documentId ? data.document : doc));
+      await fetchDocuments(selectedCompany.id);
       if (activeTab === "por-firmar") {
         setActiveTab("firmado");
       }
@@ -226,6 +227,30 @@ export default function AdminDocumentsPage() {
       event.target.value = "";
     };
 
+  const handleRegenerateFormationDocuments = async () => {
+    if (!selectedCompany) return;
+    setRegenerating(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/regenerate-company-documents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recordId: selectedCompany.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Error al regenerar documentos");
+      }
+      alert("Regeneración completada. Los documentos (Membership Registry y/o Organizational Resolution) se han vuelto a generar. Descárgalos de nuevo desde el panel del cliente para verificar.");
+      await fetchDocuments(selectedCompany.id);
+    } catch (err: any) {
+      setError(err.message || "Error al regenerar documentos");
+      alert(err.message || "Error al regenerar documentos");
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
@@ -281,11 +306,23 @@ export default function AdminDocumentsPage() {
         {selectedCompany && (
           <div className="space-y-6">
             <div className="rounded-lg border border-gray-200 bg-white p-4">
-              <div className="text-sm text-gray-700">
-                <span className="font-semibold">{selectedCompany.companyName}</span>{" "}
-                · {selectedCompany.entityType} · {selectedCompany.formationState}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div className="text-sm text-gray-700">
+                    <span className="font-semibold">{selectedCompany.companyName}</span>{" "}
+                    · {selectedCompany.entityType} · {selectedCompany.formationState}
+                  </div>
+                  <div className="text-xs text-gray-500">{selectedCompany.customerEmail}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRegenerateFormationDocuments}
+                  disabled={regenerating}
+                  className="btn btn-secondary text-sm"
+                >
+                  {regenerating ? "Regenerando…" : "Regenerar formation docs"}
+                </button>
               </div>
-              <div className="text-xs text-gray-500">{selectedCompany.customerEmail}</div>
             </div>
 
             <div className="flex items-center gap-4 border-b border-gray-200">

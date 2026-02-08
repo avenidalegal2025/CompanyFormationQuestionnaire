@@ -100,6 +100,34 @@ def format_address(address_str):
         return ''
     return address_str.strip()
 
+
+def _formation_date_to_mm_dd_yyyy(value: str) -> str:
+    """Convert formation date (long or raw) to MM/DD/YYYY for Particulars of ownership / Date Acquired."""
+    if not value or not value.strip():
+        return ''
+    # Already MM/DD/YYYY or M/D/YYYY
+    m = re.match(r'^\s*(\d{1,2})/(\d{1,2})/(\d{4})\s*$', value)
+    if m:
+        return f"{int(m.group(1)):02d}/{int(m.group(2)):02d}/{m.group(3)}"
+    # ISO
+    m = re.match(r'^\s*(\d{4})-(\d{1,2})-(\d{1,2})\s*', value)
+    if m:
+        return f"{int(m.group(2)):02d}/{int(m.group(3)):02d}/{m.group(1)}"
+    # "8th day of February, 2026" or "February 8th, 2026"
+    months = {'january': 1, 'february': 2, 'march': 3, 'april': 4, 'may': 5, 'june': 6,
+              'july': 7, 'august': 8, 'september': 9, 'october': 10, 'november': 11, 'december': 12}
+    m = re.search(r'(\d{1,2})(?:st|nd|rd|th)?\s+day of\s+(\w+)\s*,\s*(\d{4})', value, re.IGNORECASE)
+    if m:
+        day, month_name, year = int(m.group(1)), months.get(m.group(2).lower()), m.group(3)
+        if month_name:
+            return f"{month_name:02d}/{day:02d}/{year}"
+    m = re.search(r'(\w+)\s+(\d{1,2})(?:st|nd|rd|th)?\s*,\s*(\d{4})', value, re.IGNORECASE)
+    if m:
+        month_name, day, year = months.get(m.group(1).lower()), int(m.group(2)), m.group(3)
+        if month_name:
+            return f"{month_name:02d}/{day:02d}/{year}"
+    return value
+
 def replace_placeholders(doc, data):
     """
     Replace placeholders in Word document with actual data.
@@ -116,29 +144,31 @@ def replace_placeholders(doc, data):
     company_address = format_address(data.get('companyAddress', ''))
     formation_state = data.get('formationState', '')
     formation_date = data.get('formationDate', '')
+    # Numeric date (MM/DD/YYYY) for Particulars of ownership / Date Acquired only
+    formation_date_numeric = data.get('formationDateNumeric') or _formation_date_to_mm_dd_yyyy(formation_date)
     
     # Members / managers
     members = data.get('members', []) or []
     managers = data.get('managers', []) or []
     print(f"===> Found {len(members)} members and {len(managers)} managers in form data")
     
-    # Helper to replace all known placeholders in a text string
-    def replace_in_text(text: str) -> str:
+    # Helper to replace all known placeholders in a text string.
+    # In table cells (Particulars of ownership) use numeric date (MM/DD/YYYY) for date placeholders.
+    def replace_in_text(text: str, in_table_cell: bool = False) -> str:
         if not text:
             return text
-        
+        date_val = formation_date_numeric if in_table_cell else formation_date
         # Generic placeholders
         text = text.replace('{{COMPANY_NAME}}', company_name)
         text = text.replace('{{COMPANY_ADDRESS}}', company_address)
         text = text.replace('{{FORMATION_STATE}}', formation_state)
-        text = text.replace('{{FORMATION_DATE}}', formation_date)
-        
+        text = text.replace('{{FORMATION_DATE}}', date_val)
         # Legacy LLC-specific placeholders
         text = text.replace('{{llc_name_text}}', company_name)
         text = text.replace('{{full_llc_address}}', company_address)
         text = text.replace('{{full_state}}', formation_state)
         text = text.replace('{{full_state_caps}}', formation_state.upper() if formation_state else '')
-        text = text.replace('{{Date_of_formation_LLC}}', formation_date)
+        text = text.replace('{{Date_of_formation_LLC}}', date_val)
         
         # Member placeholders: {{member_01_full_name}}, {{member_01_pct}}, etc.
         for idx, member in enumerate(members, start=1):
@@ -176,13 +206,13 @@ def replace_placeholders(doc, data):
         if new_text != original:
             paragraph.text = new_text
     
-    # Second pass: replace in tables (cell paragraphs)
+    # Second pass: replace in tables (cell paragraphs) — use numeric date in table cells
     for table in doc.tables:
         for row in table.rows:
             for cell in row.cells:
                 for paragraph in cell.paragraphs:
                     original = paragraph.text
-                    new_text = replace_in_text(original)
+                    new_text = replace_in_text(original, in_table_cell=True)
                     if new_text != original:
                         paragraph.text = new_text
     
@@ -253,9 +283,8 @@ def replace_placeholders(doc, data):
                     # If ownership column exists, leave transaction column as-is (keep "Allotted")
                 
                 if 'date' in column_map and len(row.cells) > column_map['date']:
-                    # Use formation date for "Date Acquired"
-                    formation_date = data.get('formationDate', '')
-                    row.cells[column_map['date']].text = formation_date
+                    # Use numeric date (MM/DD/YYYY) for "Date Acquired" in Particulars of ownership
+                    row.cells[column_map['date']].text = formation_date_numeric
                 
                 if 'ssn' in column_map and len(row.cells) > column_map['ssn']:
                     ssn = member.get('ssn', '')
@@ -300,7 +329,7 @@ def replace_placeholders(doc, data):
             
             break
     
-    # Also try replacing placeholders in tables
+    # Final pass: any remaining placeholders in table cells use numeric date for dates
     for table in doc.tables:
         for row in table.rows:
             for cell in row.cells:
@@ -311,8 +340,8 @@ def replace_placeholders(doc, data):
                         paragraph.text = paragraph.text.replace('{{COMPANY_ADDRESS}}', company_address)
                     if '{{FORMATION_STATE}}' in paragraph.text:
                         paragraph.text = paragraph.text.replace('{{FORMATION_STATE}}', formation_state)
-                    if '{{FORMATION_DATE}}' in paragraph.text:
-                        paragraph.text = paragraph.text.replace('{{FORMATION_DATE}}', formation_date)
+                    if '{{FORMATION_DATE}}' in paragraph.text or '{{Date_of_formation_LLC}}' in paragraph.text:
+                        paragraph.text = paragraph.text.replace('{{FORMATION_DATE}}', formation_date_numeric).replace('{{Date_of_formation_LLC}}', formation_date_numeric)
     
     print("===> Placeholders replaced successfully")
 

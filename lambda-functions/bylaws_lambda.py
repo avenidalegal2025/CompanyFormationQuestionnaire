@@ -4,6 +4,7 @@ import tempfile
 import boto3
 import re
 import base64
+from datetime import datetime
 from docx import Document
 
 # Constants
@@ -52,24 +53,52 @@ def extract_s3_info(url):
     return None, None
 
 
+def _format_witness_date(value: str) -> str:
+    """Format date as numeric ordinal for IN WITNESS WHEREOF block: e.g. 8th day of February, 2026."""
+    if not value or not value.strip():
+        return value
+    # Already in "Xth day of Month, year" form
+    if 'day of' in value:
+        m = re.match(r'^\s*(\d{1,2})(st|nd|rd|th)\s+day of\s+.+', value, re.IGNORECASE)
+        if m:
+            return value.strip()
+    # Parse m/d/yyyy or yyyy-mm-dd
+    match = re.match(r'^\s*(\d{1,2})/(\d{1,2})/(\d{4})\s*$', value) or re.match(r'^\s*(\d{4})-(\d{1,2})-(\d{1,2})\s*$', value)
+    if not match:
+        return value
+    if len(match.group(1)) == 4:
+        year, month, day = int(match.group(1)), int(match.group(2)), int(match.group(3))
+    else:
+        month, day, year = int(match.group(1)), int(match.group(2)), int(match.group(3))
+    try:
+        dt = datetime(year, month, day)
+    except ValueError:
+        return value
+    month_name = dt.strftime('%B')
+    suffix = 'th' if 11 <= day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(day % 10, 'th')
+    return f"{day}{suffix} day of {month_name}, {year}"
+
+
 def replace_placeholders(doc, data):
-    """Replace placeholders in Bylaws document"""
+    """Replace placeholders in Bylaws document. IN WITNESS WHEREOF block gets numeric ordinal date."""
     print("===> Replacing placeholders in document...")
 
     company_name = data.get('companyName', '')
     formation_state = data.get('formationState', '')
     payment_date = data.get('paymentDate', '')
+    witness_date = _format_witness_date(payment_date)
     number_of_shares = str(data.get('numberOfShares', '') or '')
     officer_1_name = data.get('officer1Name', '')
     officer_1_role = data.get('officer1Role', '')
     owner_1_name = data.get('owner1Name', '')
 
-    def replace_in_text(text: str) -> str:
+    def replace_in_text(text: str, use_witness_date: bool = False) -> str:
         if not text:
             return text
+        date_value = witness_date if (use_witness_date and '{{Payment Date}}' in text) else payment_date
         text = text.replace('{{Company Name}}', company_name)
         text = text.replace('{{Formation State}}', formation_state)
-        text = text.replace('{{Payment Date}}', payment_date)
+        text = text.replace('{{Payment Date}}', date_value)
         text = text.replace('{{Number of Shares}}', number_of_shares)
         text = text.replace('{{Officer 1 Name}}', officer_1_name)
         text = text.replace('{{Officer 1 Role}}', officer_1_role)
@@ -79,7 +108,8 @@ def replace_placeholders(doc, data):
     for paragraph in doc.paragraphs:
         full_text = paragraph.text
         if '{{' in full_text:
-            new_text = replace_in_text(full_text)
+            in_witness = "IN WITNESS WHEREOF" in full_text
+            new_text = replace_in_text(full_text, use_witness_date=in_witness)
             if new_text != full_text:
                 paragraph.text = new_text
 
@@ -89,7 +119,8 @@ def replace_placeholders(doc, data):
                 for paragraph in cell.paragraphs:
                     full_text = paragraph.text
                     if '{{' in full_text:
-                        new_text = replace_in_text(full_text)
+                        in_witness = "IN WITNESS WHEREOF" in full_text
+                        new_text = replace_in_text(full_text, use_witness_date=in_witness)
                         if new_text != full_text:
                             paragraph.text = new_text
 

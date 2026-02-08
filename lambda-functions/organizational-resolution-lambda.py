@@ -88,69 +88,73 @@ def replace_placeholders(doc, data):
     company_name = data.get('companyName', '')
     company_address = format_address(data.get('companyAddress', ''))
     formation_state = data.get('formationState', '')
-    formation_date = data.get('formationDate', '')
+    formation_date_raw = data.get('formationDate', '')
 
     def number_to_word(n: int) -> str:
         words = {
-            1: 'first',
-            2: 'second',
-            3: 'third',
-            4: 'fourth',
-            5: 'fifth',
-            6: 'sixth',
-            7: 'seventh',
-            8: 'eighth',
-            9: 'ninth',
-            10: 'tenth',
-            11: 'eleventh',
-            12: 'twelfth',
-            13: 'thirteenth',
-            14: 'fourteenth',
-            15: 'fifteenth',
-            16: 'sixteenth',
-            17: 'seventeenth',
-            18: 'eighteenth',
-            19: 'nineteenth',
-            20: 'twentieth',
-            21: 'twenty-first',
-            22: 'twenty-second',
-            23: 'twenty-third',
-            24: 'twenty-fourth',
-            25: 'twenty-fifth',
-            26: 'twenty-sixth',
-            27: 'twenty-seventh',
-            28: 'twenty-eighth',
-            29: 'twenty-ninth',
-            30: 'thirtieth',
-            31: 'thirty-first',
+            1: 'first', 2: 'second', 3: 'third', 4: 'fourth', 5: 'fifth', 6: 'sixth', 7: 'seventh',
+            8: 'eighth', 9: 'ninth', 10: 'tenth', 11: 'eleventh', 12: 'twelfth', 13: 'thirteenth',
+            14: 'fourteenth', 15: 'fifteenth', 16: 'sixteenth', 17: 'seventeenth', 18: 'eighteenth',
+            19: 'nineteenth', 20: 'twentieth', 21: 'twenty-first', 22: 'twenty-second', 23: 'twenty-third',
+            24: 'twenty-fourth', 25: 'twenty-fifth', 26: 'twenty-sixth', 27: 'twenty-seventh',
+            28: 'twenty-eighth', 29: 'twenty-ninth', 30: 'thirtieth', 31: 'thirty-first',
         }
         return words.get(n, str(n))
 
+    def ordinal_suffix(day: int) -> str:
+        if 11 <= day <= 13:
+            return 'th'
+        return {1: 'st', 2: 'nd', 3: 'rd'}.get(day % 10, 'th')
+
+    def _parse_date(value: str):
+        """Parse m/d/yyyy or yyyy-mm-dd; return (day, month_name, year) or None."""
+        if not value or not value.strip():
+            return None
+        match = re.match(r'^\s*(\d{1,2})/(\d{1,2})/(\d{4})\s*$', value) or re.match(r'^\s*(\d{4})-(\d{1,2})-(\d{1,2})\s*$', value)
+        if not match:
+            return None
+        if len(match.group(1)) == 4:  # yyyy-mm-dd
+            year, month, day = int(match.group(1)), int(match.group(2)), int(match.group(3))
+        else:
+            month, day, year = int(match.group(1)), int(match.group(2)), int(match.group(3))
+        try:
+            date = datetime(year, month, day)
+            return (day, date.strftime('%B'), year)
+        except ValueError:
+            return None
+
     def format_legal_date_from_string(value: str) -> str:
+        """Format for {{FORMATION_DATE}} / {{Date_of_formation_LLC}} (body of doc). Keeps existing style."""
         if not value:
             return value
         if 'day of' in value:
-            # Normalize numeric ordinal to written word, if present.
             match_words = re.match(r'^\s*(\d{1,2})(st|nd|rd|th)\s+day of\s+(.+)\s*$', value, re.IGNORECASE)
             if match_words:
-                day_num = int(match_words.group(1))
-                rest = match_words.group(3).strip()
-                return f"{number_to_word(day_num)} day of {rest}"
+                return value.strip()
             return value
-        match = re.match(r'^\s*(\d{1,2})/(\d{1,2})/(\d{4})\s*$', value)
-        if not match:
+        parsed = _parse_date(value)
+        if not parsed:
             return value
-        month = int(match.group(1))
-        day = int(match.group(2))
-        year = int(match.group(3))
-        try:
-            date = datetime(year, month, day)
-        except ValueError:
-            return value
-        month_name = date.strftime('%B')
+        day, month_name, year = parsed
         return f"{number_to_word(day)} day of {month_name}, {year}"
 
-    formation_date = format_legal_date_from_string(formation_date)
+    def format_witness_date_from_string(value: str) -> str:
+        """Numeric ordinal only for 'IN WITNESS WHEREOF, this Resolution...' block: e.g. 8th day of February, 2026."""
+        if not value:
+            return value
+        if 'day of' in value:
+            match_words = re.match(r'^\s*(\d{1,2})(st|nd|rd|th)\s+day of\s+(.+)\s*$', value, re.IGNORECASE)
+            if match_words:
+                return value.strip()
+            return value
+        parsed = _parse_date(value)
+        if not parsed:
+            return value
+        day, month_name, year = parsed
+        return f"{day}{ordinal_suffix(day)} day of {month_name}, {year}"
+
+    formation_date = format_legal_date_from_string(formation_date_raw)
+    witness_date = format_witness_date_from_string(formation_date_raw)
 
     # Members / managers
     members = data.get('members', []) or []
@@ -380,19 +384,38 @@ def replace_placeholders(doc, data):
         if "IN WITNESS WHEREOF" not in paragraph.text:
             return
         full_text = ''.join(run.text for run in paragraph.runs)
+        # Replace mm/dd/yyyy (e.g. 02/08/2026)
         match = re.search(r'\b\d{2}/\d{2}/\d{4}\b', full_text)
-        if not match:
+        if match:
+            replace_span_in_paragraph(paragraph, match.start(), match.end(), date_value, False)
             return
-        replace_span_in_paragraph(paragraph, match.start(), match.end(), date_value, False)
+        # Replace "this [ordinal word] day of [Month], [year]" (LLC/Corp templates)
+        match = re.search(
+            r'\bthis\s+(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|'
+            r'eleventh|twelfth|thirteenth|fourteenth|fifteenth|sixteenth|seventeenth|eighteenth|'
+            r'nineteenth|twentieth|twenty-first|twenty-second|twenty-third|twenty-fourth|'
+            r'twenty-fifth|twenty-sixth|twenty-seventh|twenty-eighth|twenty-ninth|thirtieth|'
+            r'thirty-first)\s+day of\s+[A-Za-z]+\s*,\s*\d{4}\b',
+            full_text,
+            re.IGNORECASE,
+        )
+        if match:
+            replace_span_in_paragraph(paragraph, match.start(), match.end(), date_value, False)
+
+    # Use numeric ordinal in IN WITNESS WHEREOF block for both LLC and C-Corp/S-Corp templates
+    WITNESS_DATE_PLACEHOLDERS = ('{{FORMATION_DATE}}', '{{Date_of_formation_LLC}}')
 
     def replace_all_in_paragraph(paragraph):
         if '{{' not in paragraph.text:
-            replace_date_in_paragraph(paragraph, formation_date)
+            replace_date_in_paragraph(paragraph, witness_date)
             return
-        replace_date_in_paragraph(paragraph, formation_date)
+        replace_date_in_paragraph(paragraph, witness_date)
         normalize_bold_for_name_paragraph(paragraph)
+        in_witness_block = "IN WITNESS WHEREOF" in paragraph.text
         for placeholder, value, bold_value in replacements:
-            replace_placeholder_in_paragraph(paragraph, placeholder, value, bold_value)
+            # In witness block use numeric ordinal (8th day of...) for date placeholders
+            use_value = witness_date if (in_witness_block and placeholder in WITNESS_DATE_PLACEHOLDERS) else value
+            replace_placeholder_in_paragraph(paragraph, placeholder, use_value, bold_value)
         for placeholder, pct_str, pct_str_no_percent in pct_placeholders:
             replace_pct_placeholder_in_paragraph(paragraph, placeholder, pct_str, pct_str_no_percent)
 

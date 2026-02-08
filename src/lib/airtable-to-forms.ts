@@ -405,7 +405,7 @@ export function parseCompanyAddress(fields: any): {
 }
 
 /**
- * Format a date into "14th day of January, 2025" for bylaws.
+ * Format a date into "14th day of January, 2025" for use in forms and templates.
  */
 export function formatLegalDate(input?: string | Date): string {
   const date = input ? new Date(input) : new Date();
@@ -431,6 +431,20 @@ export function formatLegalDate(input?: string | Date): string {
   })();
 
   return `${day}${suffix} day of ${month}, ${year}`;
+}
+
+/**
+ * Format a date as MM/DD/YYYY for use in tables (e.g. Particulars of ownership / Date Acquired).
+ */
+export function formatDateNumeric(input?: string | Date): string {
+  const date = input ? new Date(input) : new Date();
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${month}/${day}/${year}`;
 }
 
 /**
@@ -775,8 +789,9 @@ export function mapAirtableToMembershipRegistry(record: any): any {
   // Get formation state
   const formationState = fields['Formation State'] || '';
   
-  // Get formation date (numeric format for registry tables)
-  const formationDate = formatMonthDayYear(fields['Payment Date']);
+  // Formation date: long text for header/general; numeric (MM/DD/YYYY) for Particulars of ownership table
+  const formationDate = formatLegalDate(fields['Payment Date']);
+  const formationDateNumeric = formatDateNumeric(fields['Payment Date']);
   
   // Build full company address
   // Prefer parsed components, but if parsing fails (e.g. "New York New York 10001"),
@@ -878,6 +893,7 @@ export function mapAirtableToMembershipRegistry(record: any): any {
     companyAddress: companyAddress,
     formationState: formationState,
     formationDate: formationDate,
+    formationDateNumeric: formationDateNumeric,
     members: members,
     managers: managers,
     memberCount: members.length,

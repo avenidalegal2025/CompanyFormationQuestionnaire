@@ -1,0 +1,36 @@
+# CodeBuild: Build python-docx layer + deploy Membership Registry Lambda (CDK)
+# Use this to deploy without Docker on your machine. Source = this repo (GitHub/CodeCommit).
+
+version: 0.2
+
+env:
+  variables:
+    AWS_REGION: us-west-1
+    LAYER_NAME: python-docx-layer
+    CDK_DIR: membership-registry-cdk
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.11
+      nodejs: 18
+  pre_build:
+    commands:
+      - echo "Installing CDK CLI..."
+      - npm install -g aws-cdk
+      - echo "Building Lambda layer (python-docx + lxml) on Amazon Linux..."
+      - mkdir -p layer_build/python
+      - pip install python-docx lxml -t layer_build/python/
+      - cd layer_build && zip -r ../python-docx-layer.zip python && cd ..
+  build:
+    commands:
+      - echo "Publishing Lambda layer..."
+      - LAYER_ARN=$(aws lambda publish-layer-version --layer-name "$LAYER_NAME" --zip-file "fileb://python-docx-layer.zip" --compatible-runtimes python3.11 --region "$AWS_REGION" --query 'LayerVersionArn' --output text)
+      - echo "LAYER_ARN=$LAYER_ARN"
+      - echo "Deploying Membership Registry stack with CDK..."
+      - cd $CDK_DIR && pip install -r requirements.txt
+      - cd $CDK_DIR && cdk deploy --require-approval never -c python-docx-layer-arn="$LAYER_ARN" --outputs-file cdk-outputs.json
+artifacts:
+  files:
+    - membership-registry-cdk/cdk-outputs.json
+  discard-paths: no
