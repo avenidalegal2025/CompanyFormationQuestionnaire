@@ -13,6 +13,7 @@ import {
   PlusIcon
 } from '@heroicons/react/24/outline';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { getDocumentTypeDisplayName } from '@/lib/document-names';
 
 function DocumentsContent() {
   const router = useRouter();
@@ -551,7 +552,7 @@ function DocumentsContent() {
                       <div key={doc.id} className="flex items-center space-x-3">
                         <CheckCircleIcon className="h-5 w-5 text-green-600 flex-shrink-0" />
                         <span className="text-sm text-gray-900 font-medium">
-                          {doc.name || 'Documento sin nombre'}
+                          {getDocumentTypeDisplayName(doc.name) || 'Documento sin nombre'}
                         </span>
                       </div>
                     ))}
@@ -576,11 +577,8 @@ function DocumentsContent() {
                       <div className="flex items-center">
                           <div>
                           <h3 className={`text-lg font-semibold ${category === 'firmado' ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
-                            {doc.name}
+                            {getDocumentTypeDisplayName(doc.name)}
                           </h3>
-                            <p className={`text-sm mt-0.5 ${category === 'firmado' ? 'text-gray-400 line-through' : 'text-gray-500'}`}>
-                              {doc.type}
-                            </p>
                           </div>
                         </div>
                       </div>

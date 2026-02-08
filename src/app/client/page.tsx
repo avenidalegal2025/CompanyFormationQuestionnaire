@@ -18,6 +18,7 @@ import {
   ArrowDownTrayIcon,
   ArrowUpTrayIcon
 } from '@heroicons/react/24/outline';
+import { getDocumentTypeDisplayName } from '@/lib/document-names';
 
 const LATAM_COUNTRIES = [
   { code: '+1', flag: '🇺🇸', name: 'Estados Unidos / Canadá' },
@@ -861,8 +862,7 @@ export default function ClientPage() {
                           <div className="flex items-start justify-between mb-4">
                             <div className="flex items-center">
                               <div>
-                                <h3 className="text-lg font-semibold text-gray-900">{doc.name}</h3>
-                                <p className="text-sm text-gray-500 mt-0.5">{doc.type}</p>
+                                <h3 className="text-lg font-semibold text-gray-900">{getDocumentTypeDisplayName(doc.name)}</h3>
                               </div>
                             </div>
                           </div>
