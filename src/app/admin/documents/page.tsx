@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownTrayIcon,
   ArrowUpTrayIcon,
@@ -44,6 +44,7 @@ export default function AdminDocumentsPage() {
   const [latestLoading, setLatestLoading] = useState(false);
   const [recentListTab, setRecentListTab] = useState<"new" | "seen">("new");
   const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setSeenIds(getSeenIdsFromStorage());
@@ -72,6 +73,11 @@ export default function AdminDocumentsPage() {
       setSuggestions([]);
       return;
     }
+    // Don’t show suggestions when the query matches the selected company (keeps dropdown closed after selection)
+    if (selectedCompany && trimmed === selectedCompany.companyName.trim()) {
+      setSuggestions([]);
+      return;
+    }
 
     const handle = setTimeout(async () => {
       try {
@@ -88,7 +94,7 @@ export default function AdminDocumentsPage() {
     }, 250);
 
     return () => clearTimeout(handle);
-  }, [query]);
+  }, [query, selectedCompany?.id, selectedCompany?.companyName]);
 
   const fetchDocuments = async (recordId: string) => {
     setLoading(true);
@@ -109,9 +115,10 @@ export default function AdminDocumentsPage() {
   };
 
   const selectCompany = (company: AdminCompany) => {
+    setSuggestions([]);
     setSelectedCompany(company);
     setQuery(company.companyName);
-    setSuggestions([]);
+    searchInputRef.current?.blur();
     fetchDocuments(company.id);
   };
 
@@ -305,6 +312,7 @@ export default function AdminDocumentsPage() {
             <div className="relative flex-1">
               <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
+                ref={searchInputRef}
                 type="text"
                 value={query}
                 onChange={e => setQuery(e.target.value)}
@@ -341,7 +349,7 @@ export default function AdminDocumentsPage() {
                   : "text-gray-500 hover:bg-gray-50"
               }`}
             >
-              New
+              Nuevo
             </button>
             <button
               type="button"
@@ -352,7 +360,7 @@ export default function AdminDocumentsPage() {
                   : "text-gray-500 hover:bg-gray-50"
               }`}
             >
-              Previously seen
+              Vistos anteriormente
             </button>
           </div>
           <div className="p-3 max-h-64 overflow-y-auto">
@@ -362,7 +370,7 @@ export default function AdminDocumentsPage() {
               <p className="text-sm text-gray-500">
                 {recentListTab === "new"
                   ? "No hay empresas nuevas en la lista."
-                  : "No hay empresas vistas aún. Haz clic en una empresa de la pestaña New para marcarla como vista."}
+                  : "No hay empresas vistas aún. Haz clic en una empresa de la pestaña Nuevo para marcarla como vista."}
               </p>
             ) : (
               <ul className="space-y-1">
