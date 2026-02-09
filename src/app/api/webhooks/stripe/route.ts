@@ -7,6 +7,8 @@ import { createVaultStructure, copyTemplateToVault, getFormDataSnapshot } from '
 import { createFormationRecord, mapQuestionnaireToAirtable, findFormationByStripeId } from '@/lib/airtable';
 import { generate2848PDF, generate8821PDF } from '@/lib/pdf-filler';
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { sendEmailWithMultipleAttachments } from '@/lib/ses-email';
 
 // SES client for email notifications
 const sesClient = new SESClient({
@@ -68,6 +70,75 @@ async function sendNewCompanyNotification(companyName: string, customerEmail: st
     // Don't fail the webhook if email fails
   }
 }
+
+const S3_BUCKET = process.env.S3_DOCUMENTS_BUCKET || 'avenida-legal-documents';
+const s3Client = new S3Client({
+  region: process.env.AWS_REGION || 'us-west-1',
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+  },
+});
+
+/** Send client one email with all formation document links + PDF/file attachments (so they can download and sign). */
+async function sendClientDocumentsEmail(
+  companyName: string,
+  customerEmail: string,
+  documents: DocumentRecord[],
+) {
+  const docsWithKeys = documents.filter((d) => d.s3Key || d.signedS3Key);
+  if (!docsWithKeys.length) return;
+
+  const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://company-formation-questionnaire.vercel.app';
+  const DASHBOARD_URL = `${BASE_URL}/client/documents`;
+
+  const viewLinks: string[] = [];
+  const attachments: { filename: string; buffer: Buffer; contentType: string }[] = [];
+
+  for (const doc of docsWithKeys) {
+    const key = doc.signedS3Key || doc.s3Key;
+    const viewUrl = `${BASE_URL}/api/documents/view?key=${encodeURIComponent(key)}`;
+    const name = doc.name || doc.id || 'Document';
+    viewLinks.push(`<li><a href="${viewUrl}">${name}</a></li>`);
+
+    try {
+      const res = await s3Client.send(new GetObjectCommand({ Bucket: S3_BUCKET, Key: key }));
+      const chunks: Uint8Array[] = [];
+      for await (const chunk of (res.Body as any)) chunks.push(chunk);
+      const buffer = Buffer.concat(chunks);
+      const ext = key.match(/\.([a-zA-Z0-9]+)$/)?.[1]?.toLowerCase() || 'pdf';
+      const safeName = (name.replace(/[^\w\s\-\.]/g, '') || 'document').trim() + '.' + ext;
+      const contentType = ext === 'pdf' ? 'application/pdf' : ext === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'application/octet-stream';
+      attachments.push({ filename: safeName, buffer, contentType });
+    } catch (e) {
+      console.warn('Could not attach', name, (e as Error).message);
+    }
+  }
+
+  if (attachments.length === 0) return;
+
+  const subject = `Documentos de formación – ${companyName}`;
+  const htmlBody = `
+    <h2>Documentos para descargar y firmar</h2>
+    <p>Hola,</p>
+    <p>Tu pago ha sido confirmado. Adjuntamos los documentos de formación para <strong>${companyName}</strong>.</p>
+    <p><strong>Enlaces a cada documento:</strong></p>
+    <ul>${viewLinks.join('')}</ul>
+    <p><strong>Dashboard (ver todos):</strong><br/><a href="${DASHBOARD_URL}">${DASHBOARD_URL}</a></p>
+    <p>Descarga los adjuntos, revísalos y fírmalos según corresponda. Puedes hacerlo aunque no entres al portal del cliente.</p>
+    <p>— Avenida Legal</p>
+  `;
+
+  await sendEmailWithMultipleAttachments({
+    from: 'avenidalegal.2024@gmail.com',
+    to: [customerEmail],
+    subject,
+    htmlBody,
+    attachments,
+  });
+  console.log(`📧 Client documents email sent to ${customerEmail} (${attachments.length} attachments)`);
+}
+
 // import { createWorkspaceAccount } from '@/lib/googleWorkspace'; // Temporarily disabled
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -748,13 +819,24 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
         console.error('⚠️ Failed to update DynamoDB with regenerated forms (continuing anyway):', dbError);
       }
       
-      // Send email notification for approval
+      // Send email notification for approval (internal)
       await sendNewCompanyNotification(
         airtableRecord['Company Name'] || 'Unknown Company',
         airtableRecord['Customer Email'] || session.customer_details?.email || session.customer_email || 'unknown@email.com',
         airtableRecord['Entity Type'] || 'LLC',
         airtableRecord['Formation State'] || 'Florida'
       );
+
+      // Send client one email with all document links + attachments (so they can download and sign right away)
+      try {
+        await sendClientDocumentsEmail(
+          airtableRecord['Company Name'] || companyName,
+          airtableRecord['Customer Email'] || userId,
+          documents,
+        );
+      } catch (clientEmailErr: any) {
+        console.error('❌ Failed to send client documents email:', clientEmailErr?.message || clientEmailErr);
+      }
       
     } catch (airtableError: any) {
       console.error('❌ CRITICAL: Failed to sync to Airtable:', airtableError.message);

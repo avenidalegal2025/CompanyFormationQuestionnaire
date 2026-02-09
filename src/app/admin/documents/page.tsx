@@ -10,6 +10,19 @@ import {
   MagnifyingGlassIcon,
 } from "@heroicons/react/24/outline";
 
+const ADMIN_SEEN_COMPANY_IDS_KEY = "admin-seen-company-ids";
+
+function getSeenIdsFromStorage(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(ADMIN_SEEN_COMPANY_IDS_KEY);
+    const arr = raw ? (JSON.parse(raw) as string[]) : [];
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch {
+    return new Set();
+  }
+}
+
 interface AdminCompany {
   id: string;
   companyName: string;
@@ -25,9 +38,33 @@ export default function AdminDocumentsPage() {
   const [documents, setDocuments] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<"por-firmar" | "firmado" | "en-proceso">("por-firmar");
   const [loading, setLoading] = useState(false);
-  const [regenerating, setRegenerating] = useState(false);
   const [uploading, setUploading] = useState<{ [key: string]: boolean }>({});
   const [error, setError] = useState<string | null>(null);
+  const [latestCompanies, setLatestCompanies] = useState<AdminCompany[]>([]);
+  const [latestLoading, setLatestLoading] = useState(false);
+  const [recentListTab, setRecentListTab] = useState<"new" | "seen">("new");
+  const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    setSeenIds(getSeenIdsFromStorage());
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLatestLoading(true);
+    fetch("/api/admin/companies?latest=15")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled && data.companies) setLatestCompanies(data.companies);
+      })
+      .catch(() => {
+        if (!cancelled) setLatestCompanies([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLatestLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     const trimmed = query.trim();
@@ -77,6 +114,32 @@ export default function AdminDocumentsPage() {
     setSuggestions([]);
     fetchDocuments(company.id);
   };
+
+  const markCompanyAsSeen = (recordId: string) => {
+    setSeenIds((prev) => {
+      const next = new Set(prev);
+      next.add(recordId);
+      try {
+        localStorage.setItem(ADMIN_SEEN_COMPANY_IDS_KEY, JSON.stringify([...next]));
+      } catch {}
+      return next;
+    });
+  };
+
+  const selectLatestCompany = (company: AdminCompany) => {
+    selectCompany(company);
+    markCompanyAsSeen(company.id);
+  };
+
+  const newCompanies = useMemo(
+    () => latestCompanies.filter((c) => !seenIds.has(c.id)),
+    [latestCompanies, seenIds]
+  );
+  const seenCompanies = useMemo(
+    () => latestCompanies.filter((c) => seenIds.has(c.id)),
+    [latestCompanies, seenIds]
+  );
+  const recentList = recentListTab === "new" ? newCompanies : seenCompanies;
 
   const getEntityType = () => selectedCompany?.entityType || "";
   const isCorporation = () => {
@@ -227,30 +290,6 @@ export default function AdminDocumentsPage() {
       event.target.value = "";
     };
 
-  const handleRegenerateFormationDocuments = async () => {
-    if (!selectedCompany) return;
-    setRegenerating(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/admin/regenerate-company-documents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recordId: selectedCompany.id }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Error al regenerar documentos");
-      }
-      alert("Regeneración completada. Los documentos (Membership Registry y/o Organizational Resolution) se han vuelto a generar. Descárgalos de nuevo desde el panel del cliente para verificar.");
-      await fetchDocuments(selectedCompany.id);
-    } catch (err: any) {
-      setError(err.message || "Error al regenerar documentos");
-      alert(err.message || "Error al regenerar documentos");
-    } finally {
-      setRegenerating(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
@@ -291,6 +330,64 @@ export default function AdminDocumentsPage() {
           )}
         </div>
 
+        <div className="mb-6 rounded-lg border border-gray-200 bg-white overflow-hidden">
+          <div className="flex border-b border-gray-200">
+            <button
+              type="button"
+              onClick={() => setRecentListTab("new")}
+              className={`flex-1 px-4 py-3 text-sm font-medium ${
+                recentListTab === "new"
+                  ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/50"
+                  : "text-gray-500 hover:bg-gray-50"
+              }`}
+            >
+              New
+            </button>
+            <button
+              type="button"
+              onClick={() => setRecentListTab("seen")}
+              className={`flex-1 px-4 py-3 text-sm font-medium ${
+                recentListTab === "seen"
+                  ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/50"
+                  : "text-gray-500 hover:bg-gray-50"
+              }`}
+            >
+              Previously seen
+            </button>
+          </div>
+          <div className="p-3 max-h-64 overflow-y-auto">
+            {latestLoading ? (
+              <p className="text-sm text-gray-500">Cargando últimas empresas…</p>
+            ) : recentList.length === 0 ? (
+              <p className="text-sm text-gray-500">
+                {recentListTab === "new"
+                  ? "No hay empresas nuevas en la lista."
+                  : "No hay empresas vistas aún. Haz clic en una empresa de la pestaña New para marcarla como vista."}
+              </p>
+            ) : (
+              <ul className="space-y-1">
+                {recentList.map((company) => (
+                  <li key={company.id}>
+                    <button
+                      type="button"
+                      onClick={() => selectLatestCompany(company)}
+                      className={`w-full text-left px-3 py-2 rounded-md text-sm hover:bg-gray-100 ${
+                        selectedCompany?.id === company.id ? "bg-blue-50 text-blue-700" : ""
+                      }`}
+                    >
+                      <span className="font-medium text-gray-900">{company.companyName}</span>
+                      <span className="text-gray-500 ml-1">
+                        · {company.entityType} · {company.formationState}
+                      </span>
+                      <div className="text-xs text-gray-500 truncate">{company.customerEmail}</div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+
         {error && (
           <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm border border-red-200">
             {error}
@@ -314,14 +411,7 @@ export default function AdminDocumentsPage() {
                   </div>
                   <div className="text-xs text-gray-500">{selectedCompany.customerEmail}</div>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleRegenerateFormationDocuments}
-                  disabled={regenerating}
-                  className="btn btn-secondary text-sm"
-                >
-                  {regenerating ? "Regenerando…" : "Regenerar formation docs"}
-                </button>
+                <div className="flex items-center gap-2" />
               </div>
             </div>
 

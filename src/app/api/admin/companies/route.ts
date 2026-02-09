@@ -48,41 +48,65 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const query = (searchParams.get('query') || '').trim();
-
-    if (!query) {
-      return NextResponse.json(
-        { error: 'Missing query parameter' },
-        { status: 400 }
-      );
-    }
-
-    const normalizedQuery = query.toLowerCase();
+    const latestParam = searchParams.get('latest');
+    const latest = latestParam ? Math.min(Math.max(1, parseInt(latestParam, 10)), 50) : 0;
 
     const companies: AdminCompany[] = [];
 
-    // Search by Company Name or Customer Email (case-insensitive)
-    await base(AIRTABLE_TABLE_NAME)
-      .select({
-        filterByFormula: `OR(FIND("${normalizedQuery}", LOWER({Company Name})), FIND("${normalizedQuery}", LOWER({Customer Email})))`,
-        sort: [{ field: 'Payment Date', direction: 'desc' }],
-        maxRecords: 50,
-      })
-      .eachPage((records, fetchNextPage) => {
-        records.forEach((record) => {
-          const fields = record.fields;
-          companies.push({
-            id: record.id,
-            companyName: (fields['Company Name'] as string) || 'Unknown Company',
-            entityType: (fields['Entity Type'] as string) || 'LLC',
-            formationState: (fields['Formation State'] as string) || '',
-            formationStatus: (fields['Formation Status'] as string) || 'Pending',
-            paymentDate: (fields['Payment Date'] as string) || '',
-            customerEmail: ((fields['Customer Email'] as string) || '').toLowerCase().trim(),
-            vaultPath: (fields['Vault Path'] as string) || undefined,
+    if (query) {
+      // Search by Company Name or Customer Email (case-insensitive)
+      const normalizedQuery = query.toLowerCase();
+      await base(AIRTABLE_TABLE_NAME)
+        .select({
+          filterByFormula: `OR(FIND("${normalizedQuery}", LOWER({Company Name})), FIND("${normalizedQuery}", LOWER({Customer Email})))`,
+          sort: [{ field: 'Payment Date', direction: 'desc' }],
+          maxRecords: 50,
+        })
+        .eachPage((records, fetchNextPage) => {
+          records.forEach((record) => {
+            const fields = record.fields;
+            companies.push({
+              id: record.id,
+              companyName: (fields['Company Name'] as string) || 'Unknown Company',
+              entityType: (fields['Entity Type'] as string) || 'LLC',
+              formationState: (fields['Formation State'] as string) || '',
+              formationStatus: (fields['Formation Status'] as string) || 'Pending',
+              paymentDate: (fields['Payment Date'] as string) || '',
+              customerEmail: ((fields['Customer Email'] as string) || '').toLowerCase().trim(),
+              vaultPath: (fields['Vault Path'] as string) || undefined,
+            });
           });
+          fetchNextPage();
         });
-        fetchNextPage();
-      });
+    } else if (latest > 0) {
+      // Return latest N companies (by Payment Date desc) for admin quick access
+      await base(AIRTABLE_TABLE_NAME)
+        .select({
+          sort: [{ field: 'Payment Date', direction: 'desc' }],
+          maxRecords: latest,
+        })
+        .eachPage((records, fetchNextPage) => {
+          records.forEach((record) => {
+            const fields = record.fields;
+            companies.push({
+              id: record.id,
+              companyName: (fields['Company Name'] as string) || 'Unknown Company',
+              entityType: (fields['Entity Type'] as string) || 'LLC',
+              formationState: (fields['Formation State'] as string) || '',
+              formationStatus: (fields['Formation Status'] as string) || 'Pending',
+              paymentDate: (fields['Payment Date'] as string) || '',
+              customerEmail: ((fields['Customer Email'] as string) || '').toLowerCase().trim(),
+              vaultPath: (fields['Vault Path'] as string) || undefined,
+            });
+          });
+          fetchNextPage();
+        });
+    } else {
+      return NextResponse.json(
+        { error: 'Missing query or latest parameter' },
+        { status: 400 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
