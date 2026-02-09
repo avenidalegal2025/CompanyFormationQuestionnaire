@@ -154,10 +154,15 @@ def replace_placeholders(doc, data):
     
     # Helper to replace all known placeholders in a text string.
     # In table cells (Particulars of ownership) use numeric date (MM/DD/YYYY) for date placeholders.
-    def replace_in_text(text: str, in_table_cell: bool = False) -> str:
+    # When as_of_the_date is True (e.g. certification "as of ... date"), use "the 9th day..." not "9th day...".
+    def replace_in_text(text: str, in_table_cell: bool = False, as_of_the_date: bool = False) -> str:
         if not text:
             return text
-        date_val = formation_date_numeric if in_table_cell else formation_date
+        if in_table_cell:
+            date_val = formation_date_numeric
+        else:
+            # Certification sentence: "as of the 9th day of February, 2026"
+            date_val = ('the ' + formation_date) if (as_of_the_date and formation_date) else formation_date
         # Generic placeholders
         text = text.replace('{{COMPANY_NAME}}', company_name)
         text = text.replace('{{COMPANY_ADDRESS}}', company_address)
@@ -202,7 +207,11 @@ def replace_placeholders(doc, data):
     # First pass: replace in paragraphs
     for paragraph in doc.paragraphs:
         original = paragraph.text
-        new_text = replace_in_text(original)
+        # Certification sentence: "I hereby certify... as of {{FORMATION_DATE}}" -> "as of the 9th day of February, 2026"
+        has_as_of = 'as of' in original.lower()
+        has_date_placeholder = '{{FORMATION_DATE}}' in original or '{{Date_of_formation_LLC}}' in original
+        as_of_the_date = has_as_of and has_date_placeholder
+        new_text = replace_in_text(original, as_of_the_date=as_of_the_date)
         if new_text != original:
             paragraph.text = new_text
     
