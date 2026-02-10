@@ -443,6 +443,7 @@ def main(record_id=None):
     # Initialize browser
     print("🦊 Starting Firefox browser...")
     driver = init_browser()
+    driver.set_page_load_timeout(60)
     wait = WebDriverWait(driver, 30)
     
     try:
@@ -462,11 +463,33 @@ def main(record_id=None):
         start_btn = driver.find_element(By.XPATH, "//input[@value='Start New Filing']")
         WebDriverWait(driver, 10).until(lambda d: start_btn.get_attribute("disabled") is None)
         start_btn.click()
-        time.sleep(2)
+        # Wait for next page to load (form or redirect may be slow)
+        time.sleep(3)
+        upload_file_to_s3(screenshot(driver, "after_start_new_filing"), llc_name, "screenshots")
+        # Wait for LLC form to be ready (Sunbiz can be slow); form may be in iframe
+        page_wait = WebDriverWait(driver, 25)
+        corp_name_el = None
+        try:
+            corp_name_el = page_wait.until(EC.presence_of_element_located((By.ID, "corp_name")))
+        except Exception:
+            iframes = driver.find_elements(By.TAG_NAME, "iframe")
+            for iframe in iframes:
+                try:
+                    driver.switch_to.frame(iframe)
+                    corp_name_el = page_wait.until(EC.presence_of_element_located((By.ID, "corp_name")))
+                    break
+                except Exception:
+                    driver.switch_to.default_content()
+                    continue
+        if corp_name_el is None:
+            upload_file_to_s3(screenshot(driver, "stuck_no_corp_name"), llc_name, "screenshots")
+            raise RuntimeError("LLC form did not load: corp_name field not found (check screenshots)")
+        page_wait.until(EC.visibility_of(corp_name_el))
+        time.sleep(0.5)
         
         # === LLC Info ===
         print("📝 Filling LLC information...")
-        human_typing(wait.until(EC.presence_of_element_located((By.ID, "corp_name"))), llc["name"])
+        human_typing(corp_name_el, llc["name"])
         human_typing(driver.find_element(By.ID, "princ_addr1"), llc["principal_address"]["line1"])
         human_typing(driver.find_element(By.ID, "princ_addr2"), llc["principal_address"]["line2"])
         human_typing(driver.find_element(By.ID, "princ_city"), llc["principal_address"]["city"])
