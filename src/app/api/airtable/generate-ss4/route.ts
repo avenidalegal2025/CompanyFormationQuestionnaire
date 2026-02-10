@@ -52,11 +52,13 @@ async function summarizeBusinessPurpose(businessPurpose: string): Promise<string
             role: 'user',
             content: `This is for IRS Form SS-4, Line 10 "Reason for applying" - the text field next to the "Started new business" checkbox.
 
-Summarize this business purpose from the Airtable Formations table "Business Purpose" column into a SHORT, ONE-LINE summary (maximum 35 characters).
+CRITICAL: Do NOT return only "Started new business" or "STARTED NEW BUSINESS". You MUST specify what the business does.
+
+Summarize this business purpose into a SHORT, SPECIFIC reason (maximum 35 characters). Examples: "Started LLC for film production", "Real estate development", "Retail clothing sales", "Restaurant and catering".
 
 Business Purpose: "${businessPurpose}"
 
-Return ONLY a brief summary of what the business does (e.g., "General architectural services", "Real estate development", "Retail clothing sales"). Maximum 35 characters. No labels, no prefixes, no explanations. Be concise and specific.`,
+Return ONLY the specific reason (e.g. "Started LLC for film production"). Maximum 35 characters. No labels, no prefixes. Be specific, not generic.`,
           },
         ],
         max_tokens: 50,
@@ -77,8 +79,8 @@ Return ONLY a brief summary of what the business does (e.g., "General architectu
     console.log(`📝 OpenAI generated Line 10 reason: "${summary}"`);
     
     if (!summary || summary.length === 0) {
-      console.warn('⚠️ OpenAI returned empty response, using default');
-      return 'STARTED NEW BUSINESS';
+      console.warn('⚠️ OpenAI returned empty response, using business purpose as fallback');
+      return fallbackLine10FromPurpose(businessPurpose);
     }
 
     // Ensure it's max 35 characters and clean it up
@@ -89,15 +91,27 @@ Return ONLY a brief summary of what the business does (e.g., "General architectu
     if (finalSummary.length > 35) {
       finalSummary = finalSummary.substring(0, 35).trim();
     }
-    
     const upperSummary = finalSummary.toUpperCase();
+    // If still generic, use business purpose so Line 10 specifies the business
+    if (/^STARTED NEW BUSINESS\.?$/i.test(upperSummary) || upperSummary.length < 5) {
+      console.warn('⚠️ Line 10 was generic, using business purpose for specificity');
+      return fallbackLine10FromPurpose(businessPurpose);
+    }
     console.log(`✅ Final Line 10 reason (${upperSummary.length} chars): "${upperSummary}"`);
     return upperSummary;
   } catch (error: any) {
     console.error('❌ Error calling OpenAI API:', error);
-    // Fallback to default reason
-    return 'STARTED NEW BUSINESS';
+    return fallbackLine10FromPurpose(businessPurpose);
   }
+}
+
+function fallbackLine10FromPurpose(businessPurpose: string): string {
+  if (!businessPurpose || businessPurpose.trim() === '') return 'STARTED NEW BUSINESS';
+  const cleaned = businessPurpose.trim().replace(/\s+/g, ' ').toUpperCase();
+  if (cleaned.length <= 35) return cleaned;
+  const at35 = cleaned.substring(0, 35);
+  const lastSpace = at35.lastIndexOf(' ');
+  return lastSpace > 20 ? at35.substring(0, lastSpace).trim() : at35.trim();
 }
 
 /**

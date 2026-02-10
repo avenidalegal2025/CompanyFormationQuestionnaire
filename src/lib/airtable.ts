@@ -770,7 +770,7 @@ export function mapQuestionnaireToAirtable(
           return parts.filter(Boolean).join(', ') || rawFullAddress || '';
         })(),
     'Business Purpose': company.businessPurpose || '',
-    'Number of Shares': (isCorp || entityType === 'S-Corp') ? (company.numberOfShares || 0) : undefined,
+    'Number of Shares': (isCorp || entityType === 'S-Corp') ? (company.numberOfShares || 1000) : undefined,
     'Vault Path': vaultPath,
     
     // Phone & Contact

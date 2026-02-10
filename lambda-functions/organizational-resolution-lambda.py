@@ -88,7 +88,9 @@ def replace_placeholders(doc, data):
     company_name = data.get('companyName', '')
     company_address = format_address(data.get('companyAddress', ''))
     formation_state = data.get('formationState', '')
+    # For body: use formatted formationDate; for witness date, prefer raw paymentDateRaw fallback to formationDate
     formation_date_raw = data.get('formationDate', '')
+    payment_date_raw = data.get('paymentDateRaw', '') or formation_date_raw
 
     def number_to_word(n: int) -> str:
         words = {
@@ -154,7 +156,8 @@ def replace_placeholders(doc, data):
         return f"{day}{ordinal_suffix(day)} day of {month_name}, {year}"
 
     formation_date = format_legal_date_from_string(formation_date_raw)
-    witness_date = format_witness_date_from_string(formation_date_raw)
+    # Witness date should follow Payment Date (raw) like other docs
+    witness_date = format_witness_date_from_string(payment_date_raw)
 
     # Members / managers
     members = data.get('members', []) or []
@@ -188,6 +191,9 @@ def replace_placeholders(doc, data):
     add_placeholder('{{COMPANY_ADDRESS}}', company_address)
     add_placeholder('{{FORMATION_STATE}}', formation_state)
     add_placeholder('{{FORMATION_DATE}}', formation_date)
+    # Airtable-style company placeholders used in Inc minutes template
+    add_placeholder('{{Company Name}}', company_name, True)
+    add_placeholder('{{Company Address}}', company_address)
 
     # Legacy LLC-specific placeholders
     add_placeholder('{{llc_name_text}}', company_name, True)
@@ -201,6 +207,7 @@ def replace_placeholders(doc, data):
     add_placeholder('{{MANAGED_TYPE}}', managed_type.upper())
 
     # Member placeholders: {{member_01_full_name}}, {{member_01_pct}}, etc.
+    # Also alias to Airtable-style shareholder placeholders for Inc minutes template
     for idx, member in enumerate(members, start=1):
         num2 = f"{idx:02d}"
         member_name = member.get('name', '')
@@ -226,10 +233,74 @@ def replace_placeholders(doc, data):
         ):
             pct_placeholders.append((ph, pct_str, pct_str_no_percent))
 
-    # Manager placeholders: {{manager_01_full_name}}, {{Manager_1}}, etc.
+        # Shareholder placeholders (C-Corp org minutes: shareholder instead of member)
+        shares_val = member.get('shares')
+        if shares_val is not None:
+            # Format shares with thousands separator (e.g. 1,000)
+            shares_str = f"{int(shares_val):,}"
+            for ph in (
+                '{{' + f'shareholder_{num2}_full_name' + '}}',
+                '{{' + f'shareholder_{idx}_full_name' + '}}',
+                '{{' + f'Shareholder_{num2}_full_name' + '}}',
+                '{{' + f'Shareholder_{idx}_full_name' + '}}',
+            ):
+                add_placeholder(ph, member_name, True)
+            for ph in (
+                '{{' + f'shareholder_{num2}_pct' + '}}',
+                '{{' + f'shareholder_{idx}_pct' + '}}',
+                '{{' + f'Shareholder_{num2}_pct' + '}}',
+                '{{' + f'Shareholder_{idx}_pct' + '}}',
+            ):
+                pct_placeholders.append((ph, pct_str, pct_str_no_percent))
+            for ph in (
+                '{{' + f'shareholder_{num2}_shares' + '}}',
+                '{{' + f'shareholder_{idx}_shares' + '}}',
+                '{{' + f'Shareholder_{num2}_shares' + '}}',
+                '{{' + f'Shareholder_{idx}_shares' + '}}',
+            ):
+                add_placeholder(ph, shares_str, False)
+
+        # Airtable-style placeholders for 1-shareholder Inc minutes template
+        if idx == 1:
+            # Owner 1 Name
+            for ph in (
+                '{{Owner 1 Name}}',
+                '{{ Owner 1 Name }}',
+            ):
+                add_placeholder(ph, member_name, True)
+            # Owner 1 Ownership % (used both in distribution line and signature line)
+            for ph in (
+                '{{Owner 1 Ownership %}}',
+                '{{ Owner 1 Ownership % }}',
+            ):
+                pct_placeholders.append((ph, pct_str, pct_str_no_percent))
+            # Owner 1 Ownership #Shares (derived from 1,000 base)
+            if shares_val is not None:
+                shares_str = f"{int(shares_val):,}"
+                for ph in (
+                    '{{Owner 1 Ownership #Shares}}',
+                    '{{ Owner 1 Ownership #Shares }}',
+                ):
+                    add_placeholder(ph, shares_str, False)
+
+    # Signature line: under signature we want "100% Owner, President and Director" (not "100% Owner, and President")
+    first_manager_role_raw = ''
+    first_manager_role_trimmed = ''
+    signature_line_role = ''
+
+    # Manager placeholders: {{manager_01_full_name}}, {{Manager_1}}, etc. + Officer role + Director alias
     for idx, manager in enumerate(managers, start=1):
         num2 = f"{idx:02d}"
         manager_name = manager.get('name', '')
+        manager_role_raw = (manager.get('role') or '').strip() or ('President; Director' if idx == 1 else '')
+        # If template already adds '; Director', trim trailing '; Director' from role to avoid 'Director; Director'
+        manager_role = manager_role_raw
+        if manager_role.upper().endswith('; DIRECTOR'):
+            manager_role = manager_role[:-len('; Director')].rstrip()
+        if idx == 1:
+            first_manager_role_raw = manager_role_raw
+            first_manager_role_trimmed = manager_role
+            signature_line_role = manager_role_raw.replace('; ', ' and ').strip()  # "President; Director" -> "President and Director"
         for ph in (
             '{{' + f'manager_{num2}_full_name' + '}}',
             '{{' + f'manager_{idx}_full_name' + '}}',
@@ -239,6 +310,27 @@ def replace_placeholders(doc, data):
             '{{' + f'Manager_{idx}' + '}}',
         ):
             add_placeholder(ph, manager_name, True)
+        for ph in (
+            '{{' + f'Officer_{num2}_role' + '}}',
+            '{{' + f'Officer_{idx}_role' + '}}',
+            '{{' + f'Officer_{num2}_Role' + '}}',
+            '{{' + f'Officer_{idx}_Role' + '}}',
+            '{{' + f'Manager_{num2}_title' + '}}',
+            '{{' + f'Manager_{idx}_title' + '}}',
+        ):
+            add_placeholder(ph, manager_role, False)
+        if idx == 1:
+            # Airtable-style Officer 1 Role placeholder with space
+            for ph in ('{{Officer 1 Role}}', '{{ Officer 1 Role }}'):
+                add_placeholder(ph, manager_role, False)
+        # Director_{idx} Name alias for Inc minutes template (Director 1 row)
+        for ph in (
+            '{{' + f'Director_{num2}_Name' + '}}',
+            '{{' + f'Director_{idx}_Name' + '}}',
+            '{{Director 1 Name}}' if idx == 1 else '',
+        ):
+            if ph:
+                add_placeholder(ph, manager_name, True)
 
     def insert_run_after(paragraph, run, text):
         new_run = paragraph.add_run(text)
@@ -397,10 +489,18 @@ def replace_placeholders(doc, data):
             r'twenty-fifth|twenty-sixth|twenty-seventh|twenty-eighth|twenty-ninth|thirtieth|'
             r'thirty-first)\s+day of\s+[A-Za-z]+\s*,\s*\d{4}\b',
             full_text,
-            re.IGNORECASE,
         )
         if match:
             replace_span_in_paragraph(paragraph, match.start(), match.end(), date_value, False)
+            return
+        # Replace numeric ordinal form: "this 10th day of July, 2025" (Inc minutes template)
+        match = re.search(
+            r'\bthis\s+\d{1,2}(st|nd|rd|th)\s+day of\s+[A-Za-z]+\s*,\s*\d{4}\b',
+            full_text,
+        )
+        if match:
+            replacement = f"this {date_value}"
+            replace_span_in_paragraph(paragraph, match.start(), match.end(), replacement, False)
 
     # Use numeric ordinal in IN WITNESS WHEREOF block for both LLC and C-Corp/S-Corp templates
     WITNESS_DATE_PLACEHOLDERS = ('{{FORMATION_DATE}}', '{{Date_of_formation_LLC}}')
@@ -429,7 +529,40 @@ def replace_placeholders(doc, data):
             for cell in row.cells:
                 for paragraph in cell.paragraphs:
                     replace_all_in_paragraph(paragraph)
-    
+
+    # Fix signature line: "100% Owner, and President" -> "100% Owner, President and Director"
+    if first_manager_role_trimmed and signature_line_role and first_manager_role_trimmed != signature_line_role:
+        old_suffix = " and " + first_manager_role_trimmed
+        new_suffix = " " + signature_line_role
+        for paragraph in doc.paragraphs:
+            if old_suffix in paragraph.text:
+                full_text = ''.join(run.text for run in paragraph.runs)
+                idx = full_text.find(old_suffix)
+                if idx != -1:
+                    replace_span_in_paragraph(paragraph, idx, idx + len(old_suffix), new_suffix, False)
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for paragraph in cell.paragraphs:
+                        if old_suffix in paragraph.text:
+                            full_text = ''.join(run.text for run in paragraph.runs)
+                            idx = full_text.find(old_suffix)
+                            if idx != -1:
+                                replace_span_in_paragraph(paragraph, idx, idx + len(old_suffix), new_suffix, False)
+
+    # Ensure heading (first paragraph) is all caps company name like template style
+    if doc.paragraphs:
+        heading_para = doc.paragraphs[0]
+        full_text = ''.join(run.text for run in heading_para.runs) or heading_para.text
+        if full_text.strip():
+            upper = full_text.upper()
+            if heading_para.runs:
+                heading_para.runs[0].text = upper
+                for r in heading_para.runs[1:]:
+                    r.text = ''
+            else:
+                heading_para.text = upper
+
     print("===> Placeholders replaced successfully")
 
 def lambda_handler(event, context):

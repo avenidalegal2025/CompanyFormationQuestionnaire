@@ -176,9 +176,13 @@ export default function ClientPage() {
       }
     }
 
-    // Fetch real documents from API
+    // Don't fetch documents here - selectedCompanyId may still be stale. See effect below.
+  }, []);
+
+  // Refetch documents whenever the selected company changes (e.g. after payment when newest is selected)
+  useEffect(() => {
     fetchDocuments();
-  }, []); // Only run once on mount - don't re-run when selectedCompanyId changes
+  }, [selectedCompanyId]);
 
   // Fetch userEmail and companies on mount
   useEffect(() => {
@@ -255,22 +259,29 @@ export default function ClientPage() {
   };
 
   const fetchDocuments = async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s timeout so we never hang forever
     try {
       setLoadingDocuments(true);
-      // Important: always request documents for the currently selected company
-      const companyIdForDocs = selectedCompanyId || localStorage.getItem('selectedCompanyId') || undefined;
+      const companyIdForDocs = selectedCompanyId || (typeof localStorage !== 'undefined' ? localStorage.getItem('selectedCompanyId') : null) || undefined;
       const query = companyIdForDocs ? `?companyId=${encodeURIComponent(companyIdForDocs)}` : '';
-      const response = await fetch(`/api/documents${query}`);
+      const response = await fetch(`/api/documents${query}`, { signal: controller.signal });
+      clearTimeout(timeoutId);
       if (response.ok) {
         const data = await response.json();
         setDocuments(data.documents || []);
       } else {
-        console.error('Failed to fetch documents');
+        console.error('Failed to fetch documents', response.status);
+        setDocuments([]);
       }
-      // Also fetch company data from Airtable (uses same selectedCompanyId)
       await fetchCompanyData();
-    } catch (error) {
+    } catch (error: any) {
+      clearTimeout(timeoutId);
       console.error('Error fetching documents:', error);
+      setDocuments([]);
+      if (error?.name === 'AbortError') {
+        console.warn('Documents request timed out after 20s');
+      }
     } finally {
       setLoadingDocuments(false);
     }
@@ -877,6 +888,13 @@ export default function ClientPage() {
                 <div className="card text-center py-12">
                   <DocumentTextIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-sm text-gray-600">No hay documentos disponibles aún.</p>
+                  <button
+                    type="button"
+                    onClick={() => fetchDocuments()}
+                    className="mt-4 px-4 py-2 text-sm font-medium text-brand-600 hover:text-brand-700 border border-brand-500 rounded-lg hover:bg-brand-50"
+                  >
+                    Reintentar
+                  </button>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

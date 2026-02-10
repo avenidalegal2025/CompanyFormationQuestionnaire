@@ -159,13 +159,13 @@ export async function POST(request: NextRequest) {
       managerCount: orgResolutionData.managerCount,
     });
     
-    // Step 4: Determine correct template
+    // Step 4: Determine correct template (LLC = resolution; C-Corp/S-Corp = organizational minutes from Gym Kidz template)
     const templatePath = entityType === 'LLC'
       ? getOrganizationalResolutionTemplateName(
           orgResolutionData.memberCount,
           orgResolutionData.managerCount
         )
-      : `${CORPORATE_TEMPLATE_BASE_PATH}/organizational-resolution-inc-${Math.min(Math.max(orgResolutionData.memberCount || 1, 1), 6)}.docx`;
+      : `${CORPORATE_TEMPLATE_BASE_PATH}/organizational-minutes-inc-${Math.min(Math.max(orgResolutionData.memberCount || 1, 1), 6)}.docx`;
     const templateUrl = `${TEMPLATE_BASE_URL}/${templatePath}`;
     
     console.log(`📄 Using template: ${templatePath}`);

@@ -920,8 +920,9 @@ export function mapAirtableToCorpOrganizationalResolution(record: any): any {
   const companyName = fields['Company Name'] || '';
   const formationState = fields['Formation State'] || '';
 
-  // Use Payment Date as formation date (legal long format)
-  const formationDate = formatLegalDate(fields['Payment Date']);
+  // Use Payment Date as formation date (legal long format) and keep raw value for witness date
+  const paymentDateRaw = fields['Payment Date'] || '';
+  const formationDate = formatLegalDate(paymentDateRaw);
 
   // Build full company address
   const rawCompanyAddress = (fields['Company Address'] || '').toString().trim();
@@ -942,11 +943,15 @@ export function mapAirtableToCorpOrganizationalResolution(record: any): any {
     companyAddress = companyAddressParts.join('\n');
   }
 
-  // Shareholders -> members placeholders
+  // Total authorized shares: always use 1,000 as base (Airtable "Number of Shares" or default 1000)
+  const totalShares = Math.max(1, Number(fields['Number of Shares']) || 1000);
+
+  // Shareholders (Owners) -> members for Lambda; add shares per owner from ownership %
   const members: Array<{
     name: string;
     address: string;
     ownershipPercent: number;
+    shares: number;
     ssn?: string;
   }> = [];
 
@@ -967,6 +972,7 @@ export function mapAirtableToCorpOrganizationalResolution(record: any): any {
     if (ownershipPercent > 0 && ownershipPercent <= 1) {
       ownershipPercent = ownershipPercent * 100;
     }
+    const shares = Math.round((totalShares * ownershipPercent) / 100);
 
     const ownerAddress = formatAddress(fields[`Owner ${i} Address`] || '');
     const ownerSSN = fields[`Owner ${i} SSN`] || '';
@@ -975,27 +981,30 @@ export function mapAirtableToCorpOrganizationalResolution(record: any): any {
       name: ownerName.trim(),
       address: ownerAddress,
       ownershipPercent: ownershipPercent,
+      shares,
       ssn: ownerSSN && ownerSSN.toUpperCase() !== 'N/A' && !ownerSSN.toUpperCase().includes('FOREIGN') ? ownerSSN : undefined,
     });
   }
 
   members.sort((a, b) => b.ownershipPercent - a.ownershipPercent);
 
-  // Officers -> managers placeholders (use President as Manager_1)
-  const managers: Array<{ name: string; address: string }> = [];
+  // Officers -> managers with name, address, role (Officer N Role from Airtable)
+  const managers: Array<{ name: string; address: string; role?: string }> = [];
   const officersCount = fields['Officers Count'] || 0;
   for (let i = 1; i <= Math.min(officersCount, 6); i++) {
     const officerName = fields[`Officer ${i} Name`] || '';
     if (!officerName || officerName.trim() === '') continue;
     const officerAddress = formatAddress(fields[`Officer ${i} Address`] || '');
+    const officerRole = (fields[`Officer ${i} Role`] || '').trim() || undefined;
     managers.push({
       name: officerName.trim(),
       address: officerAddress,
+      role: officerRole,
     });
   }
 
   if (managers.length === 0 && members.length > 0) {
-    managers.push({ name: members[0].name, address: members[0].address });
+    managers.push({ name: members[0].name, address: members[0].address, role: 'President; Director' });
   }
 
   return {
@@ -1003,6 +1012,8 @@ export function mapAirtableToCorpOrganizationalResolution(record: any): any {
     companyAddress: companyAddress,
     formationState: formationState,
     formationDate: formationDate,
+    paymentDateRaw,
+    totalShares,
     members: members,
     managers: managers,
     memberCount: members.length,

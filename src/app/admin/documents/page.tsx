@@ -96,9 +96,11 @@ export default function AdminDocumentsPage() {
     return () => clearTimeout(handle);
   }, [query, selectedCompany?.id, selectedCompany?.companyName]);
 
-  const fetchDocuments = async (recordId: string) => {
-    setLoading(true);
-    setError(null);
+  const fetchDocuments = async (recordId: string, options?: { silent?: boolean }) => {
+    if (!options?.silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const res = await fetch(`/api/admin/company-documents?recordId=${encodeURIComponent(recordId)}`);
       const data = await res.json();
@@ -108,11 +110,20 @@ export default function AdminDocumentsPage() {
       setSelectedCompany(data.company || null);
       setDocuments(data.documents || []);
     } catch (err: any) {
-      setError(err.message || "Error al cargar documentos");
+      if (!options?.silent) setError(err.message || "Error al cargar documentos");
     } finally {
-      setLoading(false);
+      if (!options?.silent) setLoading(false);
     }
   };
+
+  // Auto-refresh documents while a company is selected so client uploads appear without manual refresh
+  useEffect(() => {
+    if (!selectedCompany?.id) return;
+    const interval = setInterval(() => {
+      fetchDocuments(selectedCompany.id, { silent: true });
+    }, 60 * 1000);
+    return () => clearInterval(interval);
+  }, [selectedCompany?.id]);
 
   const selectCompany = (company: AdminCompany) => {
     setSuggestions([]);
@@ -165,6 +176,9 @@ export default function AdminDocumentsPage() {
       lower.includes("limited liability");
   };
 
+  const isDocumentSigned = (doc: any) =>
+    !!(doc.signedS3Key || doc.status === "signed" || doc.signedAt);
+
   const categorizeDocument = (doc: any) => {
     const docIdLower = (doc.id || "").toLowerCase();
 
@@ -172,7 +186,7 @@ export default function AdminDocumentsPage() {
       return "firmado";
     }
 
-    if (doc.signedS3Key || doc.status === "signed") {
+    if (isDocumentSigned(doc)) {
       return "firmado";
     }
 
@@ -538,42 +552,77 @@ export default function AdminDocumentsPage() {
 
             {!loading && activeTab !== "en-proceso" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredDocuments.map(doc => (
-                  <div key={doc.id} className="rounded-lg border border-gray-200 bg-white p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-start gap-3">
-                        <DocumentTextIcon className="h-6 w-6 text-blue-500" />
-                        <div>
-                          <div className="font-semibold text-gray-900">{doc.name || doc.id}</div>
-                          <div className="text-xs text-gray-500">{doc.type || "documento"}</div>
+                {filteredDocuments.map(doc => {
+                  const signed = isDocumentSigned(doc);
+                  return (
+                    <div key={doc.id} className="rounded-lg border border-gray-200 bg-white p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-3">
+                          <DocumentTextIcon className="h-6 w-6 text-blue-500" />
+                          <div>
+                            <div className="font-semibold text-gray-900">{doc.name || doc.id}</div>
+                            <div className="text-xs text-gray-500">{doc.type || "documento"}</div>
+                          </div>
                         </div>
+                        {activeTab === "firmado" && (
+                          <CheckCircleIcon className="h-6 w-6 text-green-600 shrink-0" />
+                        )}
                       </div>
-                      {activeTab === "firmado" && (
-                        <CheckCircleIcon className="h-6 w-6 text-green-600" />
-                      )}
+                      <ul className="mt-3 space-y-1.5 text-sm text-gray-600">
+                        <li className="flex items-center gap-2">
+                          {(doc.s3Key || doc.signedS3Key) ? (
+                            <CheckCircleIcon className="h-4 w-4 text-green-600 shrink-0" />
+                          ) : (
+                            <span className="h-4 w-4 rounded border-2 border-gray-300 shrink-0" />
+                          )}
+                          <span className={doc.s3Key || doc.signedS3Key ? "line-through text-gray-500" : ""}>
+                            1. Descargar
+                          </span>
+                        </li>
+                        <li className="flex items-center gap-2">
+                          {signed ? (
+                            <CheckCircleIcon className="h-4 w-4 text-green-600 shrink-0" />
+                          ) : (
+                            <span className="h-4 w-4 rounded border-2 border-gray-300 shrink-0" />
+                          )}
+                          <span className={signed ? "line-through text-gray-500" : ""}>
+                            2. Firmar
+                          </span>
+                        </li>
+                        <li className="flex items-center gap-2">
+                          {signed ? (
+                            <CheckCircleIcon className="h-4 w-4 text-green-600 shrink-0" />
+                          ) : (
+                            <span className="h-4 w-4 rounded border-2 border-gray-300 shrink-0" />
+                          )}
+                          <span className={signed ? "line-through text-gray-500" : ""}>
+                            3. Subir firmado
+                          </span>
+                        </li>
+                      </ul>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={() => handleDownload(doc)}
+                        >
+                          <ArrowDownTrayIcon className="h-4 w-4 mr-1" />
+                          Descargar
+                        </button>
+                        <label className="btn btn-primary cursor-pointer">
+                          <ArrowUpTrayIcon className="h-4 w-4 mr-1" />
+                          {activeTab === "firmado" ? "Reemplazar firmado" : "Subir firmado"}
+                          <input
+                            type="file"
+                            accept="application/pdf,.pdf"
+                            onChange={handleFileSelect(doc.id)}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
                     </div>
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        onClick={() => handleDownload(doc)}
-                      >
-                        <ArrowDownTrayIcon className="h-4 w-4 mr-1" />
-                        Descargar
-                      </button>
-                      <label className="btn btn-primary cursor-pointer">
-                        <ArrowUpTrayIcon className="h-4 w-4 mr-1" />
-                        {activeTab === "firmado" ? "Reemplazar firmado" : "Subir firmado"}
-                        <input
-                          type="file"
-                          accept="application/pdf,.pdf"
-                          onChange={handleFileSelect(doc.id)}
-                          className="hidden"
-                        />
-                      </label>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {filteredDocuments.length === 0 && (
                   <div className="text-sm text-gray-500">No hay documentos en esta sección.</div>
                 )}
