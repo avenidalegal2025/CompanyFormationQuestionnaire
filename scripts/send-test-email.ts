@@ -45,7 +45,7 @@ async function main() {
     <p>Hemos subido el documento firmado <strong>SS-4 (Solicitud de EIN)</strong> para <strong>Mi Empresa Test</strong>.</p>
     <p>Puedes verlo y descargarlo en la sección <strong>Completado</strong> de tu dashboard:</p>
     <p><a href="${dashboardUrl}">Abrir mi dashboard → Completado</a></p>
-    <p><strong>Este es un correo de prueba.</strong> En un envío real incluiríamos también un enlace directo de descarga (PDF) que expira en 1 hora.</p>
+    <p><strong>Este es un correo de prueba.</strong> En un envío real incluiríamos también un enlace directo de descarga (PDF) que expira en 7 días.</p>
     <p style="color:#555;">Avenida Legal</p>
   `;
 

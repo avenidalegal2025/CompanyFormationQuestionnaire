@@ -36,7 +36,7 @@ async function sendSignedDocumentNotification(params: {
     </table>
     <p><strong>Descargar documento firmado (PDF):</strong></p>
     <p><a href="${downloadUrl}">${downloadUrl}</a></p>
-    <p style="color: #555;">El enlace expira en 1 hora.</p>
+    <p style="color: #555;">El enlace expira en 7 días.</p>
   `;
 
   const command = new SendEmailCommand({

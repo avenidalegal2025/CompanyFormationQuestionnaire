@@ -94,8 +94,8 @@ export async function GET(request: NextRequest) {
             Key: obj.Key,
           });
           
-          // Generate presigned URL valid for 1 hour
-          const url = await getSignedUrl(s3Client, getCommand, { expiresIn: 3600 });
+          // Generate presigned URL valid for 7 days (S3 max)
+          const url = await getSignedUrl(s3Client, getCommand, { expiresIn: 7 * 24 * 60 * 60 });
           
           return {
             key: obj.Key,

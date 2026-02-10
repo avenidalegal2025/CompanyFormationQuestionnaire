@@ -33,8 +33,8 @@ export async function GET(
       );
     }
 
-    // Generate presigned URL (expires in 1 hour)
-    const downloadUrl = await getDocumentDownloadUrl(document.s3Key, 3600);
+    // Generate presigned URL (expires in 7 days, max allowed)
+    const downloadUrl = await getDocumentDownloadUrl(document.s3Key);
 
     return NextResponse.json({
       success: true,

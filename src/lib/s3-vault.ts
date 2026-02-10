@@ -196,12 +196,15 @@ export async function getFormDataSnapshot(sessionId: string): Promise<any | null
   }
 }
 
+/** S3 presigned URL maximum allowed by AWS (7 days) */
+const PRESIGNED_URL_MAX_EXPIRY_SECONDS = 7 * 24 * 60 * 60; // 604800
+
 /**
- * Generates a presigned URL for document download (expires in 1 hour)
+ * Generates a presigned URL for document download (expires in 7 days, AWS max)
  */
 export async function getDocumentDownloadUrl(
   s3Key: string,
-  expiresIn: number = 3600
+  expiresIn: number = PRESIGNED_URL_MAX_EXPIRY_SECONDS
 ): Promise<string> {
   const command = new GetObjectCommand({
     Bucket: BUCKET_NAME,
@@ -209,8 +212,7 @@ export async function getDocumentDownloadUrl(
   });
 
   const url = await getSignedUrl(s3Client, command, { expiresIn });
-  console.log(`🔗 Generated download URL for: ${s3Key} (expires in ${expiresIn}s)`);
-  
+  console.log(`🔗 Generated download URL for: ${s3Key} (expires in 7 days)`);
   return url;
 }
 
