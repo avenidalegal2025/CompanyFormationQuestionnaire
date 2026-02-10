@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Airtable from 'airtable';
 import { mapAirtableToBylaws } from '@/lib/airtable-to-forms';
 import { formatCompanyFileName } from '@/lib/document-names';
+import { convertDocxToPdf } from '@/lib/docx-to-pdf';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
 // Airtable configuration
@@ -159,28 +160,48 @@ export async function POST(request: NextRequest) {
 
     // Step 4: Generate DOCX
     const vaultPath = fields['Vault Path'] || sanitizeCompanyName(fields['Company Name'] || 'Company');
-    const fileName = formatCompanyFileName(fields['Company Name'] || 'Company', 'Bylaws', 'docx');
+    const docxBuffer = await callBylawsLambda(
+      bylawsData,
+      S3_BUCKET,
+      `${vaultPath}/formation/placeholder.docx`,
+      BYLAWS_TEMPLATE_URL
+    );
+
+    // Step 4b: Convert to PDF when conversion Lambda is configured
+    let bodyBuffer: Buffer = docxBuffer;
+    let extension: 'pdf' | 'docx' = 'docx';
+    let contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    try {
+      const pdfBuffer = await convertDocxToPdf(docxBuffer);
+      if (pdfBuffer) {
+        bodyBuffer = pdfBuffer;
+        extension = 'pdf';
+        contentType = 'application/pdf';
+        console.log('✅ Converted Bylaws to PDF');
+      }
+    } catch (convErr: any) {
+      console.warn('⚠️ DOCX→PDF conversion failed, storing DOCX:', convErr?.message);
+    }
+
+    const fileName = formatCompanyFileName(fields['Company Name'] || 'Company', 'Bylaws', extension);
     const s3Key = `${vaultPath}/formation/${fileName}`;
 
-    const docxBuffer = await callBylawsLambda(bylawsData, S3_BUCKET, s3Key, BYLAWS_TEMPLATE_URL);
-
-    // Step 5: Upload to S3 (Lambda already uploaded, but we do it again as backup)
     await s3Client.send(new PutObjectCommand({
       Bucket: S3_BUCKET,
       Key: s3Key,
-      Body: docxBuffer,
-      ContentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      Body: bodyBuffer,
+      ContentType: contentType,
     }));
 
-    console.log(`✅ Bylaws DOCX generated and uploaded: ${s3Key}`);
+    console.log(`✅ Bylaws ${extension.toUpperCase()} generated and uploaded: ${s3Key}`);
 
-    // Step 6: Update Airtable with DOCX URL (if requested)
+    // Step 5: Update Airtable (if requested)
     if (updateAirtable) {
       try {
-        const docxUrl = `https://${S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-west-1'}.amazonaws.com/${s3Key}`;
+        const docUrl = `https://${S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-west-1'}.amazonaws.com/${s3Key}`;
         await new Promise((resolve, reject) => {
           base(AIRTABLE_TABLE_NAME).update(recordId, {
-            'Bylaws URL': docxUrl,
+            'Bylaws URL': docUrl,
           }, (err: any, updatedRecord: any) => {
             if (err) {
               console.error('❌ Failed to update Airtable with Bylaws URL:', err);
@@ -201,7 +222,8 @@ export async function POST(request: NextRequest) {
       recordId: recordId,
       s3Key: s3Key,
       viewUrl: `https://${S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-west-1'}.amazonaws.com/${s3Key}`,
-      docxSize: docxBuffer.length,
+      docxSize: bodyBuffer.length,
+      format: extension,
     });
   } catch (error: any) {
     console.error('❌ Failed to generate Bylaws:', error);

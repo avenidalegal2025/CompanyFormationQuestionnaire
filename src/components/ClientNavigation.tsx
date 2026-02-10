@@ -20,10 +20,22 @@ interface ClientNavigationProps {
   onTabChange: (tab: string) => void;
 }
 
+interface Company {
+  id: string;
+  companyName: string;
+  entityType: string;
+  formationState: string;
+  formationStatus: string;
+  createdAt: string;
+  customerEmail: string;
+}
+
 export default function ClientNavigation({ currentTab, onTabChange }: ClientNavigationProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [userEmail, setUserEmail] = useState<string>('');
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [loadingCompanies, setLoadingCompanies] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
@@ -33,7 +45,25 @@ export default function ClientNavigation({ currentTab, onTabChange }: ClientNavi
     if (companyId) {
       setSelectedCompanyId(companyId);
     }
+    if (email) {
+      fetchCompanies(email);
+    }
   }, []);
+
+  const fetchCompanies = async (email: string) => {
+    try {
+      setLoadingCompanies(true);
+      const response = await fetch(`/api/companies?email=${encodeURIComponent(email)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setCompanies(data.companies || []);
+      }
+    } catch (error) {
+      console.error('Error fetching companies:', error);
+    } finally {
+      setLoadingCompanies(false);
+    }
+  };
 
   const handleCompanyChange = (companyId: string) => {
     setSelectedCompanyId(companyId);
@@ -55,29 +85,26 @@ export default function ClientNavigation({ currentTab, onTabChange }: ClientNavi
     router.push('/');
   };
 
-  const getCompanyDisplayName = () => {
-    if (typeof window === 'undefined') return 'Mi Empresa';
+  const getCompanyDisplayName = (company?: Company) => {
+    if (company) {
+      const name = company.companyName;
+      const state = company.formationState || '';
+      if (state) {
+        return `${name} a ${state} company`.trim();
+      }
+      return name;
+    }
     
+    // Fallback to localStorage if no company provided
+    if (typeof window === 'undefined') return 'Mi Empresa';
     const savedData = localStorage.getItem('questionnaireData');
     if (savedData) {
       try {
         const data = JSON.parse(savedData);
-        const { companyName, entityType, formationState } = data.company || {};
-        
-        if (!companyName) return 'Mi Empresa';
-        
-        // Format: "CompanyName EntityType a State company"
-        // Example: "Trimaran LLC a Florida company"
-        const name = companyName;
-        const type = entityType || '';
-        const state = formationState || '';
-        
-        if (state) {
-          return `${name} ${type} a ${state} company`.trim();
-        } else if (type) {
-          return `${name} ${type}`.trim();
-        } else {
-          return name;
+        const { companyName, formationState } = data.company || {};
+        if (companyName) {
+          const state = formationState || '';
+          return state ? `${companyName} a ${state} company`.trim() : companyName;
         }
       } catch (error) {
         console.error('Error parsing saved data:', error);
@@ -85,6 +112,9 @@ export default function ClientNavigation({ currentTab, onTabChange }: ClientNavi
     }
     return 'Mi Empresa';
   };
+
+  const selectedCompany = companies.find(c => c.id === selectedCompanyId) || companies[0];
+  const hasMultipleCompanies = companies.length > 1;
 
   const navigation = [
     { id: 'dashboard', name: 'Dashboard', icon: HomeIcon, href: '/client' },
@@ -119,26 +149,53 @@ export default function ClientNavigation({ currentTab, onTabChange }: ClientNavi
         <div className="flex flex-col h-full">
           {/* Logo/Header */}
           <div className="flex items-center justify-between h-20 px-6 border-b border-gray-200">
-            <h1 className="text-2xl font-bold text-gray-900">Mi Hub</h1>
+            <div className="flex-1 min-w-0">
+              {hasMultipleCompanies ? (
+                <h1 className="text-2xl font-bold text-gray-900">Mi Hub</h1>
+              ) : selectedCompany ? (
+                <h1 className="text-xl font-bold text-gray-900 truncate" title={getCompanyDisplayName(selectedCompany)}>
+                  {getCompanyDisplayName(selectedCompany)}
+                </h1>
+              ) : (
+                <h1 className="text-2xl font-bold text-gray-900">Mi Hub</h1>
+              )}
+            </div>
             <button
-              className="lg:hidden text-gray-400 hover:text-gray-600"
+              className="lg:hidden text-gray-400 hover:text-gray-600 flex-shrink-0 ml-2"
               onClick={() => setIsMobileMenuOpen(false)}
             >
               <XMarkIcon className="h-6 w-6" />
             </button>
           </div>
 
-          {/* Company Switcher */}
+          {/* Company Switcher or Company Name */}
           <div className="px-6 py-5 border-b border-gray-200 bg-gray-50">
-            <h2 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Empresa</h2>
-            {userEmail ? (
-              <CompanySwitcher
-                userEmail={userEmail}
-                selectedCompanyId={selectedCompanyId}
-                onCompanyChange={handleCompanyChange}
-              />
+            {hasMultipleCompanies ? (
+              <>
+                <h2 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Empresa</h2>
+                {userEmail && !loadingCompanies ? (
+                  <CompanySwitcher
+                    userEmail={userEmail}
+                    selectedCompanyId={selectedCompanyId}
+                    onCompanyChange={handleCompanyChange}
+                  />
+                ) : (
+                  <p className="text-sm text-gray-600">Cargando...</p>
+                )}
+              </>
             ) : (
-              <p className="text-sm font-medium text-gray-900 truncate">{getCompanyDisplayName()}</p>
+              <>
+                <h2 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Empresa</h2>
+                {loadingCompanies ? (
+                  <p className="text-sm text-gray-600">Cargando...</p>
+                ) : selectedCompany ? (
+                  <p className="text-sm font-medium text-gray-900 truncate" title={getCompanyDisplayName(selectedCompany)}>
+                    {getCompanyDisplayName(selectedCompany)}
+                  </p>
+                ) : (
+                  <p className="text-sm font-medium text-gray-900 truncate">{getCompanyDisplayName()}</p>
+                )}
+              </>
             )}
           </div>
 

@@ -1,0 +1,42 @@
+# CodeBuild: Build DOCX->PDF Lambda container (unofunction LibreOffice) and deploy to ECR + Lambda.
+# Use when you don't have Docker locally. Run create_docx_to_pdf_codebuild_project.sh then start build.
+
+version: 0.2
+
+env:
+  variables:
+    AWS_REGION: us-west-2
+    FUNCTION_NAME: docx-to-pdf-lambda
+    IMAGE_NAME: docx-to-pdf-lambda
+
+phases:
+  pre_build:
+    commands:
+      - echo "Logging in to Amazon ECR..."
+      - ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+      - ECR_URI="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${IMAGE_NAME}:latest"
+      - echo "ECR_URI=$ECR_URI" >> /tmp/ecr_uri
+      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+      - aws ecr describe-repositories --repository-names $IMAGE_NAME --region $AWS_REGION 2>/dev/null || aws ecr create-repository --repository-name $IMAGE_NAME --region $AWS_REGION
+  build:
+    commands:
+      - ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+      - ECR_URI="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${IMAGE_NAME}:latest"
+      - echo "Building Docker image..."
+      - docker build -f lambda-functions/Dockerfile.docx-to-pdf -t $IMAGE_NAME -t $ECR_URI lambda-functions/
+      - echo "Pushing to ECR..."
+      - docker push $ECR_URI
+      - echo "Updating Lambda function (image already pushed)..."
+      - |
+        if aws lambda update-function-code --function-name $FUNCTION_NAME --image-uri $ECR_URI --region $AWS_REGION 2>/dev/null; then
+          echo "Lambda code updated."
+        else
+          aws lambda delete-function --function-name $FUNCTION_NAME --region $AWS_REGION 2>/dev/null || true
+          echo "Function not found or was Zip; deploy script will create it after build."
+        fi
+      - aws lambda update-function-configuration --function-name $FUNCTION_NAME --memory-size 3008 --timeout 90 --region $AWS_REGION 2>/dev/null || true
+      - echo "DOCX-to-PDF Lambda image built and pushed."
+
+artifacts:
+  files: []
+  discard-paths: no

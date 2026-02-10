@@ -42,3 +42,11 @@ AWS_REGION=us-west-1
 AWS_ACCESS_KEY_ID=your_aws_access_key
 AWS_SECRET_ACCESS_KEY=your_aws_secret_key
 DYNAMO_TABLE=Company_Creation_Questionaire_Avenida_Legal
+S3_DOCUMENTS_BUCKET=avenida-legal-documents
+
+# DOCX→PDF: Lambda (us-west-2) and/or ConvertAPI fallback (set one or both)
+# Lambda requires AWS credentials with lambda:InvokeFunction on docx-to-pdf-lambda
+# ConvertAPI: sign up at convertapi.com, then set secret for reliable PDF conversion
+# LAMBDA_DOCX_TO_PDF_FUNCTION_NAME=docx-to-pdf-lambda
+# LAMBDA_DOCX_TO_PDF_REGION=us-west-2
+CONVERTAPI_SECRET=

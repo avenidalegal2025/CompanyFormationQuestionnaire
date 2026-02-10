@@ -238,10 +238,21 @@ export default function AdminDocumentsPage() {
         throw new Error(data.error || "Error al subir documento firmado");
       }
 
-      await fetchDocuments(selectedCompany.id);
+      // Optimistic update: mark this doc as signed so it leaves "Por firmar" and appears only in "Completado"
+      const updated = data.document;
+      if (updated?.id) {
+        setDocuments(prev =>
+          prev.map(d =>
+            d.id === updated.id
+              ? { ...d, signedS3Key: updated.signedS3Key, status: "signed" as const, signedAt: updated.signedAt }
+              : d
+          )
+        );
+      }
       if (activeTab === "por-firmar") {
         setActiveTab("firmado");
       }
+      await fetchDocuments(selectedCompany.id);
     } catch (err: any) {
       alert(err.message || "Error al subir documento firmado");
     } finally {

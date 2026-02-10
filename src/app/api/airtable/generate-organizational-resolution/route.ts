@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Airtable from 'airtable';
 import { mapAirtableToMembershipRegistry, getOrganizationalResolutionTemplateName, mapAirtableToCorpOrganizationalResolution, formatLegalDate } from '@/lib/airtable-to-forms';
 import { formatCompanyFileName, formatCompanyDocumentTitle } from '@/lib/document-names';
+import { convertDocxToPdf } from '@/lib/docx-to-pdf';
 import { getUserCompanyDocuments, saveUserCompanyDocuments } from '@/lib/dynamo';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
@@ -172,22 +173,42 @@ export async function POST(request: NextRequest) {
     
     // Step 5: Generate DOCX
     const vaultPath = fields['Vault Path'] || sanitizeFilename(fields['Company Name'] || 'Company');
-    const fileName = formatCompanyFileName(fields['Company Name'] || 'Company', 'Organizational Resolution', 'docx');
+    const docxBuffer = await callOrganizationalResolutionLambda(
+      orgResolutionData,
+      S3_BUCKET,
+      `${vaultPath}/formation/placeholder.docx`,
+      templateUrl
+    );
+
+    // Step 5b: Convert to PDF when conversion Lambda is configured
+    let bodyBuffer: Buffer = docxBuffer;
+    let extension: 'pdf' | 'docx' = 'docx';
+    let contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    try {
+      const pdfBuffer = await convertDocxToPdf(docxBuffer);
+      if (pdfBuffer) {
+        bodyBuffer = pdfBuffer;
+        extension = 'pdf';
+        contentType = 'application/pdf';
+        console.log('✅ Converted Organizational Resolution to PDF');
+      }
+    } catch (convErr: any) {
+      console.warn('⚠️ DOCX→PDF conversion failed, storing DOCX:', convErr?.message);
+    }
+
+    const fileName = formatCompanyFileName(fields['Company Name'] || 'Company', 'Organizational Resolution', extension);
     const s3Key = `${vaultPath}/formation/${fileName}`;
-    
-    const docxBuffer = await callOrganizationalResolutionLambda(orgResolutionData, S3_BUCKET, s3Key, templateUrl);
-    
-    // Step 6: Upload to S3 (Lambda already uploaded, but we do it again as backup)
+
     await s3Client.send(new PutObjectCommand({
       Bucket: S3_BUCKET,
       Key: s3Key,
-      Body: docxBuffer,
-      ContentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      Body: bodyBuffer,
+      ContentType: contentType,
     }));
-    
-    console.log(`✅ Organizational Resolution DOCX generated and uploaded: ${s3Key}`);
-    
-    // Step 7: Update DynamoDB document record to use new filename
+
+    console.log(`✅ Organizational Resolution ${extension.toUpperCase()} generated and uploaded: ${s3Key}`);
+
+    // Step 6: Update DynamoDB document record with final s3Key
     const customerEmail = ((fields['Customer Email'] as string) || '').toLowerCase().trim();
     if (customerEmail) {
       try {
@@ -208,13 +229,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Step 8: Update Airtable with DOCX URL (if requested)
+    // Step 7: Update Airtable (if requested)
     if (updateAirtable) {
       try {
-        const docxUrl = `https://${S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-west-1'}.amazonaws.com/${s3Key}`;
+        const docUrl = `https://${S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-west-1'}.amazonaws.com/${s3Key}`;
         await new Promise((resolve, reject) => {
           base(AIRTABLE_TABLE_NAME).update(recordId, {
-            'Organizational Resolution URL': docxUrl,
+            'Organizational Resolution URL': docUrl,
           }, (err: any, record: any) => {
             if (err) {
               console.error('❌ Failed to update Airtable with Organizational Resolution URL:', err);
@@ -229,13 +250,14 @@ export async function POST(request: NextRequest) {
         console.error('⚠️ Failed to update Airtable (continuing anyway):', updateError);
       }
     }
-    
+
     return NextResponse.json({
       success: true,
       recordId: recordId,
       s3Key: s3Key,
       viewUrl: `https://${S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-west-1'}.amazonaws.com/${s3Key}`,
-      docxSize: docxBuffer.length,
+      docxSize: bodyBuffer.length,
+      format: extension,
     });
   } catch (error: any) {
     console.error('❌ Failed to generate Organizational Resolution:', error);

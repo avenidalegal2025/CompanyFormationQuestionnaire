@@ -246,19 +246,22 @@ export async function POST(request: NextRequest) {
       // Don't fail the upload if Airtable update fails
     }
 
-    try {
-      const downloadUrl = await getDocumentDownloadUrl(uploadResult.s3Key);
-      const docName = document.name || documentId;
-      await sendSignedDocumentNotification({
-        documentId,
-        documentName: docName,
-        userEmail: userId,
-        companyName,
-        downloadUrl,
-      });
-      console.log(`📧 Signed document email sent for ${documentId}`);
-    } catch (emailError: any) {
-      console.error('❌ Failed to send signed document email:', emailError.message);
+    // Notify lawyer by email only when client signs the SS-4; other signings are visible in Admin dashboard
+    if (documentId === 'ss4-ein-application') {
+      try {
+        const downloadUrl = await getDocumentDownloadUrl(uploadResult.s3Key);
+        const docName = document.name || documentId;
+        await sendSignedDocumentNotification({
+          documentId,
+          documentName: docName,
+          userEmail: userId,
+          companyName,
+          downloadUrl,
+        });
+        console.log(`📧 SS-4 signed: lawyer notification email sent for ${documentId}`);
+      } catch (emailError: any) {
+        console.error('❌ Failed to send SS-4 signed email to lawyer:', emailError.message);
+      }
     }
 
     // Return the full updated document (not just the changed fields)

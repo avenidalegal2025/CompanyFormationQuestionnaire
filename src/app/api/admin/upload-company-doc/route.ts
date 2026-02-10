@@ -4,9 +4,9 @@ import { authOptions } from '@/lib/auth';
 import Airtable from 'airtable';
 import { getUserDocuments, getVaultMetadata, saveUserCompanyDocuments } from '@/lib/dynamo';
 import { formatCompanyDocumentTitle, formatCompanyFileName } from '@/lib/document-names';
-import { uploadDocument, getDocumentDownloadUrl } from '@/lib/s3-vault';
+import { uploadDocument } from '@/lib/s3-vault';
 import { updateFormationRecord } from '@/lib/airtable';
-import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
+import { sendEmailWithPdfAttachment } from '@/lib/ses-email';
 
 const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY?.trim() || '';
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID?.trim() || '';
@@ -18,13 +18,11 @@ if (!AIRTABLE_API_KEY || !AIRTABLE_BASE_ID) {
 
 const base = new Airtable({ apiKey: AIRTABLE_API_KEY }).base(AIRTABLE_BASE_ID);
 
-const sesClient = new SESClient({
-  region: process.env.AWS_REGION || 'us-east-1',
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
-  },
-});
+function isPdf(file: File): boolean {
+  const name = (file.name || '').toLowerCase();
+  const type = (file.type || '').toLowerCase();
+  return type === 'application/pdf' || name.endsWith('.pdf');
+}
 
 // Same authorized emails as screenshots admin
 const AUTHORIZED_EMAILS = [
@@ -58,6 +56,13 @@ export async function POST(request: NextRequest) {
     if (!recordId || !docType || !file) {
       return NextResponse.json(
         { error: 'Missing recordId, docType, or file' },
+        { status: 400 }
+      );
+    }
+
+    if (!isPdf(file)) {
+      return NextResponse.json(
+        { error: 'Solo se permiten archivos PDF. Sube el documento en PDF para que el cliente lo reciba sin problemas de formato.' },
         { status: 400 }
       );
     }
@@ -203,32 +208,28 @@ export async function POST(request: NextRequest) {
     try {
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://company-formation-questionnaire.vercel.app';
       const dashboardUrl = `${baseUrl}/client/documents?tab=firmado`;
-      const downloadUrl = await getDocumentDownloadUrl(uploadResult.s3Key, 3600);
+      const viewUrl = `${baseUrl}/api/documents/view?key=${encodeURIComponent(uploadResult.s3Key)}`;
 
       const subject = `✅ Documento disponible: ${documentName}`;
-      const body = `
+      const htmlBody = `
         <h2>Tu documento está listo</h2>
         <p>Hemos subido el documento <strong>${documentName}</strong> para tu empresa.</p>
-        <p>Entra a tu dashboard para verlo en la sección <strong>Completado</strong>:</p>
-        <p><a href="${dashboardUrl}">${dashboardUrl}</a></p>
-        <p><strong>Enlace directo de descarga (PDF):</strong></p>
-        <p><a href="${downloadUrl}">${downloadUrl}</a></p>
-        <p style="color:#555;">El enlace expira en 1 hora.</p>
+        <p><strong>El PDF está adjunto a este correo.</strong> También puedes verlo en la sección <strong>Completado</strong> de tu dashboard:</p>
+        <p><a href="${dashboardUrl}">Abrir mi dashboard → Completado</a></p>
+        <p><a href="${viewUrl}">Ver / descargar documento en el navegador</a></p>
       `;
 
-      const command = new SendEmailCommand({
-        Source: 'avenidalegal.2024@gmail.com',
-        Destination: { ToAddresses: [customerEmail] },
-        Message: {
-          Subject: { Data: subject },
-          Body: { Html: { Data: body } },
-        },
+      await sendEmailWithPdfAttachment({
+        from: 'avenidalegal.2024@gmail.com',
+        to: [customerEmail],
+        subject,
+        htmlBody,
+        pdfBuffer: buffer,
+        pdfFileName: fileName,
       });
-
-      await sesClient.send(command);
-      console.log(`📧 Sent client document email to ${customerEmail}`);
+      console.log(`📧 Sent client document email with PDF attachment to ${customerEmail}`);
     } catch (emailError: any) {
-      console.error('❌ Failed to send client document email:', emailError.message);
+      console.error('❌ Failed to send client document email:', (emailError as Error)?.message ?? emailError);
     }
 
     return NextResponse.json({

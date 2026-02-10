@@ -58,6 +58,8 @@ export default function ClientPage() {
   const [companyData, setCompanyData] = useState<any>(null);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [loadingCompanies, setLoadingCompanies] = useState(true);
   const [businessPhone, setBusinessPhone] = useState<{ phoneNumber: string; forwardToE164: string } | null>(null);
   const [hasUsPhone, setHasUsPhone] = useState<boolean>(true); // Default to true = hide phone section
   const [needsUsPhoneFromAvenida, setNeedsUsPhoneFromAvenida] = useState<boolean>(false);
@@ -178,9 +180,19 @@ export default function ClientPage() {
     fetchDocuments();
   }, []); // Only run once on mount - don't re-run when selectedCompanyId changes
 
+  // Fetch userEmail and companies on mount
+  useEffect(() => {
+    const email = localStorage.getItem('userEmail') || '';
+    setUserEmail(email);
+    if (email) {
+      fetchAllCompanies();
+    }
+  }, []);
+
   // Refetch companies when userEmail changes (e.g., after payment)
   useEffect(() => {
     if (userEmail) {
+      fetchAllCompanies();
       // Check if payment was just completed
       const checkPaymentCompleted = localStorage.getItem('paymentCompleted');
       if (checkPaymentCompleted === 'true') {
@@ -190,10 +202,27 @@ export default function ClientPage() {
           // Don't clear paymentCompleted here - let CompanySwitcher handle it
           // This ensures the newest company is selected
           console.log('💳 Payment completed, waiting for new company to appear...');
+          fetchAllCompanies();
         }, 3000);
       }
     }
   }, [userEmail]);
+
+  const fetchAllCompanies = async () => {
+    if (!userEmail) return;
+    try {
+      setLoadingCompanies(true);
+      const response = await fetch(`/api/companies?email=${encodeURIComponent(userEmail)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setCompanies(data.companies || []);
+      }
+    } catch (error) {
+      console.error('Error fetching companies:', error);
+    } finally {
+      setLoadingCompanies(false);
+    }
+  };
 
   const fetchCompanyData = async () => {
     try {
@@ -527,7 +556,7 @@ export default function ClientPage() {
                   </p>
                 </div>
                 <div className="flex items-center space-x-4 flex-shrink-0">
-                  {userEmail && (
+                  {userEmail && companies.length > 1 && !loadingCompanies && (
                     <CompanySwitcher
                       userEmail={userEmail}
                       selectedCompanyId={selectedCompanyId}

@@ -5,6 +5,7 @@
  *
  * Usage:
  *   npx ts-node --project tsconfig.scripts.json scripts/regenerate-formation-docs.ts "AVENIDA E2E TEST 847292"
+ *   npx ts-node --project tsconfig.scripts.json scripts/regenerate-formation-docs.ts "E2E Format Verify Florida"
  *   npx ts-node --project tsconfig.scripts.json scripts/regenerate-formation-docs.ts recXXXXXXXXXXXXXX
  *
  * Requires: AIRTABLE_API_KEY, AIRTABLE_BASE_ID, AIRTABLE_TABLE_NAME in env (e.g. from .env.local).
@@ -12,6 +13,24 @@
  */
 
 import Airtable from 'airtable';
+import * as fs from 'fs';
+import * as path from 'path';
+
+// Load .env.local if it exists
+try {
+  const envPath = path.join(__dirname, '..', '.env.local');
+  if (fs.existsSync(envPath)) {
+    const envContent = fs.readFileSync(envPath, 'utf8');
+    envContent.split('\n').forEach((line) => {
+      const match = line.match(/^([^=]+)=(.*)$/);
+      if (match && !process.env[match[1].trim()]) {
+        process.env[match[1].trim()] = match[2].trim().replace(/^["']|["']$/g, '');
+      }
+    });
+  }
+} catch {
+  // Ignore errors loading .env.local
+}
 
 const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY?.trim() || '';
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID?.trim() || '';

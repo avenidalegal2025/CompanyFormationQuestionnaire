@@ -1,0 +1,17 @@
+# Use unofunction's LibreOffice build (known to work in Lambda; shelfio layer throws NoSuchElementException)
+FROM --platform=linux/amd64 unofunction/libreoffice AS libreoffice
+
+FROM public.ecr.aws/lambda/python:3.11
+
+# Copy LibreOffice and libs from unofunction image
+COPY --from=libreoffice /opt/libreoffice /opt/libreoffice
+COPY --from=libreoffice /usr/lib64 /usr/lib64
+COPY --from=libreoffice /etc/fonts /etc/fonts
+COPY --from=libreoffice /usr/share/fonts /usr/share/fonts
+COPY --from=libreoffice /usr/include/X11/fonts /usr/include/X11/fonts
+
+ENV LIBREOFFICE_PATH=/opt/libreoffice/program/soffice.bin
+ENV LD_LIBRARY_PATH=/opt/libreoffice/program:/usr/lib64:${LD_LIBRARY_PATH}
+
+COPY docx_to_pdf_lambda.py ${LAMBDA_TASK_ROOT}/
+CMD [ "docx_to_pdf_lambda.lambda_handler" ]

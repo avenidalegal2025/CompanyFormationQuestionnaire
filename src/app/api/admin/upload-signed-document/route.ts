@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import Airtable from 'airtable';
-import { getUserCompanyDocuments, saveUserCompanyDocuments } from '@/lib/dynamo';
+import { dedupeDocumentsById, getUserCompanyDocuments, saveUserCompanyDocuments } from '@/lib/dynamo';
 import { uploadDocument } from '@/lib/s3-vault';
 import { updateFormationRecord } from '@/lib/airtable';
+import { sendEmailWithPdfAttachment } from '@/lib/ses-email';
 
 const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY?.trim() || '';
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID?.trim() || '';
@@ -17,6 +18,12 @@ const AUTHORIZED_EMAILS = [
   'info@avenidalegal.com',
   'rodolfo@avenidalegal.lat',
 ];
+
+function isPdf(file: File): boolean {
+  const name = (file.name || '').toLowerCase();
+  const type = (file.type || '').toLowerCase();
+  return type === 'application/pdf' || name.endsWith('.pdf');
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,6 +46,13 @@ export async function POST(request: NextRequest) {
     if (!recordId || !documentId || !file) {
       return NextResponse.json(
         { error: 'Missing recordId, documentId, or file' },
+        { status: 400 }
+      );
+    }
+
+    if (!isPdf(file)) {
+      return NextResponse.json(
+        { error: 'Solo se permiten archivos PDF. Sube el documento firmado en PDF para que el cliente lo reciba correctamente.' },
         { status: 400 }
       );
     }
@@ -76,7 +90,7 @@ export async function POST(request: NextRequest) {
       folder,
       signedFileName,
       buffer,
-      file.type || 'application/pdf'
+      'application/pdf'
     );
 
     const now = new Date().toISOString();
@@ -90,7 +104,8 @@ export async function POST(request: NextRequest) {
       };
     });
 
-    await saveUserCompanyDocuments(customerEmail, recordId, updatedDocuments);
+    const dedupedDocuments = dedupeDocumentsById(updatedDocuments);
+    await saveUserCompanyDocuments(customerEmail, recordId, dedupedDocuments);
 
     // Update Airtable for tax forms if needed
     let airtableField: string | null = null;
@@ -110,6 +125,38 @@ export async function POST(request: NextRequest) {
     }
 
     const updatedDoc = updatedDocuments.find(d => d.id === documentId);
+    const documentName = updatedDoc?.name || existingDoc?.name || documentId;
+    const companyName = (fields['Company Name'] as string) || 'tu empresa';
+
+    // Notify client by email (from Avenida Legal) with PDF attached so they have the file and can verify in Completado
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://company-formation-questionnaire.vercel.app';
+      const dashboardUrl = `${baseUrl}/client/documents?tab=firmado`;
+      const viewUrl = `${baseUrl}/api/documents/view?key=${encodeURIComponent(uploadResult.s3Key)}`;
+      const safeName = (documentName || documentId).replace(/[^\w\s\-\.]/g, '').trim() || 'documento';
+      const pdfAttachmentName = `${safeName}.pdf`;
+
+      const subject = `✅ Documento firmado disponible: ${documentName}`;
+      const htmlBody = `
+        <h2>Documento firmado subido por Avenida Legal</h2>
+        <p>Hemos subido el documento firmado <strong>${documentName}</strong> para ${companyName}.</p>
+        <p><strong>El PDF está adjunto a este correo.</strong> También puedes verlo y descargarlo en la sección <strong>Completado</strong> de tu dashboard:</p>
+        <p><a href="${dashboardUrl}">Abrir mi dashboard → Completado</a></p>
+        <p><a href="${viewUrl}">Ver / descargar documento en el navegador</a></p>
+      `;
+
+      await sendEmailWithPdfAttachment({
+        from: 'avenidalegal.2024@gmail.com',
+        to: [customerEmail],
+        subject,
+        htmlBody,
+        pdfBuffer: buffer,
+        pdfFileName: pdfAttachmentName,
+      });
+      console.log(`📧 Sent signed-document notification with PDF attachment to ${customerEmail}`);
+    } catch (emailError: any) {
+      console.error('❌ Failed to send client signed-document email:', emailError?.message || emailError);
+    }
 
     return NextResponse.json({
       success: true,
