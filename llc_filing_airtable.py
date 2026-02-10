@@ -450,9 +450,18 @@ def main(record_id=None):
         driver.get("https://efile.sunbiz.org/llc_file.html")
         upload_file_to_s3(screenshot(driver, "start"), llc_name, "screenshots")
         
-        # Accept disclaimer and start filing
-        wait.until(EC.element_to_be_clickable((By.ID, "disclaimer_read"))).click()
-        wait.until(EC.element_to_be_clickable((By.XPATH, "//input[@value='Start New Filing']"))).click()
+        # Accept disclaimer: click the "I have read and accept..." checkbox so "Start New Filing" enables
+        try:
+            disclaimer = wait.until(EC.element_to_be_clickable((By.ID, "disclaimer_read")))
+            disclaimer.click()
+        except Exception:
+            # Fallback: checkbox by label text (Sunbiz may use different ID)
+            disclaimer = driver.find_element(By.XPATH, "//input[@type='checkbox' and (contains(../., 'accept the terms') or contains(../., 'read and accept'))]")
+            driver.execute_script("arguments[0].click();", disclaimer)
+        time.sleep(1.5)  # Let the page enable the "Start New Filing" button
+        start_btn = driver.find_element(By.XPATH, "//input[@value='Start New Filing']")
+        WebDriverWait(driver, 10).until(lambda d: start_btn.get_attribute("disabled") is None)
+        start_btn.click()
         time.sleep(2)
         
         # === LLC Info ===
