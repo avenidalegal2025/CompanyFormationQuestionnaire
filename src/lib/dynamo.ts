@@ -90,6 +90,44 @@ export interface DocumentRecord {
   size?: number;
 }
 
+export function dedupeDocumentsById(documents: DocumentRecord[]): DocumentRecord[] {
+  const byId = new Map<string, DocumentRecord>();
+  const score = (doc: DocumentRecord) => {
+    let points = 0;
+    if (doc.signedS3Key) points += 100;
+    if (doc.status === 'signed') points += 50;
+    if (doc.signedAt) points += 20;
+    if (doc.s3Key) points += 10;
+    if (doc.name) points += 5;
+    return points;
+  };
+
+  for (const doc of documents) {
+    const id = doc.id || '';
+    if (!id) continue;
+    const existing = byId.get(id);
+    if (!existing) {
+      byId.set(id, doc);
+      continue;
+    }
+    const existingScore = score(existing);
+    const nextScore = score(doc);
+    if (nextScore > existingScore) {
+      byId.set(id, doc);
+      continue;
+    }
+    if (nextScore === existingScore && doc.signedAt && existing.signedAt) {
+      const nextTime = Date.parse(doc.signedAt);
+      const existingTime = Date.parse(existing.signedAt);
+      if (!Number.isNaN(nextTime) && !Number.isNaN(existingTime) && nextTime > existingTime) {
+        byId.set(id, doc);
+      }
+    }
+  }
+
+  return Array.from(byId.values());
+}
+
 // Vault metadata
 export interface VaultMetadata {
   vaultPath: string; // e.g., "trimaran-llc-abc123de"
@@ -398,27 +436,21 @@ export async function getUserCompanyDocuments(
 
   // If new structure exists, read from it
   if (item.companyDocuments && typeof item.companyDocuments === 'object') {
-    // If companyId is provided, try to get documents for that specific company
+    // If companyId is provided, return ONLY that company's documents (no fallback to all companies)
     if (companyId) {
       const companyDocs = item.companyDocuments[companyId];
-      if (companyDocs && Array.isArray(companyDocs) && companyDocs.length > 0) {
-        return companyDocs;
+      if (companyDocs && Array.isArray(companyDocs)) {
+        return dedupeDocumentsById(companyDocs);
       }
-      // If specific companyId not found, fall back to 'default' (backwards compatibility)
-      const defaultDocs = item.companyDocuments['default'];
-      if (defaultDocs && Array.isArray(defaultDocs) && defaultDocs.length > 0) {
-        return defaultDocs;
-      }
-    } else {
-      // No companyId provided - try 'default' first (backwards compatibility)
-      const defaultDocs = item.companyDocuments['default'];
-      if (defaultDocs && Array.isArray(defaultDocs) && defaultDocs.length > 0) {
-        return defaultDocs;
-      }
+      // Strict: do not fall back to default or merge all companies when a specific company was requested
+      return [];
     }
-    
-    // If specific company not found and no default, return ALL documents from all companies
-    // This ensures users can see their documents even if companyId doesn't match
+    // No companyId provided - try 'default' first (backwards compatibility)
+    const defaultDocs = item.companyDocuments['default'];
+    if (defaultDocs && Array.isArray(defaultDocs) && defaultDocs.length > 0) {
+      return dedupeDocumentsById(defaultDocs);
+    }
+    // No companyId and no default: return ALL documents from all companies (legacy / client)
     const allDocs: DocumentRecord[] = [];
     for (const key of Object.keys(item.companyDocuments)) {
       const arr = item.companyDocuments[key];
@@ -427,12 +459,12 @@ export async function getUserCompanyDocuments(
       }
     }
     if (allDocs.length > 0) {
-      return allDocs;
+      return dedupeDocumentsById(allDocs);
     }
   }
 
   // Backwards‑compatibility: fall back to legacy flat `documents` array
-  return item.documents ?? [];
+  return dedupeDocumentsById(item.documents ?? []);
 }
 
 export async function addUserCompanyDocument(
@@ -471,7 +503,7 @@ export async function getAllUserDocuments(userId: string): Promise<DocumentRecor
     all.push(...item.documents);
   }
 
-  return all;
+  return dedupeDocumentsById(all);
 }
 
 // Backwards‑compatibility shims: legacy per‑user document helpers
