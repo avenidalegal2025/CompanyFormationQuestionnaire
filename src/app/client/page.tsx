@@ -219,7 +219,19 @@ export default function ClientPage() {
       const response = await fetch(`/api/companies?email=${encodeURIComponent(userEmail)}`);
       if (response.ok) {
         const data = await response.json();
-        setCompanies(data.companies || []);
+        const fetchedCompanies = data.companies || [];
+        setCompanies(fetchedCompanies);
+
+        // Auto-select when there's exactly 1 company and none is selected
+        if (fetchedCompanies.length >= 1 && !selectedCompanyId && !localStorage.getItem('selectedCompanyId')) {
+          const newestCompany = fetchedCompanies[0]; // Companies are returned newest first
+          if (newestCompany?.id) {
+            console.log('🔄 Auto-selecting company (single or first):', newestCompany.id);
+            setSelectedCompanyId(newestCompany.id);
+            localStorage.setItem('selectedCompanyId', newestCompany.id);
+            localStorage.removeItem('paymentCompleted'); // Clear payment flag
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching companies:', error);
