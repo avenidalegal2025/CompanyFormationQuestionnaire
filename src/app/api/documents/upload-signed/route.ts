@@ -4,15 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { getUserDocuments, getUserCompanyDocuments, saveUserCompanyDocuments, getVaultMetadata } from '@/lib/dynamo';
 import { uploadDocument, getDocumentDownloadUrl } from '@/lib/s3-vault';
 import { findFormationByEmail, updateFormationRecord } from '@/lib/airtable';
-import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
-
-const sesClient = new SESClient({
-  region: process.env.AWS_REGION || 'us-east-1',
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
-  },
-});
+import { sendHtmlEmail } from '@/lib/ses-email';
 
 async function sendSignedDocumentNotification(params: {
   documentId: string;
@@ -27,7 +19,7 @@ async function sendSignedDocumentNotification(params: {
     ? `❗ SS-4 firmada: ${documentName}`
     : `✅ Documento firmado: ${documentName}`;
 
-  const body = `
+  const htmlBody = `
     <h2>Documento firmado recibido</h2>
     <table style="border-collapse: collapse; margin: 16px 0;">
       ${companyName ? `<tr><td style="padding: 6px 10px; border: 1px solid #ddd;"><strong>Empresa:</strong></td><td style="padding: 6px 10px; border: 1px solid #ddd;">${companyName}</td></tr>` : ''}
@@ -39,18 +31,12 @@ async function sendSignedDocumentNotification(params: {
     <p style="color: #555;">El enlace expira en 7 días.</p>
   `;
 
-  const command = new SendEmailCommand({
-    Source: 'avenidalegal.2024@gmail.com',
-    Destination: {
-      ToAddresses: ['avenidalegal.2024@gmail.com'],
-    },
-    Message: {
-      Subject: { Data: subject },
-      Body: { Html: { Data: body } },
-    },
+  await sendHtmlEmail({
+    from: 'avenidalegal.2024@gmail.com',
+    to: ['avenidalegal.2024@gmail.com'],
+    subject,
+    htmlBody,
   });
-
-  await sesClient.send(command);
 }
 
 export async function POST(request: NextRequest) {

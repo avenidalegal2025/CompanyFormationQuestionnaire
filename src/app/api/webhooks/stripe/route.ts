@@ -6,64 +6,56 @@ import { formatCompanyDocumentTitle, formatCompanyFileName } from '@/lib/documen
 import { createVaultStructure, copyTemplateToVault, getFormDataSnapshot } from '@/lib/s3-vault';
 import { createFormationRecord, mapQuestionnaireToAirtable, findFormationByStripeId } from '@/lib/airtable';
 import { generate2848PDF, generate8821PDF } from '@/lib/pdf-filler';
-import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
-import { sendEmailWithMultipleAttachments } from '@/lib/ses-email';
-
-// SES client for email notifications
-const sesClient = new SESClient({
-  region: process.env.AWS_REGION || 'us-east-1',
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
-  },
-});
+import { sendEmailWithMultipleAttachments, sendHtmlEmail } from '@/lib/ses-email';
 
 // Send notification email for new company formations
-async function sendNewCompanyNotification(companyName: string, customerEmail: string, entityType: string, state: string) {
+async function sendNewCompanyNotification(
+  companyName: string,
+  customerEmail: string,
+  entityType: string,
+  state: string,
+  airtableRecordId?: string,
+  invoiceUrl?: string,
+) {
   try {
-    // Create viewer URL for screenshots (authenticated, presigned)
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://company-formation-questionnaire.vercel.app';
     const screenshotsUrl = `${baseUrl}/admin/screenshots?company=${encodeURIComponent(companyName)}`;
-    
-    const command = new SendEmailCommand({
-      Source: 'avenidalegal.2024@gmail.com',
-      Destination: {
-        ToAddresses: ['avenidalegal.2024@gmail.com'],
-      },
-      Message: {
-        Subject: {
-          Data: `🏢 Nueva Empresa: ${companyName} - Requiere Aprobación`,
-        },
-        Body: {
-          Html: {
-            Data: `
-              <h2>Nueva Empresa Registrada</h2>
-              <p>Se ha registrado una nueva empresa que requiere aprobación para el auto-filing:</p>
-              <table style="border-collapse: collapse; margin: 20px 0;">
-                <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Empresa:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${companyName}</td></tr>
-                <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Tipo:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${entityType}</td></tr>
-                <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Estado:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${state}</td></tr>
-                <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Cliente:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${customerEmail}</td></tr>
-              </table>
-              <p><strong>Acción Requerida:</strong></p>
-              <ol>
-                <li>Revisar los datos en Airtable</li>
-                <li>Si todo está correcto, cambiar la columna <strong>Autofill</strong> a <strong>"Yes"</strong></li>
-                <li>El sistema automáticamente llenará el formulario de Sunbiz</li>
-                <li>Las capturas de pantalla estarán disponibles en: <a href="${screenshotsUrl}">Ver Screenshots</a></li>
-              </ol>
-              <p style="margin-top: 20px;">
-                <a href="https://airtable.com/app8Ggz2miYds1F38" style="background: #0066cc; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-right: 10px;">Abrir Airtable</a>
-                <a href="${screenshotsUrl}" style="background: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Ver Screenshots</a>
-              </p>
-            `,
-          },
-        },
-      },
-    });
+    // Link directly to the admin documents panel with a search query for the company
+    const adminDocsUrl = `${baseUrl}/admin/documents`;
 
-    await sesClient.send(command);
+    const invoiceRow = invoiceUrl
+      ? `<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Factura:</strong></td><td style="padding: 8px; border: 1px solid #ddd;"><a href="${invoiceUrl}">Ver comprobante de pago</a></td></tr>`
+      : '';
+
+    await sendHtmlEmail({
+      from: 'avenidalegal.2024@gmail.com',
+      to: ['avenidalegal.2024@gmail.com'],
+      subject: `🏢 Nueva Empresa: ${companyName} - Requiere Aprobación`,
+      htmlBody: `
+        <h2>Nueva Empresa Registrada</h2>
+        <p>Se ha registrado una nueva empresa que requiere aprobación para el auto-filing:</p>
+        <table style="border-collapse: collapse; margin: 20px 0;">
+          <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Empresa:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${companyName}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Tipo:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${entityType}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Estado:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${state}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Cliente:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${customerEmail}</td></tr>
+          ${invoiceRow}
+        </table>
+        <p><strong>Acción Requerida:</strong></p>
+        <ol>
+          <li>Revisar los documentos de la empresa en el <a href="${adminDocsUrl}">Panel de Abogado</a></li>
+          <li>Si todo está correcto, cambiar la columna <strong>Autofill</strong> a <strong>"Yes"</strong> en Airtable</li>
+          <li>El sistema automáticamente llenará el formulario de Sunbiz</li>
+          <li>Las capturas de pantalla estarán disponibles en: <a href="${screenshotsUrl}">Ver Screenshots</a></li>
+        </ol>
+        <p style="margin-top: 20px;">
+          <a href="${adminDocsUrl}" style="background: #0066cc; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-right: 10px;">Ver Empresa en Panel</a>
+          <a href="${screenshotsUrl}" style="background: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-right: 10px;">Ver Screenshots</a>
+          ${invoiceUrl ? `<a href="${invoiceUrl}" style="background: #6c63ff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Ver Factura</a>` : ''}
+        </p>
+      `,
+    });
     console.log(`📧 Notification email sent for ${companyName}`);
   } catch (error) {
     console.error('❌ Failed to send notification email:', error);
@@ -827,14 +819,6 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
         console.error('⚠️ Failed to update DynamoDB with regenerated forms (continuing anyway):', dbError);
       }
       
-      // Send email notification for approval (internal)
-      await sendNewCompanyNotification(
-        airtableRecord['Company Name'] || 'Unknown Company',
-        airtableRecord['Customer Email'] || session.customer_details?.email || session.customer_email || 'unknown@email.com',
-        airtableRecord['Entity Type'] || 'LLC',
-        airtableRecord['Formation State'] || 'Florida'
-      );
-
       // Retrieve Stripe invoice URL (if invoice was created at checkout)
       let invoiceUrl: string | undefined;
       try {
@@ -848,6 +832,16 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
       } catch (invoiceErr: any) {
         console.error('⚠️ Failed to retrieve Stripe invoice:', invoiceErr?.message || invoiceErr);
       }
+
+      // Send email notification for approval (internal — to the lawyer)
+      await sendNewCompanyNotification(
+        airtableRecord['Company Name'] || 'Unknown Company',
+        airtableRecord['Customer Email'] || session.customer_details?.email || session.customer_email || 'unknown@email.com',
+        airtableRecord['Entity Type'] || 'LLC',
+        airtableRecord['Formation State'] || 'Florida',
+        airtableRecordId || undefined,
+        invoiceUrl,
+      );
 
       // Send client one email with all document links + attachments (so they can download and sign right away)
       try {

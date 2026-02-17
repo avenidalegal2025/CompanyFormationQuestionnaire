@@ -85,6 +85,36 @@ export async function sendEmailWithPdfAttachment(params: {
   await sesClient.send(command);
 }
 
+/**
+ * Send a plain HTML email (no attachments) via SES with full deliverability headers.
+ * Use this instead of SendEmailCommand to ensure proper From name, Reply-To, etc.
+ */
+export async function sendHtmlEmail(params: {
+  from: string;
+  to: string[];
+  subject: string;
+  htmlBody: string;
+}): Promise<void> {
+  const { from, to, subject, htmlBody } = params;
+  const lines: string[] = [
+    `From: ${formatFrom(from)}`,
+    `To: ${to.join(', ')}`,
+    `Subject: ${subject}`,
+    ...getDeliverabilityHeaders(from),
+    'MIME-Version: 1.0',
+    'Content-Type: text/html; charset=UTF-8',
+    'Content-Transfer-Encoding: 7bit',
+    '',
+    htmlBody,
+  ];
+
+  const rawMessage = lines.join(CRLF);
+  const command = new SendRawEmailCommand({
+    RawMessage: { Data: Buffer.from(rawMessage, 'utf-8') },
+  });
+  await sesClient.send(command);
+}
+
 export interface EmailAttachment {
   filename: string;
   buffer: Buffer;
