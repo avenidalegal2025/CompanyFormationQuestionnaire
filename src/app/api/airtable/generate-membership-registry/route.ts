@@ -171,21 +171,10 @@ export async function POST(request: NextRequest) {
       templateUrl
     );
 
-    // Step 5b: Convert to PDF when conversion Lambda is configured (client downloads PDF)
-    let bodyBuffer: Buffer = docxBuffer;
-    let extension: 'pdf' | 'docx' = 'docx';
-    let contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-    try {
-      const pdfBuffer = await convertDocxToPdf(docxBuffer);
-      if (pdfBuffer) {
-        bodyBuffer = pdfBuffer;
-        extension = 'pdf';
-        contentType = 'application/pdf';
-        console.log('✅ Converted Membership Registry to PDF');
-      }
-    } catch (convErr: any) {
-      console.warn('⚠️ DOCX→PDF conversion failed, storing DOCX:', convErr?.message);
-    }
+    // Store as DOCX (LibreOffice PDF conversion corrupts fonts in these templates)
+    const bodyBuffer: Buffer = docxBuffer;
+    const extension = 'docx' as const;
+    const contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
     const fileName = formatCompanyFileName(fields['Company Name'] || 'Company', 'Membership Registry', extension);
     const s3Key = `${vaultPath}/formation/${fileName}`;

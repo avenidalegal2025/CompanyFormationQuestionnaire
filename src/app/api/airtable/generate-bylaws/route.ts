@@ -173,34 +173,11 @@ export async function POST(request: NextRequest) {
       BYLAWS_TEMPLATE_URL
     );
 
-    // Step 4b: Convert to PDF when conversion Lambda is configured
-    let bodyBuffer: Buffer = docxBuffer;
-    let extension: 'pdf' | 'docx' = 'docx';
-    let contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    // Store as DOCX (LibreOffice PDF conversion corrupts fonts in these templates)
+    const bodyBuffer: Buffer = docxBuffer;
+    const extension = 'docx' as const;
+    const contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
     let finalS3Key = s3Key;
-    try {
-      const pdfBuffer = await convertDocxToPdf(docxBuffer);
-      if (pdfBuffer) {
-        bodyBuffer = pdfBuffer;
-        extension = 'pdf';
-        contentType = 'application/pdf';
-        // Update filename to PDF version
-        const pdfFileName = formatCompanyFileName(fields['Company Name'] || 'Company', 'Bylaws', 'pdf');
-        finalS3Key = `${vaultPath}/formation/${pdfFileName}`;
-        
-        // Upload PDF version (Lambda already uploaded DOCX, now upload PDF)
-        await s3Client.send(new PutObjectCommand({
-          Bucket: S3_BUCKET,
-          Key: finalS3Key,
-          Body: bodyBuffer,
-          ContentType: contentType,
-        }));
-        console.log('✅ Converted Bylaws to PDF and uploaded');
-      }
-    } catch (convErr: any) {
-      console.warn('⚠️ DOCX→PDF conversion failed, using DOCX from Lambda:', convErr?.message);
-      // Lambda already uploaded DOCX, so finalS3Key is already correct
-    }
 
     console.log(`✅ Bylaws ${extension.toUpperCase()} generated and uploaded: ${finalS3Key}`);
 

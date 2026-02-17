@@ -128,9 +128,67 @@ def _formation_date_to_mm_dd_yyyy(value: str) -> str:
             return f"{month_name:02d}/{day:02d}/{year}"
     return value
 
+def _set_cell_text_preserving_format(cell, new_text):
+    """
+    Set cell text while preserving the first paragraph's run formatting.
+    Falls back to cell.text if no runs exist.
+    """
+    if cell.paragraphs and cell.paragraphs[0].runs:
+        first_para = cell.paragraphs[0]
+        first_para.runs[0].text = new_text
+        for run in first_para.runs[1:]:
+            run.text = ''
+        # Clear any extra paragraphs
+        for para in cell.paragraphs[1:]:
+            for run in para.runs:
+                run.text = ''
+    else:
+        cell.text = new_text
+
+
+def _replace_in_paragraph_preserving_format(paragraph, replace_fn):
+    """
+    Replace placeholders inside a paragraph while preserving run-level formatting
+    (font, size, bold, italic, color, etc.).
+
+    Word splits text across multiple runs, so a placeholder like {{COMPANY_NAME}}
+    might be split as: run1="{{COMPANY", run2="_NAME}}".
+
+    Strategy:
+    1. Join all run texts, apply replacements on the joined string.
+    2. If the joined result differs, redistribute the new text across the original runs
+       keeping each run's formatting intact.
+    """
+    if not paragraph.runs:
+        # No runs — fall back to direct text replacement (rare, but safe)
+        original = paragraph.text
+        new_text = replace_fn(original)
+        if new_text != original:
+            paragraph.text = new_text
+        return
+
+    # Concatenate all run texts
+    full_original = ''.join(run.text for run in paragraph.runs)
+    full_replaced = replace_fn(full_original)
+
+    if full_replaced == full_original:
+        return  # Nothing changed
+
+    # Put all new text in the first run, clear the rest — this preserves
+    # the first run's formatting (font, size, bold, etc.) for the whole paragraph.
+    # This is safe because placeholders typically share the same formatting as
+    # surrounding text in legal document templates.
+    paragraph.runs[0].text = full_replaced
+    for run in paragraph.runs[1:]:
+        run.text = ''
+
+
 def replace_placeholders(doc, data):
     """
     Replace placeholders in Word document with actual data.
+    Preserves run-level formatting (font, size, bold, italic) to prevent
+    font corruption when converting to PDF via LibreOffice.
+
     Supports two styles of templates:
       1) Generic placeholders: {{COMPANY_NAME}}, {{COMPANY_ADDRESS}}, {{FORMATION_STATE}}, {{FORMATION_DATE}}
       2) Legacy membership templates with placeholders like:
@@ -138,7 +196,7 @@ def replace_placeholders(doc, data):
          {{Date_of_formation_LLC}}, {{member_01_full_name}}, {{member_01_pct}}, {{manager_01_full_name}}, etc.
     """
     print("===> Replacing placeholders in document...")
-    
+
     # Company information
     company_name = data.get('companyName', '')
     company_address = format_address(data.get('companyAddress', ''))
@@ -146,12 +204,12 @@ def replace_placeholders(doc, data):
     formation_date = data.get('formationDate', '')
     # Numeric date (MM/DD/YYYY) for Particulars of ownership / Date Acquired only
     formation_date_numeric = data.get('formationDateNumeric') or _formation_date_to_mm_dd_yyyy(formation_date)
-    
+
     # Members / managers
     members = data.get('members', []) or []
     managers = data.get('managers', []) or []
     print(f"===> Found {len(members)} members and {len(managers)} managers in form data")
-    
+
     # Helper to replace all known placeholders in a text string.
     # In table cells (Particulars of ownership) use numeric date (MM/DD/YYYY) for date placeholders.
     # When as_of_the_date is True (e.g. certification "as of ... date"), use "the 9th day..." not "9th day...".
@@ -174,7 +232,7 @@ def replace_placeholders(doc, data):
         text = text.replace('{{full_state}}', formation_state)
         text = text.replace('{{full_state_caps}}', formation_state.upper() if formation_state else '')
         text = text.replace('{{Date_of_formation_LLC}}', date_val)
-        
+
         # Member placeholders: {{member_01_full_name}}, {{member_01_pct}}, etc.
         for idx, member in enumerate(members, start=1):
             num2 = f"{idx:02d}"
@@ -194,36 +252,37 @@ def replace_placeholders(doc, data):
             for ph in (f'{{{{member_{num2}_pct}}}}', f'{{{{member_{idx}_pct}}}}'):
                 if ph in text:
                     text = text.replace(ph, pct_str)
-        
+
         # Manager placeholders: {{manager_01_full_name}}, etc.
         for idx, manager in enumerate(managers, start=1):
             num2 = f"{idx:02d}"
             for ph in (f'{{{{manager_{num2}_full_name}}}}', f'{{{{manager_{idx}_full_name}}}}'):
                 if ph in text:
                     text = text.replace(ph, manager.get('name', ''))
-        
+
         return text
-    
-    # First pass: replace in paragraphs
+
+    # First pass: replace in paragraphs (preserving formatting)
     for paragraph in doc.paragraphs:
         original = paragraph.text
-        # Certification sentence: "I hereby certify... as of {{FORMATION_DATE}}" -> "as of the 9th day of February, 2026"
         has_as_of = 'as of' in original.lower()
         has_date_placeholder = '{{FORMATION_DATE}}' in original or '{{Date_of_formation_LLC}}' in original
         as_of_the_date = has_as_of and has_date_placeholder
-        new_text = replace_in_text(original, as_of_the_date=as_of_the_date)
-        if new_text != original:
-            paragraph.text = new_text
-    
+        _aod = as_of_the_date  # capture for closure
+        _replace_in_paragraph_preserving_format(
+            paragraph,
+            lambda text, _a=_aod: replace_in_text(text, in_table_cell=False, as_of_the_date=_a)
+        )
+
     # Second pass: replace in tables (cell paragraphs) — use numeric date in table cells
     for table in doc.tables:
         for row in table.rows:
             for cell in row.cells:
                 for paragraph in cell.paragraphs:
-                    original = paragraph.text
-                    new_text = replace_in_text(original, in_table_cell=True)
-                    if new_text != original:
-                        paragraph.text = new_text
+                    _replace_in_paragraph_preserving_format(
+                        paragraph,
+                        lambda text: replace_in_text(text, in_table_cell=True)
+                    )
     
     # Existing table-based logic for templates that use dynamic rows
     print("===> Applying table-based member/manager filling logic (if applicable)")
@@ -273,34 +332,29 @@ def replace_placeholders(doc, data):
                 
                 row = table.rows[i + 1]  # Skip header row (index 0)
                 
-                # Fill member data based on column mapping
+                # Fill member data based on column mapping (preserve formatting)
                 if 'name' in column_map and len(row.cells) > column_map['name']:
-                    row.cells[column_map['name']].text = member.get('name', '')
-                
+                    _set_cell_text_preserving_format(row.cells[column_map['name']], member.get('name', ''))
+
                 if 'address' in column_map and len(row.cells) > column_map['address']:
-                    row.cells[column_map['address']].text = format_address(member.get('address', ''))
-                
+                    _set_cell_text_preserving_format(row.cells[column_map['address']], format_address(member.get('address', '')))
+
                 if 'ownership' in column_map and len(row.cells) > column_map['ownership']:
-                    row.cells[column_map['ownership']].text = format_percentage(member.get('ownershipPercent', 0))
-                
+                    _set_cell_text_preserving_format(row.cells[column_map['ownership']], format_percentage(member.get('ownershipPercent', 0)))
+
                 if 'transaction' in column_map and len(row.cells) > column_map['transaction']:
-                    # Transaction column: If it's the only percentage column, use it for ownership %
-                    # Otherwise, if ownership column exists, keep "Allotted" text (it's correct, just needs alignment)
                     if 'ownership' not in column_map:
-                        # Use transaction column for ownership percentage
-                        row.cells[column_map['transaction']].text = format_percentage(member.get('ownershipPercent', 0))
-                    # If ownership column exists, leave transaction column as-is (keep "Allotted")
-                
+                        _set_cell_text_preserving_format(row.cells[column_map['transaction']], format_percentage(member.get('ownershipPercent', 0)))
+
                 if 'date' in column_map and len(row.cells) > column_map['date']:
-                    # Use numeric date (MM/DD/YYYY) for "Date Acquired" in Particulars of ownership
-                    row.cells[column_map['date']].text = formation_date_numeric
-                
+                    _set_cell_text_preserving_format(row.cells[column_map['date']], formation_date_numeric)
+
                 if 'ssn' in column_map and len(row.cells) > column_map['ssn']:
                     ssn = member.get('ssn', '')
                     if ssn and ssn.upper() not in ['N/A', 'N/A-FOREIGN', '']:
-                        row.cells[column_map['ssn']].text = ssn
+                        _set_cell_text_preserving_format(row.cells[column_map['ssn']], ssn)
                     else:
-                        row.cells[column_map['ssn']].text = 'N/A'
+                        _set_cell_text_preserving_format(row.cells[column_map['ssn']], 'N/A')
             
             # Remove extra rows if we have fewer members than rows
             while len(table.rows) > len(members) + 1:  # +1 for header
@@ -322,14 +376,14 @@ def replace_placeholders(doc, data):
                             
                             row = table.rows[i + 1]  # Skip header row (index 0)
                             
-                            # Fill manager data
+                            # Fill manager data (preserve formatting)
                             # Column 0: Manager Name
                             if len(row.cells) > 0:
-                                row.cells[0].text = manager.get('name', '')
-                            
+                                _set_cell_text_preserving_format(row.cells[0], manager.get('name', ''))
+
                             # Column 1: Address
                             if len(row.cells) > 1:
-                                row.cells[1].text = format_address(manager.get('address', ''))
+                                _set_cell_text_preserving_format(row.cells[1], format_address(manager.get('address', '')))
                         
                         # Remove extra rows if we have fewer managers than rows
                         while len(table.rows) > len(managers) + 1:  # +1 for header
@@ -338,19 +392,21 @@ def replace_placeholders(doc, data):
             
             break
     
-    # Final pass: any remaining placeholders in table cells use numeric date for dates
+    # Final pass: any remaining placeholders in table cells (preserving formatting)
     for table in doc.tables:
         for row in table.rows:
             for cell in row.cells:
                 for paragraph in cell.paragraphs:
-                    if '{{COMPANY_NAME}}' in paragraph.text:
-                        paragraph.text = paragraph.text.replace('{{COMPANY_NAME}}', company_name)
-                    if '{{COMPANY_ADDRESS}}' in paragraph.text:
-                        paragraph.text = paragraph.text.replace('{{COMPANY_ADDRESS}}', company_address)
-                    if '{{FORMATION_STATE}}' in paragraph.text:
-                        paragraph.text = paragraph.text.replace('{{FORMATION_STATE}}', formation_state)
-                    if '{{FORMATION_DATE}}' in paragraph.text or '{{Date_of_formation_LLC}}' in paragraph.text:
-                        paragraph.text = paragraph.text.replace('{{FORMATION_DATE}}', formation_date_numeric).replace('{{Date_of_formation_LLC}}', formation_date_numeric)
+                    full_text = paragraph.text
+                    if '{{COMPANY_NAME}}' in full_text or '{{COMPANY_ADDRESS}}' in full_text or '{{FORMATION_STATE}}' in full_text or '{{FORMATION_DATE}}' in full_text or '{{Date_of_formation_LLC}}' in full_text:
+                        def _final_replace(text):
+                            text = text.replace('{{COMPANY_NAME}}', company_name)
+                            text = text.replace('{{COMPANY_ADDRESS}}', company_address)
+                            text = text.replace('{{FORMATION_STATE}}', formation_state)
+                            text = text.replace('{{FORMATION_DATE}}', formation_date_numeric)
+                            text = text.replace('{{Date_of_formation_LLC}}', formation_date_numeric)
+                            return text
+                        _replace_in_paragraph_preserving_format(paragraph, _final_replace)
     
     print("===> Placeholders replaced successfully")
 

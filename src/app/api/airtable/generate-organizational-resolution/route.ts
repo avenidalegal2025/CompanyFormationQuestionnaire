@@ -201,32 +201,9 @@ export async function POST(request: NextRequest) {
       templateUrl
     );
 
-    // Step 5b: Convert to PDF when conversion Lambda is configured
-    let bodyBuffer: Buffer = docxBuffer;
-    let finalS3Key = s3Key;
-    try {
-      const pdfBuffer = await convertDocxToPdf(docxBuffer);
-      if (pdfBuffer) {
-        bodyBuffer = pdfBuffer;
-        extension = 'pdf';
-        contentType = 'application/pdf';
-        // Update filename to PDF version
-        const pdfFileName = formatCompanyFileName(fields['Company Name'] || 'Company', 'Organizational Resolution', 'pdf');
-        finalS3Key = `${vaultPath}/formation/${pdfFileName}`;
-        
-        // Upload PDF version (Lambda already uploaded DOCX, now upload PDF)
-        await s3Client.send(new PutObjectCommand({
-          Bucket: S3_BUCKET,
-          Key: finalS3Key,
-          Body: bodyBuffer,
-          ContentType: contentType,
-        }));
-        console.log('✅ Converted Organizational Resolution to PDF and uploaded');
-      }
-    } catch (convErr: any) {
-      console.warn('⚠️ DOCX→PDF conversion failed, using DOCX from Lambda:', convErr?.message);
-      // Lambda already uploaded DOCX, so finalS3Key is already correct
-    }
+    // Store as DOCX (LibreOffice PDF conversion corrupts fonts in these templates)
+    const bodyBuffer: Buffer = docxBuffer;
+    const finalS3Key = s3Key;
 
     console.log(`✅ Organizational Resolution ${extension.toUpperCase()} generated and uploaded: ${finalS3Key}`);
 
