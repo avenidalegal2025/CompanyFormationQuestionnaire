@@ -27,6 +27,7 @@ interface AdminCompany {
   formationState: string;
   formationStatus: string;
   paymentDate: string;
+  createdTime: string;
   customerEmail: string;
   vaultPath?: string;
 }
@@ -72,6 +73,7 @@ export async function GET(request: NextRequest) {
               formationState: (fields['Formation State'] as string) || '',
               formationStatus: (fields['Formation Status'] as string) || 'Pending',
               paymentDate: (fields['Payment Date'] as string) || '',
+              createdTime: (record as any).createdTime || (record as any)._rawJson?.createdTime || '',
               customerEmail: ((fields['Customer Email'] as string) || '').toLowerCase().trim(),
               vaultPath: (fields['Vault Path'] as string) || undefined,
             });
@@ -95,6 +97,7 @@ export async function GET(request: NextRequest) {
               formationState: (fields['Formation State'] as string) || '',
               formationStatus: (fields['Formation Status'] as string) || 'Pending',
               paymentDate: (fields['Payment Date'] as string) || '',
+              createdTime: (record as any).createdTime || (record as any)._rawJson?.createdTime || '',
               customerEmail: ((fields['Customer Email'] as string) || '').toLowerCase().trim(),
               vaultPath: (fields['Vault Path'] as string) || undefined,
             });
@@ -107,6 +110,13 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Sort by createdTime descending (latest first) for precise ordering
+    companies.sort((a, b) => {
+      const timeA = a.createdTime ? new Date(a.createdTime).getTime() : 0;
+      const timeB = b.createdTime ? new Date(b.createdTime).getTime() : 0;
+      return timeB - timeA;
+    });
 
     return NextResponse.json({
       success: true,

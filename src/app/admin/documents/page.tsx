@@ -30,11 +30,13 @@ interface AdminCompany {
   formationState: string;
   customerEmail: string;
   paymentDate: string;
+  createdTime: string;
 }
 
 /**
- * Format a date string into a friendly readable format.
- * Example: "17th of May, 2027"
+ * Format a date/time string into a friendly readable format.
+ * For full ISO timestamps (createdTime): "8:45am · 17th of May, 2027"
+ * For date-only strings (paymentDate): "17th of May, 2027"
  */
 function formatFriendlyDate(dateStr: string | undefined | null): string {
   if (!dateStr) return "";
@@ -42,8 +44,11 @@ function formatFriendlyDate(dateStr: string | undefined | null): string {
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return dateStr;
 
-    // Day with ordinal suffix (use UTC to avoid timezone shift)
-    const day = date.getUTCDate();
+    // Detect if this is a full ISO timestamp (has time component) vs date-only
+    const hasTime = dateStr.includes("T") || dateStr.includes(":");
+
+    // Day with ordinal suffix
+    const day = hasTime ? date.getDate() : date.getUTCDate();
     const suffix =
       day === 11 || day === 12 || day === 13
         ? "th"
@@ -59,10 +64,21 @@ function formatFriendlyDate(dateStr: string | undefined | null): string {
       "January", "February", "March", "April", "May", "June",
       "July", "August", "September", "October", "November", "December",
     ];
-    const month = months[date.getUTCMonth()];
-    const year = date.getUTCFullYear();
+    const month = months[hasTime ? date.getMonth() : date.getUTCMonth()];
+    const year = hasTime ? date.getFullYear() : date.getUTCFullYear();
 
-    return `${day}${suffix} of ${month}, ${year}`;
+    const datePart = `${day}${suffix} of ${month}, ${year}`;
+
+    if (hasTime) {
+      let hours = date.getHours();
+      const minutes = date.getMinutes();
+      const ampm = hours >= 12 ? "pm" : "am";
+      hours = hours % 12 || 12;
+      const timePart = `${hours}:${minutes.toString().padStart(2, "0")}${ampm}`;
+      return `${timePart} · ${datePart}`;
+    }
+
+    return datePart;
   } catch {
     return dateStr;
   }
@@ -464,9 +480,9 @@ export default function AdminDocumentsPage() {
                               · {company.entityType} · {company.formationState}
                             </span>
                           </div>
-                          {company.paymentDate && (
+                          {(company.createdTime || company.paymentDate) && (
                             <span className="text-xs text-gray-400 whitespace-nowrap shrink-0">
-                              {formatFriendlyDate(company.paymentDate)}
+                              {formatFriendlyDate(company.createdTime || company.paymentDate)}
                             </span>
                           )}
                         </div>
@@ -546,13 +562,6 @@ export default function AdminDocumentsPage() {
                           className="hidden"
                         />
                       </label>
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        disabled
-                      >
-                        Descargar
-                      </button>
                     </div>
                   </div>
                 )}
@@ -575,9 +584,6 @@ export default function AdminDocumentsPage() {
                           className="hidden"
                         />
                       </label>
-                      <button type="button" className="btn btn-secondary" disabled>
-                        Descargar
-                      </button>
                     </div>
                   </div>
                 )}
@@ -600,9 +606,6 @@ export default function AdminDocumentsPage() {
                           className="hidden"
                         />
                       </label>
-                      <button type="button" className="btn btn-secondary" disabled>
-                        Descargar
-                      </button>
                     </div>
                   </div>
                 )}
@@ -660,6 +663,7 @@ export default function AdminDocumentsPage() {
                         </li>
                       </ul>
                       <div className="mt-4 flex flex-wrap gap-2">
+                        {(doc.s3Key || doc.signedS3Key) && (
                         <button
                           type="button"
                           className="btn btn-secondary"
@@ -668,6 +672,7 @@ export default function AdminDocumentsPage() {
                           <ArrowDownTrayIcon className="h-4 w-4 mr-1" />
                           Descargar
                         </button>
+                        )}
                         <label className="btn btn-primary cursor-pointer">
                           <ArrowUpTrayIcon className="h-4 w-4 mr-1" />
                           {activeTab === "firmado" ? "Reemplazar firmado" : "Subir firmado"}
