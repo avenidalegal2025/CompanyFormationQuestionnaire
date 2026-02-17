@@ -96,8 +96,9 @@ export default function AdminDocumentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [latestCompanies, setLatestCompanies] = useState<AdminCompany[]>([]);
   const [latestLoading, setLatestLoading] = useState(false);
-  const [recentListTab, setRecentListTab] = useState<"all" | "new" | "seen">("all");
+  const [recentListTab, setRecentListTab] = useState<"new" | "seen">("new");
   const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
+  const [companiesCollapsed, setCompaniesCollapsed] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -201,6 +202,7 @@ export default function AdminDocumentsPage() {
   const selectLatestCompany = (company: AdminCompany) => {
     selectCompany(company);
     markCompanyAsSeen(company.id);
+    setCompaniesCollapsed(true);
   };
 
   const newCompanies = useMemo(
@@ -211,7 +213,7 @@ export default function AdminDocumentsPage() {
     () => latestCompanies.filter((c) => seenIds.has(c.id)),
     [latestCompanies, seenIds]
   );
-  const recentList = recentListTab === "all" ? latestCompanies : recentListTab === "new" ? newCompanies : seenCompanies;
+  const recentList = recentListTab === "new" ? newCompanies : seenCompanies;
 
   const getEntityType = () => selectedCompany?.entityType || "";
   const isCorporation = () => {
@@ -420,16 +422,15 @@ export default function AdminDocumentsPage() {
         <div className="mb-6 rounded-lg border border-gray-200 bg-white overflow-hidden">
           <div className="flex border-b border-gray-200">
             {([
-              { key: "all" as const, label: "Empresas Formadas" },
               { key: "new" as const, label: "Nuevo" },
               { key: "seen" as const, label: "Vistos anteriormente" },
             ]).map(tab => (
               <button
                 key={tab.key}
                 type="button"
-                onClick={() => setRecentListTab(tab.key)}
+                onClick={() => { setRecentListTab(tab.key); setCompaniesCollapsed(false); }}
                 className={`flex-1 px-4 py-3 text-sm font-medium ${
-                  recentListTab === tab.key
+                  recentListTab === tab.key && !companiesCollapsed
                     ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/50"
                     : "text-gray-500 hover:bg-gray-50"
                 }`}
@@ -442,49 +443,58 @@ export default function AdminDocumentsPage() {
                 )}
               </button>
             ))}
-          </div>
-          <div className="p-3 max-h-96 overflow-y-auto">
-            {latestLoading ? (
-              <p className="text-sm text-gray-500">Cargando últimas empresas…</p>
-            ) : recentList.length === 0 ? (
-              <p className="text-sm text-gray-500">
-                {recentListTab === "all"
-                  ? "No hay empresas formadas aún."
-                  : recentListTab === "new"
-                  ? "No hay empresas nuevas en la lista."
-                  : "No hay empresas vistas aún. Haz clic en una empresa de la pestaña Nuevo para marcarla como vista."}
-              </p>
-            ) : (
-              <ul className="space-y-1">
-                {recentList.map((company) => (
-                  <li key={company.id}>
-                    <button
-                      type="button"
-                      onClick={() => selectLatestCompany(company)}
-                      className={`w-full text-left px-3 py-2 rounded-md text-sm hover:bg-gray-100 ${
-                        selectedCompany?.id === company.id ? "bg-blue-50 text-blue-700" : ""
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <span className="font-medium text-gray-900">{company.companyName}</span>
-                          <span className="text-gray-500 ml-1">
-                            · {company.entityType} · {company.formationState}
-                          </span>
-                        </div>
-                        {company.paymentDate && (
-                          <span className="text-xs text-gray-400 whitespace-nowrap shrink-0">
-                            {formatFriendlyDate(company.paymentDate)}
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs text-gray-500 truncate">{company.customerEmail}</div>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+            {companiesCollapsed && selectedCompany && (
+              <button
+                type="button"
+                onClick={() => setCompaniesCollapsed(false)}
+                className="px-4 py-3 text-xs text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap"
+              >
+                Mostrar lista ▼
+              </button>
             )}
           </div>
+          {!companiesCollapsed && (
+            <div className="p-3 max-h-96 overflow-y-auto">
+              {latestLoading ? (
+                <p className="text-sm text-gray-500">Cargando últimas empresas…</p>
+              ) : recentList.length === 0 ? (
+                <p className="text-sm text-gray-500">
+                  {recentListTab === "new"
+                    ? "No hay empresas nuevas en la lista."
+                    : "No hay empresas vistas aún. Haz clic en una empresa de la pestaña Nuevo para marcarla como vista."}
+                </p>
+              ) : (
+                <ul className="space-y-1">
+                  {recentList.map((company) => (
+                    <li key={company.id}>
+                      <button
+                        type="button"
+                        onClick={() => selectLatestCompany(company)}
+                        className={`w-full text-left px-3 py-2 rounded-md text-sm hover:bg-gray-100 ${
+                          selectedCompany?.id === company.id ? "bg-blue-50 text-blue-700" : ""
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <span className="font-medium text-gray-900">{company.companyName}</span>
+                            <span className="text-gray-500 ml-1">
+                              · {company.entityType} · {company.formationState}
+                            </span>
+                          </div>
+                          {company.paymentDate && (
+                            <span className="text-xs text-gray-400 whitespace-nowrap shrink-0">
+                              {formatFriendlyDate(company.paymentDate)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-500 truncate">{company.customerEmail}</div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
         </div>
 
         {error && (
