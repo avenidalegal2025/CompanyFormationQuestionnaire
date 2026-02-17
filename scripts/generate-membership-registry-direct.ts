@@ -86,8 +86,8 @@ async function generateMembershipRegistry(recordId: string | undefined) {
   }
 }
 
-const recordId = process.argv[2];
-generateMembershipRegistry(recordId).catch((error: any) => {
+const recordIdArg = process.argv[2];
+generateMembershipRegistry(recordIdArg).catch((error: any) => {
   console.error('❌ Fatal error:', error);
   process.exit(1);
 });
