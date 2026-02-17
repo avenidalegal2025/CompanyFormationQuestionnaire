@@ -203,7 +203,7 @@ async function categorizeBusinessPurposeForLine16(businessPurpose: string): Prom
     try {
       const result = JSON.parse(resultText);
       const category = result.category || 'other';
-      const otherSpecify = result.otherSpecify ? truncateAtWordBoundary(result.otherSpecify.toUpperCase(), 45) : undefined;
+      const otherSpecify = result.otherSpecify ? truncateAtWordBoundary(result.otherSpecify.toUpperCase(), 35) : undefined;
       
       return { category, otherSpecify };
     } catch (parseError) {
@@ -257,13 +257,13 @@ function categorizeByKeywords(businessPurpose: string): { category: string; othe
   }
   
   // Default to "other" with truncated business purpose
-  const otherSpecify = truncateAtWordBoundary(businessPurpose.toUpperCase(), 45);
+  const otherSpecify = truncateAtWordBoundary(businessPurpose.toUpperCase(), 35);
   return { category: 'other', otherSpecify };
 }
 
 /**
  * Analyze Business Purpose and generate Line 17 content (principal line of merchandise/construction/products/services)
- * Max 80 characters, ALL CAPS. Uses OpenAI to create a smart summary that fits without cutting words.
+ * Max 75 characters, ALL CAPS. Uses OpenAI to create a smart summary that fits without cutting words.
  */
 async function analyzeBusinessPurposeForLine17(businessPurpose: string): Promise<string> {
   if (!businessPurpose || businessPurpose.trim() === '') {
@@ -273,7 +273,7 @@ async function analyzeBusinessPurposeForLine17(businessPurpose: string): Promise
   // If no OpenAI API key, fallback to word-boundary truncation
   if (!OPENAI_API_KEY) {
     console.warn('⚠️ OpenAI API key not configured, using word-boundary truncation for Line 17');
-    return truncateAtWordBoundary(businessPurpose.toUpperCase(), 80);
+    return truncateAtWordBoundary(businessPurpose.toUpperCase(), 75);
   }
 
   try {
@@ -296,7 +296,7 @@ async function analyzeBusinessPurposeForLine17(businessPurpose: string): Promise
 
 STRICT RULES:
 1. If the text is in Spanish, translate to English first.
-2. The result MUST be 80 characters or fewer. Count carefully.
+2. The result MUST be 75 characters or fewer. Count carefully.
 3. The description must read as a COMPLETE, SELF-CONTAINED phrase. It must NOT feel truncated or cut off.
 4. NEVER end with a preposition (FOR, TO, IN, OF, WITH, BY, AT, ON, FROM), conjunction (AND, OR), or article (THE, A, AN). The last word must be a noun, adjective, or verb.
 5. Use abbreviations (SVCS, MGMT, MKTG, DEV, TECH, INTL, etc.) to fit more meaning in fewer characters.
@@ -306,7 +306,7 @@ STRICT RULES:
 
 Business Purpose: "${businessPurpose}"
 
-Return ONLY the description (max 80 chars, ALL CAPS, must be a complete self-contained phrase):`,
+Return ONLY the description (max 75 chars, ALL CAPS, must be a complete self-contained phrase):`,
           },
         ],
         max_tokens: 60,
@@ -317,22 +317,22 @@ Return ONLY the description (max 80 chars, ALL CAPS, must be a complete self-con
     if (!response.ok) {
       const errorText = await response.text();
       console.warn(`⚠️ OpenAI API error for Line 17: ${response.status} - ${errorText}`);
-      return truncateAtWordBoundary(businessPurpose.toUpperCase(), 80);
+      return truncateAtWordBoundary(businessPurpose.toUpperCase(), 75);
     }
 
     const data = await response.json();
     const analysis = data.choices?.[0]?.message?.content?.trim() || '';
 
     if (!analysis) {
-      return truncateAtWordBoundary(businessPurpose.toUpperCase(), 80);
+      return truncateAtWordBoundary(businessPurpose.toUpperCase(), 75);
     }
 
     let finalAnalysis = analysis.trim().replace(/^["']|["']$/g, '');
 
-    // Safety net: if OpenAI still exceeded 80 chars, truncate at word boundary
-    if (finalAnalysis.length > 80) {
+    // Safety net: if OpenAI still exceeded 75 chars, truncate at word boundary
+    if (finalAnalysis.length > 75) {
       console.warn(`⚠️ Line 17 OpenAI returned ${finalAnalysis.length} chars, truncating at word boundary`);
-      finalAnalysis = truncateAtWordBoundary(finalAnalysis, 80);
+      finalAnalysis = truncateAtWordBoundary(finalAnalysis, 75);
     }
 
     // Safety net: strip any trailing dangling words (FOR, TO, AND, etc.)
@@ -341,7 +341,7 @@ Return ONLY the description (max 80 chars, ALL CAPS, must be a complete self-con
     return finalAnalysis.toUpperCase();
   } catch (error: any) {
     console.error('❌ Error calling OpenAI API for Line 17:', error);
-    return truncateAtWordBoundary(businessPurpose.toUpperCase(), 80);
+    return truncateAtWordBoundary(businessPurpose.toUpperCase(), 75);
   }
 }
 

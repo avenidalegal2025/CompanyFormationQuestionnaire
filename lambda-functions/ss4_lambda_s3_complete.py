@@ -1664,33 +1664,47 @@ def map_data_to_ss4_fields(form_data):
     
     return mapped_data
 
-def draw_fitted_text(c, x, y, text, max_width, default_font_size=9, min_font_size=5.5, font_name="Helvetica"):
+def draw_fitted_text(c, x, y, text, max_width, default_font_size=9, min_font_size=4.5, font_name="Helvetica"):
     """
     Draw text that auto-shrinks to fit within max_width.
     Tries the default font size first, then shrinks until the text fits.
     Never goes below min_font_size.
+    Steps in 0.25pt increments for finer granularity.
     """
     from reportlab.pdfbase.pdfmetrics import stringWidth
-    for size_10x in range(int(default_font_size * 10), int(min_font_size * 10) - 1, -5):
-        size = size_10x / 10.0
+    # Step in 0.25pt increments (multiply by 4 for integer range)
+    for size_4x in range(int(default_font_size * 4), int(min_font_size * 4) - 1, -1):
+        size = size_4x / 4.0
         w = stringWidth(text, font_name, size)
         if w <= max_width:
             c.setFont(font_name, size)
             c.drawString(x, y, text)
             c.setFont(font_name, default_font_size)  # restore default
             return size
-    # If even min_font_size doesn't fit, draw at min and let it clip
-    c.setFont(font_name, min_font_size)
-    c.drawString(x, y, text)
+    # If even min_font_size doesn't fit, truncate text until it fits
+    size = min_font_size
+    truncated = text
+    while len(truncated) > 10:
+        truncated = truncated.rsplit(' ', 1)[0] if ' ' in truncated else truncated[:-1]
+        w = stringWidth(truncated, font_name, size)
+        if w <= max_width:
+            break
+    c.setFont(font_name, size)
+    c.drawString(x, y, truncated)
     c.setFont(font_name, default_font_size)
-    return min_font_size
+    print(f"===> ⚠️ Text truncated to fit: '{truncated}' (original: '{text[:60]}')")
+    return size
 
 # Maximum pixel widths for fields that can overflow
+# SS-4 form right margin is at ~560pt from left edge
 FIELD_MAX_WIDTHS = {
-    "17": 530,              # Line 17: X starts at 65, form right edge ~595 → 530pt
-    "16_other_specify": 190, # Line 16 Other: X starts at 400, form right edge ~590 → 190pt
-    "Line 1": 230,          # Company name: X starts at 65, field ends ~295
-    "10": 230,              # Line 10 reason: X starts at 65, field ends ~295
+    "17": 495,              # Line 17: X starts at 65, right margin ~560 → 495pt
+    "16_other_specify": 155, # Line 16 Other: X starts at 400, right margin ~555 → 155pt
+    "Line 1": 225,          # Company name: X starts at 65, field ends ~290
+    "10": 225,              # Line 10 reason: X starts at 65, field ends ~290
+    "Designee Name": 330,   # Designee: X starts at 100, right margin ~430
+    "Designee Address": 330, # Address: X starts at 100, right margin ~430
+    "Signature Name": 280,  # Signature: X starts at 150, right margin ~430
 }
 
 def create_overlay(data, path):
@@ -1756,7 +1770,7 @@ def create_overlay(data, path):
                 value_str = str(value).upper()
                 # Truncate long values to fit in field (but allow longer for specific fields)
                 if field == "17":  # Line 17: smart summary, word-boundary safe
-                    max_length = 80
+                    max_length = 75
                 elif field == "10":  # Line 10 can be up to 35 chars (truncate at word boundaries)
                     max_length = 35
                 elif field in ["Line 1", "Line 3", "Line 5a", "Line 5b", "Designee Address"]:  # Longer fields
@@ -1792,8 +1806,8 @@ def create_overlay(data, path):
     # Handle Line 16 "Other" specification text field (if present)
     if "16_other_specify" in data:
         other_specify_raw = str(data["16_other_specify"]).upper()
-        # Max 45 chars for the "Other (specify)" field; auto-fit font handles width
-        other_specify = truncate_at_word_boundary(other_specify_raw, 45)
+        # Max 35 chars for the "Other (specify)" field; auto-fit font handles width
+        other_specify = truncate_at_word_boundary(other_specify_raw, 35)
         if other_specify and "16_other_specify" in FIELD_COORDS:
             coord = FIELD_COORDS["16_other_specify"]
             used_size = draw_fitted_text(c, coord[0], coord[1], other_specify, FIELD_MAX_WIDTHS.get("16_other_specify", 190))
