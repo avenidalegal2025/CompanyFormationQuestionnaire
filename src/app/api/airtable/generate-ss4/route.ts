@@ -109,15 +109,32 @@ Return ONLY the specific reason (e.g. "Started LLC for film production"). Maximu
  * Truncate text at a word boundary so words are never cut in half.
  * Returns a string that is at most maxLen characters.
  */
+// Words that should never be the last word (they make the phrase feel incomplete)
+const DANGLING_WORDS = new Set(['FOR', 'TO', 'IN', 'OF', 'WITH', 'AND', 'OR', 'THE', 'A', 'AN', 'BY', 'AT', 'ON', 'FROM', 'AS', 'BUT', 'NOR', 'SO', 'YET', 'INTO', 'UPON', 'THROUGH', 'BETWEEN', 'AMONG', 'HACIA', 'PARA', 'EN', 'DE', 'Y', 'CON']);
+
+function stripDanglingWords(text: string): string {
+  let result = text.trim();
+  let words = result.split(/\s+/);
+  while (words.length > 1 && DANGLING_WORDS.has(words[words.length - 1].replace(/[,;.]$/, '').toUpperCase())) {
+    words.pop();
+    result = words.join(' ').replace(/[,;]+$/, '').trim();
+    words = result.split(/\s+/);
+  }
+  return result;
+}
+
 function truncateAtWordBoundary(text: string, maxLen: number): string {
-  if (!text || text.length <= maxLen) return text;
+  if (!text || text.length <= maxLen) return stripDanglingWords(text);
   const truncated = text.substring(0, maxLen);
   const lastSpace = truncated.lastIndexOf(' ');
+  let result: string;
   // Only use the space if it's not too early (keep at least 60% of the max)
   if (lastSpace > maxLen * 0.6) {
-    return truncated.substring(0, lastSpace).trim();
+    result = truncated.substring(0, lastSpace).trim();
+  } else {
+    result = truncated.trim();
   }
-  return truncated.trim();
+  return stripDanglingWords(result);
 }
 
 function fallbackLine10FromPurpose(businessPurpose: string): string {
@@ -271,7 +288,7 @@ async function analyzeBusinessPurposeForLine17(businessPurpose: string): Promise
         messages: [
           {
             role: 'system',
-            content: 'You write short, complete descriptions of business activities for IRS forms. Your output must read as a finished sentence or phrase — never feel cut off or incomplete. ALL CAPS English. NEVER exceed the character limit.',
+            content: 'You write short, complete descriptions of business activities for IRS forms. Your output must read as a finished, self-contained phrase. NEVER end with a preposition (FOR, TO, IN, OF, WITH, BY, AT, ON, FROM, INTO), conjunction (AND, OR), or article (THE, A, AN). The phrase must feel complete on its own. ALL CAPS English. NEVER exceed the character limit.',
           },
           {
             role: 'user',
@@ -280,14 +297,16 @@ async function analyzeBusinessPurposeForLine17(businessPurpose: string): Promise
 STRICT RULES:
 1. If the text is in Spanish, translate to English first.
 2. The result MUST be 80 characters or fewer. Count carefully.
-3. The description must read as a COMPLETE thought — it should NOT feel truncated or cut off mid-sentence.
-4. Use abbreviations (SVCS, MGMT, MKTG, DEV, TECH, INTL, etc.) to fit more meaning in fewer characters.
-5. ALL CAPS English only. No quotes, no labels, no prefixes.
-6. Base the description ONLY on the business purpose below — do not invent.
+3. The description must read as a COMPLETE, SELF-CONTAINED phrase. It must NOT feel truncated or cut off.
+4. NEVER end with a preposition (FOR, TO, IN, OF, WITH, BY, AT, ON, FROM), conjunction (AND, OR), or article (THE, A, AN). The last word must be a noun, adjective, or verb.
+5. Use abbreviations (SVCS, MGMT, MKTG, DEV, TECH, INTL, etc.) to fit more meaning in fewer characters.
+6. ALL CAPS English only. No quotes, no labels, no prefixes.
+7. Base the description ONLY on the business purpose below — do not invent.
+8. If you cannot fit ALL services, list the most important ones and stop at a complete phrase.
 
 Business Purpose: "${businessPurpose}"
 
-Return ONLY the description (max 80 chars, ALL CAPS, must read as a complete phrase):`,
+Return ONLY the description (max 80 chars, ALL CAPS, must be a complete self-contained phrase):`,
           },
         ],
         max_tokens: 60,
@@ -315,6 +334,9 @@ Return ONLY the description (max 80 chars, ALL CAPS, must read as a complete phr
       console.warn(`⚠️ Line 17 OpenAI returned ${finalAnalysis.length} chars, truncating at word boundary`);
       finalAnalysis = truncateAtWordBoundary(finalAnalysis, 80);
     }
+
+    // Safety net: strip any trailing dangling words (FOR, TO, AND, etc.)
+    finalAnalysis = stripDanglingWords(finalAnalysis);
 
     return finalAnalysis.toUpperCase();
   } catch (error: any) {

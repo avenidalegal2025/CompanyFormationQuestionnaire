@@ -111,26 +111,41 @@ def normalize_business_description(text):
 
     return original
 
+DANGLING_WORDS = {'FOR', 'TO', 'IN', 'OF', 'WITH', 'AND', 'OR', 'THE', 'A', 'AN', 'BY', 'AT', 'ON', 'FROM', 'AS', 'BUT', 'NOR', 'SO', 'YET', 'INTO', 'UPON', 'THROUGH', 'BETWEEN', 'AMONG', 'HACIA', 'PARA', 'EN', 'DE', 'Y', 'CON'}
+
+def strip_dangling_words(text):
+    """Remove trailing prepositions, conjunctions, and articles that make text feel incomplete."""
+    import re
+    result = text.strip()
+    words = result.split()
+    while len(words) > 1 and re.sub(r'[,;.]$', '', words[-1]).upper() in DANGLING_WORDS:
+        words.pop()
+        result = ' '.join(words).rstrip(',; ').strip()
+        words = result.split()
+    return result
+
 def truncate_at_word_boundary(text, max_length):
     """
     Truncate text at word boundaries to avoid cutting words.
-    Never exceeds max_length and never cuts words in half.
+    Never exceeds max_length, never cuts words in half, and strips trailing dangling words.
     """
     if not text or len(text) <= max_length:
-        return text
-    
+        return strip_dangling_words(text) if text else text
+
     # Truncate to max_length
     truncated = text[:max_length]
-    
+
     # Find the last space before the truncation point
     last_space = truncated.rfind(' ')
-    
+
     if last_space > 0:
         # Truncate at the last complete word
-        return truncated[:last_space].strip()
+        result = truncated[:last_space].strip()
     else:
         # No space found, return truncated (single long word)
-        return truncated.strip()
+        result = truncated.strip()
+
+    return strip_dangling_words(result)
 
 def translate_to_english(text):
     """
