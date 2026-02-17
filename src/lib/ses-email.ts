@@ -14,6 +14,27 @@ const sesClient = new SESClient({
 });
 
 const CRLF = '\r\n';
+const DEFAULT_FROM_NAME = 'Avenida Legal';
+const DEFAULT_FROM_EMAIL = 'avenidalegal.2024@gmail.com';
+
+/** Format a From header with display name: "Avenida Legal" <email@example.com> */
+function formatFrom(from: string): string {
+  // If already formatted with angle brackets, return as-is
+  if (from.includes('<')) return from;
+  return `"${DEFAULT_FROM_NAME}" <${from}>`;
+}
+
+/** Common email headers for improved deliverability (spam prevention) */
+function getDeliverabilityHeaders(from: string): string[] {
+  const replyEmail = from.includes('<')
+    ? from.match(/<(.+?)>/)?.[1] || DEFAULT_FROM_EMAIL
+    : from;
+  return [
+    `Reply-To: ${replyEmail}`,
+    `List-Unsubscribe: <mailto:${replyEmail}?subject=unsubscribe>`,
+    'X-Mailer: Avenida Legal Platform',
+  ];
+}
 
 /**
  * Build a MIME multipart/mixed message (HTML body + PDF attachment) and send via SES.
@@ -31,9 +52,10 @@ export async function sendEmailWithPdfAttachment(params: {
 
   const attachmentB64 = pdfBuffer.toString('base64');
   const lines: string[] = [
-    `From: ${from}`,
+    `From: ${formatFrom(from)}`,
     `To: ${to.join(', ')}`,
     `Subject: ${subject}`,
+    ...getDeliverabilityHeaders(from),
     'MIME-Version: 1.0',
     `Content-Type: multipart/mixed; boundary="${boundary}"`,
     '',
@@ -70,7 +92,7 @@ export interface EmailAttachment {
 }
 
 /**
- * Send an email with multiple attachments (e.g. multiple PDFs).
+ * Send an email with multiple attachments (e.g. multiple PDFs/DOCXs).
  */
 export async function sendEmailWithMultipleAttachments(params: {
   from: string;
@@ -83,9 +105,10 @@ export async function sendEmailWithMultipleAttachments(params: {
   const boundary = `----=_Part_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 
   const lines: string[] = [
-    `From: ${from}`,
+    `From: ${formatFrom(from)}`,
     `To: ${to.join(', ')}`,
     `Subject: ${subject}`,
+    ...getDeliverabilityHeaders(from),
     'MIME-Version: 1.0',
     `Content-Type: multipart/mixed; boundary="${boundary}"`,
     '',

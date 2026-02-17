@@ -222,6 +222,9 @@ export async function POST(request: NextRequest) {
       success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/checkout/cancel`,
       customer_email: session.user.email,
+      invoice_creation: {
+        enabled: true,
+      },
       metadata: {
         type: 'company_formation',
         entityType: entityType,

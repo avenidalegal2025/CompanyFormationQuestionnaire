@@ -85,6 +85,7 @@ async function sendClientDocumentsEmail(
   companyName: string,
   customerEmail: string,
   documents: DocumentRecord[],
+  invoiceUrl?: string,
 ) {
   const docsWithKeys = documents.filter((d) => d.s3Key || d.signedS3Key);
   if (!docsWithKeys.length) return;
@@ -118,10 +119,14 @@ async function sendClientDocumentsEmail(
   if (attachments.length === 0) return;
 
   const subject = `Documentos de formación – ${companyName}`;
+  const invoiceSection = invoiceUrl
+    ? `<p><strong>Factura / Invoice:</strong><br/><a href="${invoiceUrl}">Ver factura de pago</a></p>`
+    : '';
   const htmlBody = `
     <h2>Documentos para descargar y firmar</h2>
     <p>Hola,</p>
     <p>Tu pago ha sido confirmado. Adjuntamos los documentos de formación para <strong>${companyName}</strong>.</p>
+    ${invoiceSection}
     <p><strong>Enlaces a cada documento:</strong></p>
     <ul>${viewLinks.join('')}</ul>
     <p><strong>Dashboard (ver todos):</strong><br/><a href="${DASHBOARD_URL}">${DASHBOARD_URL}</a></p>
@@ -763,32 +768,9 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
         `${baseUrl}/api/airtable/generate-ss4`
       );
 
-      // Regenerate Organizational Resolution from Airtable (C-Corp / S-Corp / LLC)
-      // This uses the Airtable record ID we just created and will, in turn,
-      // update both Airtable and the DynamoDB documents entry for
-      // id === 'organizational-resolution'.
-      try {
-        console.log('📄 Regenerating Organizational Resolution from Airtable record (post-payment confirmation)...');
-        console.log(`📋 Airtable Record ID: ${airtableRecordId}`);
-        const orgResponse = await fetch(`${baseUrl}/api/airtable/generate-organizational-resolution`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            recordId: airtableRecordId,
-            updateAirtable: true,
-          }),
-        });
-        console.log(`📡 Organizational Resolution API response status: ${orgResponse.status} ${orgResponse.statusText}`);
-        if (!orgResponse.ok) {
-          const orgError = await orgResponse.text();
-          console.error('❌ Failed to generate Organizational Resolution from Airtable:', orgError);
-        }
-      } catch (orgError: any) {
-        console.error('❌ Error generating Organizational Resolution from Airtable:', orgError?.message ?? orgError);
-      }
-      
+      // NOTE: Org Resolution regeneration is handled below via regenerateFormFromAirtable
+      // (which also updates the documents array for the email attachments)
+
       // Regenerate 2848 from Airtable
       await regenerateFormFromAirtable(
         'form-2848-power-of-attorney',
@@ -853,12 +835,27 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
         airtableRecord['Formation State'] || 'Florida'
       );
 
+      // Retrieve Stripe invoice URL (if invoice was created at checkout)
+      let invoiceUrl: string | undefined;
+      try {
+        if (session.invoice) {
+          const invoice = await stripe.invoices.retrieve(session.invoice as string);
+          invoiceUrl = invoice.hosted_invoice_url || undefined;
+          console.log(`🧾 Stripe invoice URL retrieved: ${invoiceUrl ? 'yes' : 'no'}`);
+        } else {
+          console.log('ℹ️ No Stripe invoice associated with this session');
+        }
+      } catch (invoiceErr: any) {
+        console.error('⚠️ Failed to retrieve Stripe invoice:', invoiceErr?.message || invoiceErr);
+      }
+
       // Send client one email with all document links + attachments (so they can download and sign right away)
       try {
         await sendClientDocumentsEmail(
           airtableRecord['Company Name'] || companyName,
           airtableRecord['Customer Email'] || userId,
           documents,
+          invoiceUrl,
         );
       } catch (clientEmailErr: any) {
         console.error('❌ Failed to send client documents email:', clientEmailErr?.message || clientEmailErr);
