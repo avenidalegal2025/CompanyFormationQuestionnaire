@@ -228,15 +228,15 @@ export default function ClientPage() {
     }
   };
 
-  const fetchCompanyData = async () => {
+  const fetchCompanyData = async (companyIdOverride?: string | null) => {
     try {
-      const selectedCompanyId = localStorage.getItem('selectedCompanyId');
-      if (!selectedCompanyId) {
-        console.log('⚠️ No selectedCompanyId found');
+      const companyIdToFetch = companyIdOverride || selectedCompanyId || localStorage.getItem('selectedCompanyId');
+      if (!companyIdToFetch) {
+        console.log('⚠️ No selectedCompanyId found (param, state, or localStorage)');
         return;
       }
-      
-      const response = await fetch(`/api/companies?companyId=${encodeURIComponent(selectedCompanyId)}`);
+
+      const response = await fetch(`/api/companies?companyId=${encodeURIComponent(companyIdToFetch)}`);
       if (response.ok) {
         const data = await response.json();
         if (data.company) {
@@ -274,7 +274,7 @@ export default function ClientPage() {
         console.error('Failed to fetch documents', response.status);
         setDocuments([]);
       }
-      await fetchCompanyData();
+      await fetchCompanyData(companyIdForDocs);
     } catch (error: any) {
       clearTimeout(timeoutId);
       console.error('Error fetching documents:', error);
