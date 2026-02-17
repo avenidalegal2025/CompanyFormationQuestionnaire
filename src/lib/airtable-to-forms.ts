@@ -1007,6 +1007,8 @@ export function mapAirtableToCorpOrganizationalResolution(record: any): any {
     managers.push({ name: members[0].name, address: members[0].address, role: 'President; Director' });
   }
 
+  const directorCount = Math.min(Math.max(Number(fields['Directors Count']) || 1, 1), 6);
+
   return {
     companyName: companyName,
     companyAddress: companyAddress,
@@ -1018,7 +1020,26 @@ export function mapAirtableToCorpOrganizationalResolution(record: any): any {
     managers: managers,
     memberCount: members.length,
     managerCount: managers.length,
+    directorCount,
   };
+}
+
+/**
+ * Get the template filename for C-Corp Organizational Resolution (216 templates: 6×6×6 shareholders/directors/officers).
+ * Matches files in Org_Resolution_Templates_216_2 e.g. Org_Resolution_1 Owner_1 Director_1 Officer.docx
+ */
+export function getCorpOrganizationalResolution216TemplateName(
+  shareholderCount: number,
+  directorCount: number,
+  officerCount: number
+): string {
+  const owners = Math.min(Math.max(shareholderCount, 1), 6);
+  const directors = Math.min(Math.max(directorCount, 1), 6);
+  const officers = Math.min(Math.max(officerCount, 1), 6);
+  const ownerWord = owners === 1 ? 'Owner' : 'Owners';
+  const directorWord = directors === 1 ? 'Director' : 'Directors';
+  const officerWord = officers === 1 ? 'Officer' : 'Officers';
+  return `Org_Resolution_${owners} ${ownerWord}_${directors} ${directorWord}_${officers} ${officerWord}.docx`;
 }
 
 /**

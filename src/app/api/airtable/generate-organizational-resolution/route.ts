@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Airtable from 'airtable';
-import { mapAirtableToMembershipRegistry, getOrganizationalResolutionTemplateName, mapAirtableToCorpOrganizationalResolution, formatLegalDate } from '@/lib/airtable-to-forms';
+import { mapAirtableToMembershipRegistry, getOrganizationalResolutionTemplateName, mapAirtableToCorpOrganizationalResolution, getCorpOrganizationalResolution216TemplateName, formatLegalDate } from '@/lib/airtable-to-forms';
 import { formatCompanyFileName, formatCompanyDocumentTitle } from '@/lib/document-names';
 import { convertDocxToPdf } from '@/lib/docx-to-pdf';
 import { getUserCompanyDocuments, saveUserCompanyDocuments } from '@/lib/dynamo';
@@ -18,6 +18,9 @@ const TEMPLATE_BASE_URL = `https://${TEMPLATE_BUCKET}.s3.${process.env.AWS_REGIO
 const S3_BUCKET = process.env.S3_DOCUMENTS_BUCKET || 'avenida-legal-documents';
 const CORPORATE_TEMPLATE_BASE_PATH =
   process.env.ORGANIZATIONAL_RESOLUTION_INC_TEMPLATE_BASE_PATH || 'templates/organizational-resolution-inc';
+/** C-Corp 216 templates (6×6×6 shareholders/directors/officers) from Org_Resolution_Templates_216_2 */
+const CORPORATE_216_TEMPLATE_BASE_PATH =
+  process.env.ORGANIZATIONAL_RESOLUTION_INC_216_TEMPLATE_BASE_PATH || 'templates/organizational-resolution-inc-216';
 
 // Initialize Airtable
 const base = new Airtable({ apiKey: AIRTABLE_API_KEY }).base(AIRTABLE_BASE_ID);
@@ -159,13 +162,19 @@ export async function POST(request: NextRequest) {
       managerCount: orgResolutionData.managerCount,
     });
     
-    // Step 4: Determine correct template (LLC = resolution; C-Corp/S-Corp = organizational minutes from Gym Kidz template)
+    // Step 4: Determine correct template (LLC = resolution; C-Corp/S-Corp = 216 templates by shareholders×directors×officers, or fallback to 1–6 minutes)
     const templatePath = entityType === 'LLC'
       ? getOrganizationalResolutionTemplateName(
           orgResolutionData.memberCount,
           orgResolutionData.managerCount
         )
-      : `${CORPORATE_TEMPLATE_BASE_PATH}/organizational-minutes-inc-${Math.min(Math.max(orgResolutionData.memberCount || 1, 1), 6)}.docx`;
+      : (() => {
+          const shareholders = orgResolutionData.memberCount || 1;
+          const directors = (orgResolutionData as { directorCount?: number }).directorCount ?? 1;
+          const officers = orgResolutionData.managerCount || 1;
+          const fileName = getCorpOrganizationalResolution216TemplateName(shareholders, directors, officers);
+          return `${CORPORATE_216_TEMPLATE_BASE_PATH}/${fileName}`;
+        })();
     const templateUrl = `${TEMPLATE_BASE_URL}/${templatePath}`;
     
     console.log(`📄 Using template: ${templatePath}`);

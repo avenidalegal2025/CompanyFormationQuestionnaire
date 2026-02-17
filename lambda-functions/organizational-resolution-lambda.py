@@ -3,6 +3,7 @@ import json
 import tempfile
 import boto3
 from docx import Document
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 import re
 import base64
 from copy import deepcopy
@@ -529,6 +530,23 @@ def replace_placeholders(doc, data):
             for cell in row.cells:
                 for paragraph in cell.paragraphs:
                     replace_all_in_paragraph(paragraph)
+
+    # Left-align shareholder signature lines so "Name: X" and "XX% Owner" stay together (216 templates)
+    def left_align_shareholder_lines(paragraph):
+        t = paragraph.text.strip()
+        if 'Name:' in t and '% Owner' in t:
+            paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
+            try:
+                paragraph.paragraph_format.tab_stops.clear()
+            except Exception:
+                pass
+    for paragraph in doc.paragraphs:
+        left_align_shareholder_lines(paragraph)
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                for paragraph in cell.paragraphs:
+                    left_align_shareholder_lines(paragraph)
 
     # Fix signature line: "100% Owner, and President" -> "100% Owner, President and Director"
     if first_manager_role_trimmed and signature_line_role and first_manager_role_trimmed != signature_line_role:

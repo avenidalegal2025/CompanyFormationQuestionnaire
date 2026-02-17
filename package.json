@@ -14,7 +14,9 @@
     "check-dynamo-company": "ts-node --project tsconfig.scripts.json scripts/check-dynamo-company.ts",
     "list-dynamo-companies": "ts-node --project tsconfig.scripts.json scripts/list-dynamo-companies.ts",
     "test-pdf-generation": "ts-node --project tsconfig.scripts.json scripts/test-pdf-generation.ts",
-    "test-pdf-by-session": "ts-node --project tsconfig.scripts.json scripts/test-pdf-by-session.ts"
+    "test-pdf-by-session": "ts-node --project tsconfig.scripts.json scripts/test-pdf-by-session.ts",
+    "test-org-resolution-216": "ts-node --project tsconfig.scripts.json scripts/test-org-resolution-216.ts",
+    "upload-org-resolution-216": "./scripts/upload-org-resolution-216-templates.sh"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.700.0",
