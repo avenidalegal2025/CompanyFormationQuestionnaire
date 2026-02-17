@@ -29,6 +29,60 @@ interface AdminCompany {
   entityType: string;
   formationState: string;
   customerEmail: string;
+  paymentDate: string;
+}
+
+/**
+ * Format a date string into a friendly readable format.
+ * If time info is present: "8:45am 17th of May, 2027"
+ * If date-only (e.g. "2027-05-17"): "17th of May, 2027"
+ */
+function formatFriendlyDate(dateStr: string | undefined | null): string {
+  if (!dateStr) return "";
+  try {
+    // Detect if the string has time information (contains T or a colon for HH:MM)
+    const hasTime = /T|\d{2}:\d{2}/.test(dateStr);
+
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+
+    // Day with ordinal suffix
+    const day = date.getUTCDate();
+    const suffix =
+      day === 11 || day === 12 || day === 13
+        ? "th"
+        : day % 10 === 1
+        ? "st"
+        : day % 10 === 2
+        ? "nd"
+        : day % 10 === 3
+        ? "rd"
+        : "th";
+
+    const months = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December",
+    ];
+    const month = months[date.getUTCMonth()];
+    const year = date.getUTCFullYear();
+
+    if (!hasTime) {
+      return `${day}${suffix} of ${month}, ${year}`;
+    }
+
+    // Hours & minutes (local time when time info is present)
+    let hours = date.getHours();
+    const minutes = date.getMinutes();
+    const ampm = hours >= 12 ? "pm" : "am";
+    hours = hours % 12 || 12;
+    const timeStr = minutes === 0
+      ? `${hours}${ampm}`
+      : `${hours}:${String(minutes).padStart(2, "0")}${ampm}`;
+
+    return `${timeStr} ${day}${suffix} of ${month}, ${year}`;
+  } catch {
+    return dateStr;
+  }
 }
 
 export default function AdminDocumentsPage() {
@@ -42,7 +96,7 @@ export default function AdminDocumentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [latestCompanies, setLatestCompanies] = useState<AdminCompany[]>([]);
   const [latestLoading, setLatestLoading] = useState(false);
-  const [recentListTab, setRecentListTab] = useState<"new" | "seen">("new");
+  const [recentListTab, setRecentListTab] = useState<"all" | "new" | "seen">("all");
   const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -53,7 +107,7 @@ export default function AdminDocumentsPage() {
   useEffect(() => {
     let cancelled = false;
     setLatestLoading(true);
-    fetch("/api/admin/companies?latest=15")
+    fetch("/api/admin/companies?latest=50")
       .then((res) => res.json())
       .then((data) => {
         if (!cancelled && data.companies) setLatestCompanies(data.companies);
@@ -157,7 +211,7 @@ export default function AdminDocumentsPage() {
     () => latestCompanies.filter((c) => seenIds.has(c.id)),
     [latestCompanies, seenIds]
   );
-  const recentList = recentListTab === "new" ? newCompanies : seenCompanies;
+  const recentList = recentListTab === "all" ? latestCompanies : recentListTab === "new" ? newCompanies : seenCompanies;
 
   const getEntityType = () => selectedCompany?.entityType || "";
   const isCorporation = () => {
@@ -365,35 +419,38 @@ export default function AdminDocumentsPage() {
 
         <div className="mb-6 rounded-lg border border-gray-200 bg-white overflow-hidden">
           <div className="flex border-b border-gray-200">
-            <button
-              type="button"
-              onClick={() => setRecentListTab("new")}
-              className={`flex-1 px-4 py-3 text-sm font-medium ${
-                recentListTab === "new"
-                  ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/50"
-                  : "text-gray-500 hover:bg-gray-50"
-              }`}
-            >
-              Nuevo
-            </button>
-            <button
-              type="button"
-              onClick={() => setRecentListTab("seen")}
-              className={`flex-1 px-4 py-3 text-sm font-medium ${
-                recentListTab === "seen"
-                  ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/50"
-                  : "text-gray-500 hover:bg-gray-50"
-              }`}
-            >
-              Vistos anteriormente
-            </button>
+            {([
+              { key: "all" as const, label: "Empresas Formadas" },
+              { key: "new" as const, label: "Nuevo" },
+              { key: "seen" as const, label: "Vistos anteriormente" },
+            ]).map(tab => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setRecentListTab(tab.key)}
+                className={`flex-1 px-4 py-3 text-sm font-medium ${
+                  recentListTab === tab.key
+                    ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/50"
+                    : "text-gray-500 hover:bg-gray-50"
+                }`}
+              >
+                {tab.label}
+                {tab.key === "new" && newCompanies.length > 0 && (
+                  <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-blue-100 text-blue-700 text-xs font-bold px-1.5 py-0.5 min-w-[1.25rem]">
+                    {newCompanies.length}
+                  </span>
+                )}
+              </button>
+            ))}
           </div>
-          <div className="p-3 max-h-64 overflow-y-auto">
+          <div className="p-3 max-h-96 overflow-y-auto">
             {latestLoading ? (
               <p className="text-sm text-gray-500">Cargando últimas empresas…</p>
             ) : recentList.length === 0 ? (
               <p className="text-sm text-gray-500">
-                {recentListTab === "new"
+                {recentListTab === "all"
+                  ? "No hay empresas formadas aún."
+                  : recentListTab === "new"
                   ? "No hay empresas nuevas en la lista."
                   : "No hay empresas vistas aún. Haz clic en una empresa de la pestaña Nuevo para marcarla como vista."}
               </p>
@@ -408,10 +465,19 @@ export default function AdminDocumentsPage() {
                         selectedCompany?.id === company.id ? "bg-blue-50 text-blue-700" : ""
                       }`}
                     >
-                      <span className="font-medium text-gray-900">{company.companyName}</span>
-                      <span className="text-gray-500 ml-1">
-                        · {company.entityType} · {company.formationState}
-                      </span>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <span className="font-medium text-gray-900">{company.companyName}</span>
+                          <span className="text-gray-500 ml-1">
+                            · {company.entityType} · {company.formationState}
+                          </span>
+                        </div>
+                        {company.paymentDate && (
+                          <span className="text-xs text-gray-400 whitespace-nowrap shrink-0">
+                            {formatFriendlyDate(company.paymentDate)}
+                          </span>
+                        )}
+                      </div>
                       <div className="text-xs text-gray-500 truncate">{company.customerEmail}</div>
                     </button>
                   </li>
