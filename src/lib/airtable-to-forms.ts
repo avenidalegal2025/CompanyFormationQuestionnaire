@@ -1007,7 +1007,20 @@ export function mapAirtableToCorpOrganizationalResolution(record: any): any {
     managers.push({ name: members[0].name, address: members[0].address, role: 'President; Director' });
   }
 
-  const directorCount = Math.min(Math.max(Number(fields['Directors Count']) || 1, 1), 6);
+  // Directors (Board of Directors) — read from Airtable Director N Name fields
+  const directors: Array<{ name: string; address: string }> = [];
+  const rawDirectorCount = Math.min(Math.max(Number(fields['Directors Count']) || 1, 1), 6);
+  for (let i = 1; i <= rawDirectorCount; i++) {
+    const directorName = fields[`Director ${i} Name`] || '';
+    if (!directorName || directorName.trim() === '') continue;
+    const directorAddress = formatAddress(fields[`Director ${i} Address`] || '');
+    directors.push({ name: directorName.trim(), address: directorAddress });
+  }
+  // If no directors were found in Airtable, default to first member as director
+  if (directors.length === 0 && members.length > 0) {
+    directors.push({ name: members[0].name, address: members[0].address });
+  }
+  const directorCount = directors.length || rawDirectorCount;
 
   return {
     companyName: companyName,
@@ -1018,6 +1031,7 @@ export function mapAirtableToCorpOrganizationalResolution(record: any): any {
     totalShares,
     members: members,
     managers: managers,
+    directors: directors,
     memberCount: members.length,
     managerCount: managers.length,
     directorCount,
