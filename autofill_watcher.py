@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
 """
-Autofill Watcher - Continuously monitors Airtable for new filings.
+Autofill Watcher - Processes Airtable records for Sunbiz filing.
 Supports LLC, C-Corp, and S-Corp entity types.
 Routes to the correct filing script via filing_dispatcher.py.
 
-Run this on EC2: python3 autofill_watcher.py
+DEFAULT MODE: Run once — process all pending records, then exit.
+WATCH MODE:  Only with --watch flag — poll continuously every 30s.
+
+Usage:
+  python3 autofill_watcher.py            # Run once, process pending, exit
+  python3 autofill_watcher.py --watch    # Continuous polling (use with caution)
+  python3 autofill_watcher.py --dry-run  # Show what would be filed, don't open browser
 """
 import os
+import sys
 import time
 import subprocess
 from datetime import datetime
@@ -26,7 +33,7 @@ if not AIRTABLE_API_KEY or not AIRTABLE_BASE_ID:
     print("   Set them in /etc/environment or export them before running")
     exit(1)
 
-# Poll interval in seconds
+# Poll interval in seconds (only used in --watch mode)
 POLL_INTERVAL = 30
 
 
@@ -55,14 +62,12 @@ def get_pending_records():
 
     try:
         records = table.all(formula=formula, sort=["-Payment Date"])
-        print(f"\U0001f50d Formula query returned {len(records)} record(s)")
-        if records:
-            for r in records:
-                company_name = r['fields'].get('Company Name', 'Unknown')
-                status = r['fields'].get('Formation Status', 'NOT SET')
-                autofill = r['fields'].get('Autofill', 'NOT SET')
-                entity_type = r['fields'].get('Entity Type', 'N/A')
-                print(f"   \U0001f4cb Found: {company_name} ({entity_type}) (Status: {status}, Autofill: {autofill})")
+        print(f"\U0001f50d Found {len(records)} record(s) matching autofill criteria")
+        for r in records:
+            company_name = r['fields'].get('Company Name', 'Unknown')
+            status = r['fields'].get('Formation Status', 'NOT SET')
+            entity_type = r['fields'].get('Entity Type', 'N/A')
+            print(f"   \U0001f4cb {company_name} ({entity_type}) — Status: {status}")
         return records
     except Exception as e:
         print(f"\u274c Error querying Airtable: {e}")
@@ -78,9 +83,16 @@ def mark_as_processing(record_id):
     table.update(record_id, {'Formation Status': 'In Progress'})
 
 
+def clear_autofill_flag(record_id):
+    """Set Autofill back to 'No' after processing so it doesn't re-run."""
+    api = Api(AIRTABLE_API_KEY)
+    table = api.table(AIRTABLE_BASE_ID, AIRTABLE_TABLE_NAME)
+    table.update(record_id, {'Autofill': 'No'})
+    print(f"   \U0001f6d1 Autofill flag cleared for {record_id}")
+
+
 def run_autofill(record_id):
     """Run the filing dispatcher for a specific record."""
-    # Use the dispatcher instead of calling LLC script directly
     script_path = os.path.join(os.path.dirname(__file__), 'filing_dispatcher.py')
 
     print(f"\n{'=' * 60}")
@@ -96,60 +108,97 @@ def run_autofill(record_id):
     return result.returncode == 0
 
 
-def main():
+def process_records(records, dry_run=False):
+    """Process a list of records. Returns (success_count, fail_count)."""
+    success = 0
+    failed = 0
+    timestamp = datetime.now().strftime("%H:%M:%S")
+
+    for record in records:
+        record_id = record['id']
+        company_name = record['fields'].get('Company Name', 'Unknown')
+        entity_type = record['fields'].get('Entity Type', 'N/A')
+
+        print(f"\n[{timestamp}] \U0001f3e2 Processing: {company_name} ({entity_type})")
+
+        if dry_run:
+            print(f"   \U0001f4dd DRY RUN — would file {company_name} ({entity_type})")
+            print(f"   Record ID: {record_id}")
+            print(f"   Status: {record['fields'].get('Formation Status', 'N/A')}")
+            print(f"   Email: {record['fields'].get('Customer Email', 'N/A')}")
+            success += 1
+            continue
+
+        try:
+            mark_as_processing(record_id)
+            ok = run_autofill(record_id)
+
+            # Always clear Autofill flag after attempt (success or fail)
+            # This prevents infinite re-runs
+            clear_autofill_flag(record_id)
+
+            if ok:
+                print(f"[{timestamp}] \u2705 Completed: {company_name} ({entity_type})")
+                success += 1
+            else:
+                print(f"[{timestamp}] \u26a0\ufe0f Autofill returned non-zero for: {company_name}")
+                failed += 1
+
+        except Exception as e:
+            print(f"[{timestamp}] \u274c Error processing {company_name}: {e}")
+            # Still clear the flag to prevent infinite retries
+            try:
+                clear_autofill_flag(record_id)
+            except Exception:
+                pass
+            failed += 1
+
+    return success, failed
+
+
+def run_once(dry_run=False):
+    """Run once: fetch pending records, process them, exit."""
+    mode = "DRY RUN" if dry_run else "SINGLE RUN"
+    print(f"\n\U0001f916 Sunbiz Autofill — {mode}")
+    print(f"   Entity types: LLC, C-Corp, S-Corp")
+    print(f"   Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("=" * 50)
+
+    records = get_pending_records()
+
+    if not records:
+        print("\n\u2705 No pending records. Nothing to do.")
+        return
+
+    print(f"\n\U0001f4cb {len(records)} record(s) to process")
+
+    success, failed = process_records(records, dry_run=dry_run)
+
+    print(f"\n{'=' * 50}")
+    print(f"\U0001f4ca Results: {success} succeeded, {failed} failed")
+    print(f"\u2705 Done. Exiting.")
+
+
+def watch_loop():
+    """Continuous polling mode. Only use with --watch flag."""
     print(f"""
 \u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557
-\u2551           \U0001f916 SUNBIZ AUTOFILL WATCHER                         \u2551
-\u2551                                                              \u2551
-\u2551   Monitoring Airtable for Florida filings...                \u2551
+\u2551   \u26a0\ufe0f  CONTINUOUS WATCH MODE                              \u2551
 \u2551   Entity types: LLC, C-Corp, S-Corp                        \u2551
 \u2551   Poll interval: {POLL_INTERVAL} seconds                              \u2551
-\u2551                                                              \u2551
 \u2551   Press Ctrl+C to stop                                       \u2551
 \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d
     """)
 
     while True:
         try:
-            timestamp = datetime.now().strftime("%H:%M:%S")
-
             records = get_pending_records()
 
-            new_records = []
-            for r in records:
-                status = r['fields'].get('Formation Status', '')
-                company_name = r['fields'].get('Company Name', 'Unknown')
-                autofill = r['fields'].get('Autofill', 'NOT SET')
-                entity_type = r['fields'].get('Entity Type', 'N/A')
-                if status in ['Pending', 'In Progress']:
-                    new_records.append(r)
-                    print(f"   \u2705 {company_name} ({entity_type}) meets all conditions (Status: {status}, Autofill: {autofill})")
-                else:
-                    print(f"   \u26a0\ufe0f {company_name} skipped (Status: {status}, not Pending/In Progress)")
-
-            if new_records:
-                print(f"\n[{timestamp}] \U0001f4cb Found {len(new_records)} new record(s) to process!")
-
-                for record in new_records:
-                    record_id = record['id']
-                    company_name = record['fields'].get('Company Name', 'Unknown')
-                    entity_type = record['fields'].get('Entity Type', 'N/A')
-
-                    print(f"\n[{timestamp}] \U0001f3e2 Processing: {company_name} ({entity_type})")
-
-                    try:
-                        mark_as_processing(record_id)
-                        success = run_autofill(record_id)
-
-                        if success:
-                            print(f"[{timestamp}] \u2705 Completed: {company_name} ({entity_type})")
-                        else:
-                            print(f"[{timestamp}] \u26a0\ufe0f Autofill returned non-zero for: {company_name}")
-
-                    except Exception as e:
-                        print(f"[{timestamp}] \u274c Error processing {company_name}: {e}")
+            if records:
+                process_records(records)
             else:
-                print(f"[{timestamp}] \U0001f440 Watching... (no new records)", end='\r')
+                ts = datetime.now().strftime("%H:%M:%S")
+                print(f"[{ts}] \U0001f440 Watching... (no new records)", end='\r')
 
             time.sleep(POLL_INTERVAL)
 
@@ -163,4 +212,12 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    args = sys.argv[1:]
+
+    if "--dry-run" in args:
+        run_once(dry_run=True)
+    elif "--watch" in args:
+        watch_loop()
+    else:
+        # Default: run once and exit
+        run_once()

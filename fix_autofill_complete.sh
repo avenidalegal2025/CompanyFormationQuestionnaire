@@ -164,8 +164,7 @@ WorkingDirectory=/home/ubuntu/company-questionnaire
 Environment="DISPLAY=:1"
 EnvironmentFile=/home/ubuntu/.airtable_env
 ExecStart=/usr/bin/python3 /home/ubuntu/company-questionnaire/autofill_watcher.py
-Restart=always
-RestartSec=10
+Restart=no
 
 [Install]
 WantedBy=multi-user.target
