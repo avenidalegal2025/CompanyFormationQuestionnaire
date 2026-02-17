@@ -261,28 +261,24 @@ def replace_placeholders(doc, data):
             ):
                 add_placeholder(ph, shares_str, False)
 
-        # Airtable-style placeholders for 1-shareholder Inc minutes template
-        if idx == 1:
-            # Owner 1 Name
+        # Airtable-style placeholders for Inc/Corp 216 templates: Owner 1-6
+        for ph in (
+            '{{' + f'Owner {idx} Name' + '}}',
+            '{{ ' + f'Owner {idx} Name' + ' }}',
+        ):
+            add_placeholder(ph, member_name, True)
+        for ph in (
+            '{{' + f'Owner {idx} Ownership %' + '}}',
+            '{{ ' + f'Owner {idx} Ownership %' + ' }}',
+        ):
+            pct_placeholders.append((ph, pct_str, pct_str_no_percent))
+        if shares_val is not None:
+            shares_str = f"{int(shares_val):,}"
             for ph in (
-                '{{Owner 1 Name}}',
-                '{{ Owner 1 Name }}',
+                '{{' + f'Owner {idx} Ownership #Shares' + '}}',
+                '{{ ' + f'Owner {idx} Ownership #Shares' + ' }}',
             ):
-                add_placeholder(ph, member_name, True)
-            # Owner 1 Ownership % (used both in distribution line and signature line)
-            for ph in (
-                '{{Owner 1 Ownership %}}',
-                '{{ Owner 1 Ownership % }}',
-            ):
-                pct_placeholders.append((ph, pct_str, pct_str_no_percent))
-            # Owner 1 Ownership #Shares (derived from 1,000 base)
-            if shares_val is not None:
-                shares_str = f"{int(shares_val):,}"
-                for ph in (
-                    '{{Owner 1 Ownership #Shares}}',
-                    '{{ Owner 1 Ownership #Shares }}',
-                ):
-                    add_placeholder(ph, shares_str, False)
+                add_placeholder(ph, shares_str, False)
 
     # Signature line: under signature we want "100% Owner, President and Director" (not "100% Owner, and President")
     first_manager_role_raw = ''
@@ -320,18 +316,39 @@ def replace_placeholders(doc, data):
             '{{' + f'Manager_{idx}_title' + '}}',
         ):
             add_placeholder(ph, manager_role, False)
-        if idx == 1:
-            # Airtable-style Officer 1 Role placeholder with space
-            for ph in ('{{Officer 1 Role}}', '{{ Officer 1 Role }}'):
-                add_placeholder(ph, manager_role, False)
-        # Director_{idx} Name alias for Inc minutes template (Director 1 row)
+        # Airtable-style Officer N Name and Officer N Role placeholders (all 1-6)
+        for ph in (
+            '{{' + f'Officer {idx} Name' + '}}',
+            '{{ ' + f'Officer {idx} Name' + ' }}',
+        ):
+            add_placeholder(ph, manager_name, True)
+        for ph in (
+            '{{' + f'Officer {idx} Role' + '}}',
+            '{{ ' + f'Officer {idx} Role' + ' }}',
+        ):
+            add_placeholder(ph, manager_role, False)
+
+    # Director placeholders: read from separate 'directors' array (Board of Directors)
+    # Falls back to managers if no directors array is provided (backward compat)
+    directors = data.get('directors', []) or []
+    if not directors:
+        # Fallback: use managers as directors (old behavior)
+        directors = managers
+    for idx, director in enumerate(directors, start=1):
+        num2 = f"{idx:02d}"
+        director_name = director.get('name', '')
+        # Indexed placeholders: Director_1_Name, Director_01_Name
         for ph in (
             '{{' + f'Director_{num2}_Name' + '}}',
             '{{' + f'Director_{idx}_Name' + '}}',
-            '{{Director 1 Name}}' if idx == 1 else '',
         ):
-            if ph:
-                add_placeholder(ph, manager_name, True)
+            add_placeholder(ph, director_name, True)
+        # Airtable-style placeholders: {{Director 1 Name}} through {{Director 6 Name}}
+        for ph in (
+            '{{' + f'Director {idx} Name' + '}}',
+            '{{ ' + f'Director {idx} Name' + ' }}',
+        ):
+            add_placeholder(ph, director_name, True)
 
     def insert_run_after(paragraph, run, text):
         new_run = paragraph.add_run(text)
@@ -531,15 +548,20 @@ def replace_placeholders(doc, data):
                 for paragraph in cell.paragraphs:
                     replace_all_in_paragraph(paragraph)
 
-    # Left-align shareholder signature lines so "Name: X" and "XX% Owner" stay together (216 templates)
+    # Left-align shareholder signature lines and strip leading tabs from "XX% Owner" paragraphs
+    # The 216 templates have 6 leading tab characters before the {{Owner N Ownership %}} placeholder
     def left_align_shareholder_lines(paragraph):
         t = paragraph.text.strip()
-        if 'Name:' in t and '% Owner' in t:
+        if ('Name:' in t and '% Owner' in t) or ('% Owner' in t and t.strip()[0:1].isdigit()):
             paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
             try:
                 paragraph.paragraph_format.tab_stops.clear()
             except Exception:
                 pass
+            # Strip leading tabs/spaces from runs so text starts at the left margin
+            for run in paragraph.runs:
+                if run.text and run.text != run.text.lstrip('\t '):
+                    run.text = run.text.lstrip('\t ')
     for paragraph in doc.paragraphs:
         left_align_shareholder_lines(paragraph)
     for table in doc.tables:

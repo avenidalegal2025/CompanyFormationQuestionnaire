@@ -1,6 +1,7 @@
 /**
  * Trigger one formation for EC2 autofill so you can watch it run in VNC.
- * Sets a Florida LLC record to Formation Status = Pending, Autofill = Yes.
+ * Sets a Florida formation record to Formation Status = Pending, Autofill = Yes.
+ * Supports LLC, C-Corp, and S-Corp entity types.
  * The watcher on EC2 will pick it up within ~30 seconds.
  *
  * Usage:
@@ -32,6 +33,9 @@ const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY?.trim() || '';
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID?.trim() || '';
 const AIRTABLE_TABLE_NAME = process.env.AIRTABLE_TABLE_NAME?.trim() || 'Formations';
 
+// Supported entity types for Sunbiz filing
+const SUPPORTED_ENTITY_TYPES = ['LLC', 'C-Corp', 'S-Corp'];
+
 async function main() {
   if (!AIRTABLE_API_KEY || !AIRTABLE_BASE_ID) {
     console.error('❌ Set AIRTABLE_API_KEY and AIRTABLE_BASE_ID in .env.local');
@@ -44,6 +48,7 @@ async function main() {
 
   let recordId: string;
   let companyName: string;
+  let entityType: string;
 
   if (recordIdArg && recordIdArg.startsWith('rec')) {
     // Specific record (fetch by RECORD_ID() formula)
@@ -58,10 +63,15 @@ async function main() {
     const rec = rows[0];
     companyName = (rec.get('Company Name') as string) || 'Unknown';
     const state = rec.get('Formation State') as string;
-    const entityType = rec.get('Entity Type') as string;
+    entityType = (rec.get('Entity Type') as string) || '';
     const paymentId = rec.get('Stripe Payment ID') as string;
-    if (state !== 'Florida' || entityType !== 'LLC') {
-      console.error(`❌ Record is not a Florida LLC (State: ${state}, Type: ${entityType})`);
+
+    if (state !== 'Florida') {
+      console.error(`❌ Record is not a Florida formation (State: ${state})`);
+      process.exit(1);
+    }
+    if (!SUPPORTED_ENTITY_TYPES.includes(entityType)) {
+      console.error(`❌ Unsupported entity type: '${entityType}'. Supported: ${SUPPORTED_ENTITY_TYPES.join(', ')}`);
       process.exit(1);
     }
     if (!paymentId) {
@@ -69,24 +79,29 @@ async function main() {
       process.exit(1);
     }
   } else {
-    // Find first eligible: Florida LLC, has Stripe Payment ID, status not Filed/Completed
+    // Find first eligible: Florida LLC/C-Corp/S-Corp, has Stripe Payment ID, status Pending or In Progress
     const formula = `AND(
       {Formation State} = 'Florida',
-      {Entity Type} = 'LLC',
+      OR(
+        {Entity Type} = 'LLC',
+        {Entity Type} = 'C-Corp',
+        {Entity Type} = 'S-Corp'
+      ),
       {Stripe Payment ID} != '',
       OR({Formation Status} = 'Pending', {Formation Status} = 'In Progress')
     )`;
     const records = await table.select({ filterByFormula: formula, maxRecords: 1, sort: [{ field: 'Payment Date', direction: 'desc' }] }).firstPage();
     if (!records.length) {
-      console.error('❌ No eligible record found. Need a Florida LLC with Stripe Payment ID and Formation Status Pending or In Progress.');
+      console.error('❌ No eligible record found. Need a Florida LLC/C-Corp/S-Corp with Stripe Payment ID and Formation Status Pending or In Progress.');
       process.exit(1);
     }
     const rec = records[0];
     recordId = rec.id;
     companyName = (rec.get('Company Name') as string) || 'Unknown';
+    entityType = (rec.get('Entity Type') as string) || 'Unknown';
   }
 
-  console.log(`\n🎯 Triggering formation for: ${companyName} (${recordId})\n`);
+  console.log(`\n🎯 Triggering formation for: ${companyName} (${entityType}) [${recordId}]\n`);
 
   await table.update([
     {
@@ -99,7 +114,8 @@ async function main() {
   ]);
 
   console.log('✅ Airtable updated: Formation Status = Pending, Autofill = Yes');
-  console.log('\n👀 On EC2 the watcher will pick this up within ~30 seconds.');
+  console.log(`\n👀 On EC2 the watcher will pick this up within ~30 seconds.`);
+  console.log(`   Entity type: ${entityType} → dispatcher will route to correct filing script.`);
   console.log('   Watch the VNC session to see the browser open Sunbiz and fill the form.\n');
 }
 
