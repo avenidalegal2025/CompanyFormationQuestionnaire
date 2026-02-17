@@ -76,62 +76,74 @@ def lambda_handler(event, context):
         env['HOME'] = tmpdir
         env['SAL_USE_VCLPLUGIN'] = 'svp'
         env['LD_LIBRARY_PATH'] = (lo_dir + os.pathsep + env.get('LD_LIBRARY_PATH', '')).strip(os.pathsep)
-        # Point fontconfig at LO's bundled fonts if present (avoids NoSuchElementException from font lookup)
-        fonts_dirs = [os.path.join(lo_root, 'share', 'fonts'), '/usr/share/fonts', '/tmp']
-        for d in fonts_dirs:
-            if os.path.isdir(d):
-                break
-        else:
-            d = tmpdir
+        # Point fontconfig at all available font dirs so LO can substitute (e.g. Calibri→Liberation) and embed in PDF
+        fonts_dirs = [
+            os.path.join(lo_root, 'share', 'fonts'),
+            '/usr/share/fonts',
+            '/usr/share/fonts/liberation',
+            '/tmp',
+        ]
+        existing_dirs = [d for d in fonts_dirs if os.path.isdir(d)]
+        if not existing_dirs:
+            existing_dirs = [tmpdir]
+        cache_dir = os.path.join(tmpdir, 'fontcache')
+        dir_lines = ''.join('<dir>%s</dir>' % d for d in existing_dirs)
         fonts_conf = os.path.join(tmpdir, 'fonts.conf')
         with open(fonts_conf, 'w') as f:
-            f.write('<?xml version="1.0"?><fontconfig><dir>%s</dir><cachedir>%s</cachedir></fontconfig>' % (d, os.path.join(tmpdir, 'fontcache')))
+            f.write('<?xml version="1.0"?><fontconfig>%s<cachedir>%s</cachedir></fontconfig>' % (dir_lines, cache_dir))
         env['FONTCONFIG_FILE'] = fonts_conf
         user_install = 'file://' + tmpdir
-        cmd = [
-            LO_BIN,
-            '-env:UserInstallation=' + user_install,
-            '--headless',
-            '--invisible',
-            '--nofirststartwizard',
-            '--nolockcheck',
-            '--nologo',
-            '--norestore',
-            '--writer',
-            '--convert-to', 'pdf',
-            '--outdir', tmpdir,
-            inp,
+        # Prefer PDF/A-1b so all fonts are embedded (avoids black rectangles when fonts are missing)
+        convert_options = [
+            'pdf:writer_pdf_Export:{"SelectPdfVersion":{"type":"long","value":"1"}}',
+            'pdf',  # fallback if PDF/A filter not supported
         ]
         last_stderr = ''
         last_stdout = ''
         last_rc = -1
-        num_attempts = 3  # Cold start often needs retries (unofunction pattern)
-        for attempt in range(num_attempts):
-            try:
-                result = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    timeout=90,
-                    env=env,
-                    cwd=lo_dir,  # run from LO program dir so relative lib paths resolve
-                )
-                last_rc = result.returncode
-                last_stderr = (result.stderr or b'').decode('utf-8', errors='replace')
-                last_stdout = (result.stdout or b'').decode('utf-8', errors='replace')
-                if result.returncode == 0 and os.path.isfile(out_pdf):
+        for convert_to in convert_options:
+            cmd = [
+                LO_BIN,
+                '-env:UserInstallation=' + user_install,
+                '--headless',
+                '--invisible',
+                '--nofirststartwizard',
+                '--nolockcheck',
+                '--nologo',
+                '--norestore',
+                '--writer',
+                '--convert-to', convert_to,
+                '--outdir', tmpdir,
+                inp,
+            ]
+            for attempt in range(3):  # Cold start often needs retries (unofunction pattern)
+                try:
+                    result = subprocess.run(
+                        cmd,
+                        capture_output=True,
+                        timeout=90,
+                        env=env,
+                        cwd=lo_dir,
+                    )
+                    last_rc = result.returncode
+                    last_stderr = (result.stderr or b'').decode('utf-8', errors='replace')
+                    last_stdout = (result.stdout or b'').decode('utf-8', errors='replace')
+                    if result.returncode == 0 and os.path.isfile(out_pdf):
+                        break
+                except subprocess.TimeoutExpired as e:
+                    last_stderr = str(e)
+                    last_rc = -1
                     break
-            except subprocess.TimeoutExpired as e:
-                last_stderr = str(e)
-                last_rc = -1
+                except FileNotFoundError:
+                    return {
+                        'statusCode': 503,
+                        'headers': {'Content-Type': 'application/json'},
+                        'body': json.dumps({
+                            'error': 'LibreOffice not available. Attach the LibreOffice Lambda layer.',
+                        }),
+                    }
+            if last_rc == 0 and os.path.isfile(out_pdf):
                 break
-            except FileNotFoundError:
-                return {
-                    'statusCode': 503,
-                    'headers': {'Content-Type': 'application/json'},
-                    'body': json.dumps({
-                        'error': 'LibreOffice not available. Attach the LibreOffice Lambda layer.',
-                    }),
-                }
         if last_rc != 0 or not os.path.isfile(out_pdf):
             return {
                 'statusCode': 500,

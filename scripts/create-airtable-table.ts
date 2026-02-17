@@ -99,11 +99,16 @@ for (let i = 1; i <= 6; i++) {
   );
 }
 
-// Documents (3 fields)
+// Documents (8 fields – used by generate-* routes and webhook)
 fields.push(
   { name: 'Membership Registry URL', type: 'url' },
   { name: 'Organizational Resolution URL', type: 'url' },
-  { name: 'Operating Agreement URL', type: 'url' }
+  { name: 'Operating Agreement URL', type: 'url' },
+  { name: 'Shareholder Registry URL', type: 'url' },
+  { name: 'Bylaws URL', type: 'url' },
+  { name: 'SS-4 URL', type: 'url' },
+  { name: '2848 URL', type: 'url' },
+  { name: '8821 URL', type: 'url' }
 );
 
 // Agreement

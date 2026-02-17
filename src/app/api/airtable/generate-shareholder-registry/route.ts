@@ -168,10 +168,16 @@ export async function POST(request: NextRequest) {
 
     // Step 4: Generate DOCX
     const vaultPath = fields['Vault Path'] || sanitizeCompanyName(fields['Company Name'] || 'Company');
+    
+    // Generate correct filename (will use .docx for Lambda, then convert if needed)
+    const fileName = formatCompanyFileName(fields['Company Name'] || 'Company', 'Shareholder Registry', 'docx');
+    const s3Key = `${vaultPath}/formation/${fileName}`;
+    
+    // Call Lambda with correct filename (not placeholder)
     const docxBuffer = await callShareholderRegistryLambda(
       registryData,
       S3_BUCKET,
-      `${vaultPath}/formation/placeholder.docx`,
+      s3Key, // Use correct filename, not placeholder
       templateUrl
     );
 
@@ -179,34 +185,37 @@ export async function POST(request: NextRequest) {
     let bodyBuffer: Buffer = docxBuffer;
     let extension: 'pdf' | 'docx' = 'docx';
     let contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    let finalS3Key = s3Key;
     try {
       const pdfBuffer = await convertDocxToPdf(docxBuffer);
       if (pdfBuffer) {
         bodyBuffer = pdfBuffer;
         extension = 'pdf';
         contentType = 'application/pdf';
-        console.log('✅ Converted Shareholder Registry to PDF');
+        // Update filename to PDF version
+        const pdfFileName = formatCompanyFileName(fields['Company Name'] || 'Company', 'Shareholder Registry', 'pdf');
+        finalS3Key = `${vaultPath}/formation/${pdfFileName}`;
+        
+        // Upload PDF version (Lambda already uploaded DOCX, now upload PDF)
+        await s3Client.send(new PutObjectCommand({
+          Bucket: S3_BUCKET,
+          Key: finalS3Key,
+          Body: bodyBuffer,
+          ContentType: contentType,
+        }));
+        console.log('✅ Converted Shareholder Registry to PDF and uploaded');
       }
     } catch (convErr: any) {
-      console.warn('⚠️ DOCX→PDF conversion failed, storing DOCX:', convErr?.message);
+      console.warn('⚠️ DOCX→PDF conversion failed, using DOCX from Lambda:', convErr?.message);
+      // Lambda already uploaded DOCX, so finalS3Key is already correct
     }
 
-    const fileName = formatCompanyFileName(fields['Company Name'] || 'Company', 'Shareholder Registry', extension);
-    const s3Key = `${vaultPath}/formation/${fileName}`;
-
-    await s3Client.send(new PutObjectCommand({
-      Bucket: S3_BUCKET,
-      Key: s3Key,
-      Body: bodyBuffer,
-      ContentType: contentType,
-    }));
-
-    console.log(`✅ Shareholder Registry ${extension.toUpperCase()} generated and uploaded: ${s3Key}`);
+    console.log(`✅ Shareholder Registry ${extension.toUpperCase()} generated and uploaded: ${finalS3Key}`);
 
     // Step 5: Update Airtable (if requested)
     if (updateAirtable) {
       try {
-        const docUrl = `https://${S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-west-1'}.amazonaws.com/${s3Key}`;
+        const docUrl = `https://${S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-west-1'}.amazonaws.com/${finalS3Key}`;
         await new Promise((resolve, reject) => {
           base(AIRTABLE_TABLE_NAME).update(recordId, {
             'Shareholder Registry URL': docUrl,
@@ -228,8 +237,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       recordId: recordId,
-      s3Key: s3Key,
-      viewUrl: `https://${S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-west-1'}.amazonaws.com/${s3Key}`,
+      s3Key: finalS3Key,
+      viewUrl: `https://${S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-west-1'}.amazonaws.com/${finalS3Key}`,
       docxSize: bodyBuffer.length,
       format: extension,
     });

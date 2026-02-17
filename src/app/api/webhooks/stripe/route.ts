@@ -298,8 +298,8 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
     forwardPhoneE164
   });
   
-  // Get user ID (email) for vault creation and idempotency tracking
-  const userId = session.customer_details?.email || (session.customer_email as string) || '';
+  // Get user ID (email) for vault creation and idempotency tracking — normalize so it matches /api/documents lookup
+  const userId = (session.customer_details?.email || (session.customer_email as string) || '').toLowerCase().trim();
   const companyName = session.metadata?.companyName || 'Company';
   
   // Declare airtableRecordId at function scope so it's accessible for phone provisioning
@@ -762,6 +762,32 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
         formatCompanyDocumentTitle(companyName, 'SS4'),
         `${baseUrl}/api/airtable/generate-ss4`
       );
+
+      // Regenerate Organizational Resolution from Airtable (C-Corp / S-Corp / LLC)
+      // This uses the Airtable record ID we just created and will, in turn,
+      // update both Airtable and the DynamoDB documents entry for
+      // id === 'organizational-resolution'.
+      try {
+        console.log('📄 Regenerating Organizational Resolution from Airtable record (post-payment confirmation)...');
+        console.log(`📋 Airtable Record ID: ${airtableRecordId}`);
+        const orgResponse = await fetch(`${baseUrl}/api/airtable/generate-organizational-resolution`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            recordId: airtableRecordId,
+            updateAirtable: true,
+          }),
+        });
+        console.log(`📡 Organizational Resolution API response status: ${orgResponse.status} ${orgResponse.statusText}`);
+        if (!orgResponse.ok) {
+          const orgError = await orgResponse.text();
+          console.error('❌ Failed to generate Organizational Resolution from Airtable:', orgError);
+        }
+      } catch (orgError: any) {
+        console.error('❌ Error generating Organizational Resolution from Airtable:', orgError?.message ?? orgError);
+      }
       
       // Regenerate 2848 from Airtable
       await regenerateFormFromAirtable(

@@ -1,5 +1,13 @@
-# Use unofunction's LibreOffice build (known to work in Lambda; shelfio layer throws NoSuchElementException)
-FROM --platform=linux/amd64 unofunction/libreoffice AS libreoffice
+# Use unofunction's LibreOffice (override with ECR mirror via build-arg to avoid Docker Hub rate limit in CodeBuild)
+ARG LIBREOFFICE_IMAGE=unofunction/libreoffice
+FROM --platform=linux/amd64 ${LIBREOFFICE_IMAGE} AS libreoffice
+
+# Stage to add Liberation fonts (substitutes for Arial/Calibri etc.) so DOCX→PDF doesn't render black rectangles
+# Download from GitHub so we don't depend on Fedora/dnf in CodeBuild
+FROM --platform=linux/amd64 alpine:3.19 AS fontbuilder
+RUN apk add --no-cache curl tar && \
+  curl -sL -o /tmp/lib.tar.gz "https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz" && \
+  mkdir -p /fonts-out/liberation && tar -xzf /tmp/lib.tar.gz -C /fonts-out/liberation --strip-components=1
 
 FROM public.ecr.aws/lambda/python:3.11
 
@@ -9,6 +17,8 @@ COPY --from=libreoffice /usr/lib64 /usr/lib64
 COPY --from=libreoffice /etc/fonts /etc/fonts
 COPY --from=libreoffice /usr/share/fonts /usr/share/fonts
 COPY --from=libreoffice /usr/include/X11/fonts /usr/include/X11/fonts
+# Add Liberation fonts so Word fonts (Arial, Calibri, etc.) have substitutes for embedding in PDF
+COPY --from=fontbuilder /fonts-out/liberation /usr/share/fonts/liberation
 
 ENV LIBREOFFICE_PATH=/opt/libreoffice/program/soffice.bin
 ENV LD_LIBRARY_PATH=/opt/libreoffice/program:/usr/lib64:${LD_LIBRARY_PATH}

@@ -1271,10 +1271,14 @@ export async function POST(request: NextRequest) {
     const pdfBuffer = await callSS4Lambda(ss4Data, S3_BUCKET, s3Key);
     console.log(`✅ SS-4 PDF generated: ${pdfBuffer.length} bytes`);
     
-    // Step 5: Update Airtable with SS-4 URL
+    // Step 5: Update Airtable with SS-4 URL (don't fail the request if field is missing)
     if (updateAirtable) {
-      await updateAirtableWithSS4Url(recordId, s3Key);
-      console.log(`✅ Airtable updated with SS-4 URL`);
+      try {
+        await updateAirtableWithSS4Url(recordId, s3Key);
+        console.log(`✅ Airtable updated with SS-4 URL`);
+      } catch (updateError: any) {
+        console.error('⚠️ Failed to update Airtable (continuing anyway):', updateError?.message ?? updateError);
+      }
     }
     
     return NextResponse.json({

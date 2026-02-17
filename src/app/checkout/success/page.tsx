@@ -28,10 +28,13 @@ function CheckoutSuccessContent() {
   const [documentsTimedOut, setDocumentsTimedOut] = useState(false);
   const [hasAgreementDoc, setHasAgreementDoc] = useState(false);
   const [documentsAuthRequired, setDocumentsAuthRequired] = useState(false);
+  const [showHubEscapeHatch, setShowHubEscapeHatch] = useState(false);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const maxWaitTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const startCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const progressAnimationRef = useRef<NodeJS.Timeout | null>(null);
+  const escapeHatchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const escapeHatchAbsoluteRef = useRef<NodeJS.Timeout | null>(null);
 
   // Check if documents are ready
   const checkDocumentsReady = async (): Promise<boolean> => {
@@ -61,6 +64,9 @@ function CheckoutSuccessContent() {
         const hasKeyDocuments = keyDocuments.some(docId => 
           documents.some((doc: any) => doc.id === docId && (doc.s3Key || doc.status === 'generated' || doc.status === 'signed'))
         );
+        // When entityType is unknown (e.g. no localStorage), treat as ready if we have any generated doc so we don't hang
+        const hasAnyGenerated = documents.some((doc: any) => (doc.s3Key || doc.status === 'generated' || doc.status === 'signed'));
+        const ready = hasKeyDocuments || (entityType === null && hasAnyGenerated);
 
         // Track whether an agreement document exists (for checklist rendering)
         const hasAgreement = documents.some(
@@ -80,8 +86,10 @@ function CheckoutSuccessContent() {
         const progress = Math.min(100, Math.round((generatedCount / totalExpected) * 100));
         setDocumentProgress(prev => Math.max(prev, progress)); // Only go forward, never backward
         
-        // Consider "ready" only if we have at least one key formation document
-        return hasKeyDocuments;
+        if (!ready && documents.length > 0) {
+          console.debug('[success] Poll: docs=', documents.length, 'keyIds=', keyDocuments, 'hasKey=', hasKeyDocuments, 'entityType=', entityType);
+        }
+        return ready;
       }
       return false;
     } catch (error) {
@@ -189,6 +197,9 @@ function CheckoutSuccessContent() {
       // Start animation immediately
       setTimeout(() => animateProgress(), 500); // Small initial delay
       
+      // Show "Go to hub" link after 12s no matter what, so user is never stuck
+      escapeHatchAbsoluteRef.current = setTimeout(() => setShowHubEscapeHatch(true), 12000);
+
       // Start checking for documents after a short delay (give webhook time to process)
       startCheckTimeoutRef.current = setTimeout(() => {
         let isReady = false;
@@ -249,12 +260,30 @@ function CheckoutSuccessContent() {
         if (progressAnimationRef.current) {
           clearTimeout(progressAnimationRef.current);
         }
+        if (escapeHatchTimeoutRef.current) {
+          clearTimeout(escapeHatchTimeoutRef.current);
+        }
+        if (escapeHatchAbsoluteRef.current) {
+          clearTimeout(escapeHatchAbsoluteRef.current);
+        }
       };
     } else {
       setError('No session ID found');
       setLoading(false);
     }
   }, [sessionId]);
+
+  // When progress hits 100% but docs aren't ready yet, show "Go to hub" after 5s so user isn't stuck
+  useEffect(() => {
+    if (documentProgress >= 100 && checkingDocuments && !documentsReady && sessionId) {
+      escapeHatchTimeoutRef.current = setTimeout(() => setShowHubEscapeHatch(true), 5000);
+      return () => {
+        if (escapeHatchTimeoutRef.current) {
+          clearTimeout(escapeHatchTimeoutRef.current);
+        }
+      };
+    }
+  }, [documentProgress, checkingDocuments, documentsReady, sessionId]);
 
   if (loading) {
     return (
@@ -360,6 +389,17 @@ function CheckoutSuccessContent() {
                   <span className="inline-block animate-pulse">⏳</span> Generando documentos de formación...
                 </p>
               </div>
+              {showHubEscapeHatch && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <p className="text-sm text-gray-600 mb-2">¿Tarda mucho? Puedes ir a tu hub y verás los documentos cuando estén listos.</p>
+                  <Link
+                    href="/client"
+                    className="inline-block bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-lg text-sm transition-colors"
+                  >
+                    Ir a Mi Hub Empresarial →
+                  </Link>
+                </div>
+              )}
             </div>
           </>
         ) : documentsAuthRequired ? (
@@ -401,16 +441,22 @@ function CheckoutSuccessContent() {
               </div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">Listo, estamos creando tus documentos</h1>
               <p className="text-gray-600 mb-4">
-                Te avisaremos por email cuando estén listos. Puedes cerrar esta ventana.
+                Te avisaremos por email cuando estén listos. Mientras tanto puedes ir a tu hub.
               </p>
             </div>
             <div className="space-y-3">
+              <Link
+                href="/client"
+                className="block w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 px-6 rounded-lg hover:from-blue-700 hover:to-indigo-700 font-semibold text-lg shadow-lg text-center"
+              >
+                Ir a Mi Hub Empresarial →
+              </Link>
               <button
                 type="button"
                 onClick={() => window.close()}
-                className="block w-full bg-gray-100 text-gray-800 py-4 px-6 rounded-lg hover:bg-gray-200 font-semibold text-lg shadow-sm transition-all duration-200"
+                className="block w-full bg-gray-100 text-gray-800 py-3 px-6 rounded-lg hover:bg-gray-200 font-medium text-base"
               >
-                Cerrar
+                Cerrar ventana
               </button>
             </div>
           </>

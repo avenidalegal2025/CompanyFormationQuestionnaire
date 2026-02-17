@@ -12,6 +12,13 @@ env:
 phases:
   pre_build:
     commands:
+      # Log in to Docker Hub to avoid 429 rate limit when pulling unofunction/libreoffice (set DOCKERHUB_USERNAME + DOCKERHUB_PASSWORD in CodeBuild env)
+      - |
+        if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_PASSWORD" ]; then
+          echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+        else
+          echo "DOCKERHUB_USERNAME/PASSWORD not set; Docker Hub pull may hit rate limit."
+        fi
       - echo "Logging in to Amazon ECR..."
       - ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
       - ECR_URI="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${IMAGE_NAME}:latest"
@@ -22,8 +29,18 @@ phases:
     commands:
       - ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
       - ECR_URI="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${IMAGE_NAME}:latest"
+      - ECR_BASE="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+      # Prefer ECR mirror to avoid Docker Hub rate limit (run scripts/mirror-libreoffice-to-ecr.sh once)
+      - |
+        if aws ecr describe-images --repository-name unofunction-libreoffice --region $AWS_REGION --image-ids imageTag=latest --query 'length(imageDetails)' --output text 2>/dev/null | grep -qE '^[1-9]'; then
+          export LIBREOFFICE_IMAGE="${ECR_BASE}/unofunction-libreoffice:latest"
+          echo "Using ECR LibreOffice image: $LIBREOFFICE_IMAGE"
+        else
+          export LIBREOFFICE_IMAGE="unofunction/libreoffice"
+          echo "Using Docker Hub LibreOffice (set DOCKERHUB_* in project env to avoid rate limit): $LIBREOFFICE_IMAGE"
+        fi
       - echo "Building Docker image..."
-      - docker build -f lambda-functions/Dockerfile.docx-to-pdf -t $IMAGE_NAME -t $ECR_URI lambda-functions/
+      - docker build -f lambda-functions/Dockerfile.docx-to-pdf --build-arg LIBREOFFICE_IMAGE=$LIBREOFFICE_IMAGE -t $IMAGE_NAME -t $ECR_URI lambda-functions/
       - echo "Pushing to ECR..."
       - docker push $ECR_URI
       - echo "Updating Lambda function (image already pushed)..."

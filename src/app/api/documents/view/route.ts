@@ -3,7 +3,6 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getUserDocuments, getUserCompanyDocuments } from '@/lib/dynamo';
-import { convertDocxToPdf } from '@/lib/docx-to-pdf';
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || 'us-west-1',
@@ -191,35 +190,21 @@ export async function GET(request: NextRequest) {
     let buffer = Buffer.concat(chunks);
     const isDocx = (finalS3Key || '').toLowerCase().endsWith('.docx') ||
       (s3Response.ContentType || '').toLowerCase().includes('wordprocessingml');
-    let servedAsPdf = false;
 
-    // Convert DOCX to PDF on-the-fly so downloads are PDF (Admin and client)
-    if (isDocx) {
-      try {
-        const pdfBuffer = await convertDocxToPdf(buffer);
-        if (pdfBuffer && pdfBuffer.length > 0) {
-          buffer = pdfBuffer;
-          servedAsPdf = true;
-        }
-      } catch (convErr: any) {
-        console.warn('⚠️ DOCX→PDF conversion failed, serving DOCX:', convErr?.message);
-      }
-    }
+    // IMPORTANT: Serve DOCX as‑is to preserve original formatting.
+    // PDF conversion has caused layout issues; if we re‑enable it in the future,
+    // it should be opt‑in and thoroughly QA’d.
+    const servedAsPdf = false;
 
-    const contentType = servedAsPdf
-      ? 'application/pdf'
-      : (s3Response.ContentType ||
-          (finalS3Key.endsWith('.docx') ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' :
-           finalS3Key.endsWith('.pdf') ? 'application/pdf' :
-           'application/octet-stream'));
+    const contentType =
+      s3Response.ContentType ||
+      (finalS3Key.endsWith('.docx')
+        ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        : finalS3Key.endsWith('.pdf')
+        ? 'application/pdf'
+        : 'application/octet-stream');
 
     const fileName = (() => {
-      if (servedAsPdf) {
-        const base = preferredFileName
-          ? preferredFileName.replace(/\.[a-zA-Z0-9]+$/i, '')
-          : (finalS3Key.split('/').pop() || 'document').replace(/\.[a-zA-Z0-9]+$/i, '');
-        return `${base || 'document'}.pdf`;
-      }
       if (preferredFileName) {
         const extMatch = (finalS3Key || '').match(/\.[a-zA-Z0-9]+$/);
         const ext = extMatch ? extMatch[0] : '';

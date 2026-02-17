@@ -392,13 +392,14 @@ export async function saveUserCompanyDocuments(
   companyId: string | undefined,
   documents: DocumentRecord[],
 ) {
+  const normalizedUserId = (userId || '').toLowerCase().trim();
   // Fallback key when no explicit companyId is provided (backwards compatibility)
   const effectiveCompanyId = companyId || 'default';
 
   // Read existing companyDocuments map (if any)
   const getCommand = new GetCommand({
     TableName: TABLE_NAME,
-    Key: buildUserKey(userId),
+    Key: buildUserKey(normalizedUserId),
     ProjectionExpression: 'companyDocuments',
   });
   const res = await ddb.send(getCommand);
@@ -409,13 +410,17 @@ export async function saveUserCompanyDocuments(
     [effectiveCompanyId]: documents,
   };
 
+  const updateExpr = companyId
+    ? 'SET companyDocuments = :docsMap, latestCompanyId = :companyId'
+    : 'SET companyDocuments = :docsMap';
+  const exprValues: Record<string, any> = { ':docsMap': nextMap };
+  if (companyId) exprValues[':companyId'] = companyId;
+
   const updateCommand = new UpdateCommand({
     TableName: TABLE_NAME,
-    Key: buildUserKey(userId),
-    UpdateExpression: 'SET companyDocuments = :docsMap',
-    ExpressionAttributeValues: {
-      ':docsMap': nextMap,
-    },
+    Key: buildUserKey(normalizedUserId),
+    UpdateExpression: updateExpr,
+    ExpressionAttributeValues: exprValues,
     ReturnValues: 'UPDATED_NEW',
   });
 
@@ -426,10 +431,11 @@ export async function getUserCompanyDocuments(
   userId: string,
   companyId?: string,
 ): Promise<DocumentRecord[]> {
+  const normalizedUserId = (userId || '').toLowerCase().trim();
   const command = new GetCommand({
     TableName: TABLE_NAME,
-    Key: buildUserKey(userId),
-    ProjectionExpression: 'companyDocuments, documents',
+    Key: buildUserKey(normalizedUserId),
+    ProjectionExpression: 'companyDocuments, documents, latestCompanyId',
   });
   const res = await ddb.send(command);
   const item: any = res.Item || {};
@@ -445,7 +451,12 @@ export async function getUserCompanyDocuments(
       // Strict: do not fall back to default or merge all companies when a specific company was requested
       return [];
     }
-    // No companyId provided - try 'default' first (backwards compatibility)
+    // No companyId: prefer most recently saved company (e.g. after checkout) so success page shows right docs
+    const latestId = item.latestCompanyId;
+    if (latestId && item.companyDocuments[latestId] && Array.isArray(item.companyDocuments[latestId])) {
+      return dedupeDocumentsById(item.companyDocuments[latestId]);
+    }
+    // Backwards compatibility: try 'default' next
     const defaultDocs = item.companyDocuments['default'];
     if (defaultDocs && Array.isArray(defaultDocs) && defaultDocs.length > 0) {
       return dedupeDocumentsById(defaultDocs);

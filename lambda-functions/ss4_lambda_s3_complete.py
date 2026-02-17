@@ -78,6 +78,39 @@ CHECK_COORDS = {
     "18_no": [402, 160]  # Has applicant applied for EIN before? (No) - 1 pixel right, 1 pixel up (401 + 1 = 402, 159 + 1 = 160)
 }
 
+def normalize_business_description(text):
+    """
+    Normalize business-purpose style text so it is suitable for IRS fields:
+    - Remove leading first-person phrases like 'we sell', 'we provide', etc.
+    - Trim whitespace, keep the rest as‑is (uppercasing is handled by callers).
+    """
+    if not text or not isinstance(text, str):
+        return text
+
+    original = text.strip()
+    lower = original.lower()
+
+    prefixes = [
+        "we sell ",
+        "we provide ",
+        "we offer ",
+        "we make ",
+        "we do ",
+        "we give ",
+        "we deliver ",
+    ]
+
+    for prefix in prefixes:
+        if lower.startswith(prefix):
+            # Strip the matched prefix but keep the remainder verbatim
+            return original[len(prefix):].lstrip()
+
+    # Generic leading 'we ' (e.g. 'we train companies in ...')
+    if lower.startswith("we "):
+        return original[3:].lstrip()
+
+    return original
+
 def truncate_at_word_boundary(text, max_length):
     """
     Truncate text at word boundaries to avoid cutting words.
@@ -1282,10 +1315,17 @@ def map_data_to_ss4_fields(form_data):
     
     # Helper function to format signature name from signature_name or responsible_name
     def format_signature_name_from_data(signature_name, responsible_name, is_llc, owner_count, form_data, entity_type, is_corp):
-        # If signature_name is provided and already has a role suffix (contains comma), use it
+        # If signature_name is provided and already has a role suffix (contains comma),
+        # ONLY trust it when the part before the comma looks like a real name.
+        # This avoids bad values like ', PRESIDENT' which were showing up on Line 18.
         if signature_name and "," in signature_name and len(signature_name.split(",")) >= 2:
-            print(f"===> Using signature_name with existing role: '{signature_name}'")
-            return to_upper(signature_name)
+            name_part = signature_name.split(",")[0].strip()
+            if name_part and len(name_part) >= 2:
+                print(f"===> Using signature_name with existing role: '{signature_name}'")
+                return to_upper(signature_name)
+            else:
+                print(f"===> Ignoring malformed signature_name without name: '{signature_name}'")
+                signature_name = ""  # Force fallback to responsible_name / role mapping
         
         # If we have responsible_name, format it with the appropriate suffix
         if responsible_name:
@@ -1380,7 +1420,11 @@ def map_data_to_ss4_fields(form_data):
         "8b": "",  # Will be set to member count if LLC, or date if not LLC
         "8b_date": date_business_started,  # Date business started (for non-LLC)
         "9b": to_upper(formation_state or "FL"),  # Closing month / State of incorporation - ALL CAPS
-        "10": to_upper(truncate_at_word_boundary(translate_to_english(form_data.get("summarizedBusinessPurpose", business_purpose or "General business operations")), 35).strip()),  # Summarized Business Purpose (max 35 chars, ALL CAPS) - translated from Spanish - TRUNCATE at word boundaries
+        # Line 10: Reason for applying (text next to the "Started new business" checkbox).
+        # The checkbox itself is handled further below; this text should describe
+        # the TYPE of business, not just repeat "Started new business".
+        # Prefer a normalized business description and avoid first-person wording.
+        "10": None,  # placeholder, set just after mapped_data creation
         "11": format_payment_date(form_data.get("dateBusinessStarted", form_data.get("paymentDate", ""))),  # Date business started in MM/DD/YYYY format - use paymentDate as fallback
         "12": "DECEMBER",  # Closing month of accounting year - always DECEMBER
         "13": {
@@ -1399,6 +1443,29 @@ def map_data_to_ss4_fields(form_data):
         "Signature Name": format_signature_name_from_data(signature_name, responsible_name, is_llc, owner_count, form_data, entity_type, is_corp),
         "Checks": {}
     }
+
+    # --- Refine Line 10 text now that mapped_data has been initialized ---
+    raw_reason = translate_to_english(
+        form_data.get("summarizedBusinessPurpose", business_purpose or "General business operations")
+    )
+    raw_reason = (raw_reason or "").strip()
+
+    # If the summarized reason is essentially just "Started new business",
+    # use the actual business purpose / merchandise description instead so
+    # the line describes WHAT the business does (per IRS instructions).
+    if raw_reason.upper().startswith("STARTED NEW BUSINESS"):
+        fallback_source = (
+            form_data.get("line17PrincipalMerchandise")
+            or business_purpose
+            or "GENERAL BUSINESS"
+        )
+        normalized = normalize_business_description(translate_to_english(fallback_source or ""))
+    else:
+        normalized = normalize_business_description(raw_reason or "")
+
+    mapped_data["10"] = to_upper(
+        truncate_at_word_boundary(normalized or "GENERAL BUSINESS", 35).strip()
+    )
     
     # Line 8a: Is this a LLC? (Checkbox)
     if is_llc:
@@ -1560,14 +1627,19 @@ def map_data_to_ss4_fields(form_data):
             mapped_data["Checks"]["16_other"] = CHECK_COORDS["16_other"]
             if line16_other_specify:
                 translated = translate_to_english(line16_other_specify)
-                mapped_data["16_other_specify"] = to_upper(truncate_at_word_boundary(translated, 42))
             else:
                 translated = translate_to_english(business_purpose or "GENERAL BUSINESS")
-                mapped_data["16_other_specify"] = to_upper(truncate_at_word_boundary(translated, 42))
+            cleaned = normalize_business_description(translated or "")
+            mapped_data["16_other_specify"] = to_upper(
+                truncate_at_word_boundary(cleaned, 42)
+            )
     elif line16_other_specify:
         mapped_data["Checks"]["16_other"] = CHECK_COORDS["16_other"]
         translated = translate_to_english(line16_other_specify)
-        mapped_data["16_other_specify"] = to_upper(truncate_at_word_boundary(translated, 42))
+        cleaned = normalize_business_description(translated or "")
+        mapped_data["16_other_specify"] = to_upper(
+            truncate_at_word_boundary(cleaned, 42)
+        )
     
     # Line 17: Has applicant applied for EIN before? (default to No)
     # No checkbox needed if answer is No

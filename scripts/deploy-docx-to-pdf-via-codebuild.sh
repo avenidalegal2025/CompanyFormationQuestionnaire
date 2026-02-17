@@ -26,9 +26,12 @@ aws s3api head-bucket --bucket "$BUCKET" --region "$AWS_REGION" 2>/dev/null || {
   aws s3api create-bucket --bucket "$BUCKET" --region "$AWS_REGION"
 }
 
-# 2. Ensure ECR repo exists (CodeBuild role can push but may not have ecr:CreateRepository)
+# 2. Ensure ECR repos exist
 aws ecr describe-repositories --repository-names docx-to-pdf-lambda --region "$AWS_REGION" 2>/dev/null || \
   aws ecr create-repository --repository-name docx-to-pdf-lambda --region "$AWS_REGION" --output text --query 'repository.repositoryUri'
+# Optional: unofunction-libreoffice (create before running scripts/mirror-libreoffice-to-ecr.sh to avoid Docker Hub rate limit)
+aws ecr describe-repositories --repository-names unofunction-libreoffice --region "$AWS_REGION" 2>/dev/null || \
+  aws ecr create-repository --repository-name unofunction-libreoffice --region "$AWS_REGION" --output text --query 'repository.repositoryUri'
 
 # 2b. Lambda execution role (for container image) with ECR pull + basic execution
 LAMBDA_ROLE_NAME="lambda-docx-to-pdf-execution-role"
