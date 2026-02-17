@@ -34,20 +34,23 @@ interface AdminCompany {
 
 /**
  * Format a date string into a friendly readable format.
- * If time info is present: "8:45am 17th of May, 2027"
- * If date-only (e.g. "2027-05-17"): "17th of May, 2027"
+ * Example: "8:45am 17th of May, 2027"
  */
 function formatFriendlyDate(dateStr: string | undefined | null): string {
   if (!dateStr) return "";
   try {
-    // Detect if the string has time information (contains T or a colon for HH:MM)
-    const hasTime = /T|\d{2}:\d{2}/.test(dateStr);
-
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return dateStr;
 
+    // Hours & minutes — always show time
+    let hours = date.getHours();
+    const minutes = date.getMinutes();
+    const ampm = hours >= 12 ? "pm" : "am";
+    hours = hours % 12 || 12;
+    const timeStr = `${hours}:${String(minutes).padStart(2, "0")}${ampm}`;
+
     // Day with ordinal suffix
-    const day = date.getUTCDate();
+    const day = date.getDate();
     const suffix =
       day === 11 || day === 12 || day === 13
         ? "th"
@@ -63,21 +66,8 @@ function formatFriendlyDate(dateStr: string | undefined | null): string {
       "January", "February", "March", "April", "May", "June",
       "July", "August", "September", "October", "November", "December",
     ];
-    const month = months[date.getUTCMonth()];
-    const year = date.getUTCFullYear();
-
-    if (!hasTime) {
-      return `${day}${suffix} of ${month}, ${year}`;
-    }
-
-    // Hours & minutes (local time when time info is present)
-    let hours = date.getHours();
-    const minutes = date.getMinutes();
-    const ampm = hours >= 12 ? "pm" : "am";
-    hours = hours % 12 || 12;
-    const timeStr = minutes === 0
-      ? `${hours}${ampm}`
-      : `${hours}:${String(minutes).padStart(2, "0")}${ampm}`;
+    const month = months[date.getMonth()];
+    const year = date.getFullYear();
 
     return `${timeStr} ${day}${suffix} of ${month}, ${year}`;
   } catch {
