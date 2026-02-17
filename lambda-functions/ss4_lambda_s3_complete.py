@@ -400,7 +400,7 @@ def map_data_to_ss4_fields(form_data):
             if len(parts) >= 3:
                 # Check if last part is ZIP (5 digits)
                 if parts[-1].isdigit() and len(parts[-1]) == 5:
-                company_zip = parts[-1]
+                    company_zip = parts[-1]
                     remaining = parts[:-1]
                 else:
                     remaining = parts
@@ -1247,13 +1247,13 @@ def map_data_to_ss4_fields(form_data):
             if date_obj is None and "/" in raw:
                 parts = raw.split("/")
                 if len(parts) == 3:
-                            month = parts[0].zfill(2)
-                            day = parts[1].zfill(2)
-                            year = parts[2]
+                    month = parts[0].zfill(2)
+                    day = parts[1].zfill(2)
+                    year = parts[2]
                     try:
                         date_obj = datetime(int(year), int(month), int(day))
                     except Exception:
-                    pass
+                        pass
             
             # 4) Generic: pull out three integers (month, day, year)
             if date_obj is None:
@@ -1299,15 +1299,15 @@ def map_data_to_ss4_fields(form_data):
                 return ""
             # Convert to string if not already
             phone_str = str(phone) if not isinstance(phone, str) else phone
-        # Remove all non-digits
+            # Remove all non-digits
             phone_clean = ''.join(filter(str.isdigit, phone_str))
-        # Remove leading +1 or 1 if present (US country code)
-        if phone_clean.startswith('1') and len(phone_clean) == 11:
-            phone_clean = phone_clean[1:]  # Remove leading 1
-        # Format as xxx-xxx-xxxx if we have 10 digits
-        if len(phone_clean) == 10:
-            return f"{phone_clean[:3]}-{phone_clean[3:6]}-{phone_clean[6:]}"
-        # If not 10 digits, return cleaned version (might be international or invalid)
+            # Remove leading +1 or 1 if present (US country code)
+            if phone_clean.startswith('1') and len(phone_clean) == 11:
+                phone_clean = phone_clean[1:]  # Remove leading 1
+            # Format as xxx-xxx-xxxx if we have 10 digits
+            if len(phone_clean) == 10:
+                return f"{phone_clean[:3]}-{phone_clean[3:6]}-{phone_clean[6:]}"
+            # If not 10 digits, return cleaned version (might be international or invalid)
             return phone_clean if phone_clean else ""
         except Exception as e:
             print(f"===> ⚠️ Error formatting phone '{phone}': {e}")
@@ -1433,7 +1433,7 @@ def map_data_to_ss4_fields(form_data):
             "Other": "0"
         },
         "15": "N/A",  # First date wages paid - always N/A
-        "17": to_upper(translate_to_english(form_data.get("line17PrincipalMerchandise", ""))[:80]),  # Principal line of merchandise/construction/products/services (max 80 chars, ALL CAPS) - translated from Spanish
+        "17": truncate_at_word_boundary(to_upper(translate_to_english(form_data.get("line17PrincipalMerchandise", ""))), 80),  # Smart summary from API, never cuts words
         "Designee Name": format_designee_name(form_data, entity_type),  # ALL CAPS - includes officer title for C-Corp only
         "Designee Address": "10634 NE 11 AVE, MIAMI, FL, 33138",  # ALL CAPS
         "Designee Phone": format_phone("(786) 512-0434"),  # Updated phone number - formatted as xxx-xxx-xxxx
@@ -1649,11 +1649,40 @@ def map_data_to_ss4_fields(form_data):
     
     return mapped_data
 
+def draw_fitted_text(c, x, y, text, max_width, default_font_size=9, min_font_size=5.5, font_name="Helvetica"):
+    """
+    Draw text that auto-shrinks to fit within max_width.
+    Tries the default font size first, then shrinks until the text fits.
+    Never goes below min_font_size.
+    """
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+    for size_10x in range(int(default_font_size * 10), int(min_font_size * 10) - 1, -5):
+        size = size_10x / 10.0
+        w = stringWidth(text, font_name, size)
+        if w <= max_width:
+            c.setFont(font_name, size)
+            c.drawString(x, y, text)
+            c.setFont(font_name, default_font_size)  # restore default
+            return size
+    # If even min_font_size doesn't fit, draw at min and let it clip
+    c.setFont(font_name, min_font_size)
+    c.drawString(x, y, text)
+    c.setFont(font_name, default_font_size)
+    return min_font_size
+
+# Maximum pixel widths for fields that can overflow
+FIELD_MAX_WIDTHS = {
+    "17": 530,              # Line 17: X starts at 65, form right edge ~595 → 530pt
+    "16_other_specify": 190, # Line 16 Other: X starts at 400, form right edge ~590 → 190pt
+    "Line 1": 230,          # Company name: X starts at 65, field ends ~295
+    "10": 230,              # Line 10 reason: X starts at 65, field ends ~295
+}
+
 def create_overlay(data, path):
     """
     Create overlay PDF with form data for SS-4.
     Data should be in SS-4 field format (use map_data_to_ss4_fields first)
-    
+
     Handles:
     - Text fields (company name, addresses, SSN, etc.)
     - Checkboxes (entity type, LLC status, reason for applying, etc.)
@@ -1711,7 +1740,7 @@ def create_overlay(data, path):
                 # Convert to uppercase for SS-4 (all content must be ALL CAPS)
                 value_str = str(value).upper()
                 # Truncate long values to fit in field (but allow longer for specific fields)
-                if field == "17":  # Line 17 can be up to 80 chars
+                if field == "17":  # Line 17: smart summary, word-boundary safe
                     max_length = 80
                 elif field == "10":  # Line 10 can be up to 35 chars (truncate at word boundaries)
                     max_length = 35
@@ -1720,15 +1749,16 @@ def create_overlay(data, path):
                 else:
                     max_length = 50  # Default max length
                 if len(value_str) > max_length:
-                    # For Field 10, use word-boundary truncation to avoid cutting words
-                    if field == "10":
-                        value_str = truncate_at_word_boundary(value_str, max_length)
-                    else:
-                    value_str = value_str[:max_length]
-                # Draw the text
+                    # Always use word-boundary truncation to avoid cutting words
+                    value_str = truncate_at_word_boundary(value_str, max_length)
+                # Draw the text (auto-fit if field has a max width)
                 try:
-                    c.drawString(coord[0], coord[1], value_str)
-                    print(f"===> ✅ Drew field '{field}' at {coord}: '{value_str[:50]}'")
+                    if field in FIELD_MAX_WIDTHS:
+                        used_size = draw_fitted_text(c, coord[0], coord[1], value_str, FIELD_MAX_WIDTHS[field])
+                        print(f"===> ✅ Drew field '{field}' at {coord} (auto-fit {used_size}pt): '{value_str[:50]}'")
+                    else:
+                        c.drawString(coord[0], coord[1], value_str)
+                        print(f"===> ✅ Drew field '{field}' at {coord}: '{value_str[:50]}'")
                 except Exception as e:
                     print(f"===> ❌ Error drawing field '{field}' at {coord}: {e}")
                     print(f"===> Value: {value_str[:50]}...")
@@ -1747,10 +1777,12 @@ def create_overlay(data, path):
     # Handle Line 16 "Other" specification text field (if present)
     if "16_other_specify" in data:
         other_specify_raw = str(data["16_other_specify"]).upper()
-        other_specify = truncate_at_word_boundary(other_specify_raw, 42)
+        # Max 45 chars for the "Other (specify)" field; auto-fit font handles width
+        other_specify = truncate_at_word_boundary(other_specify_raw, 45)
         if other_specify and "16_other_specify" in FIELD_COORDS:
             coord = FIELD_COORDS["16_other_specify"]
-            c.drawString(coord[0], coord[1], other_specify)
+            used_size = draw_fitted_text(c, coord[0], coord[1], other_specify, FIELD_MAX_WIDTHS.get("16_other_specify", 190))
+            print(f"===> ✅ Drew 16_other_specify at {coord} (auto-fit {used_size}pt): '{other_specify[:50]}'")
     
     # Handle Line 9a form number field (1120 for C-Corp, 1120-S for S-Corp)
     checks = data.get("Checks", {})

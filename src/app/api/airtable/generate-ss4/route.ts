@@ -105,6 +105,21 @@ Return ONLY the specific reason (e.g. "Started LLC for film production"). Maximu
   }
 }
 
+/**
+ * Truncate text at a word boundary so words are never cut in half.
+ * Returns a string that is at most maxLen characters.
+ */
+function truncateAtWordBoundary(text: string, maxLen: number): string {
+  if (!text || text.length <= maxLen) return text;
+  const truncated = text.substring(0, maxLen);
+  const lastSpace = truncated.lastIndexOf(' ');
+  // Only use the space if it's not too early (keep at least 60% of the max)
+  if (lastSpace > maxLen * 0.6) {
+    return truncated.substring(0, lastSpace).trim();
+  }
+  return truncated.trim();
+}
+
 function fallbackLine10FromPurpose(businessPurpose: string): string {
   if (!businessPurpose || businessPurpose.trim() === '') return 'STARTED NEW BUSINESS';
   const cleaned = businessPurpose.trim().replace(/\s+/g, ' ').toUpperCase();
@@ -142,7 +157,7 @@ async function categorizeBusinessPurposeForLine16(businessPurpose: string): Prom
           {
             role: 'system',
             content:
-              'You are a concise classifier. Return only JSON with keys: "category" and optional "otherSpecify" (max 45 chars, ALL CAPS) if category is "other". Allowed categories: construction, rental, transportation, healthcare, accommodation, wholesale_broker, wholesale_other, retail, real_estate, manufacturing, finance, other. Choose the best fit. If it is about restaurants, hotels, lodging, catering, bars, cafes, food delivery: use accommodation. If it is about selling goods to end customers (shops, ecommerce, stores): use retail. If it is about renting/leasing: rental. If none matches, set category=other and describe in otherSpecify.',
+              'You classify business purposes into IRS categories. Return only JSON with "category" and optional "otherSpecify". Allowed categories: construction, rental, transportation, healthcare, accommodation, wholesale_broker, wholesale_other, retail, real_estate, manufacturing, finance, other. If "other", set "otherSpecify" to a COMPLETE short description (max 45 chars, ALL CAPS) that reads as a finished phrase — never cut off mid-thought. Use abbreviations (SVCS, MKTG, DEV, TECH, MGMT) to fit. Choose the best category. Restaurants/hotels/catering/food: accommodation. Shops/ecommerce/stores: retail. Renting/leasing: rental.',
           },
           {
             role: 'user',
@@ -171,7 +186,7 @@ async function categorizeBusinessPurposeForLine16(businessPurpose: string): Prom
     try {
       const result = JSON.parse(resultText);
       const category = result.category || 'other';
-      const otherSpecify = result.otherSpecify ? result.otherSpecify.substring(0, 45).toUpperCase() : undefined;
+      const otherSpecify = result.otherSpecify ? truncateAtWordBoundary(result.otherSpecify.toUpperCase(), 45) : undefined;
       
       return { category, otherSpecify };
     } catch (parseError) {
@@ -225,26 +240,23 @@ function categorizeByKeywords(businessPurpose: string): { category: string; othe
   }
   
   // Default to "other" with truncated business purpose
-  const otherSpecify = businessPurpose.substring(0, 45).toUpperCase();
+  const otherSpecify = truncateAtWordBoundary(businessPurpose.toUpperCase(), 45);
   return { category: 'other', otherSpecify };
 }
 
 /**
  * Analyze Business Purpose and generate Line 17 content (principal line of merchandise/construction/products/services)
- * Max 80 characters, ALL CAPS
+ * Max 80 characters, ALL CAPS. Uses OpenAI to create a smart summary that fits without cutting words.
  */
 async function analyzeBusinessPurposeForLine17(businessPurpose: string): Promise<string> {
   if (!businessPurpose || businessPurpose.trim() === '') {
     return '';
   }
 
-  // IMPORTANT: Translate from Spanish to English first before analyzing
-  // OpenAI will handle translation if the text is in Spanish
-
-  // If no OpenAI API key, fallback to truncation
+  // If no OpenAI API key, fallback to word-boundary truncation
   if (!OPENAI_API_KEY) {
-    console.warn('⚠️ OpenAI API key not configured, using truncation fallback for Line 17');
-    return businessPurpose.substring(0, 80).toUpperCase();
+    console.warn('⚠️ OpenAI API key not configured, using word-boundary truncation for Line 17');
+    return truncateAtWordBoundary(businessPurpose.toUpperCase(), 80);
   }
 
   try {
@@ -259,81 +271,55 @@ async function analyzeBusinessPurposeForLine17(businessPurpose: string): Promise
         messages: [
           {
             role: 'system',
-            content: 'You are a helpful assistant that analyzes business purposes and extracts specific information. Return only the extracted information, no explanations.',
+            content: 'You write short, complete descriptions of business activities for IRS forms. Your output must read as a finished sentence or phrase — never feel cut off or incomplete. ALL CAPS English. NEVER exceed the character limit.',
           },
           {
             role: 'user',
-            content: `Analyze this business purpose and create a CONCISE SUMMARY (not a raw truncation) of the principal line of merchandise sold, specific construction work done, products produced, or services provided.
+            content: `Describe the principal line of merchandise sold, construction work done, products produced, or services provided by this business.
 
-CRITICAL RULES:
-- If the text is in Spanish, translate it to English first, then create the summary.
-- Base the summary ONLY on the actual business purpose text below.
-- Do NOT invent or assume a different industry than what is described.
-- The summary MUST be 80 characters or less.
-- Use abbreviations and short phrases if needed.
-- Do NOT cut words in half; shorten by rephrasing instead of chopping.
-- Return the summary in ALL CAPS English.
+STRICT RULES:
+1. If the text is in Spanish, translate to English first.
+2. The result MUST be 80 characters or fewer. Count carefully.
+3. The description must read as a COMPLETE thought — it should NOT feel truncated or cut off mid-sentence.
+4. Use abbreviations (SVCS, MGMT, MKTG, DEV, TECH, INTL, etc.) to fit more meaning in fewer characters.
+5. ALL CAPS English only. No quotes, no labels, no prefixes.
+6. Base the description ONLY on the business purpose below — do not invent.
 
 Business Purpose: "${businessPurpose}"
 
-Return ONLY the concise summary (max 80 characters, ALL CAPS English), no labels or prefixes:`,
+Return ONLY the description (max 80 chars, ALL CAPS, must read as a complete phrase):`,
           },
         ],
-        max_tokens: 100, // Reduced to encourage more concise responses
-        temperature: 0.3,
+        max_tokens: 60,
+        temperature: 0.2,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
       console.warn(`⚠️ OpenAI API error for Line 17: ${response.status} - ${errorText}`);
-      // Fallback to truncation
-      return businessPurpose.substring(0, 80).toUpperCase();
+      return truncateAtWordBoundary(businessPurpose.toUpperCase(), 80);
     }
 
     const data = await response.json();
     const analysis = data.choices?.[0]?.message?.content?.trim() || '';
-    
+
     if (!analysis) {
-      return businessPurpose.substring(0, 80).toUpperCase();
+      return truncateAtWordBoundary(businessPurpose.toUpperCase(), 80);
     }
 
-    // Ensure it's max 80 characters - if still too long, try to intelligently shorten it
-    let finalAnalysis = analysis.trim();
+    let finalAnalysis = analysis.trim().replace(/^["']|["']$/g, '');
+
+    // Safety net: if OpenAI still exceeded 80 chars, truncate at word boundary
     if (finalAnalysis.length > 80) {
-      // Try to find a natural break point (comma, period, or space) near 80 characters
-      const targetLength = 80;
-      let cutPoint = targetLength;
-      
-      // Look for a comma or period before the limit
-      const commaIndex = finalAnalysis.lastIndexOf(',', targetLength);
-      const periodIndex = finalAnalysis.lastIndexOf('.', targetLength);
-      const spaceIndex = finalAnalysis.lastIndexOf(' ', targetLength);
-      
-      // Prefer comma, then period, then space
-      if (commaIndex > targetLength * 0.7) { // Only use if it's not too early
-        cutPoint = commaIndex;
-      } else if (periodIndex > targetLength * 0.7) {
-        cutPoint = periodIndex;
-      } else if (spaceIndex > targetLength * 0.7) {
-        cutPoint = spaceIndex;
-      }
-      
-      finalAnalysis = finalAnalysis.substring(0, cutPoint).trim();
-      
-      // If still too long, hard truncate (shouldn't happen with better prompt, but safety net)
-      if (finalAnalysis.length > 80) {
-        finalAnalysis = finalAnalysis.substring(0, 80).trim();
-      }
-      
-      console.warn(`⚠️ Line 17 summary was ${analysis.length} chars, shortened to ${finalAnalysis.length} chars`);
+      console.warn(`⚠️ Line 17 OpenAI returned ${finalAnalysis.length} chars, truncating at word boundary`);
+      finalAnalysis = truncateAtWordBoundary(finalAnalysis, 80);
     }
-    
+
     return finalAnalysis.toUpperCase();
   } catch (error: any) {
     console.error('❌ Error calling OpenAI API for Line 17:', error);
-    // Fallback to truncation
-    return businessPurpose.substring(0, 80).toUpperCase();
+    return truncateAtWordBoundary(businessPurpose.toUpperCase(), 80);
   }
 }
 
