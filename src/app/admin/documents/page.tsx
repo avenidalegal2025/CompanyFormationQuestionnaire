@@ -34,7 +34,7 @@ interface AdminCompany {
 
 /**
  * Format a date string into a friendly readable format.
- * Example: "8:45am 17th of May, 2027"
+ * Example: "17th of May, 2027"
  */
 function formatFriendlyDate(dateStr: string | undefined | null): string {
   if (!dateStr) return "";
@@ -42,15 +42,8 @@ function formatFriendlyDate(dateStr: string | undefined | null): string {
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return dateStr;
 
-    // Hours & minutes — always show time
-    let hours = date.getHours();
-    const minutes = date.getMinutes();
-    const ampm = hours >= 12 ? "pm" : "am";
-    hours = hours % 12 || 12;
-    const timeStr = `${hours}:${String(minutes).padStart(2, "0")}${ampm}`;
-
-    // Day with ordinal suffix
-    const day = date.getDate();
+    // Day with ordinal suffix (use UTC to avoid timezone shift)
+    const day = date.getUTCDate();
     const suffix =
       day === 11 || day === 12 || day === 13
         ? "th"
@@ -66,10 +59,10 @@ function formatFriendlyDate(dateStr: string | undefined | null): string {
       "January", "February", "March", "April", "May", "June",
       "July", "August", "September", "October", "November", "December",
     ];
-    const month = months[date.getMonth()];
-    const year = date.getFullYear();
+    const month = months[date.getUTCMonth()];
+    const year = date.getUTCFullYear();
 
-    return `${timeStr} ${day}${suffix} of ${month}, ${year}`;
+    return `${day}${suffix} of ${month}, ${year}`;
   } catch {
     return dateStr;
   }
