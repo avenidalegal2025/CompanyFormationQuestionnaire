@@ -639,7 +639,8 @@ function DocumentsContent() {
 
                       {category !== 'en-proceso' && (
                       <div className="flex space-x-2">
-                          <button 
+                          {(doc.s3Key || doc.signedS3Key) && (
+                          <button
                             onClick={() => handleDownload(doc.id)}
                             className="btn btn-primary flex-1 flex items-center justify-center"
                             title="Descargar"
@@ -647,6 +648,7 @@ function DocumentsContent() {
                             <ArrowDownTrayIcon className="h-4 w-4 mr-1" />
                             Descargar
                           </button>
+                          )}
                           <label className="btn bg-green-600 hover:bg-green-700 text-white border-transparent flex-1 flex items-center justify-center cursor-pointer">
                             <input
                               type="file"
