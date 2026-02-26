@@ -548,27 +548,39 @@ def replace_placeholders(doc, data):
                 for paragraph in cell.paragraphs:
                     replace_all_in_paragraph(paragraph)
 
-    # Left-align shareholder signature lines and strip leading tabs from "XX% Owner" paragraphs
-    # The 216 templates have 6 leading tab characters before the {{Owner N Ownership %}} placeholder
-    def left_align_shareholder_lines(paragraph):
-        t = paragraph.text.strip()
-        if ('Name:' in t and '% Owner' in t) or ('% Owner' in t and t.strip()[0:1].isdigit()):
-            paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
-            try:
-                paragraph.paragraph_format.tab_stops.clear()
-            except Exception:
-                pass
-            # Strip leading tabs/spaces from runs so text starts at the left margin
-            for run in paragraph.runs:
-                if run.text and run.text != run.text.lstrip('\t '):
-                    run.text = run.text.lstrip('\t ')
-    for paragraph in doc.paragraphs:
-        left_align_shareholder_lines(paragraph)
-    for table in doc.tables:
-        for row in table.rows:
-            for cell in row.cells:
-                for paragraph in cell.paragraphs:
-                    left_align_shareholder_lines(paragraph)
+    # NOTE: left_align_shareholder_lines was removed — it only stripped leading
+    # tabs from "% Owner" lines while leaving them on "SHAREHOLDER", "By:", and
+    # "Name:" lines, causing misalignment.  The 216 templates use 6 leading tabs
+    # on ALL signature-block paragraphs for consistent indentation; the run-level
+    # replacement already preserves those tabs, so no post-processing is needed.
+
+    # --- #7: Dynamic authority clause ---
+    # For companies with >1 officer or >1 director, replace "the President" with
+    # "any officer or director" in banking/authority RESOLVED clauses.
+    num_officers = len(managers) if managers else 1
+    num_directors = len(directors) if directors else 1
+    if num_officers > 1 or num_directors > 1:
+        authority_replacements = [
+            ("the President be and hereby is authorized to open a bank account",
+             "any officer or director of the Company be and hereby is authorized to open a bank account"),
+            ("the Company's President is authorized to execute",
+             "any officer or director of the Company is authorized to execute"),
+            ("as the President determines",
+             "as the officers or directors determine"),
+            ("actions taken by the President of the Company",
+             "actions taken by any officer or director of the Company"),
+            ("designated by her",
+             "designated by them"),
+            ("designated by him",
+             "designated by them"),
+        ]
+        for paragraph in doc.paragraphs:
+            full_text = ''.join(run.text for run in paragraph.runs)
+            for old_text, new_text in authority_replacements:
+                if old_text in full_text:
+                    idx = full_text.find(old_text)
+                    replace_span_in_paragraph(paragraph, idx, idx + len(old_text), new_text, False)
+                    full_text = ''.join(run.text for run in paragraph.runs)
 
     # Fix signature line: "100% Owner, and President" -> "100% Owner, President and Director"
     if first_manager_role_trimmed and signature_line_role and first_manager_role_trimmed != signature_line_role:
