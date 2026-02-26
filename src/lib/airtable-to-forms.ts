@@ -683,23 +683,36 @@ export function mapAirtableToBylaws(record: any): any {
     throw new Error('Bylaws are only for C-Corp or S-Corp');
   }
 
-  const companyName = fields['Company Name'] || '';
+  const companyName = (fields['Company Name'] || '').toUpperCase();
   const formationState = fields['Formation State'] || '';
   const paymentDate = formatLegalDate(fields['Payment Date']);
   const numberOfShares = fields['Number of Shares'] || 1000;
 
   const officer1Name = fields['Officer 1 Name'] || fields['Owner 1 Name'] || '';
   const officer1Role = fields['Officer 1 Role'] || 'PRESIDENT';
-  const owner1Name = fields['Owner 1 Name'] || officer1Name || '';
+
+  // Iterate all owners (1-6) for signature blocks
+  const ownersCount = Math.min(fields['Owner Count'] || 0, 6);
+  const owners: { name: string }[] = [];
+  for (let i = 1; i <= ownersCount; i += 1) {
+    const name = fields[`Owner ${i} Name`] || '';
+    if (name) owners.push({ name });
+  }
 
   return {
     companyName,
     formationState,
     paymentDate,
-    numberOfShares,
+    numberOfShares: Number(numberOfShares).toLocaleString('en-US'),
     officer1Name,
     officer1Role,
-    owner1Name,
+    ownersCount: owners.length,
+    owner1Name: owners[0]?.name || officer1Name || '',
+    owner2Name: owners[1]?.name || '',
+    owner3Name: owners[2]?.name || '',
+    owner4Name: owners[3]?.name || '',
+    owner5Name: owners[4]?.name || '',
+    owner6Name: owners[5]?.name || '',
   };
 }
 
@@ -715,7 +728,7 @@ export function mapAirtableToShareholderRegistry(record: any): any {
     throw new Error('Shareholder Registry is only for C-Corp or S-Corp');
   }
 
-  const companyName = fields['Company Name'] || '';
+  const companyName = (fields['Company Name'] || '').toUpperCase();
   const formationState = fields['Formation State'] || '';
   const companyAddress = fields['Company Address'] || '';
   const paymentDate = formatMonthDayYear(fields['Payment Date']);
@@ -750,10 +763,16 @@ export function mapAirtableToShareholderRegistry(record: any): any {
       date: paymentDate,
       name: ownerName,
       transaction: 'Allotted',
-      shares: sharesOwned ? String(sharesOwned) : '',
+      shares: sharesOwned ? Number(sharesOwned).toLocaleString('en-US') : '',
       class: 'Common Stock',
       percent: formatOwnershipPercent(ownershipPercent),
     });
+  }
+
+  // #5 — Validate share allocation matches outstanding shares
+  const totalAllocated = shareholders.reduce((sum, s) => sum + (parseInt(s.shares.replace(/,/g, '')) || 0), 0);
+  if (totalAllocated !== outstandingShares) {
+    console.warn(`Share allocation mismatch: allocated ${totalAllocated} vs outstanding ${outstandingShares} (rounding)`);
   }
 
   return {
@@ -761,8 +780,8 @@ export function mapAirtableToShareholderRegistry(record: any): any {
     formationState,
     companyAddress,
     paymentDate,
-    authorizedShares,
-    outstandingShares,
+    authorizedShares: Number(authorizedShares).toLocaleString('en-US'),
+    outstandingShares: Number(outstandingShares).toLocaleString('en-US'),
     officer1Name,
     officer1Role,
     shareholders,
@@ -783,9 +802,9 @@ export function mapAirtableToMembershipRegistry(record: any): any {
   // Parse company address
   const address = parseCompanyAddress(fields);
   
-  // Get company name
-  const companyName = fields['Company Name'] || '';
-  
+  // Get company name (ALL CAPS for legal documents)
+  const companyName = (fields['Company Name'] || '').toUpperCase();
+
   // Get formation state
   const formationState = fields['Formation State'] || '';
   
@@ -917,7 +936,7 @@ export function mapAirtableToCorpOrganizationalResolution(record: any): any {
   // Parse company address
   const address = parseCompanyAddress(fields);
 
-  const companyName = fields['Company Name'] || '';
+  const companyName = (fields['Company Name'] || '').toUpperCase();
   const formationState = fields['Formation State'] || '';
 
   // Use Payment Date as formation date (legal long format) and keep raw value for witness date

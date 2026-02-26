@@ -47,6 +47,7 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
     watch,
     setValue,
     getValues,
+    trigger,
     formState: { errors },
   } = form;
 
@@ -180,6 +181,13 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
   const hasUsaAddress = watch("company.hasUsaAddress");
   const hasUsPhone = watch("company.hasUsPhone");
   const forwardPhoneE164 = watch("company.forwardPhoneE164") as string | undefined;
+
+  // Watch address fields so they update when setValue() is called from autocomplete
+  const addressLine1 = watch("company.addressLine1") as string | undefined;
+  const addressLine2 = watch("company.addressLine2") as string | undefined;
+  const addressCity = watch("company.city") as string | undefined;
+  const addressState = watch("company.state") as string | undefined;
+  const addressPostalCode = watch("company.postalCode") as string | undefined;
 
 
   // ====== Phone helpers (+1 XXX XXX XXXX) ======
@@ -426,21 +434,14 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
               country="us"
               placeholder="1600 Pennsylvania Ave NW, Washington"
               onSelect={(addr) => {
-                setValue("company.addressLine1", addr.line1, {
-                  shouldDirty: true,
-                  shouldValidate: true,
-                });
+                setValue("company.addressLine1", addr.line1, { shouldDirty: true });
                 setValue("company.addressLine2", "", { shouldDirty: true });
-                setValue("company.city", addr.city, { shouldDirty: true, shouldValidate: true });
-                setValue("company.state", addr.state, { shouldDirty: true, shouldValidate: true });
-                setValue("company.postalCode", addr.postalCode, {
-                  shouldDirty: true,
-                  shouldValidate: true,
-                });
-                setValue("company.country", "Estados Unidos de América", {
-                  shouldDirty: true,
-                  shouldValidate: true,
-                });
+                setValue("company.city", addr.city, { shouldDirty: true });
+                setValue("company.state", addr.state, { shouldDirty: true });
+                setValue("company.postalCode", addr.postalCode, { shouldDirty: true });
+                setValue("company.country", "Estados Unidos de América", { shouldDirty: true });
+                // Re-validate the whole company section so superRefine clears errors
+                void trigger("company");
               }}
             />
 
@@ -454,7 +455,8 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
                 </label>
                 <input
                   className={`input ${errors.company?.addressLine1 ? 'border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500' : ''}`}
-                  {...register("company.addressLine1")}
+                  value={addressLine1 ?? ""}
+                  onChange={(e) => setValue("company.addressLine1", e.target.value, { shouldDirty: true, shouldValidate: true })}
                 />
                 {errors.company?.addressLine1 && (
                   <p className="mt-1 text-sm text-red-600">
@@ -464,7 +466,11 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
               </div>
               <div>
                 <label className="label">Dirección línea 2</label>
-                <input className="input" {...register("company.addressLine2")} />
+                <input
+                  className="input"
+                  value={addressLine2 ?? ""}
+                  onChange={(e) => setValue("company.addressLine2", e.target.value, { shouldDirty: true })}
+                />
               </div>
               <div>
                 <label className="label">
@@ -475,7 +481,8 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
                 </label>
                 <input
                   className={`input ${errors.company?.city ? 'border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500' : ''}`}
-                  {...register("company.city")}
+                  value={addressCity ?? ""}
+                  onChange={(e) => setValue("company.city", e.target.value, { shouldDirty: true, shouldValidate: true })}
                 />
                 {errors.company?.city && (
                   <p className="mt-1 text-sm text-red-600">
@@ -492,7 +499,8 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
                 </label>
                 <input
                   className={`input ${errors.company?.state ? 'border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500' : ''}`}
-                  {...register("company.state")}
+                  value={addressState ?? ""}
+                  onChange={(e) => setValue("company.state", e.target.value, { shouldDirty: true, shouldValidate: true })}
                 />
                 {errors.company?.state && (
                   <p className="mt-1 text-sm text-red-600">
@@ -509,7 +517,8 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
                 </label>
                 <input
                   className={`input ${errors.company?.postalCode ? 'border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500' : ''}`}
-                  {...register("company.postalCode")}
+                  value={addressPostalCode ?? ""}
+                  onChange={(e) => setValue("company.postalCode", e.target.value, { shouldDirty: true, shouldValidate: true })}
                 />
                 {errors.company?.postalCode && (
                   <p className="mt-1 text-sm text-red-600">

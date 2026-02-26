@@ -4,8 +4,10 @@ import tempfile
 import boto3
 import re
 import base64
+from copy import deepcopy
 from datetime import datetime
 from docx import Document
+from docx.shared import Pt
 
 # Constants
 TEMPLATE_BUCKET = os.environ.get('TEMPLATE_BUCKET', 'avenida-legal-documents')
@@ -79,8 +81,121 @@ def _format_witness_date(value: str) -> str:
     return f"{day}{suffix} day of {month_name}, {year}"
 
 
+# ---------- Run-level replacement (non-destructive) ----------
+
+def _insert_run_after(paragraph, run, text):
+    """Insert a new run after the given run, returning the new run."""
+    new_run = paragraph.add_run(text)
+    run._element.addnext(new_run._element)
+    return new_run
+
+
+def _apply_run_format(source_run, target_run):
+    """Copy formatting from source_run to target_run, preserving font properties."""
+    if source_run._element.rPr is not None:
+        target_run._element.insert(0, deepcopy(source_run._element.rPr))
+
+
+def _enforce_font(run):
+    """Ensure a modified run uses 12pt Times New Roman."""
+    run.font.size = Pt(12)
+    run.font.name = 'Times New Roman'
+
+
+def _replace_span_in_paragraph(paragraph, start, end, value):
+    """Replace a character span [start, end) in the paragraph's runs with value.
+    Preserves run formatting. Returns the run containing the replacement value, or None."""
+    pos = 0
+    run_start_idx = None
+    run_end_idx = None
+    run_start_offset = 0
+    run_end_offset = 0
+
+    for i, run in enumerate(paragraph.runs):
+        run_len = len(run.text)
+        if run_start_idx is None and pos + run_len > start:
+            run_start_idx = i
+            run_start_offset = start - pos
+        if run_start_idx is not None and pos + run_len >= end:
+            run_end_idx = i
+            run_end_offset = end - pos
+            break
+        pos += run_len
+
+    if run_start_idx is None or run_end_idx is None:
+        return None
+
+    if run_start_idx == run_end_idx:
+        run = paragraph.runs[run_start_idx]
+        prefix = run.text[:run_start_offset]
+        suffix = run.text[run_end_offset:]
+
+        if prefix:
+            run.text = prefix
+            value_run = _insert_run_after(paragraph, run, value)
+            _apply_run_format(run, value_run)
+        else:
+            run.text = value
+            value_run = run
+
+        if suffix:
+            suffix_run = _insert_run_after(paragraph, value_run, suffix)
+            _apply_run_format(run, suffix_run)
+
+        return value_run
+    else:
+        start_run = paragraph.runs[run_start_idx]
+        end_run = paragraph.runs[run_end_idx]
+        prefix = start_run.text[:run_start_offset]
+        suffix = end_run.text[run_end_offset:]
+
+        # Clear middle runs
+        for i in range(run_start_idx + 1, run_end_idx):
+            paragraph.runs[i].text = ''
+
+        if prefix:
+            start_run.text = prefix
+            value_run = _insert_run_after(paragraph, start_run, value)
+            _apply_run_format(start_run, value_run)
+        else:
+            start_run.text = value
+            value_run = start_run
+
+        if suffix:
+            end_run.text = suffix
+        else:
+            end_run.text = ''
+
+        return value_run
+
+
+def _replace_placeholder_in_paragraph(paragraph, placeholder, value):
+    """Find all occurrences of placeholder in paragraph and replace with value (run-level).
+    Returns list of runs that were modified (for font enforcement)."""
+    if placeholder not in paragraph.text:
+        return []
+
+    modified_runs = []
+    full_text = ''.join(run.text for run in paragraph.runs)
+    search_start = 0
+    while True:
+        idx = full_text.find(placeholder, search_start)
+        if idx == -1:
+            break
+        end = idx + len(placeholder)
+        result_run = _replace_span_in_paragraph(paragraph, idx, end, value)
+        if result_run is None:
+            break
+        modified_runs.append(result_run)
+        full_text = ''.join(run.text for run in paragraph.runs)
+        search_start = idx + len(value)
+    return modified_runs
+
+
 def replace_placeholders(doc, data):
-    """Replace placeholders in Bylaws document. IN WITNESS WHEREOF block gets numeric ordinal date."""
+    """Replace placeholders in Bylaws document using run-level replacement.
+    IN WITNESS WHEREOF block gets numeric ordinal date.
+    Enforces 12pt Times New Roman on all replaced values."""
     print("===> Replacing placeholders in document...")
 
     company_name = data.get('companyName', '')
@@ -90,39 +205,57 @@ def replace_placeholders(doc, data):
     number_of_shares = str(data.get('numberOfShares', '') or '')
     officer_1_name = data.get('officer1Name', '')
     officer_1_role = data.get('officer1Role', '')
-    owner_1_name = data.get('owner1Name', '')
 
-    def replace_in_text(text: str, use_witness_date: bool = False) -> str:
-        if not text:
-            return text
-        date_value = witness_date if (use_witness_date and '{{Payment Date}}' in text) else payment_date
-        text = text.replace('{{Company Name}}', company_name)
-        text = text.replace('{{Formation State}}', formation_state)
-        text = text.replace('{{Payment Date}}', date_value)
-        text = text.replace('{{Number of Shares}}', number_of_shares)
-        text = text.replace('{{Officer 1 Name}}', officer_1_name)
-        text = text.replace('{{Officer 1 Role}}', officer_1_role)
-        text = text.replace('{{Owner 1 Name}}', owner_1_name)
-        return text
+    # Build owner names (1-6)
+    owner_names = {}
+    for i in range(1, 7):
+        owner_names[i] = data.get(f'owner{i}Name', '')
 
-    for paragraph in doc.paragraphs:
+    # Map of placeholder → value (non-date)
+    placeholders = {
+        '{{Company Name}}': company_name,
+        '{{Formation State}}': formation_state,
+        '{{Number of Shares}}': number_of_shares,
+        '{{Officer 1 Name}}': officer_1_name,
+        '{{Officer 1 Role}}': officer_1_role,
+    }
+    for i in range(1, 7):
+        placeholders[f'{{{{Owner {i} Name}}}}'] = owner_names[i]
+
+    def process_paragraph(paragraph):
         full_text = paragraph.text
-        if '{{' in full_text:
-            in_witness = "IN WITNESS WHEREOF" in full_text
-            new_text = replace_in_text(full_text, use_witness_date=in_witness)
-            if new_text != full_text:
-                paragraph.text = new_text
+        if '{{' not in full_text:
+            return
 
+        in_witness = "IN WITNESS WHEREOF" in full_text
+        modified_runs = []
+
+        # Replace date placeholder with appropriate format
+        date_value = witness_date if in_witness else payment_date
+        modified_runs.extend(
+            _replace_placeholder_in_paragraph(paragraph, '{{Payment Date}}', date_value)
+        )
+
+        # Replace all other placeholders
+        for ph, val in placeholders.items():
+            modified_runs.extend(
+                _replace_placeholder_in_paragraph(paragraph, ph, val)
+            )
+
+        # Enforce font on all modified runs
+        for run in modified_runs:
+            _enforce_font(run)
+
+    # Process body paragraphs
+    for paragraph in doc.paragraphs:
+        process_paragraph(paragraph)
+
+    # Process table cells
     for table in doc.tables:
         for row in table.rows:
             for cell in row.cells:
                 for paragraph in cell.paragraphs:
-                    full_text = paragraph.text
-                    if '{{' in full_text:
-                        in_witness = "IN WITNESS WHEREOF" in full_text
-                        new_text = replace_in_text(full_text, use_witness_date=in_witness)
-                        if new_text != full_text:
-                            paragraph.text = new_text
+                    process_paragraph(paragraph)
 
 
 def lambda_handler(event, context):

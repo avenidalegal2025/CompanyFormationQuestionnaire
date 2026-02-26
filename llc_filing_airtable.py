@@ -144,8 +144,25 @@ def fetch_llc_data_from_airtable(record_id=None):
     if manager_addr_parts.get('country') == 'INT' and manager_country == 'US':
         manager_country = 'INT'
 
+    # If manager address is empty/incomplete, use the principal address as fallback
+    manager_addr_line = (
+        manager_addr_parts.get('line1', '')
+        + (' ' + manager_addr_parts.get('line2', '') if manager_addr_parts.get('line2') else '')
+    ).strip()
+    manager_city = manager_addr_parts.get('city', '')
+    manager_state = manager_addr_parts.get('state', '')
+    manager_zip = manager_addr_parts.get('zip', '')
+
+    if not manager_addr_line:
+        print(f"\u26a0\ufe0f  Manager address missing — falling back to principal address")
+        manager_addr_line = address_parts.get('line1', AVENIDA_LEGAL_ADDRESS['line1'])
+        manager_city = address_parts.get('city', AVENIDA_LEGAL_ADDRESS['city'])
+        manager_state = address_parts.get('state', AVENIDA_LEGAL_ADDRESS['state'])
+        manager_zip = address_parts.get('zip', AVENIDA_LEGAL_ADDRESS['zip'])
+        manager_country = 'US'
+
     print(f"\U0001f464 Manager: {manager_name} | Country: {manager_country}")
-    print(f"   Address: {manager_address}")
+    print(f"   Address: {manager_address or '(using principal address)'}")
 
     llc_data = {
         "llc": {
@@ -176,13 +193,10 @@ def fetch_llc_data_from_airtable(record_id=None):
             "title": "MGR",
             "first_name": manager_first_name,
             "last_name": manager_last_name,
-            "address": (
-                manager_addr_parts.get('line1', '')
-                + (' ' + manager_addr_parts.get('line2', '') if manager_addr_parts.get('line2') else '')
-            ),
-            "city": manager_addr_parts.get('city', '') or 'N/A',
-            "state": manager_addr_parts.get('state', '') or ('FL' if manager_country == 'US' else 'N/A'),
-            "zip": manager_addr_parts.get('zip', '') or ('33181' if manager_country == 'US' else '00000'),
+            "address": manager_addr_line,
+            "city": manager_city or 'N/A',
+            "state": manager_state or ('FL' if manager_country == 'US' else 'N/A'),
+            "zip": manager_zip or ('33181' if manager_country == 'US' else '00000'),
             "country": manager_country,
             "signature": manager_name,
         },
@@ -298,10 +312,29 @@ def main(record_id=None):
     print(f"\U0001f4cb Processing LLC: {llc['name']}")
 
     # Validate required fields before starting the browser
+    # Sunbiz requires: company name, manager name, manager title, and full manager address
     try:
         validate_required_fields(
-            {"company_name": llc["name"], "manager_name": data["authorized_person"]["signature"]},
-            ["company_name", "manager_name"],
+            {
+                "company_name": llc["name"],
+                "manager_name": data["authorized_person"]["signature"],
+                "manager_title": data["authorized_person"]["title"],
+                "manager_address": data["authorized_person"]["address"],
+                "manager_city": data["authorized_person"]["city"],
+                "manager_state": data["authorized_person"]["state"],
+                "manager_zip": data["authorized_person"]["zip"],
+                "customer_email": data["return_contact"]["email"],
+            },
+            [
+                "company_name",
+                "manager_name",
+                "manager_title",
+                "manager_address",
+                "manager_city",
+                "manager_state",
+                "manager_zip",
+                "customer_email",
+            ],
             entity_type="LLC",
         )
     except ValueError as e:

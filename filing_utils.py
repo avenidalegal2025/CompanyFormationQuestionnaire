@@ -277,6 +277,14 @@ def init_browser():
     options.add_argument(profile_dir)
     options.set_preference("browser.shell.checkDefaultBrowser", False)
     options.set_preference("browser.startup.homepage_override.mstone", "ignore")
+    # Disable "Save address?" and "Save password?" popups
+    options.set_preference("extensions.formautofill.addresses.enabled", False)
+    options.set_preference("extensions.formautofill.creditCards.enabled", False)
+    options.set_preference("signon.rememberSignons", False)
+    options.set_preference("signon.autofillForms", False)
+    # Disable other popups that can interfere with automation
+    options.set_preference("dom.webnotifications.enabled", False)
+    options.set_preference("browser.urlbar.suggest.searches", False)
     driver = webdriver.Firefox(options=options)
     return driver
 
@@ -455,8 +463,10 @@ def click_continue_through_pages(driver, wait, num_continues, company_name):
 def validate_required_fields(data, required_keys, entity_type="LLC"):
     """
     Validate that required keys exist and are non-empty in a data dict.
+    Rejects placeholder values like 'N/A', '00000', empty strings.
     Raises ValueError with descriptive message on failure.
     """
+    INVALID_VALUES = {"", "N/A", "n/a", "00000", "None", "null"}
     missing = []
     for key in required_keys:
         val = data
@@ -466,7 +476,7 @@ def validate_required_fields(data, required_keys, entity_type="LLC"):
             else:
                 val = None
                 break
-        if not val:
+        if not val or str(val).strip() in INVALID_VALUES:
             missing.append(key)
 
     if missing:
