@@ -4,6 +4,7 @@
  */
 
 import { SESClient, SendRawEmailCommand } from '@aws-sdk/client-ses';
+import { randomUUID } from 'crypto';
 
 const sesClient = new SESClient({
   region: process.env.AWS_REGION || 'us-east-1',
@@ -24,12 +25,20 @@ function formatFrom(from: string): string {
   return `"${DEFAULT_FROM_NAME}" <${from}>`;
 }
 
+/** Generate RFC 2822 formatted date string */
+function rfc2822Date(): string {
+  return new Date().toUTCString().replace('GMT', '+0000');
+}
+
 /** Common email headers for improved deliverability (spam prevention) */
 function getDeliverabilityHeaders(from: string): string[] {
   const replyEmail = from.includes('<')
     ? from.match(/<(.+?)>/)?.[1] || DEFAULT_FROM_EMAIL
     : from;
+  const messageId = `<${randomUUID()}@avenida-legal.com>`;
   return [
+    `Message-ID: ${messageId}`,
+    `Date: ${rfc2822Date()}`,
     `Reply-To: ${replyEmail}`,
     `List-Unsubscribe: <mailto:${replyEmail}?subject=unsubscribe>`,
     'X-Mailer: Avenida Legal Platform',

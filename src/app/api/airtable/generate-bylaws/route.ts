@@ -15,8 +15,17 @@ const LAMBDA_BYLAWS_URL = process.env.LAMBDA_BYLAWS_URL || '';
 const S3_BUCKET = process.env.S3_DOCUMENTS_BUCKET || 'avenida-legal-documents';
 const TEMPLATE_BUCKET = process.env.TEMPLATE_BUCKET || S3_BUCKET;
 const TEMPLATE_BASE_URL = `https://${TEMPLATE_BUCKET}.s3.${process.env.AWS_REGION || 'us-west-1'}.amazonaws.com`;
-const BYLAWS_TEMPLATE_PATH = process.env.BYLAWS_TEMPLATE_PATH || 'templates/bylaws-template.docx';
-const BYLAWS_TEMPLATE_URL = process.env.BYLAWS_TEMPLATE_URL || `${TEMPLATE_BASE_URL}/${BYLAWS_TEMPLATE_PATH}`;
+/**
+ * Select the correct bylaws template based on owner count (1-6).
+ * Templates: templates/bylaws/bylaws-{N}-owner(s).docx
+ * Falls back to the old single template if scaled templates don't exist.
+ */
+function getBylawsTemplateUrl(ownerCount: number): string {
+  const n = Math.max(1, Math.min(6, ownerCount));
+  const suffix = n === 1 ? 'owner' : 'owners';
+  const scaledPath = `templates/bylaws/bylaws-${n}-${suffix}.docx`;
+  return `s3://${TEMPLATE_BUCKET}/${scaledPath}`;
+}
 
 // Initialize Airtable
 const base = new Airtable({ apiKey: AIRTABLE_API_KEY }).base(AIRTABLE_BASE_ID);
@@ -156,21 +165,36 @@ export async function POST(request: NextRequest) {
       companyName: bylawsData.companyName,
       formationState: bylawsData.formationState,
       numberOfShares: bylawsData.numberOfShares,
+      ownersCount: bylawsData.ownersCount,
     });
 
-    // Step 4: Generate DOCX
+    // Pre-flight validation: ensure all owner names are present for the declared count
+    for (let i = 1; i <= bylawsData.ownersCount; i++) {
+      const ownerName = bylawsData[`owner${i}Name`];
+      if (!ownerName || ownerName.trim() === '') {
+        return NextResponse.json(
+          { error: `Missing Owner ${i} Name — cannot generate Bylaws with empty shareholder` },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Step 4: Generate DOCX — select template based on owner count
+    const bylawsTemplateUrl = getBylawsTemplateUrl(bylawsData.ownersCount || 1);
+    console.log(`📄 Selected bylaws template for ${bylawsData.ownersCount} owner(s): ${bylawsTemplateUrl}`);
+
     const vaultPath = fields['Vault Path'] || sanitizeCompanyName(fields['Company Name'] || 'Company');
-    
+
     // Generate correct filename (will use .docx for Lambda, then convert if needed)
     const fileName = formatCompanyFileName(fields['Company Name'] || 'Company', 'Bylaws', 'docx');
     const s3Key = `${vaultPath}/formation/${fileName}`;
-    
-    // Call Lambda with correct filename (not placeholder)
+
+    // Call Lambda with correct template for owner count
     const docxBuffer = await callBylawsLambda(
       bylawsData,
       S3_BUCKET,
-      s3Key, // Use correct filename, not placeholder
-      BYLAWS_TEMPLATE_URL
+      s3Key,
+      bylawsTemplateUrl
     );
 
     // Store as DOCX (LibreOffice PDF conversion corrupts fonts in these templates)

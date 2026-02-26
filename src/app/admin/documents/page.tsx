@@ -47,8 +47,24 @@ function formatFriendlyDate(dateStr: string | undefined | null): string {
     // Detect if this is a full ISO timestamp (has time component) vs date-only
     const hasTime = dateStr.includes("T") || dateStr.includes(":");
 
-    // Day with ordinal suffix
-    const day = hasTime ? date.getDate() : date.getUTCDate();
+    // For timestamps, extract date parts in Eastern Time; for date-only, use UTC
+    let day: number, monthIdx: number, year: number;
+    if (hasTime) {
+      const etParts = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York",
+        day: "numeric",
+        month: "numeric",
+        year: "numeric",
+      }).formatToParts(date);
+      day = parseInt(etParts.find((p) => p.type === "day")?.value || "1", 10);
+      monthIdx = parseInt(etParts.find((p) => p.type === "month")?.value || "1", 10) - 1;
+      year = parseInt(etParts.find((p) => p.type === "year")?.value || "2025", 10);
+    } else {
+      day = date.getUTCDate();
+      monthIdx = date.getUTCMonth();
+      year = date.getUTCFullYear();
+    }
+
     const suffix =
       day === 11 || day === 12 || day === 13
         ? "th"
@@ -64,17 +80,22 @@ function formatFriendlyDate(dateStr: string | undefined | null): string {
       "January", "February", "March", "April", "May", "June",
       "July", "August", "September", "October", "November", "December",
     ];
-    const month = months[hasTime ? date.getMonth() : date.getUTCMonth()];
-    const year = hasTime ? date.getFullYear() : date.getUTCFullYear();
+    const month = months[monthIdx];
 
     const datePart = `${day}${suffix} of ${month}, ${year}`;
 
     if (hasTime) {
-      let hours = date.getHours();
-      const minutes = date.getMinutes();
-      const ampm = hours >= 12 ? "pm" : "am";
-      hours = hours % 12 || 12;
-      const timePart = `${hours}:${minutes.toString().padStart(2, "0")}${ampm}`;
+      // Use Eastern Time (America/New_York) for consistent display
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      }).formatToParts(date);
+      const hourVal = parts.find((p) => p.type === "hour")?.value || "12";
+      const minuteVal = parts.find((p) => p.type === "minute")?.value || "00";
+      const dayPeriod = (parts.find((p) => p.type === "dayPeriod")?.value || "am").toLowerCase();
+      const timePart = `${hourVal}:${minuteVal}${dayPeriod}`;
       return `${timePart} · ${datePart}`;
     }
 
@@ -184,6 +205,7 @@ export default function AdminDocumentsPage() {
     setSelectedCompany(company);
     setQuery(company.companyName);
     searchInputRef.current?.blur();
+    setCompaniesCollapsed(true);
     fetchDocuments(company.id);
   };
 
