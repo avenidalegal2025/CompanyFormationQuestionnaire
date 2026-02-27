@@ -4,6 +4,8 @@ import tempfile
 import boto3
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml.ns import qn
+from docx.oxml import OxmlElement
 import re
 import base64
 from copy import deepcopy
@@ -548,11 +550,45 @@ def replace_placeholders(doc, data):
                 for paragraph in cell.paragraphs:
                     replace_all_in_paragraph(paragraph)
 
-    # NOTE: left_align_shareholder_lines was removed — it only stripped leading
-    # tabs from "% Owner" lines while leaving them on "SHAREHOLDER", "By:", and
-    # "Name:" lines, causing misalignment.  The 216 templates use 6 leading tabs
-    # on ALL signature-block paragraphs for consistent indentation; the run-level
-    # replacement already preserves those tabs, so no post-processing is needed.
+    # Fix signature-block indentation: normalize ALL lines in the signature
+    # section to use exactly 6 leading tabs.  Some LLC templates (3+ members
+    # with 2+ managers) use SPACES for indentation on member 3+ blocks.
+    # If we blindly prepend tabs without stripping spaces first, the line
+    # overflows and wraps.  This code normalizes every meaningful signature
+    # line (By:, Name:, Title:, and "% Owner") to 6-tab indentation.
+    SIG_LINE_TAB_COUNT = '\t\t\t\t\t\t'  # 6 tabs — matches template convention
+    in_sig = False
+    for paragraph in doc.paragraphs:
+        txt = paragraph.text.strip()
+        if 'WITNESS WHEREOF' in txt:
+            in_sig = True
+        if not in_sig or not paragraph.runs:
+            continue
+        first_run = paragraph.runs[0]
+        # Detect signature lines that need tab normalization:
+        #   "XX% Owner …" — ownership percentage
+        #   "By: ___" — signature line
+        #   "Name: …" — member/shareholder name
+        #   "Title: …" — title line
+        needs_fix = False
+        if re.match(r'^\d+%\s*Owner', txt):
+            needs_fix = True
+        elif re.match(r'^By:\s*_', txt):
+            needs_fix = True
+        elif re.match(r'^Name:\s', txt):
+            needs_fix = True
+        elif re.match(r'^Title:\s', txt):
+            needs_fix = True
+        if needs_fix:
+            raw = first_run.text
+            stripped = raw.lstrip()
+            if stripped:
+                # First run has the content — strip whitespace and add tabs
+                if not raw.startswith(SIG_LINE_TAB_COUNT):
+                    first_run.text = SIG_LINE_TAB_COUNT + stripped
+            else:
+                # First run is only whitespace (tabs/spaces); normalize to 6 tabs
+                first_run.text = SIG_LINE_TAB_COUNT
 
     # --- #7: Dynamic authority clause ---
     # For companies with >1 officer or >1 director, replace "the President" with
@@ -616,6 +652,146 @@ def replace_placeholders(doc, data):
                 heading_para.text = upper
 
     print("===> Placeholders replaced successfully")
+
+
+# ---------- Post-processing: best-practice formatting fixes ----------
+
+def _add_keep_next(paragraph):
+    """Add keepNext property to a paragraph so it stays with the next paragraph."""
+    pPr = paragraph._p.get_or_add_pPr()
+    for existing in pPr.findall(qn('w:keepNext')):
+        pPr.remove(existing)
+    keep_next = OxmlElement('w:keepNext')
+    pPr.append(keep_next)
+
+
+def post_process_org_resolution(doc):
+    """Best-practice formatting fixes for Org Resolution documents:
+    1. Ensure [SIGNATURE PAGE BELOW] + pageBreakBefore on IN WITNESS WHEREOF
+    2. Remove excess empty paragraphs in signature section (keep max 2)
+    3. Remove "PAGE X" footer text
+    4. keepNext on RESOLVED headings so they don't orphan at page bottom
+    """
+    print("===> Post-processing org resolution...")
+
+    paragraphs = doc.paragraphs
+
+    # --- 1. Ensure [SIGNATURE PAGE BELOW] + pageBreakBefore ---
+    # The 216 templates already have this, but handle any template that might not.
+    witness_para = None
+    for paragraph in paragraphs:
+        if 'IN WITNESS WHEREOF' in paragraph.text:
+            witness_para = paragraph
+            break
+
+    if witness_para is not None:
+        body = witness_para._p.getparent()
+
+        # Check if [SIGNATURE PAGE BELOW] already exists
+        prev = witness_para._p.getprevious()
+        prev_text = ''
+        if prev is not None:
+            prev_txts = []
+            for r_el in prev.iterchildren(qn('w:r')):
+                for t_el in r_el.iterchildren(qn('w:t')):
+                    prev_txts.append(t_el.text or '')
+            prev_text = ''.join(prev_txts).strip()
+
+        if 'SIGNATURE PAGE BELOW' not in prev_text:
+            # Remove trailing empties before witness
+            while True:
+                prev_el = witness_para._p.getprevious()
+                if prev_el is None:
+                    break
+                prev_txts = []
+                for r_el in prev_el.iterchildren(qn('w:r')):
+                    for t_el in r_el.iterchildren(qn('w:t')):
+                        prev_txts.append(t_el.text or '')
+                if ''.join(prev_txts).strip() == '':
+                    body.remove(prev_el)
+                else:
+                    break
+
+            # Insert [SIGNATURE PAGE BELOW] centered
+            sig_p = OxmlElement('w:p')
+            sig_pPr = OxmlElement('w:pPr')
+            sig_jc = OxmlElement('w:jc')
+            sig_jc.set(qn('w:val'), 'center')
+            sig_pPr.append(sig_jc)
+            sig_p.append(sig_pPr)
+            sig_r = OxmlElement('w:r')
+            sig_rPr = OxmlElement('w:rPr')
+            sig_rFonts = OxmlElement('w:rFonts')
+            sig_rFonts.set(qn('w:ascii'), 'Times New Roman')
+            sig_rFonts.set(qn('w:hAnsi'), 'Times New Roman')
+            sig_rPr.append(sig_rFonts)
+            sig_sz = OxmlElement('w:sz')
+            sig_sz.set(qn('w:val'), '24')
+            sig_rPr.append(sig_sz)
+            sig_r.append(sig_rPr)
+            sig_t = OxmlElement('w:t')
+            sig_t.text = '[SIGNATURE PAGE BELOW]'
+            sig_r.append(sig_t)
+            sig_p.append(sig_r)
+            body.insert(list(body).index(witness_para._p), sig_p)
+            print("===> Inserted [SIGNATURE PAGE BELOW]")
+
+        # Ensure pageBreakBefore on WITNESS WHEREOF
+        pPr = witness_para._p.get_or_add_pPr()
+        if not pPr.findall(qn('w:pageBreakBefore')):
+            page_break = OxmlElement('w:pageBreakBefore')
+            pPr.append(page_break)
+            print("===> Added pageBreakBefore to IN WITNESS WHEREOF")
+
+    # --- 2. Remove excess empty paragraphs in signature section (keep max 2) ---
+    in_sig = False
+    to_remove = []
+    consecutive = 0
+    for paragraph in doc.paragraphs:
+        text = paragraph.text.strip()
+        if 'IN WITNESS WHEREOF' in text:
+            in_sig = True
+            consecutive = 0
+            continue
+        if in_sig:
+            if not text:
+                consecutive += 1
+                if consecutive > 2:
+                    to_remove.append(paragraph)
+            else:
+                consecutive = 0
+    removed = 0
+    for p in to_remove:
+        parent = p._p.getparent()
+        if parent is not None:
+            parent.remove(p._p)
+            removed += 1
+
+    # --- 3. Remove "PAGE X" footer text ---
+    pages_removed = 0
+    for paragraph in doc.paragraphs:
+        text = paragraph.text.strip()
+        if re.match(r'^PAGE\s+\d+$', text):
+            parent = paragraph._p.getparent()
+            if parent is not None:
+                parent.remove(paragraph._p)
+                pages_removed += 1
+
+    # --- 4. keepNext on RESOLVED paragraphs ---
+    # Ensure "RESOLVED," paragraphs stay with their body text
+    resolved_fixed = 0
+    all_paras = doc.paragraphs
+    for i, paragraph in enumerate(all_paras):
+        text = paragraph.text.strip()
+        if text.upper().startswith('RESOLVED') and len(text) < 200:
+            _add_keep_next(paragraph)
+            resolved_fixed += 1
+            # Also keepNext on following empty para if any
+            if i + 1 < len(all_paras) and not all_paras[i + 1].text.strip():
+                _add_keep_next(all_paras[i + 1])
+
+    print(f"===> Post-processing done: {removed} excess empties removed, {pages_removed} PAGE X removed, {resolved_fixed} RESOLVED keepNext")
+
 
 def lambda_handler(event, context):
     print("===> RAW EVENT:")
@@ -684,7 +860,10 @@ def lambda_handler(event, context):
         
         # Replace placeholders with form data
         replace_placeholders(doc, form_data)
-        
+
+        # Apply best-practice formatting fixes
+        post_process_org_resolution(doc)
+
         # Save filled document
         print("===> Saving filled document...")
         doc.save(output_path)

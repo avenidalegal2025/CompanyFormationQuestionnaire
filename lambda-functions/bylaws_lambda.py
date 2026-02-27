@@ -7,7 +7,10 @@ import base64
 from copy import deepcopy
 from datetime import datetime
 from docx import Document
-from docx.shared import Pt
+from docx.shared import Pt, Twips
+from docx.oxml.ns import qn
+from docx.oxml import OxmlElement
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 # Constants
 TEMPLATE_BUCKET = os.environ.get('TEMPLATE_BUCKET', 'avenida-legal-documents')
@@ -258,6 +261,220 @@ def replace_placeholders(doc, data):
                     process_paragraph(paragraph)
 
 
+# ---------- Post-processing: fix template formatting issues ----------
+
+def _is_heading_paragraph(text):
+    """Detect section headings in the Bylaws template.
+    Matches: 'ARTICLE I – OFFICES', '1.    PLACE OF MEETINGS', 'SHAREHOLDERS', etc."""
+    stripped = text.strip()
+    if not stripped:
+        return False
+    # ARTICLE headings: "ARTICLE I – OFFICES", "ARTICLE XV - EMERGENCY BY-LAWS"
+    if re.match(r'^ARTICLE\s+[IVXLC]+', stripped):
+        return True
+    # Numbered sections: "1.    PLACE OF MEETINGS", "10.  NOTICE OF MEETINGS"
+    if re.match(r'^\d+\.\s{2,}[A-Z]', stripped):
+        return True
+    # All-caps standalone headings (>5 chars, no lowercase)
+    if len(stripped) > 5 and stripped == stripped.upper() and re.match(r'^[A-Z\s\-–,\.]+$', stripped):
+        return True
+    return False
+
+
+def _add_keep_next(paragraph):
+    """Add keepNext property to a paragraph so it stays with the next paragraph."""
+    pPr = paragraph._p.get_or_add_pPr()
+    # Remove existing keepNext if any
+    for existing in pPr.findall(qn('w:keepNext')):
+        pPr.remove(existing)
+    keep_next = OxmlElement('w:keepNext')
+    pPr.append(keep_next)
+
+
+def post_process_bylaws(doc):
+    """Fix template formatting issues after placeholder replacement:
+    1. Add keepNext to all section headings AND the empty paragraph following them
+       (the template has heading → empty para → body text; we need the chain to hold)
+    2. Fix 'theretofore' typo → 'therefore'
+    3. Remove excess empty paragraphs in signature section (keep max 1 between blocks)
+    """
+    print("===> Post-processing: fixing template formatting...")
+
+    paragraphs = doc.paragraphs
+    headings_fixed = 0
+    typos_fixed = 0
+
+    # --- 1. Add keepNext to heading paragraphs AND the empty para that follows ---
+    for i, paragraph in enumerate(paragraphs):
+        text = paragraph.text.strip()
+        if _is_heading_paragraph(text):
+            _add_keep_next(paragraph)
+            headings_fixed += 1
+            # Also add keepNext to the next paragraph if it is empty (spacer between
+            # heading and body text).  This ensures heading + spacer + body stay together.
+            if i + 1 < len(paragraphs) and not paragraphs[i + 1].text.strip():
+                _add_keep_next(paragraphs[i + 1])
+
+    # --- 2. Fix "theretofore" → "therefore" typo ---
+    for paragraph in paragraphs:
+        if 'theretofore' in paragraph.text.lower():
+            for run in paragraph.runs:
+                if 'theretofore' in run.text:
+                    run.text = run.text.replace('theretofore', 'therefore')
+                    typos_fixed += 1
+                if 'Theretofore' in run.text:
+                    run.text = run.text.replace('Theretofore', 'Therefore')
+                    typos_fixed += 1
+
+    # --- 3. Insert "[SIGNATURE PAGE BELOW]" + pageBreakBefore on WITNESS WHEREOF ---
+    # The Org Resolution template already has this, but the Bylaws template does not.
+    # "IN WITNESS WHEREOF" must always be the first line of the last page, with
+    # "[SIGNATURE PAGE BELOW]" as the last text on the preceding page.
+    witness_para = None
+    for paragraph in doc.paragraphs:
+        if 'IN WITNESS WHEREOF' in paragraph.text:
+            witness_para = paragraph
+            break
+
+    if witness_para is not None:
+        body = witness_para._p.getparent()
+
+        # Check if "[SIGNATURE PAGE BELOW]" already exists before the witness paragraph
+        prev = witness_para._p.getprevious()
+        prev_text = ''
+        if prev is not None:
+            prev_texts = []
+            for t in prev.iterchildren(qn('w:r')):
+                for tt in t.iterchildren(qn('w:t')):
+                    prev_texts.append(tt.text or '')
+            prev_text = ''.join(prev_texts).strip()
+
+        # Remove trailing empty paragraphs immediately before witness (or before
+        # the [SIGNATURE PAGE BELOW] we are about to insert) — these just add whitespace.
+        empties_removed_before = 0
+        while True:
+            prev_el = witness_para._p.getprevious()
+            if prev_el is None:
+                break
+            prev_txts = []
+            for r_el in prev_el.iterchildren(qn('w:r')):
+                for t_el in r_el.iterchildren(qn('w:t')):
+                    prev_txts.append(t_el.text or '')
+            if ''.join(prev_txts).strip() == '':
+                body.remove(prev_el)
+                empties_removed_before += 1
+            else:
+                break
+        if empties_removed_before:
+            print(f"===> Removed {empties_removed_before} empty paragraphs before signature page")
+
+        if 'SIGNATURE PAGE BELOW' not in prev_text:
+            # Insert a new centered "[SIGNATURE PAGE BELOW]" paragraph before witness
+            sig_p = OxmlElement('w:p')
+            sig_pPr = OxmlElement('w:pPr')
+            sig_jc = OxmlElement('w:jc')
+            sig_jc.set(qn('w:val'), 'center')
+            sig_pPr.append(sig_jc)
+            sig_p.append(sig_pPr)
+            sig_r = OxmlElement('w:r')
+            # Copy font formatting from witness paragraph
+            sig_rPr = OxmlElement('w:rPr')
+            sig_rFonts = OxmlElement('w:rFonts')
+            sig_rFonts.set(qn('w:ascii'), 'Times New Roman')
+            sig_rFonts.set(qn('w:hAnsi'), 'Times New Roman')
+            sig_rPr.append(sig_rFonts)
+            sig_sz = OxmlElement('w:sz')
+            sig_sz.set(qn('w:val'), '24')  # 12pt
+            sig_rPr.append(sig_sz)
+            sig_r.append(sig_rPr)
+            sig_t = OxmlElement('w:t')
+            sig_t.text = '[SIGNATURE PAGE BELOW]'
+            sig_r.append(sig_t)
+            sig_p.append(sig_r)
+            body.insert(list(body).index(witness_para._p), sig_p)
+            print("===> Inserted [SIGNATURE PAGE BELOW] paragraph")
+
+        # Add pageBreakBefore to "IN WITNESS WHEREOF" paragraph
+        pPr = witness_para._p.get_or_add_pPr()
+        # Remove existing pageBreakBefore if any
+        for existing in pPr.findall(qn('w:pageBreakBefore')):
+            pPr.remove(existing)
+        page_break = OxmlElement('w:pageBreakBefore')
+        pPr.append(page_break)
+        print("===> Added pageBreakBefore to IN WITNESS WHEREOF")
+
+    # --- 4. Remove excess empty paragraphs in signature section ---
+    # The template has 3-4 empty paragraphs between each signature block.
+    # Keep at most 2 empty paragraphs between blocks for comfortable spacing.
+    in_signature_section = False
+    paragraphs_to_remove = []
+    consecutive_empties = 0
+
+    for paragraph in doc.paragraphs:
+        text = paragraph.text.strip()
+        if 'IN WITNESS WHEREOF' in text:
+            in_signature_section = True
+            consecutive_empties = 0
+            continue
+
+        if in_signature_section:
+            if not text:
+                consecutive_empties += 1
+                if consecutive_empties > 2:
+                    # Mark for removal — keep 2 empty paras between blocks
+                    paragraphs_to_remove.append(paragraph)
+            else:
+                consecutive_empties = 0
+
+    # Remove the excess empty paragraphs by deleting their XML elements
+    removed = 0
+    for paragraph in paragraphs_to_remove:
+        p_element = paragraph._p
+        parent = p_element.getparent()
+        if parent is not None:
+            parent.remove(p_element)
+            removed += 1
+
+    # --- 5. Remove "PAGE X" footer text from signature section ---
+    pages_removed = 0
+    for paragraph in doc.paragraphs:
+        text = paragraph.text.strip()
+        if re.match(r'^PAGE\s+\d+$', text):
+            p_element = paragraph._p
+            parent = p_element.getparent()
+            if parent is not None:
+                parent.remove(p_element)
+                pages_removed += 1
+
+    # --- 6. Remove trailing empty paragraphs at end of document ---
+    body_el = doc.element.body
+    trailing_removed = 0
+    while len(doc.paragraphs) > 0:
+        last_p = doc.paragraphs[-1]
+        if not last_p.text.strip():
+            body_el.remove(last_p._p)
+            trailing_removed += 1
+        else:
+            break
+
+    # --- 7. Normalize lettered sub-item indentation (A., B., C., D., E.) ---
+    # Some template sub-items have extra left indentation (720 twips) while
+    # others have 0.  Normalize all lettered sub-items to left=0.
+    indent_fixes = 0
+    for paragraph in doc.paragraphs:
+        text = paragraph.text.strip()
+        if re.match(r'^[A-Z]\.\s', text):
+            pPr = paragraph._p.get_or_add_pPr()
+            ind_elements = pPr.findall(qn('w:ind'))
+            for ind_el in ind_elements:
+                current_left = ind_el.get(qn('w:left'))
+                if current_left and int(current_left) > 0:
+                    ind_el.set(qn('w:left'), '0')
+                    indent_fixes += 1
+
+    print(f"===> Post-processing done: {headings_fixed} headings keepNext, {typos_fixed} typos fixed, {indent_fixes} indents normalized, {removed} excess empty paras removed from signature")
+
+
 def lambda_handler(event, context):
     print("===> Bylaws Lambda invoked")
 
@@ -292,6 +509,7 @@ def lambda_handler(event, context):
 
         doc = Document(template_path)
         replace_placeholders(doc, form_data)
+        post_process_bylaws(doc)
         doc.save(output_path)
 
         upload_to_s3(output_path, s3_bucket, s3_key)

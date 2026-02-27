@@ -7,6 +7,8 @@ import base64
 from copy import deepcopy
 from docx import Document
 from docx.shared import Pt
+from docx.oxml.ns import qn
+from docx.oxml import OxmlElement
 
 # Constants
 TEMPLATE_BUCKET = os.environ.get('TEMPLATE_BUCKET', 'avenida-legal-documents')
@@ -228,6 +230,42 @@ def replace_placeholders(doc, data):
                     process_paragraph(paragraph)
 
 
+def post_process_shareholder_registry(doc):
+    """Best-practice formatting fixes for Shareholder Registry documents:
+    1. Corporation Address: missing tab between label and value
+    2. Remove "PAGE X" footer text
+    """
+    print("===> Post-processing: fixing template formatting...")
+
+    # --- 1. Fix Corporation Address tab ---
+    for paragraph in doc.paragraphs:
+        text = paragraph.text
+        if 'Corporation Address:' in text:
+            runs = paragraph.runs
+            for i, run in enumerate(runs):
+                if 'Corporation Address:' in run.text and i + 1 < len(runs):
+                    next_run = runs[i + 1]
+                    if not next_run.text.startswith('\t'):
+                        tab_run = paragraph.add_run()
+                        tab_el = OxmlElement('w:tab')
+                        tab_run._element.append(tab_el)
+                        run._element.addnext(tab_run._element)
+                        print("===> Fixed: added tab between 'Corporation Address:' and value")
+                    break
+
+    # --- 2. Remove "PAGE X" footer text ---
+    pages_removed = 0
+    for paragraph in doc.paragraphs:
+        text = paragraph.text.strip()
+        if re.match(r'^PAGE\s+\d+$', text):
+            parent = paragraph._p.getparent()
+            if parent is not None:
+                parent.remove(paragraph._p)
+                pages_removed += 1
+
+    print(f"===> Post-processing done: {pages_removed} PAGE X removed")
+
+
 def lambda_handler(event, context):
     print("===> Shareholder Registry Lambda invoked")
 
@@ -262,6 +300,7 @@ def lambda_handler(event, context):
 
         doc = Document(template_path)
         replace_placeholders(doc, form_data)
+        post_process_shareholder_registry(doc)
         doc.save(output_path)
 
         upload_to_s3(output_path, s3_bucket, s3_key)

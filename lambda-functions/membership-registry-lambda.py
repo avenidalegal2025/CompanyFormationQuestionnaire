@@ -410,6 +410,26 @@ def replace_placeholders(doc, data):
     
     print("===> Placeholders replaced successfully")
 
+
+def post_process_membership_registry(doc):
+    """Best-practice formatting fixes for Membership Registry documents:
+    1. Remove "PAGE X" footer text
+    """
+    print("===> Post-processing membership registry...")
+
+    # --- 1. Remove "PAGE X" footer text ---
+    pages_removed = 0
+    for paragraph in doc.paragraphs:
+        text = paragraph.text.strip()
+        if re.match(r'^PAGE\s+\d+$', text):
+            parent = paragraph._p.getparent()
+            if parent is not None:
+                parent.remove(paragraph._p)
+                pages_removed += 1
+
+    print(f"===> Post-processing done: {pages_removed} PAGE X removed")
+
+
 def lambda_handler(event, context):
     print("===> RAW EVENT:")
     print(json.dumps(event))
@@ -478,7 +498,10 @@ def lambda_handler(event, context):
         
         # Replace placeholders with form data
         replace_placeholders(doc, form_data)
-        
+
+        # Apply best-practice formatting fixes
+        post_process_membership_registry(doc)
+
         # Save filled document
         print("===> Saving filled document...")
         doc.save(output_path)
