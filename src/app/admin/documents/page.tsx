@@ -12,6 +12,17 @@ import {
 } from "@heroicons/react/24/outline";
 import { signOut } from "next-auth/react";
 
+/** Full logout: clear NextAuth session, then redirect to Auth0 logout to kill SSO session */
+async function fullLogout() {
+  // Clear the NextAuth JWT cookie first
+  await signOut({ redirect: false });
+  // Redirect to Auth0 logout so the Auth0 session is also destroyed
+  const auth0Domain = "https://dev-hx5xtiwldskmbisi.us.auth0.com";
+  const clientId = "8dvSA0Br1funvuupTaKSCdKgCaFSmfUT";
+  const returnTo = encodeURIComponent(window.location.origin + "/signin");
+  window.location.href = `${auth0Domain}/v2/logout?client_id=${clientId}&returnTo=${returnTo}`;
+}
+
 const ADMIN_SEEN_COMPANY_IDS_KEY = "admin-seen-company-ids";
 
 function getSeenIdsFromStorage(): Set<string> {
@@ -408,7 +419,7 @@ export default function AdminDocumentsPage() {
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-gray-900">Panel de Abogado – Documentos</h1>
             <button
-              onClick={() => signOut({ callbackUrl: "/signin" })}
+              onClick={() => fullLogout()}
               className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
             >
               <ArrowLeftOnRectangleIcon className="h-4 w-4" />
