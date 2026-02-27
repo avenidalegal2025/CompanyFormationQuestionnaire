@@ -13,6 +13,7 @@ const AUTHORIZED_EMAILS = [
   'avenidalegal.2024@gmail.com',
   'info@avenidalegal.com',
   'rodolfo@avenidalegal.lat',
+  'trimaran.llc+3456464@gmail.com',
 ];
 
 /**
