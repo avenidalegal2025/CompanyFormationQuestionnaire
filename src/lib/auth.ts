@@ -40,10 +40,24 @@ export const authOptions = {
     }),
   ],
   callbacks: {
+    async redirect({ url, baseUrl }: { url: string; baseUrl: string }) {
+      // After login, always redirect to the home page.
+      // The client-side logic on "/" decides whether to show the questionnaire
+      // (for regular users or admin users mid-questionnaire) or redirect to
+      // /admin/documents (for admin users with no pending callback).
+      // This prevents stale next-auth callback-url cookies from sending
+      // users to /admin/* or other unexpected destinations.
+      if (url.startsWith(baseUrl)) {
+        // Internal URL — only allow /client/* and / (block /admin/* as post-login target)
+        if (url.includes('/admin')) {
+          return baseUrl;
+        }
+        return url;
+      }
+      // External URL (e.g. Auth0 logout) — allow as-is
+      return url;
+    },
     async session({ session, token }: { session: any; token: any }) {
-      console.log('Session callback - token:', token ? 'present' : 'missing');
-      console.log('Session callback - session:', session ? 'present' : 'missing');
-      
       // Ensure session persists with token data
       if (token) {
         session.user = token.user as any;
@@ -52,17 +66,11 @@ export const authOptions = {
       return session;
     },
     async jwt({ token, account, user, profile }: { token: any; account: any; user: any; profile?: any }) {
-      console.log('JWT callback - account:', account ? 'present' : 'missing');
-      console.log('JWT callback - user:', user ? 'present' : 'missing');
-      console.log('JWT callback - profile:', profile ? 'present' : 'missing');
-      console.log('JWT callback - token:', token ? 'present' : 'missing');
-      
       // Persist OAuth access_token and user info to the token right after signin
       if (account) {
         token.accessToken = account.access_token;
-        console.log('Added access token to JWT');
       }
-      
+
       // Extract user data from Auth0 profile or user object
       if (user || profile) {
         const userData = user || profile;
@@ -72,15 +80,11 @@ export const authOptions = {
           email: userData.email,
           image: userData.picture || userData.avatar_url
         };
-        console.log('Added user to JWT:', token.user);
       }
-      
+
       return token;
     },
     async signIn({ user, account, profile }: { user: any; account: any; profile?: any }) {
-      console.log('SignIn callback - user:', user);
-      console.log('SignIn callback - account:', account);
-      console.log('SignIn callback - profile:', profile);
       return true; // Allow sign in
     },
   },
