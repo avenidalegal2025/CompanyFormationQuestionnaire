@@ -3,12 +3,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownTrayIcon,
+  ArrowLeftOnRectangleIcon,
   ArrowUpTrayIcon,
   CheckCircleIcon,
   ClockIcon,
   DocumentTextIcon,
   MagnifyingGlassIcon,
 } from "@heroicons/react/24/outline";
+import { signOut } from "next-auth/react";
 
 const ADMIN_SEEN_COMPANY_IDS_KEY = "admin-seen-company-ids";
 
@@ -403,7 +405,16 @@ export default function AdminDocumentsPage() {
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
         <div className="mb-6 flex flex-col gap-2">
-          <h1 className="text-2xl font-bold text-gray-900">Panel de Abogado – Documentos</h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold text-gray-900">Panel de Abogado – Documentos</h1>
+            <button
+              onClick={() => signOut({ callbackUrl: "/signin" })}
+              className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+            >
+              <ArrowLeftOnRectangleIcon className="h-4 w-4" />
+              Cerrar sesión
+            </button>
+          </div>
           <p className="text-sm text-gray-600">
             Busca una empresa y gestiona todos sus documentos.
           </p>
