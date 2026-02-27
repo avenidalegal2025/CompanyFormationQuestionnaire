@@ -19,7 +19,8 @@ async function fullLogout() {
   // Redirect to Auth0 logout so the Auth0 session is also destroyed
   const auth0Domain = "https://dev-hx5xtiwldskmbisi.us.auth0.com";
   const clientId = "8dvSA0Br1funvuupTaKSCdKgCaFSmfUT";
-  const returnTo = encodeURIComponent(window.location.origin + "/signin");
+  // Use origin only (no path) — must match Auth0's Allowed Logout URLs
+  const returnTo = encodeURIComponent(window.location.origin);
   window.location.href = `${auth0Domain}/v2/logout?client_id=${clientId}&returnTo=${returnTo}`;
 }
 
