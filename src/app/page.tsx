@@ -32,6 +32,15 @@ function QuestionnaireContent() {
 
   useEffect(() => {
     if (status !== 'authenticated') return;
+
+    // If the user was in the middle of the questionnaire before logging in,
+    // skip the admin redirect — the post-signup useEffect below will restore
+    // the correct step and draft data instead.
+    if (typeof window !== 'undefined') {
+      const pendingCallback = localStorage.getItem('authCallbackUrl');
+      if (pendingCallback) return;
+    }
+
     const email = (session?.user?.email || '').toLowerCase().trim();
     if (!email) return;
     const adminEmails = [
