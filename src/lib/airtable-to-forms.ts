@@ -732,6 +732,7 @@ export function mapAirtableToShareholderRegistry(record: any): any {
   const formationState = fields['Formation State'] || '';
   const companyAddress = fields['Company Address'] || '';
   const paymentDate = formatMonthDayYear(fields['Payment Date']);
+  const paymentDateNumeric = formatDateNumeric(fields['Payment Date']); // MM/DD/YYYY for table cells
   const authorizedShares = fields['Number of Shares'] || 1000;
   const outstandingShares = fields['Number of Shares'] || 1000;
 
@@ -760,7 +761,7 @@ export function mapAirtableToShareholderRegistry(record: any): any {
         : '';
 
     shareholders.push({
-      date: paymentDate,
+      date: paymentDateNumeric,
       name: ownerName,
       transaction: 'Allotted',
       shares: sharesOwned ? Number(sharesOwned).toLocaleString('en-US') : '',
