@@ -504,7 +504,23 @@ def map_data_to_ss4_fields(form_data):
     responsible_state = form_data.get("responsiblePartyState", "")
     responsible_zip = form_data.get("responsiblePartyZip", "")
     responsible_country = form_data.get("responsiblePartyCountry", "USA")
-    
+
+    # FALLBACK: If responsiblePartyName is empty, try to use the first owner's name.
+    # This happens when the front-end doesn't explicitly set responsiblePartyName
+    # (e.g. C-Corp formations where the primary shareholder should be listed).
+    if not responsible_name:
+        owners_list = form_data.get("owners", [])
+        if owners_list and len(owners_list) > 0:
+            responsible_name = owners_list[0].get("name", "") or owners_list[0].get("fullName", "")
+            print(f"===> ⚠️ responsiblePartyName was empty, falling back to first owner: '{responsible_name}'")
+        # Also try signatureName as last resort
+        if not responsible_name:
+            sig = form_data.get("signatureName", "")
+            if sig:
+                # Strip role suffix like ", PRESIDENT" if present
+                responsible_name = sig.split(",")[0].strip() if "," in sig else sig.strip()
+                print(f"===> ⚠️ Also tried signatureName fallback: '{responsible_name}'")
+
     # Debug logging for responsible party
     print(f"===> Responsible party from form_data:")
     print(f"===>   Name: '{responsible_name}'")
@@ -1314,15 +1330,22 @@ def map_data_to_ss4_fields(form_data):
                 return ""
             # Convert to string if not already
             phone_str = str(phone) if not isinstance(phone, str) else phone
+            print(f"===> format_phone input: '{phone_str}'")
             # Remove all non-digits
             phone_clean = ''.join(filter(str.isdigit, phone_str))
-            # Remove leading +1 or 1 if present (US country code)
-            if phone_clean.startswith('1') and len(phone_clean) == 11:
-                phone_clean = phone_clean[1:]  # Remove leading 1
+            print(f"===> format_phone digits: '{phone_clean}' (len={len(phone_clean)})")
+            # Remove leading US country code "1" — handles E.164 (+15555555555 → 15555555555)
+            # and manually typed numbers (1-555-555-5555 → 15555555555).
+            # Strip leading "1" when we have MORE than 10 digits (11, 12, etc.)
+            while phone_clean.startswith('1') and len(phone_clean) > 10:
+                phone_clean = phone_clean[1:]
             # Format as xxx-xxx-xxxx if we have 10 digits
             if len(phone_clean) == 10:
-                return f"{phone_clean[:3]}-{phone_clean[3:6]}-{phone_clean[6:]}"
+                formatted = f"{phone_clean[:3]}-{phone_clean[3:6]}-{phone_clean[6:]}"
+                print(f"===> format_phone result: '{formatted}'")
+                return formatted
             # If not 10 digits, return cleaned version (might be international or invalid)
+            print(f"===> format_phone non-standard length ({len(phone_clean)}): '{phone_clean}'")
             return phone_clean if phone_clean else ""
         except Exception as e:
             print(f"===> ⚠️ Error formatting phone '{phone}': {e}")

@@ -243,7 +243,11 @@ function categorizeByKeywords(businessPurpose: string): { category: string; othe
   if (purposeLower.includes('wholesale')) {
     return { category: 'wholesale_other' };
   }
-  if (purposeLower.includes('retail') || purposeLower.includes('store') || purposeLower.includes('shop')) {
+  if (purposeLower.includes('retail') || purposeLower.includes('store') || purposeLower.includes('shop') ||
+      purposeLower.includes('sale of') || purposeLower.includes('sell') || purposeLower.includes('selling') ||
+      purposeLower.includes('consumer') || purposeLower.includes('customer') || purposeLower.includes('e-commerce') ||
+      purposeLower.includes('ecommerce') || purposeLower.includes('online sales') ||
+      purposeLower.includes('venta') || purposeLower.includes('consumidor') || purposeLower.includes('tienda')) {
     return { category: 'retail' };
   }
   if (purposeLower.includes('real estate') || purposeLower.includes('realty') || purposeLower.includes('property')) {

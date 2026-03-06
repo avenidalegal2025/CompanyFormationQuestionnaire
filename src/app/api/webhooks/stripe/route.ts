@@ -863,16 +863,25 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
       console.error('❌ Company name:', session.metadata?.companyName || 'Unknown');
       console.error('❌ Customer email:', session.customer_details?.email || session.customer_email || 'Unknown');
       console.error('❌ Stripe Payment ID:', session.id);
-      // IMPORTANT: propagate the error so Stripe treats this attempt as failed and retries.
-      // Combined with our Dynamo idempotency record, this guarantees that:
-      // - Exactly one Airtable company is ultimately created per successful payment
-      // - Transient Airtable errors don't silently drop the company.
+      // IMPORTANT: Tag the error so the outer catch can distinguish it from vault errors.
+      // Airtable failures are CRITICAL and must propagate so Stripe retries.
+      airtableError._isAirtableCritical = true;
       throw airtableError;
     }
-    
-  } catch (vaultError) {
-    console.error('❌ Failed to create document vault:', vaultError);
-    // Don't fail the entire process if vault creation fails
+
+  } catch (outerError: any) {
+    if (outerError._isAirtableCritical) {
+      // CRITICAL: Airtable record creation failed. DO NOT swallow — propagate so
+      // Stripe treats this attempt as failed and retries the webhook.
+      console.error('❌ CRITICAL: Airtable error propagating to Stripe for retry');
+      throw outerError;
+    }
+    // Non-critical: vault/S3 setup failed but we should still attempt Airtable creation.
+    // Note: if we reach here, it means vault operations failed BEFORE the Airtable section,
+    // so the Airtable record was never attempted. Log and continue — the sync-session
+    // fallback from the success page will retry the entire flow.
+    console.error('❌ Failed to create document vault:', outerError);
+    console.error('⚠️ Airtable record may NOT have been created. sync-session fallback will retry.');
   }
   
   console.log('Company formation payment processed successfully');

@@ -554,8 +554,15 @@ def replace_placeholders(doc, data):
     # section to use exactly 6 leading tabs.  Some LLC templates (3+ members
     # with 2+ managers) use SPACES for indentation on member 3+ blocks.
     # If we blindly prepend tabs without stripping spaces first, the line
-    # overflows and wraps.  This code normalizes every meaningful signature
-    # line (By:, Name:, Title:, and "% Owner") to 6-tab indentation.
+    # overflows and wraps.
+    #
+    # IMPORTANT: python-docx converts \t in run.text to <w:tab/> XML elements,
+    # while templates use literal \t in <w:t>.  These render at DIFFERENT
+    # positions in Word.  When a placeholder replacement triggers run.text
+    # assignment (e.g. "% Owner" line), its tabs become <w:tab/> while sibling
+    # lines (By:, Name:) keep literal \t.  To avoid misalignment, we ALWAYS
+    # re-write the first run of every signature line — this forces all lines
+    # to use <w:tab/> consistently.
     SIG_LINE_TAB_COUNT = '\t\t\t\t\t\t'  # 6 tabs — matches template convention
     in_sig = False
     for paragraph in doc.paragraphs:
@@ -566,26 +573,32 @@ def replace_placeholders(doc, data):
             continue
         first_run = paragraph.runs[0]
         # Detect signature lines that need tab normalization:
+        #   "SHAREHOLDER" / "MEMBER" — section header
         #   "XX% Owner …" — ownership percentage
+        #   "Owner of the Company" — LLC ownership label
         #   "By: ___" — signature line
         #   "Name: …" — member/shareholder name
         #   "Title: …" — title line
-        needs_fix = False
+        needs_norm = False
         if re.match(r'^\d+%\s*Owner', txt):
-            needs_fix = True
+            needs_norm = True
+        elif re.match(r'^Owner\s+of\s+the\s+Company', txt):
+            needs_norm = True
         elif re.match(r'^By:\s*_', txt):
-            needs_fix = True
+            needs_norm = True
         elif re.match(r'^Name:\s', txt):
-            needs_fix = True
+            needs_norm = True
         elif re.match(r'^Title:\s', txt):
-            needs_fix = True
-        if needs_fix:
+            needs_norm = True
+        elif txt in ('SHAREHOLDER', 'SHAREHOLDERS', 'MEMBER', 'MEMBERS'):
+            needs_norm = True
+        if needs_norm:
             raw = first_run.text
             stripped = raw.lstrip()
             if stripped:
-                # First run has the content — strip whitespace and add tabs
-                if not raw.startswith(SIG_LINE_TAB_COUNT):
-                    first_run.text = SIG_LINE_TAB_COUNT + stripped
+                # First run has the content — always re-write to force
+                # consistent <w:tab/> elements via python-docx.
+                first_run.text = SIG_LINE_TAB_COUNT + stripped
             else:
                 # First run is only whitespace (tabs/spaces); normalize to 6 tabs
                 first_run.text = SIG_LINE_TAB_COUNT
@@ -686,6 +699,24 @@ def post_process_org_resolution(doc):
 
     if witness_para is not None:
         body = witness_para._p.getparent()
+
+        # Remove any existing [SIGNATURE PAGE TO FOLLOW] paragraphs that precede
+        # IN WITNESS WHEREOF — the LLC templates have this text, but we replace
+        # it with [SIGNATURE PAGE BELOW].  Without this removal both lines appear.
+        el = witness_para._p.getprevious()
+        while el is not None:
+            el_txts = []
+            for r_el in el.iterchildren(qn('w:r')):
+                for t_el in r_el.iterchildren(qn('w:t')):
+                    el_txts.append(t_el.text or '')
+            el_text = ''.join(el_txts).strip()
+            prev_el = el.getprevious()
+            if 'SIGNATURE PAGE TO FOLLOW' in el_text:
+                print(f"===> Removing template [SIGNATURE PAGE TO FOLLOW] paragraph")
+                body.remove(el)
+            elif el_text:
+                break  # stop when we hit a non-empty, non-matching paragraph
+            el = prev_el
 
         # Check if [SIGNATURE PAGE BELOW] already exists
         prev = witness_para._p.getprevious()

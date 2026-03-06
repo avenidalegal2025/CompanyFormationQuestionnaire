@@ -61,12 +61,14 @@ function CheckoutSuccessContent() {
           return ['ss4-ein-application'];
         })();
         
-        const hasKeyDocuments = keyDocuments.some(docId => 
+        const hasAllKeyDocuments = keyDocuments.every(docId =>
           documents.some((doc: any) => doc.id === docId && (doc.s3Key || doc.status === 'generated' || doc.status === 'signed'))
         );
-        // When entityType is unknown (e.g. no localStorage), treat as ready if we have any generated doc so we don't hang
-        const hasAnyGenerated = documents.some((doc: any) => (doc.s3Key || doc.status === 'generated' || doc.status === 'signed'));
-        const ready = hasKeyDocuments || (entityType === null && hasAnyGenerated);
+        // When entityType is unknown (e.g. no localStorage), require at least 3
+        // generated docs before declaring ready, so we don't show the celebration
+        // screen prematurely when only the SS-4 has finished.
+        const generatedDocs = documents.filter((doc: any) => (doc.s3Key || doc.status === 'generated' || doc.status === 'signed'));
+        const ready = hasAllKeyDocuments || (entityType === null && generatedDocs.length >= 3);
 
         // Track whether an agreement document exists (for checklist rendering)
         const hasAgreement = documents.some(
@@ -78,16 +80,12 @@ function CheckoutSuccessContent() {
         
         // Count generated documents for progress
         // Only update progress if it's higher than current (prevent going backwards)
-        const generatedCount = documents.filter((doc: any) => 
-          doc.s3Key || doc.status === 'generated' || doc.status === 'signed'
-        ).length;
-        
-        const totalExpected = Math.max(documents.length, 3); // At least 3 key documents
-        const progress = Math.min(100, Math.round((generatedCount / totalExpected) * 100));
+        const totalExpected = Math.max(documents.length, keyDocuments.length);
+        const progress = Math.min(100, Math.round((generatedDocs.length / totalExpected) * 100));
         setDocumentProgress(prev => Math.max(prev, progress)); // Only go forward, never backward
-        
+
         if (!ready && documents.length > 0) {
-          console.debug('[success] Poll: docs=', documents.length, 'keyIds=', keyDocuments, 'hasKey=', hasKeyDocuments, 'entityType=', entityType);
+          console.debug('[success] Poll: docs=', documents.length, 'keyIds=', keyDocuments, 'hasAllKey=', hasAllKeyDocuments, 'entityType=', entityType);
         }
         return ready;
       }
@@ -100,7 +98,7 @@ function CheckoutSuccessContent() {
 
   useEffect(() => {
     if (sessionId) {
-      // Fetch session email and save to localStorage
+      // Fetch session email and entityType, save to localStorage
       const fetchSessionEmail = async () => {
         try {
           const response = await fetch(`/api/session/email?session_id=${sessionId}`);
@@ -108,6 +106,12 @@ function CheckoutSuccessContent() {
             const data = await response.json();
             if (data.email) {
               localStorage.setItem('userEmail', data.email);
+            }
+            // Use entityType from Stripe session metadata as authoritative source.
+            // This fixes the bug where localStorage doesn't have the entity type
+            // and the congrats screen defaults to showing LLC document names.
+            if (data.entityType && ['LLC', 'C-Corp', 'S-Corp'].includes(data.entityType)) {
+              setEntityType(data.entityType as 'LLC' | 'C-Corp' | 'S-Corp');
             }
           }
         } catch (error) {

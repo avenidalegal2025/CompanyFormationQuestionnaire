@@ -33,9 +33,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Also extract entityType from session metadata so the success page
+    // can show the correct document list even when localStorage is empty.
+    const entityType = session.metadata?.entityType || '';
+
     return NextResponse.json({
       success: true,
       email,
+      entityType,
     });
   } catch (error: any) {
     console.error('Error fetching session email:', error);
