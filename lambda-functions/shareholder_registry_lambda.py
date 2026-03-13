@@ -6,7 +6,7 @@ import re
 import base64
 from copy import deepcopy
 from docx import Document
-from docx.shared import Pt
+from docx.shared import Pt, Inches
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
@@ -230,10 +230,66 @@ def replace_placeholders(doc, data):
                     process_paragraph(paragraph)
 
 
+def _set_table_col_widths(table, widths_inches):
+    """Force column widths via direct XML: tblGrid, tblW, tblLayout, and per-cell tcW.
+    widths_inches is a list of floats (inches per column)."""
+    tbl = table._tbl
+
+    # --- tblPr: fixed layout + total table width ---
+    tblPr = tbl.find(qn('w:tblPr'))
+    if tblPr is None:
+        tblPr = OxmlElement('w:tblPr')
+        tbl.insert(0, tblPr)
+
+    # Fixed layout
+    for old in tblPr.findall(qn('w:tblLayout')):
+        tblPr.remove(old)
+    layout = OxmlElement('w:tblLayout')
+    layout.set(qn('w:type'), 'fixed')
+    tblPr.append(layout)
+
+    # Total table width (sum of columns) in twips (1 inch = 1440 twips)
+    total_twips = sum(int(w * 1440) for w in widths_inches)
+    for old in tblPr.findall(qn('w:tblW')):
+        tblPr.remove(old)
+    tblW = OxmlElement('w:tblW')
+    tblW.set(qn('w:w'), str(total_twips))
+    tblW.set(qn('w:type'), 'dxa')
+    tblPr.insert(0, tblW)
+
+    # --- tblGrid: define gridCol widths ---
+    for old in tbl.findall(qn('w:tblGrid')):
+        tbl.remove(old)
+    tblGrid = OxmlElement('w:tblGrid')
+    for w in widths_inches:
+        gridCol = OxmlElement('w:gridCol')
+        gridCol.set(qn('w:w'), str(int(w * 1440)))
+        tblGrid.append(gridCol)
+    tblPr.addnext(tblGrid)
+
+    # --- Per-cell tcW ---
+    for row in table.rows:
+        for i, w in enumerate(widths_inches):
+            if i < len(row.cells):
+                tc = row.cells[i]._tc
+                tcPr = tc.find(qn('w:tcPr'))
+                if tcPr is None:
+                    tcPr = OxmlElement('w:tcPr')
+                    tc.insert(0, tcPr)
+                for old in tcPr.findall(qn('w:tcW')):
+                    tcPr.remove(old)
+                tcW = OxmlElement('w:tcW')
+                tcW.set(qn('w:w'), str(int(w * 1440)))
+                tcW.set(qn('w:type'), 'dxa')
+                tcPr.insert(0, tcW)
+
+
 def post_process_shareholder_registry(doc):
     """Best-practice formatting fixes for Shareholder Registry documents:
     1. Corporation Address: missing tab between label and value
     2. Remove "PAGE X" footer text
+    3. Add vertical spacing above/below the shareholder table
+    4. Adjust table column widths (wider Name column)
     """
     print("===> Post-processing: fixing template formatting...")
 
@@ -262,6 +318,33 @@ def post_process_shareholder_registry(doc):
             if parent is not None:
                 parent.remove(paragraph._p)
                 pages_removed += 1
+
+    # --- 3. Add vertical spacing around the shareholder table ---
+    for paragraph in doc.paragraphs:
+        text = paragraph.text.strip()
+        if text == 'Common Stock':
+            paragraph.paragraph_format.space_after = Pt(6)
+            print("===> Fixed: added space_after on 'Common Stock' paragraph")
+        if 'I hereby certify' in text:
+            paragraph.paragraph_format.space_before = Pt(6)
+            print("===> Fixed: added space_before on 'I hereby certify' paragraph")
+
+    # --- 4. Adjust table column widths ---
+    # Shareholder table has 6 columns:
+    #   Date Acquired | Name | Transaction | # Shares | Class | Percentage
+    # Give Name the most room; compact the others (total ≈ 6.5" = full page)
+    for table in doc.tables:
+        if len(table.rows) > 0 and len(table.rows[0].cells) == 6:
+            col_widths_in = [
+                0.95,   # Date Acquired (MM/DD/YYYY — needs ~0.95 to avoid wrap)
+                1.80,   # Name (widest — room for full names)
+                0.85,   # Transaction ("Allotted" needs ~0.85)
+                0.80,   # Number of Shares Owned
+                0.80,   # Class of Shares
+                1.05,   # Percentage Ownership
+            ]  # total = 6.25"
+            _set_table_col_widths(table, col_widths_in)
+            print("===> Fixed: adjusted shareholder table column widths")
 
     print(f"===> Post-processing done: {pages_removed} PAGE X removed")
 

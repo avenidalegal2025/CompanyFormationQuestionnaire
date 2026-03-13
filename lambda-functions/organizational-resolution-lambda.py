@@ -821,6 +821,81 @@ def post_process_org_resolution(doc):
             if i + 1 < len(all_paras) and not all_paras[i + 1].text.strip():
                 _add_keep_next(all_paras[i + 1])
 
+    # --- 5. Normalize shareholder signature blocks to match Bylaws format ---
+    # Target: single "SHAREHOLDERS" header (bold + underline), no repeated headers,
+    # no "XX% Owner" lines, names not bold.
+    in_sig = False
+    shareholder_header_seen = False
+    sig_paras_to_remove = []
+    # Track which paragraphs follow a removed SHAREHOLDER header (for empty para removal)
+    remove_next_if_empty = False
+
+    all_sig_paras = list(doc.paragraphs)
+    for paragraph in all_sig_paras:
+        text = paragraph.text.strip()
+        if 'IN WITNESS WHEREOF' in text:
+            in_sig = True
+            remove_next_if_empty = False
+            continue
+        if not in_sig:
+            continue
+
+        stripped = text.strip()
+
+        # If previous iteration marked a SHAREHOLDER for removal, also remove the
+        # empty paragraph that follows it (the spacer after the header)
+        if remove_next_if_empty:
+            remove_next_if_empty = False
+            if not stripped:
+                sig_paras_to_remove.append(paragraph)
+                continue
+
+        # Handle SHAREHOLDER/SHAREHOLDERS headers
+        if stripped in ('SHAREHOLDER', 'SHAREHOLDERS'):
+            if not shareholder_header_seen:
+                # First occurrence: rename to SHAREHOLDERS (plural), add underline
+                shareholder_header_seen = True
+                for run in paragraph.runs:
+                    raw = run.text
+                    if 'SHAREHOLDER' in raw:
+                        # Replace with SHAREHOLDERS (plural) regardless of original
+                        run.text = raw.replace('SHAREHOLDER', 'SHAREHOLDERS').replace('SHAREHOLDERSS', 'SHAREHOLDERS')
+                        run.bold = True
+                        run.underline = True
+            else:
+                # Subsequent occurrences: mark for removal (along with following empty para)
+                sig_paras_to_remove.append(paragraph)
+                remove_next_if_empty = True
+
+        # Remove "XX% Owner" lines (e.g. "60% Owner", "100% Owner, President and Director")
+        elif re.match(r'^\d+%?\s*Owner', stripped):
+            sig_paras_to_remove.append(paragraph)
+
+        # Remove "Owner of the Company" lines
+        elif re.match(r'^Owner\s+of\s+the\s+Company', stripped):
+            sig_paras_to_remove.append(paragraph)
+
+        # Remove bold from Name: lines
+        elif stripped.startswith('Name:'):
+            for run in paragraph.runs:
+                run.bold = False
+
+    # Remove marked paragraphs
+    sig_removed = 0
+    already_removed = set()
+    for p in sig_paras_to_remove:
+        p_id = id(p._p)
+        if p_id in already_removed:
+            continue
+        parent = p._p.getparent()
+        if parent is not None:
+            parent.remove(p._p)
+            already_removed.add(p_id)
+            sig_removed += 1
+
+    if sig_removed or shareholder_header_seen:
+        print(f"===> Signature normalization: header={'renamed' if shareholder_header_seen else 'none'}, {sig_removed} paragraphs removed")
+
     print(f"===> Post-processing done: {removed} excess empties removed, {pages_removed} PAGE X removed, {resolved_fixed} RESOLVED keepNext")
 
 

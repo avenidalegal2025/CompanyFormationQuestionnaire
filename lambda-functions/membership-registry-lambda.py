@@ -3,7 +3,7 @@ import json
 import tempfile
 import boto3
 from docx import Document
-from docx.shared import Pt
+from docx.shared import Pt, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 import re
 import base64
@@ -411,9 +411,65 @@ def replace_placeholders(doc, data):
     print("===> Placeholders replaced successfully")
 
 
+def _set_table_col_widths(table, widths_inches):
+    """Force column widths via direct XML: tblGrid, tblW, tblLayout, and per-cell tcW.
+    widths_inches is a list of floats (inches per column)."""
+    from docx.oxml.ns import qn as _qn
+    from docx.oxml import OxmlElement as _OE
+    tbl = table._tbl
+
+    # --- tblPr: fixed layout + total table width ---
+    tblPr = tbl.find(_qn('w:tblPr'))
+    if tblPr is None:
+        tblPr = _OE('w:tblPr')
+        tbl.insert(0, tblPr)
+
+    for old in tblPr.findall(_qn('w:tblLayout')):
+        tblPr.remove(old)
+    layout = _OE('w:tblLayout')
+    layout.set(_qn('w:type'), 'fixed')
+    tblPr.append(layout)
+
+    total_twips = sum(int(w * 1440) for w in widths_inches)
+    for old in tblPr.findall(_qn('w:tblW')):
+        tblPr.remove(old)
+    tblW = _OE('w:tblW')
+    tblW.set(_qn('w:w'), str(total_twips))
+    tblW.set(_qn('w:type'), 'dxa')
+    tblPr.insert(0, tblW)
+
+    # --- tblGrid: define gridCol widths ---
+    for old in tbl.findall(_qn('w:tblGrid')):
+        tbl.remove(old)
+    tblGrid = _OE('w:tblGrid')
+    for w in widths_inches:
+        gridCol = _OE('w:gridCol')
+        gridCol.set(_qn('w:w'), str(int(w * 1440)))
+        tblGrid.append(gridCol)
+    tblPr.addnext(tblGrid)
+
+    # --- Per-cell tcW ---
+    for row in table.rows:
+        for i, w in enumerate(widths_inches):
+            if i < len(row.cells):
+                tc = row.cells[i]._tc
+                tcPr = tc.find(_qn('w:tcPr'))
+                if tcPr is None:
+                    tcPr = _OE('w:tcPr')
+                    tc.insert(0, tcPr)
+                for old in tcPr.findall(_qn('w:tcW')):
+                    tcPr.remove(old)
+                tcW = _OE('w:tcW')
+                tcW.set(_qn('w:w'), str(int(w * 1440)))
+                tcW.set(_qn('w:type'), 'dxa')
+                tcPr.insert(0, tcW)
+
+
 def post_process_membership_registry(doc):
     """Best-practice formatting fixes for Membership Registry documents:
     1. Remove "PAGE X" footer text
+    2. Add vertical spacing above/below the membership table
+    3. Adjust member table column widths (wider Name column)
     """
     print("===> Post-processing membership registry...")
 
@@ -426,6 +482,53 @@ def post_process_membership_registry(doc):
             if parent is not None:
                 parent.remove(paragraph._p)
                 pages_removed += 1
+
+    # --- 2. Add vertical spacing around the membership table ---
+    for paragraph in doc.paragraphs:
+        text = paragraph.text.strip()
+        if text == 'Membership Interest':
+            paragraph.paragraph_format.space_after = Pt(6)
+            print("===> Fixed: added space_after on 'Membership Interest' paragraph")
+        if 'I hereby certify' in text:
+            paragraph.paragraph_format.space_before = Pt(6)
+            print("===> Fixed: added space_before on 'I hereby certify' paragraph")
+
+    # --- 3. Adjust member table column widths ---
+    # Detect member table by headers, assign widths by column role
+    role_widths = {
+        'name': 1.90,
+        'address': 1.60,
+        'date': 0.80,
+        'percent': 1.00,
+        'ssn': 0.85,
+        'transaction': 0.70,
+        'other': 0.85,
+    }
+    for table in doc.tables:
+        if len(table.rows) > 0:
+            header_row = table.rows[0]
+            header_text = ' '.join([c.text.strip().lower() for c in header_row.cells])
+            if 'name' in header_text and ('address' in header_text or 'ownership' in header_text):
+                ncols = len(header_row.cells)
+                col_widths = []
+                for idx, cell in enumerate(header_row.cells):
+                    h = cell.text.strip().lower()
+                    if 'name' in h:
+                        col_widths.append(role_widths['name'])
+                    elif 'address' in h:
+                        col_widths.append(role_widths['address'])
+                    elif 'date' in h:
+                        col_widths.append(role_widths['date'])
+                    elif 'ownership' in h or 'percentage' in h:
+                        col_widths.append(role_widths['percent'])
+                    elif 'ssn' in h or 'social' in h:
+                        col_widths.append(role_widths['ssn'])
+                    elif 'transaction' in h:
+                        col_widths.append(role_widths['transaction'])
+                    else:
+                        col_widths.append(role_widths['other'])
+                _set_table_col_widths(table, col_widths)
+                print(f"===> Fixed: adjusted member table column widths ({ncols} cols)")
 
     print(f"===> Post-processing done: {pages_removed} PAGE X removed")
 
