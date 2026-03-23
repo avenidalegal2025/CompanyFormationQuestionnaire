@@ -19,7 +19,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
 
   // Helper function to check if input should be red
   const isInputInvalid = (decisionValue: string, majorityValue: number | undefined) => {
-    if (decisionValue === "Mayoría") {
+    if (decisionValue === "Mayoría" || decisionValue === "Supermayoría") {
       return !majorityValue || majorityValue < 50.01 || majorityValue > 99.99;
     }
     return false;
@@ -29,7 +29,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
   const validateMajorityPercentages = () => {
     if (isCorp) {
       // Check corp_saleDecisionThreshold
-      if (watch("agreement.corp_saleDecisionThreshold") === "Mayoría") {
+      if (["Mayoría", "Supermayoría"].includes(watch("agreement.corp_saleDecisionThreshold") || "")) {
         const majority = watch("agreement.corp_saleDecisionMajority");
         if (!majority || majority < 50.01 || majority > 99.99) {
           alert("Por favor ingrese un porcentaje válido para la mayoría de decisión de venta (entre 50.01% y 99.99%)");
@@ -38,7 +38,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
       }
 
       // Check corp_majorDecisionThreshold
-      if (watch("agreement.corp_majorDecisionThreshold") === "Mayoría") {
+      if (["Mayoría", "Supermayoría"].includes(watch("agreement.corp_majorDecisionThreshold") || "")) {
         const majority = watch("agreement.corp_majorDecisionMajority");
         if (!majority || majority < 50.01 || majority > 99.99) {
           alert("Por favor ingrese un porcentaje válido para la mayoría de decisiones importantes (entre 50.01% y 99.99%)");
@@ -47,7 +47,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
       }
     } else {
       // Check LLC majority percentages
-      if (watch("agreement.llc_companySaleDecision") === "Mayoría") {
+      if (["Mayoría", "Supermayoría"].includes(watch("agreement.llc_companySaleDecision") || "")) {
         const majority = watch("agreement.llc_companySaleDecisionMajority");
         if (!majority || majority < 50.01 || majority > 99.99) {
           alert("Por favor ingrese un porcentaje válido para la mayoría de decisión de venta de la LLC (entre 50.01% y 99.99%)");
@@ -56,7 +56,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
       }
 
       // Check llc_majorDecisions
-      if (watch("agreement.llc_majorDecisions") === "Mayoría") {
+      if (["Mayoría", "Supermayoría"].includes(watch("agreement.llc_majorDecisions") || "")) {
         const majority = watch("agreement.llc_majorDecisionsMajority");
         if (!majority || majority < 50.01 || majority > 99.99) {
           alert("Por favor ingrese un porcentaje válido para la mayoría de decisiones mayores (entre 50.01% y 99.99%)");
@@ -65,7 +65,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
       }
 
       // Check llc_minorDecisions
-      if (watch("agreement.llc_minorDecisions") === "Mayoría") {
+      if (["Mayoría", "Supermayoría"].includes(watch("agreement.llc_minorDecisions") || "")) {
         const majority = watch("agreement.llc_minorDecisionsMajority");
         if (!majority || majority < 50.01 || majority > 99.99) {
           alert("Por favor ingrese un porcentaje válido para la mayoría de decisiones menores (entre 50.01% y 99.99%)");
@@ -110,6 +110,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                       onChange={field.onChange}
                       options={[
                           { value: "Decisión Unánime", label: "Unánime" },
+                        { value: "Supermayoría", label: "Supermayoría" },
                         { value: "Mayoría", label: "Mayoría" },
                       ]}
                       ariaLabel="Sale decision threshold"
@@ -118,7 +119,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                   )}
                 />
                 </div>
-                {watch("agreement.corp_saleDecisionThreshold") === "Mayoría" && (
+                {["Mayoría", "Supermayoría"].includes(watch("agreement.corp_saleDecisionThreshold") || "") && (
                   <div className="mt-3 md:col-start-2 md:justify-self-end">
                     <label className="label flex items-center gap-5">Porcentaje requerido para mayoría
                       <InfoTooltip
@@ -199,6 +200,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                       onChange={field.onChange}
                       options={[
                           { value: "Decisión Unánime", label: "Unánime" },
+                        { value: "Supermayoría", label: "Supermayoría" },
                         { value: "Mayoría", label: "Mayoría" },
                       ]}
                       ariaLabel="Major decision threshold"
@@ -207,7 +209,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                   )}
                 />
                 </div>
-                {watch("agreement.corp_majorDecisionThreshold") === "Mayoría" && (
+                {["Mayoría", "Supermayoría"].includes(watch("agreement.corp_majorDecisionThreshold") || "") && (
                   <div className="mt-3 md:col-start-2 md:justify-self-end">
                     <label className="label flex items-center gap-5">Porcentaje requerido para mayoría
                       <InfoTooltip
@@ -328,6 +330,123 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                   )}
                 />
                 </div>
+                {watch("agreement.corp_nonCompete") === "Yes" && (
+                  <>
+                    <div className="mt-3 md:col-span-2 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
+                      <label className="label">Duración de no competencia (años después de salir)</label>
+                      <div className="md:col-start-2 md:justify-self-end">
+                        <div className="flex items-center gap-2">
+                          <input type="number" min="1" max="5" className="input w-24"
+                            {...register("agreement.corp_nonCompeteDuration", { valueAsNumber: true })} />
+                          <span className="text-sm text-gray-500">años</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-3 md:col-span-2 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
+                      <label className="label">Alcance geográfico de la no competencia</label>
+                      <div className="md:col-start-2 md:justify-self-end">
+                        <input type="text" className="input w-full" placeholder="ej. Estado de Florida"
+                          {...register("agreement.corp_nonCompeteScope")} />
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
+                <div>
+                  <label className="label flex items-center gap-2">Monto umbral para gastos importantes ($)
+                    <InfoTooltip title="Umbral de Gastos" body="Decisiones que involucren montos iguales o superiores a esta cantidad requieren aprobación de la Junta. Por debajo, los oficiales pueden decidir independientemente." />
+                  </label>
+                </div>
+                <div className="md:col-start-2 md:justify-self-end">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500">$</span>
+                    <input type="text" className="input w-40" placeholder="5,000" {...register("agreement.corp_majorSpendingThreshold")} />
+                  </div>
+                </div>
+              </div>
+              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
+                <div>
+                  <label className="label flex items-center gap-2">Remoción de oficiales/directores requiere:
+                    <InfoTooltip title="Remoción de Oficiales" body="Establece qué tipo de aprobación se requiere para remover a un oficial o director de la corporación." />
+                  </label>
+                </div>
+                <div className="md:col-start-2 md:justify-self-end">
+                  <Controller name="agreement.corp_officerRemovalVoting" control={control}
+                    render={({ field }) => (
+                      <SegmentedToggle value={field.value || "Mayoría"} onChange={field.onChange}
+                        options={[
+                          { value: "Decisión Unánime", label: "Unánime" },
+                          { value: "Supermayoría", label: "Supermayoría" },
+                          { value: "Mayoría", label: "Mayoría" },
+                        ]}
+                        ariaLabel="Officer removal voting" name={field.name} />
+                    )} />
+                </div>
+                {["Mayoría", "Supermayoría"].includes(watch("agreement.corp_officerRemovalVoting") || "") && (
+                  <div className="mt-3 md:col-start-2 md:justify-self-end">
+                    <label className="label">Porcentaje requerido</label>
+                    <div className="flex items-center gap-2">
+                      <div className="w-1/6 min-w-[120px]">
+                        <input type="number" min="50.01" max="99.99" step="0.01"
+                          className={`input w-full ${isInputInvalid(watch("agreement.corp_officerRemovalVoting") || "", watch("agreement.corp_officerRemovalMajority")) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''}`}
+                          {...register("agreement.corp_officerRemovalMajority", { valueAsNumber: true, min: 50.01, max: 99.99 })} />
+                      </div>
+                      <span className="text-sm text-gray-500">%</span>
+                    </div>
+                    <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
+                  </div>
+                )}
+              </div>
+              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
+                <div>
+                  <label className="label flex items-center gap-2">¿Incluir cláusula de no solicitud?
+                    <InfoTooltip title="No Solicitud" body="Impide que las partes recluten empleados o clientes de la compañía después de su salida." />
+                  </label>
+                </div>
+                <div className="md:col-start-2 md:justify-self-end">
+                  <Controller name="agreement.corp_nonSolicitation" control={control}
+                    render={({ field }) => (
+                      <SegmentedToggle value={field.value || "Yes"} onChange={field.onChange}
+                        options={[{ value: "Yes", label: "Sí" }, { value: "No", label: "No" }]}
+                        ariaLabel="Non solicitation" name={field.name} />
+                    )} />
+                </div>
+              </div>
+              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
+                <div>
+                  <label className="label flex items-center gap-2">¿Incluir cláusula de confidencialidad / NDA?
+                    <InfoTooltip title="Confidencialidad" body="Protege la información confidencial de la compañía durante y después de la participación de los socios." />
+                  </label>
+                </div>
+                <div className="md:col-start-2 md:justify-self-end">
+                  <Controller name="agreement.corp_confidentiality" control={control}
+                    render={({ field }) => (
+                      <SegmentedToggle value={field.value || "Yes"} onChange={field.onChange}
+                        options={[{ value: "Yes", label: "Sí" }, { value: "No", label: "No" }]}
+                        ariaLabel="Confidentiality NDA" name={field.name} />
+                    )} />
+                </div>
+              </div>
+              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
+                <div>
+                  <label className="label flex items-center gap-2">Frecuencia de distribución de dividendos
+                    <InfoTooltip title="Distribuciones" body="Define con qué frecuencia se distribuyen las ganancias a los accionistas." />
+                  </label>
+                </div>
+                <div className="md:col-start-2 md:justify-self-end">
+                  <Controller name="agreement.distributionFrequency" control={control}
+                    render={({ field }) => (
+                      <SegmentedToggle value={field.value || "Trimestral"} onChange={field.onChange}
+                        options={[
+                          { value: "Trimestral", label: "Trimestral" },
+                          { value: "Semestral", label: "Semestral" },
+                          { value: "Anual", label: "Anual" },
+                          { value: "Discreción de la Junta", label: "Discreción" },
+                        ]}
+                        ariaLabel="Distribution frequency" name={field.name} />
+                    )} />
+                </div>
               </div>
             </>
           ) : (
@@ -351,6 +470,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                       onChange={field.onChange}
                       options={[
                           { value: "Decisión Unánime", label: "Unánime" },
+                        { value: "Supermayoría", label: "Supermayoría" },
                         { value: "Mayoría", label: "Mayoría" },
                       ]}
                       ariaLabel="LLC sale decision"
@@ -359,7 +479,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                   )}
                 />
                 </div>
-                {watch("agreement.llc_companySaleDecision") === "Mayoría" && (
+                {["Mayoría", "Supermayoría"].includes(watch("agreement.llc_companySaleDecision") || "") && (
                   <div className="mt-3 md:col-start-2 md:justify-self-end">
                     <label className="label">Porcentaje requerido para mayoría</label>
                     <div className="flex items-center gap-2">
@@ -444,6 +564,27 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                   )}
                 />
               </div>
+                {watch("agreement.llc_nonCompete") === "Yes" && (
+                  <>
+                    <div className="mt-3 md:col-span-2 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
+                      <label className="label">Duración de no competencia (años después de salir)</label>
+                      <div className="md:col-start-2 md:justify-self-end">
+                        <div className="flex items-center gap-2">
+                          <input type="number" min="1" max="5" className="input w-24"
+                            {...register("agreement.llc_nonCompeteDuration", { valueAsNumber: true })} />
+                          <span className="text-sm text-gray-500">años</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-3 md:col-span-2 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
+                      <label className="label">Alcance geográfico de la no competencia</label>
+                      <div className="md:col-start-2 md:justify-self-end">
+                        <input type="text" className="input w-full" placeholder="ej. Estado de Florida"
+                          {...register("agreement.llc_nonCompeteScope")} />
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
               <div>
@@ -492,6 +633,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                         onChange={field.onChange}
                         options={[
                           { value: "Decisión Unánime", label: "Unánime" },
+                          { value: "Supermayoría", label: "Supermayoría" },
                           { value: "Mayoría", label: "Mayoría" },
                         ]}
                         ariaLabel="LLC major decisions"
@@ -500,7 +642,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                   )}
                 />
                 </div>
-                {watch("agreement.llc_majorDecisions") === "Mayoría" && (
+                {["Mayoría", "Supermayoría"].includes(watch("agreement.llc_majorDecisions") || "") && (
                   <div className="mt-3 md:col-start-2 md:justify-self-end">
                     <label className="label">Porcentaje requerido para mayoría</label>
                     <div className="flex items-center gap-2">
@@ -548,6 +690,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                         onChange={field.onChange}
                         options={[
                           { value: "Decisión Unánime", label: "Unánime" },
+                          { value: "Supermayoría", label: "Supermayoría" },
                           { value: "Mayoría", label: "Mayoría" },
                         ]}
                         ariaLabel="LLC minor decisions"
@@ -556,7 +699,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                   )}
                 />
                 </div>
-                {watch("agreement.llc_minorDecisions") === "Mayoría" && (
+                {["Mayoría", "Supermayoría"].includes(watch("agreement.llc_minorDecisions") || "") && (
                   <div className="mt-3 md:col-start-2 md:justify-self-end">
                     <label className="label">Porcentaje requerido para mayoría</label>
                     <div className="flex items-center gap-2">
@@ -584,6 +727,132 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                     <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
                   </div>
                 )}
+              </div>
+              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
+                <div>
+                  <label className="label flex items-center gap-2">Monto umbral para gastos importantes ($)
+                    <InfoTooltip title="Umbral de Gastos" body="Decisiones que involucren montos iguales o superiores a esta cantidad requieren aprobación de los miembros. Por debajo, el gerente puede decidir independientemente." />
+                  </label>
+                </div>
+                <div className="md:col-start-2 md:justify-self-end">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500">$</span>
+                    <input type="text" className="input w-40" placeholder="5,000" {...register("agreement.llc_majorSpendingThreshold")} />
+                  </div>
+                </div>
+              </div>
+              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
+                <div>
+                  <label className="label flex items-center gap-2">Remoción de oficiales/gerentes requiere:
+                    <InfoTooltip title="Remoción de Oficiales" body="Establece qué tipo de aprobación se requiere para remover a un oficial o gerente de la LLC." />
+                  </label>
+                </div>
+                <div className="md:col-start-2 md:justify-self-end">
+                  <Controller name="agreement.llc_officerRemovalVoting" control={control}
+                    render={({ field }) => (
+                      <SegmentedToggle value={field.value || "Mayoría"} onChange={field.onChange}
+                        options={[
+                          { value: "Decisión Unánime", label: "Unánime" },
+                          { value: "Supermayoría", label: "Supermayoría" },
+                          { value: "Mayoría", label: "Mayoría" },
+                        ]}
+                        ariaLabel="LLC officer removal voting" name={field.name} />
+                    )} />
+                </div>
+                {["Mayoría", "Supermayoría"].includes(watch("agreement.llc_officerRemovalVoting") || "") && (
+                  <div className="mt-3 md:col-start-2 md:justify-self-end">
+                    <label className="label">Porcentaje requerido</label>
+                    <div className="flex items-center gap-2">
+                      <div className="w-1/6 min-w-[120px]">
+                        <input type="number" min="50.01" max="99.99" step="0.01"
+                          className={`input w-full ${isInputInvalid(watch("agreement.llc_officerRemovalVoting") || "", watch("agreement.llc_officerRemovalMajority")) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''}`}
+                          {...register("agreement.llc_officerRemovalMajority", { valueAsNumber: true, min: 50.01, max: 99.99 })} />
+                      </div>
+                      <span className="text-sm text-gray-500">%</span>
+                    </div>
+                    <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
+                  </div>
+                )}
+              </div>
+              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
+                <div>
+                  <label className="label flex items-center gap-2">¿Incluir cláusula de no solicitud?
+                    <InfoTooltip title="No Solicitud" body="Impide que las partes recluten empleados o clientes de la compañía después de su salida." />
+                  </label>
+                </div>
+                <div className="md:col-start-2 md:justify-self-end">
+                  <Controller name="agreement.llc_nonSolicitation" control={control}
+                    render={({ field }) => (
+                      <SegmentedToggle value={field.value || "Yes"} onChange={field.onChange}
+                        options={[{ value: "Yes", label: "Sí" }, { value: "No", label: "No" }]}
+                        ariaLabel="LLC non solicitation" name={field.name} />
+                    )} />
+                </div>
+              </div>
+              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
+                <div>
+                  <label className="label flex items-center gap-2">¿Incluir cláusula de confidencialidad / NDA?
+                    <InfoTooltip title="Confidencialidad" body="Protege la información confidencial de la compañía durante y después de la participación de los socios." />
+                  </label>
+                </div>
+                <div className="md:col-start-2 md:justify-self-end">
+                  <Controller name="agreement.llc_confidentiality" control={control}
+                    render={({ field }) => (
+                      <SegmentedToggle value={field.value || "Yes"} onChange={field.onChange}
+                        options={[{ value: "Yes", label: "Sí" }, { value: "No", label: "No" }]}
+                        ariaLabel="LLC confidentiality NDA" name={field.name} />
+                    )} />
+                </div>
+              </div>
+              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
+                <div>
+                  <label className="label flex items-center gap-2">¿Incluir cláusula de no denigración?
+                    <InfoTooltip title="No Denigración" body="Impide que los miembros hagan declaraciones negativas o perjudiciales sobre la compañía o sus socios después de su salida." />
+                  </label>
+                </div>
+                <div className="md:col-start-2 md:justify-self-end">
+                  <Controller name="agreement.llc_nonDisparagement" control={control}
+                    render={({ field }) => (
+                      <SegmentedToggle value={field.value || "Yes"} onChange={field.onChange}
+                        options={[{ value: "Yes", label: "Sí" }, { value: "No", label: "No" }]}
+                        ariaLabel="LLC non disparagement" name={field.name} />
+                    )} />
+                </div>
+              </div>
+              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
+                <div>
+                  <label className="label flex items-center gap-2">Frecuencia de distribución de ganancias
+                    <InfoTooltip title="Distribuciones" body="Define con qué frecuencia se distribuyen las ganancias a los miembros." />
+                  </label>
+                </div>
+                <div className="md:col-start-2 md:justify-self-end">
+                  <Controller name="agreement.distributionFrequency" control={control}
+                    render={({ field }) => (
+                      <SegmentedToggle value={field.value || "Trimestral"} onChange={field.onChange}
+                        options={[
+                          { value: "Trimestral", label: "Trimestral" },
+                          { value: "Semestral", label: "Semestral" },
+                          { value: "Anual", label: "Anual" },
+                          { value: "Discreción de la Junta", label: "Discreción" },
+                        ]}
+                        ariaLabel="LLC distribution frequency" name={field.name} />
+                    )} />
+                </div>
+              </div>
+              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
+                <div>
+                  <label className="label flex items-center gap-2">Distribución mínima de impuestos (%)
+                    <InfoTooltip title="Distribución de Impuestos" body="Porcentaje mínimo de las ganancias que se distribuirá a los miembros para cubrir sus obligaciones fiscales personales. Por defecto 30%." />
+                  </label>
+                </div>
+                <div className="md:col-start-2 md:justify-self-end">
+                  <div className="flex items-center gap-2">
+                    <input type="number" min="0" max="100" step="1" className="input w-24"
+                      {...register("agreement.llc_minTaxDistribution", { valueAsNumber: true })}
+                      defaultValue={30} />
+                    <span className="text-sm text-gray-500">%</span>
+                  </div>
+                </div>
               </div>
             </>
           )}

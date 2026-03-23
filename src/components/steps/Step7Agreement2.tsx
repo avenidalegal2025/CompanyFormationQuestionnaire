@@ -19,7 +19,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
 
   // Helper function to check if input should be red
   const isInputInvalid = (decisionValue: string, majorityValue: number | undefined) => {
-    if (decisionValue === "Mayoría") {
+    if (decisionValue === "Mayoría" || decisionValue === "Supermayoría") {
       return !majorityValue || majorityValue < 50.01 || majorityValue > 99.99;
     }
     return false;
@@ -29,7 +29,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
   const validateMajorityPercentages = () => {
     if (isCorp) {
       // Check corp_newShareholdersAdmission
-      if (watch("agreement.corp_newShareholdersAdmission") === "Mayoría") {
+      if (["Mayoría", "Supermayoría"].includes(watch("agreement.corp_newShareholdersAdmission") || "")) {
         const majority = watch("agreement.corp_newShareholdersMajority");
         if (!majority || majority < 50.01 || majority > 99.99) {
           alert("Por favor ingrese un porcentaje válido para la mayoría de nuevos accionistas (entre 50.01% y 99.99%)");
@@ -38,7 +38,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
       }
 
       // Check corp_moreCapitalDecision
-      if (watch("agreement.corp_moreCapitalDecision") === "Mayoría") {
+      if (["Mayoría", "Supermayoría"].includes(watch("agreement.corp_moreCapitalDecision") || "")) {
         const majority = watch("agreement.corp_moreCapitalMajority");
         if (!majority || majority < 50.01 || majority > 99.99) {
           alert("Por favor ingrese un porcentaje válido para la mayoría de capital adicional (entre 50.01% y 99.99%)");
@@ -47,7 +47,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
       }
     } else {
       // Check LLC majority percentages
-      if (watch("agreement.llc_newMembersAdmission") === "Mayoría") {
+      if (["Mayoría", "Supermayoría"].includes(watch("agreement.llc_newMembersAdmission") || "")) {
         const majority = watch("agreement.llc_newMembersMajority");
         if (!majority || majority < 50.01 || majority > 99.99) {
           alert("Por favor ingrese un porcentaje válido para la mayoría de nuevos miembros (entre 50.01% y 99.99%)");
@@ -55,7 +55,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
         }
       }
 
-      if (watch("agreement.llc_additionalContributionsDecision") === "Mayoría") {
+      if (["Mayoría", "Supermayoría"].includes(watch("agreement.llc_additionalContributionsDecision") || "")) {
         const majority = watch("agreement.llc_additionalContributionsMajority");
         if (!majority || majority < 50.01 || majority > 99.99) {
           alert("Por favor ingrese un porcentaje válido para la mayoría de contribuciones adicionales (entre 50.01% y 99.99%)");
@@ -99,6 +99,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                       onChange={field.onChange}
                       options={[
                         { value: "Decisión Unánime", label: "Unánime" },
+                        { value: "Supermayoría", label: "Supermayoría" },
                         { value: "Mayoría", label: "Mayoría" },
                       ]}
                       ariaLabel="New shareholders admission"
@@ -107,7 +108,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                   )}
                 />
                 </div>
-                {watch("agreement.corp_newShareholdersAdmission") === "Mayoría" && (
+                {["Mayoría", "Supermayoría"].includes(watch("agreement.corp_newShareholdersAdmission") || "") && (
                   <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[420px]">
                     <label className="label flex items-center gap-2">Porcentaje requerido para mayoría
                       <InfoTooltip
@@ -193,6 +194,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                           onChange={field.onChange}
                           options={[
                         { value: "Decisión Unánime", label: "Unánime" },
+                            { value: "Supermayoría", label: "Supermayoría" },
                             { value: "Mayoría", label: "Mayoría" },
                           ]}
                           ariaLabel="More capital decision"
@@ -200,7 +202,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                         />
                       )}
                     />
-                    {watch("agreement.corp_moreCapitalDecision") === "Mayoría" && (
+                    {["Mayoría", "Supermayoría"].includes(watch("agreement.corp_moreCapitalDecision") || "") && (
                       <div className="mt-3">
                         <label className="label flex items-center gap-3">Porcentaje requerido para mayoría
                           <InfoTooltip
@@ -268,6 +270,52 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                   )}
                 />
                 </div>
+                {watch("agreement.corp_shareholderLoans") === "Yes" && (
+                  <div className="mt-3 md:col-span-2 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
+                    <label className="label inline-flex items-start gap-3 max-w-prose">
+                      Los préstamos de accionistas requieren aprobación por:
+                      <InfoTooltip
+                        title="Votación para Préstamos"
+                        body="Establece qué tipo de aprobación se requiere para que un accionista pueda prestar dinero a la compañía."
+                      />
+                    </label>
+                    <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
+                      <Controller
+                        name="agreement.corp_shareholderLoansVoting"
+                        control={control}
+                        render={({ field }) => (
+                          <SegmentedToggle
+                            value={field.value || "Mayoría"}
+                            onChange={field.onChange}
+                            options={[
+                              { value: "Decisión Unánime", label: "Unánime" },
+                              { value: "Supermayoría", label: "Supermayoría" },
+                              { value: "Mayoría", label: "Mayoría" },
+                            ]}
+                            ariaLabel="Shareholder loans voting"
+                            name={field.name}
+                          />
+                        )}
+                      />
+                    </div>
+                    {["Mayoría", "Supermayoría"].includes(watch("agreement.corp_shareholderLoansVoting") || "") && (
+                      <div className="mt-3 md:col-span-2 md:justify-self-end md:w-[420px]">
+                        <label className="label flex items-center gap-2">Porcentaje requerido
+                          <InfoTooltip title="Porcentaje" body="Porcentaje mínimo de aprobación para préstamos de accionistas." />
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <div className="w-1/6 min-w-[120px]">
+                            <input type="number" min="50.01" max="99.99" step="0.01"
+                              className={`input w-full ${isInputInvalid(watch("agreement.corp_shareholderLoansVoting") || "", watch("agreement.corp_shareholderLoansVotingMajority")) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''}`}
+                              {...register("agreement.corp_shareholderLoansVotingMajority", { valueAsNumber: true, min: 50.01, max: 99.99 })} />
+                          </div>
+                          <span className="text-sm text-gray-500">%</span>
+                        </div>
+                        <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </>
           ) : (
@@ -290,6 +338,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                         onChange={field.onChange}
                         options={[
                         { value: "Decisión Unánime", label: "Unánime" },
+                          { value: "Supermayoría", label: "Supermayoría" },
                           { value: "Mayoría", label: "Mayoría" },
                         ]}
                         ariaLabel="New members admission"
@@ -297,7 +346,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                       />
                     )}
                   />
-                  {watch("agreement.llc_newMembersAdmission") === "Mayoría" && (
+                  {["Mayoría", "Supermayoría"].includes(watch("agreement.llc_newMembersAdmission") || "") && (
                     <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[420px]">
                       <label className="label flex items-center gap-2">Porcentaje requerido para mayoría
                         <InfoTooltip
@@ -439,6 +488,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                             onChange={field.onChange}
                             options={[
                             { value: "Decisión Unánime", label: "Unánime" },
+                              { value: "Supermayoría", label: "Supermayoría" },
                               { value: "Mayoría", label: "Mayoría" },
                             ]}
                             ariaLabel="Additional contributions decision"
@@ -446,7 +496,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                           />
                         )}
                       />
-                      {watch("agreement.llc_additionalContributionsDecision") === "Mayoría" && (
+                      {["Mayoría", "Supermayoría"].includes(watch("agreement.llc_additionalContributionsDecision") || "") && (
                       <div className="mt-3">
                         <label className="label flex items-center gap-2">Porcentaje requerido para mayoría
                           <InfoTooltip
@@ -514,6 +564,52 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                   )}
                 />
                 </div>
+                {watch("agreement.llc_memberLoans") === "Yes" && (
+                  <div className="mt-3 md:col-span-2 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
+                    <label className="label inline-flex items-start gap-3 max-w-prose">
+                      Los préstamos de socios requieren aprobación por:
+                      <InfoTooltip
+                        title="Votación para Préstamos"
+                        body="Establece qué tipo de aprobación se requiere para que un socio pueda prestar dinero a la LLC."
+                      />
+                    </label>
+                    <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
+                      <Controller
+                        name="agreement.llc_memberLoansVoting"
+                        control={control}
+                        render={({ field }) => (
+                          <SegmentedToggle
+                            value={field.value || "Mayoría"}
+                            onChange={field.onChange}
+                            options={[
+                              { value: "Decisión Unánime", label: "Unánime" },
+                              { value: "Supermayoría", label: "Supermayoría" },
+                              { value: "Mayoría", label: "Mayoría" },
+                            ]}
+                            ariaLabel="Member loans voting"
+                            name={field.name}
+                          />
+                        )}
+                      />
+                    </div>
+                    {["Mayoría", "Supermayoría"].includes(watch("agreement.llc_memberLoansVoting") || "") && (
+                      <div className="mt-3 md:col-span-2 md:justify-self-end md:w-[420px]">
+                        <label className="label flex items-center gap-2">Porcentaje requerido
+                          <InfoTooltip title="Porcentaje" body="Porcentaje mínimo de aprobación para préstamos de socios." />
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <div className="w-1/6 min-w-[120px]">
+                            <input type="number" min="50.01" max="99.99" step="0.01"
+                              className={`input w-full ${isInputInvalid(watch("agreement.llc_memberLoansVoting") || "", watch("agreement.llc_memberLoansVotingMajority")) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''}`}
+                              {...register("agreement.llc_memberLoansVotingMajority", { valueAsNumber: true, min: 50.01, max: 99.99 })} />
+                          </div>
+                          <span className="text-sm text-gray-500">%</span>
+                        </div>
+                        <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </>
           )}

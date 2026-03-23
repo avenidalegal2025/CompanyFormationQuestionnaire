@@ -19,7 +19,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
 
   // Helper function to check if input should be red
   const isInputInvalid = (decisionValue: string, majorityValue: number | undefined) => {
-    if (decisionValue === "Mayoría") {
+    if (decisionValue === "Mayoría" || decisionValue === "Supermayoría") {
       return !majorityValue || majorityValue < 50.01 || majorityValue > 99.99;
     }
     return false;
@@ -39,7 +39,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
       }
     } else {
       // Check LLC majority percentages
-      if (watch("agreement.llc_newPartnersAdmission") === "Mayoría") {
+      if (["Mayoría", "Supermayoría"].includes(watch("agreement.llc_newPartnersAdmission") || "")) {
         const majority = watch("agreement.llc_newPartnersMajority");
         if (!majority || majority < 50.01 || majority > 99.99) {
           alert("Por favor ingrese un porcentaje válido para la mayoría de nuevos socios (entre 50.01% y 99.99%)");
@@ -47,7 +47,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
         }
       }
 
-      if (watch("agreement.llc_dissolutionDecision") === "Mayoría") {
+      if (["Mayoría", "Supermayoría"].includes(watch("agreement.llc_dissolutionDecision") || "")) {
         const majority = watch("agreement.llc_dissolutionDecisionMajority");
         if (!majority || majority < 50.01 || majority > 99.99) {
           alert("Por favor ingrese un porcentaje válido para la mayoría de decisión de disolución (entre 50.01% y 99.99%)");
@@ -99,6 +99,20 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                     )}
                   />
                 </div>
+                {watch("agreement.corp_rofr") === "Yes" && (
+                  <div className="mt-3 md:col-span-2 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
+                    <label className="label flex items-center gap-2">Período de oferta del derecho de preferencia (días)
+                      <InfoTooltip title="Período ROFR" body="Número de días que tienen los accionistas existentes para ejercer su derecho de primera oferta antes de que las acciones puedan ser vendidas a terceros." />
+                    </label>
+                    <div className="mt-3 md:mt-0 md:justify-self-end">
+                      <div className="flex items-center gap-2">
+                        <input type="number" min="1" className="input w-24" defaultValue={180}
+                          {...register("agreement.corp_rofrOfferPeriod", { valueAsNumber: true })} />
+                        <span className="text-sm text-gray-500">días</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[560px_minmax(500px,auto)] md:gap-10 md:items-start">
                 <label className="label inline-flex items-start gap-5 max-w-prose">
@@ -276,6 +290,20 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                     )}
                   />
                 </div>
+                {watch("agreement.llc_rofr") === "Yes" && (
+                  <div className="mt-3 md:col-span-2 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
+                    <label className="label flex items-center gap-2">Período de oferta del derecho de preferencia (días)
+                      <InfoTooltip title="Período ROFR" body="Número de días que tienen los socios existentes para ejercer su derecho de primera oferta antes de que las participaciones puedan ser vendidas a terceros." />
+                    </label>
+                    <div className="mt-3 md:mt-0 md:justify-self-end">
+                      <div className="flex items-center gap-2">
+                        <input type="number" min="1" className="input w-24" defaultValue={180}
+                          {...register("agreement.llc_rofrOfferPeriod", { valueAsNumber: true })} />
+                        <span className="text-sm text-gray-500">días</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
                 <label className="label inline-flex items-start gap-5 max-w-prose">
@@ -306,6 +334,23 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
                 <label className="label inline-flex items-start gap-5 max-w-prose">
+                  ¿Podrán los socios libremente transferir sus participaciones a sus parientes?
+                  <InfoTooltip title="Transferencia a Parientes" body="Establece si los socios pueden transferir libremente sus participaciones a familiares o si requiere aprobación." />
+                </label>
+                <div className="mt-3 md:mt-0 md:justify-self-end md:w-full">
+                  <Controller name="agreement.llc_transferToRelatives" control={control}
+                    render={({ field }) => (
+                      <select className="input w-full min-w-0 text-sm" style={{ minWidth: '100%' }} {...field}>
+                        <option value="">Seleccionar opción</option>
+                        <option value="Sí, podrán transferir libremente.">Sí, podrán transferir libremente.</option>
+                        <option value="Sí, si la decisión de los socios es unánime.">Sí, si la decisión de los socios es unánime.</option>
+                        <option value="Sí, si la decisión de la mayoría de los socios.">Sí, si la decisión de la mayoría de los socios.</option>
+                      </select>
+                    )} />
+                </div>
+              </div>
+              <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
+                <label className="label inline-flex items-start gap-5 max-w-prose">
                   La admisión de nuevos socios: ¿Será por decisión unánime o por mayoría?
                   <InfoTooltip
                     title="Admisión de Nuevos Socios"
@@ -322,6 +367,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                         onChange={field.onChange}
                         options={[
                           { value: "Decisión Unánime", label: "Unánime" },
+                          { value: "Supermayoría", label: "Supermayoría" },
                           { value: "Mayoría", label: "Mayoría" },
                         ]}
                         ariaLabel="LLC new partners admission"
@@ -330,7 +376,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                     )}
                   />
                 </div>
-                {watch("agreement.llc_newPartnersAdmission") === "Mayoría" && (
+                {["Mayoría", "Supermayoría"].includes(watch("agreement.llc_newPartnersAdmission") || "") && (
                   <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[500px]">
                     <label className="label">Porcentaje requerido para mayoría</label>
                     <div className="flex items-center gap-2">
@@ -377,6 +423,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                         onChange={field.onChange}
                         options={[
                           { value: "Decisión Unánime", label: "Unánime" },
+                          { value: "Supermayoría", label: "Supermayoría" },
                           { value: "Mayoría", label: "Mayoría" },
                         ]}
                         ariaLabel="LLC dissolution decision"
@@ -385,7 +432,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                     )}
                   />
                 </div>
-                {watch("agreement.llc_dissolutionDecision") === "Mayoría" && (
+                {["Mayoría", "Supermayoría"].includes(watch("agreement.llc_dissolutionDecision") || "") && (
                   <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[500px]">
                     <label className="label">Porcentaje requerido para mayoría</label>
                     <div className="flex items-center gap-2">
@@ -414,6 +461,34 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
               </div>
                 )}
               </div>
+              <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
+                <label className="label inline-flex items-start gap-5 max-w-prose">
+                  En caso de divorcio, ¿la LLC tendrá derecho a comprar las participaciones del ex cónyuge?
+                  <InfoTooltip title="Política de Divorcio" body="Protege a la LLC de disputas matrimoniales al permitir que la empresa compre las participaciones a precio de mercado." />
+                </label>
+                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[500px]">
+                  <Controller name="agreement.llc_divorceBuyoutPolicy" control={control}
+                    render={({ field }) => (
+                      <SegmentedToggle value={field.value || "No"} onChange={field.onChange}
+                        options={[{ value: "Yes", label: "Sí" }, { value: "No", label: "No" }]}
+                        ariaLabel="LLC divorce buyout" name={field.name} />
+                    )} />
+                </div>
+              </div>
+              <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
+                <label className="label inline-flex items-start gap-5 max-w-prose">
+                  ¿Incluir derechos de "tag along" / "drag along"?
+                  <InfoTooltip title="Tag Along / Drag Along" body="Tag Along permite a socios minoritarios vender cuando un mayoritario vende. Drag Along permite a mayoritarios obligar a minoritarios a vender." />
+                </label>
+                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[500px]">
+                  <Controller name="agreement.llc_tagDragRights" control={control}
+                    render={({ field }) => (
+                      <SegmentedToggle value={field.value || "No"} onChange={field.onChange}
+                        options={[{ value: "Yes", label: "Sí" }, { value: "No", label: "No" }]}
+                        ariaLabel="LLC tag drag rights" name={field.name} />
+                    )} />
+                </div>
+              </div>
             </>
           )}
         </div>
@@ -422,7 +497,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
           <button type="button" className="btn" onClick={() => setStep(7)}>Atrás</button>
           <div className="flex items-center gap-4">
             <button type="button" className="text-base underline text-blue-600" onClick={() => handleSaveWithAuth(session, anonymousId, form, onSave)}>Guardar y continuar más tarde</button>
-            <button type="button" className="btn btn-primary" onClick={handleContinue}>Finalizar</button>
+            <button type="button" className="btn btn-primary" onClick={handleContinue}>Continuar</button>
           </div>
         </div>
       </div>
