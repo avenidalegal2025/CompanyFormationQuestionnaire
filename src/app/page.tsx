@@ -15,7 +15,6 @@ import Step6Agreement1 from "@/components/steps/Step6Agreement1";
 import Step7Agreement2 from "@/components/steps/Step7Agreement2";
 import Step8Agreement3 from "@/components/steps/Step8Agreement3";
 import Step9Agreement4 from "@/components/steps/Step9Agreement4";
-import Step10GenerateAgreement from "@/components/steps/Step10GenerateAgreement";
 import Step5Admin from "@/components/steps/Step5Admin";
 import Step10Checkout from "@/components/steps/Step10Checkout";
 import ProgressSidebar, { type ProgressItem } from "@/components/ProgressSidebar";
@@ -83,7 +82,7 @@ function QuestionnaireContent() {
   // We now have a 4-step flow (2, 3, 4, 5)
   const [step, setStep] = useState<number>(1);
   const [wantsAgreement, setWantsAgreement] = useState<boolean>(false);
-  const totalSteps = wantsAgreement ? 10 : 5;
+  const totalSteps = wantsAgreement ? 9 : 5;
   // Store the beforeunload handler so we can remove it before intentional navigation
   const beforeUnloadHandlerRef = useRef<((e: BeforeUnloadEvent) => void) | null>(null);
   
@@ -139,7 +138,7 @@ function QuestionnaireContent() {
         // Trigger share modal (will be handled by ProgressSidebar)
         // Note: This will be handled by ProgressSidebar component
       } else if (action === 'checkout') {
-        setStep(wantsAgreement ? 10 : 5);
+        setStep(wantsAgreement ? 9 : 5);
       } else if (action === 'continue' && step) {
         setStep(parseInt(step, 10));
       }
@@ -164,7 +163,7 @@ function QuestionnaireContent() {
         // Trigger share modal (will be handled by ProgressSidebar)
         // Note: This will be handled by ProgressSidebar component
       } else if (action === 'checkout') {
-        setStep(wantsAgreement ? 10 : 5);
+        setStep(wantsAgreement ? 9 : 5);
       } else if (action === 'continue') {
         const targetStep = urlParams.get('step');
         if (targetStep) {
@@ -421,8 +420,7 @@ function QuestionnaireContent() {
         { key: "step-ag-2", label: t2, status: step === 6 ? "active" : step > 6 ? "done" : "todo" },
         { key: "step-ag-3", label: t3, status: step === 7 ? "active" : step > 7 ? "done" : "todo" },
         { key: "step-ag-4", label: t4, status: step === 8 ? "active" : step > 8 ? "done" : "todo" },
-        { key: "step-gen", label: "Generar Acuerdo", status: step === 9 ? "active" : step > 9 ? "done" : "todo" },
-        { key: "step-checkout", label: "Checkout", status: step === 10 ? "active" : step > 10 ? "done" : "todo" },
+        { key: "step-checkout", label: "Checkout", status: step === 9 ? "active" : step > 9 ? "done" : "todo" },
       );
     }
     return base;
@@ -668,14 +666,11 @@ function QuestionnaireContent() {
           {wantsAgreement && step === 8 && (
             <Step9Agreement4 form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} session={session} anonymousId={anonymousId} />
           )}
-          {wantsAgreement && step === 9 && (
-            <Step10GenerateAgreement form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} session={session} anonymousId={anonymousId} draftId={draftId ?? undefined} />
-          )}
-          {/* Checkout step: when user wants the agreement, it's step 10; when they skip it, it's step 5 */}
+          {/* Checkout step: when user wants the agreement, it's step 9; when they skip it, it's step 5 */}
           {(!wantsAgreement && step === 5) && (
             <Step10Checkout form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} session={session} anonymousId={anonymousId} />
           )}
-          {(wantsAgreement && step === 10) && (
+          {(wantsAgreement && step === 9) && (
             <Step10Checkout form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} session={session} anonymousId={anonymousId} />
           )}
         </form>

@@ -6,7 +6,9 @@ import { formatCompanyDocumentTitle, formatCompanyFileName } from '@/lib/documen
 import { createVaultStructure, copyTemplateToVault, getFormDataSnapshot } from '@/lib/s3-vault';
 import { createFormationRecord, mapQuestionnaireToAirtable, findFormationByStripeId } from '@/lib/airtable';
 import { generate2848PDF, generate8821PDF } from '@/lib/pdf-filler';
-import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { mapFormToDocgenAnswers } from '@/lib/agreement-mapper';
+import { generateDocument } from '@/lib/agreement-docgen';
+import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { sendEmailWithMultipleAttachments, sendHtmlEmail } from '@/lib/ses-email';
 
 // Send notification email for new company formations
@@ -810,6 +812,59 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
         );
       }
       
+      // Generate filled Operating/Shareholder Agreement (if purchased and form data has agreement answers)
+      if (hasAgreement && formData?.agreement) {
+        try {
+          console.log(`📄 Generating filled ${entityType === 'LLC' ? 'Operating' : 'Shareholder'} Agreement...`);
+          const answers = mapFormToDocgenAnswers(formData);
+          const { buffer, filename } = await generateDocument(answers);
+
+          const agreementFileName = formatCompanyFileName(
+            companyName,
+            entityType === 'LLC' ? 'Operating Agreement' : 'Shareholder Agreement',
+            'docx'
+          );
+          const agreementS3Key = `${vaultPath}/agreements/${agreementFileName}`;
+
+          await new S3Client({
+            region: process.env.AWS_REGION || 'us-west-1',
+            credentials: {
+              accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+              secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+            },
+          }).send(new PutObjectCommand({
+            Bucket: S3_BUCKET,
+            Key: agreementS3Key,
+            Body: buffer,
+            ContentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          }));
+
+          // Update existing agreement doc in documents array (replaces blank template)
+          const agreementDocId = entityType === 'LLC' ? 'operating-agreement' : 'shareholder-agreement';
+          const existingIdx = documents.findIndex(d => d.id === agreementDocId);
+          const agreementDoc: DocumentRecord = {
+            id: agreementDocId,
+            name: formatCompanyDocumentTitle(
+              companyName,
+              entityType === 'LLC' ? 'Operating Agreement' : 'Shareholder Agreement'
+            ),
+            type: 'agreement',
+            s3Key: agreementS3Key,
+            status: 'generated',
+            createdAt: new Date().toISOString(),
+          };
+          if (existingIdx >= 0) {
+            documents[existingIdx] = agreementDoc;
+          } else {
+            documents.push(agreementDoc);
+          }
+          console.log(`✅ ${entityType === 'LLC' ? 'Operating' : 'Shareholder'} Agreement generated and uploaded`);
+        } catch (agreementGenError: any) {
+          console.error(`⚠️ Failed to generate filled agreement:`, agreementGenError.message);
+          console.log('⚠️ The blank template copy (if it succeeded earlier) will remain as fallback');
+        }
+      }
+
       // Update DynamoDB with all regenerated forms for this specific company
       try {
         const companyKeyForUpdate = airtableRecordId || 'default';
