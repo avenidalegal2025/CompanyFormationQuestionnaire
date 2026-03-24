@@ -465,11 +465,96 @@ def _set_table_col_widths(table, widths_inches):
                 tcPr.insert(0, tcW)
 
 
+def _fix_fonts_to_times_new_roman(doc):
+    """Override all fonts to Times New Roman 12pt.
+
+    The membership registry templates ship with a theme that uses
+    Calibri (sans-serif) / Cambria / Georgia.  The client expects
+    Times New Roman 12 throughout — matching the Shareholder Registry
+    and other formation documents.
+
+    Strategy:
+      1. Patch the theme XML so major/minor fonts resolve to TNR.
+      2. Set the Normal style's font explicitly to TNR 12pt.
+      3. Walk every run in body + tables and force the font.
+    """
+    from docx.shared import RGBColor
+    from lxml import etree
+
+    TNR = 'Times New Roman'
+    SIZE = Pt(12)
+
+    # --- 1. Patch theme fonts ---
+    try:
+        theme_part = doc.part.part_related_by('http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme')
+        theme_xml = theme_part.blob
+        theme_str = theme_xml.decode('utf-8') if isinstance(theme_xml, bytes) else theme_xml
+
+        # Replace major font
+        theme_str = re.sub(
+            r'(<a:majorFont>.*?<a:latin typeface=")[^"]*(")',
+            r'\g<1>' + TNR + r'\2',
+            theme_str,
+            flags=re.DOTALL
+        )
+        # Replace minor font
+        theme_str = re.sub(
+            r'(<a:minorFont>.*?<a:latin typeface=")[^"]*(")',
+            r'\g<1>' + TNR + r'\2',
+            theme_str,
+            flags=re.DOTALL
+        )
+        theme_part._blob = theme_str.encode('utf-8') if isinstance(theme_str, str) else theme_str
+        print(f"===> Fixed: patched theme fonts to {TNR}")
+    except Exception as e:
+        print(f"===> Warning: could not patch theme fonts: {e}")
+
+    # --- 2. Fix Normal style ---
+    try:
+        style = doc.styles['Normal']
+        style.font.name = TNR
+        style.font.size = SIZE
+        # Also set the element-level rFonts for full coverage
+        rPr = style.element.find(_qn('w:rPr'))
+        if rPr is None:
+            rPr = _OE('w:rPr')
+            style.element.append(rPr)
+        rFonts = rPr.find(_qn('w:rFonts'))
+        if rFonts is None:
+            rFonts = _OE('w:rFonts')
+            rPr.insert(0, rFonts)
+        rFonts.set(_qn('w:ascii'), TNR)
+        rFonts.set(_qn('w:hAnsi'), TNR)
+        rFonts.set(_qn('w:cs'), TNR)
+        rFonts.set(_qn('w:eastAsia'), TNR)
+        print(f"===> Fixed: Normal style set to {TNR} {SIZE}")
+    except Exception as e:
+        print(f"===> Warning: could not fix Normal style: {e}")
+
+    # --- 3. Walk every run and force font ---
+    def _set_run_font(run):
+        run.font.name = TNR
+        run.font.size = SIZE
+
+    for paragraph in doc.paragraphs:
+        for run in paragraph.runs:
+            _set_run_font(run)
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                for paragraph in cell.paragraphs:
+                    for run in paragraph.runs:
+                        _set_run_font(run)
+
+    print(f"===> Fixed: all runs set to {TNR} 12pt")
+
+
 def post_process_membership_registry(doc):
     """Best-practice formatting fixes for Membership Registry documents:
     1. Remove "PAGE X" footer text
     2. Add vertical spacing above/below the membership table
-    3. Adjust member table column widths (wider Name column)
+    3. Adjust member table column widths (scale to fill page)
+    4. Override all fonts to Times New Roman 12pt
     """
     print("===> Post-processing membership registry...")
 
@@ -484,25 +569,31 @@ def post_process_membership_registry(doc):
                 pages_removed += 1
 
     # --- 2. Add vertical spacing around the membership table ---
+    # The heading before the table varies: "Membership Interest" (standalone)
+    # or "REGISTRY OF MEMBERSHIP INTEREST FOR ..." (full heading).
+    # Use case-insensitive substring matching.
     for paragraph in doc.paragraphs:
         text = paragraph.text.strip()
-        if text == 'Membership Interest':
+        text_upper = text.upper()
+        if 'MEMBERSHIP INTEREST' in text_upper and 'I HEREBY CERTIFY' not in text_upper:
             paragraph.paragraph_format.space_after = Pt(6)
-            print("===> Fixed: added space_after on 'Membership Interest' paragraph")
+            print(f"===> Fixed: added space_after on paragraph: '{text[:60]}...'")
         if 'I hereby certify' in text:
             paragraph.paragraph_format.space_before = Pt(6)
-            print("===> Fixed: added space_before on 'I hereby certify' paragraph")
+            print(f"===> Fixed: added space_before on 'I hereby certify' paragraph")
 
     # --- 3. Adjust member table column widths ---
-    # Detect member table by headers, assign widths by column role
+    # Detect member table by headers, assign initial widths by column role,
+    # then SCALE proportionally so columns fill the full page width (~6.3").
+    TARGET_TABLE_WIDTH = 6.30  # inches — standard letter with 1.1" margins
     role_widths = {
-        'name': 1.90,
+        'name': 2.10,
         'address': 1.60,
-        'date': 0.80,
-        'percent': 1.00,
-        'ssn': 0.85,
-        'transaction': 0.70,
-        'other': 0.85,
+        'date': 1.10,
+        'percent': 1.50,
+        'ssn': 0.90,
+        'transaction': 1.10,
+        'other': 0.90,
     }
     for table in doc.tables:
         if len(table.rows) > 0:
@@ -527,8 +618,17 @@ def post_process_membership_registry(doc):
                         col_widths.append(role_widths['transaction'])
                     else:
                         col_widths.append(role_widths['other'])
+                # Scale proportionally to fill page width
+                total = sum(col_widths)
+                if total > 0 and abs(total - TARGET_TABLE_WIDTH) > 0.05:
+                    scale = TARGET_TABLE_WIDTH / total
+                    col_widths = [w * scale for w in col_widths]
+                    print(f"===> Scaled {ncols} cols from {total:.2f}\" to {sum(col_widths):.2f}\"")
                 _set_table_col_widths(table, col_widths)
-                print(f"===> Fixed: adjusted member table column widths ({ncols} cols)")
+                print(f"===> Fixed: adjusted member table column widths ({ncols} cols): {[f'{w:.2f}' for w in col_widths]}")
+
+    # --- 4. Fix fonts to Times New Roman 12pt ---
+    _fix_fonts_to_times_new_roman(doc)
 
     print(f"===> Post-processing done: {pages_removed} PAGE X removed")
 

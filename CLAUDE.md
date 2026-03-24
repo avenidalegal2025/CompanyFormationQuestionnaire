@@ -21,6 +21,7 @@ Next.js app for company formation (LLC + C-Corp) in the US. Airtable stores form
 | `lambda-functions/organizational-resolution-lambda.py` | Org Resolution for both LLC and C-Corp (216 Corp templates) |
 | `src/app/api/airtable/generate-bylaws/route.ts` | API route calling Bylaws Lambda |
 | `src/app/api/airtable/generate-organizational-resolution/route.ts` | API route calling OrgRes Lambda |
+| `scripts/batch-test-lambdas.mjs` | Batch test: invokes all Lambdas with synthetic data, verifies DOCX XML |
 
 ## AWS Infrastructure
 - **Profile**: `llc-admin`
@@ -32,6 +33,7 @@ Next.js app for company formation (LLC + C-Corp) in the US. Airtable stores form
   - Bylaws Lambda (handler: `lambda_function.lambda_handler`, source: `bylaws_lambda.py`)
 - **Lambda URLs**:
   - ShReg: `https://gfwa6pqqesmrdfnm23snygybyq0gguah.lambda-url.us-west-1.on.aws/`
+  - MemReg: `https://rbkwy3w6jltg47gr5q7v543wci0mwxcw.lambda-url.us-west-1.on.aws/`
   - Bylaws: `https://5jzjjp7fgbcsa24vnaxkkngwlm0jnfkz.lambda-url.us-west-1.on.aws/`
   - OrgRes: `https://yo54tsr37rcs3kjqsxt2ecvi2y0zjnli.lambda-url.us-west-1.on.aws/`
   - Form 2848: `https://z246mmg5ojst6boxjy53ilekii0yualo.lambda-url.us-west-1.on.aws/`
@@ -71,6 +73,13 @@ Setting `cell.width = Inches(x)` alone does NOT reliably override template colum
 See `_set_table_col_widths()` in both Lambda files for the working implementation.
 
 ## Testing / Verification
+### Batch test all document variants
+```bash
+node scripts/batch-test-lambdas.mjs              # run all 20 tests
+node scripts/batch-test-lambdas.mjs --save-docx   # also save DOCX files to ~/Downloads/batch-test/
+```
+Tests 20 variants across OrgRes Corp (8), Shareholder Registry (6), Membership Registry (4), Bylaws (2). Zero dependencies — uses `node:zlib` to extract DOCX XML and run assertions.
+
 ### How to preview generated DOCX documents
 1. Generate presigned S3 URL: `aws s3 presign "s3://bucket/key" --profile llc-admin --region us-west-1 --expires-in 600`
 2. URL-encode it: `node -e "console.log(encodeURIComponent(process.argv[1]))" "$PRESIGNED"`

@@ -36,35 +36,6 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
       <HeroMiami3 title="Acciones & Sucesión" />
       <div className="card">
         <h2 className="text-xl font-semibold text-gray-900">Gobierno & Decisiones</h2>
-
-        {/* Voting threshold definition */}
-        <div className="mt-6 bg-blue-50 rounded-xl p-6 border border-blue-100">
-          <h3 className="text-base font-semibold text-blue-900 mb-3">Defina los umbrales de votación para su acuerdo</h3>
-          <p className="text-sm text-blue-700 mb-4">Estos porcentajes se aplicarán a todas las decisiones que requieran Mayoría o Supermayoría.</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="label flex items-center gap-2 text-sm">Mayoría se define como:
-                <InfoTooltip title="Mayoría" body="Porcentaje mínimo de votos necesario para aprobar una decisión por mayoría. Por defecto es 50.01%." />
-              </label>
-              <div className="flex items-center gap-2 mt-1">
-                <input type="number" min="50.01" max="99.99" step="0.01" className="input w-28" defaultValue={50.01}
-                  {...register("agreement.majorityThreshold", { valueAsNumber: true })} />
-                <span className="text-sm text-gray-500">%</span>
-              </div>
-            </div>
-            <div>
-              <label className="label flex items-center gap-2 text-sm">Supermayoría se define como:
-                <InfoTooltip title="Supermayoría" body="Porcentaje necesario para decisiones que requieren una aprobación superior a la mayoría simple. Por defecto es 75%." />
-              </label>
-              <div className="flex items-center gap-2 mt-1">
-                <input type="number" min="51" max="99.99" step="0.01" className="input w-28" defaultValue={75}
-                  {...register("agreement.supermajorityThreshold", { valueAsNumber: true })} />
-                <span className="text-sm text-gray-500">%</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <div className="mt-6 space-y-16 md:pl-12">
           {isCorp ? (
             <>
@@ -272,7 +243,12 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                 <div className="md:col-start-2 md:justify-self-end">
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-500">$</span>
-                    <input type="text" className="input w-40" placeholder="5,000" {...register("agreement.corp_majorSpendingThreshold")} />
+                    <Controller name="agreement.corp_majorSpendingThreshold" control={control}
+                      render={({ field }) => (
+                        <input type="text" className="input w-40" placeholder="5,000"
+                          value={field.value ? Number(String(field.value).replace(/,/g, '')).toLocaleString('en-US') : ''}
+                          onChange={(e) => { const raw = e.target.value.replace(/,/g, ''); if (/^\d*$/.test(raw)) field.onChange(raw); }} />
+                      )} />
                   </div>
                 </div>
               </div>
@@ -322,26 +298,6 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                       <SegmentedToggle value={field.value || "Yes"} onChange={field.onChange}
                         options={[{ value: "Yes", label: "Sí" }, { value: "No", label: "No" }]}
                         ariaLabel="Confidentiality NDA" name={field.name} />
-                    )} />
-                </div>
-              </div>
-              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
-                <div>
-                  <label className="label flex items-center gap-2">Frecuencia de distribución de dividendos
-                    <InfoTooltip title="Distribuciones" body="Define con qué frecuencia se distribuyen las ganancias a los accionistas." />
-                  </label>
-                </div>
-                <div className="md:col-start-2 md:justify-self-end">
-                  <Controller name="agreement.distributionFrequency" control={control}
-                    render={({ field }) => (
-                      <SegmentedToggle value={field.value || "Trimestral"} onChange={field.onChange}
-                        options={[
-                          { value: "Trimestral", label: "Trimestral" },
-                          { value: "Semestral", label: "Semestral" },
-                          { value: "Anual", label: "Anual" },
-                          { value: "Discreción de la Junta", label: "Discreción" },
-                        ]}
-                        ariaLabel="Distribution frequency" name={field.name} />
                     )} />
                 </div>
               </div>
@@ -550,7 +506,12 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                 <div className="md:col-start-2 md:justify-self-end">
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-500">$</span>
-                    <input type="text" className="input w-40" placeholder="5,000" {...register("agreement.llc_majorSpendingThreshold")} />
+                    <Controller name="agreement.llc_majorSpendingThreshold" control={control}
+                      render={({ field }) => (
+                        <input type="text" className="input w-40" placeholder="15,000"
+                          value={field.value ? Number(String(field.value).replace(/,/g, '')).toLocaleString('en-US') : ''}
+                          onChange={(e) => { const raw = e.target.value.replace(/,/g, ''); if (/^\d*$/.test(raw)) field.onChange(raw); }} />
+                      )} />
                   </div>
                 </div>
               </div>
@@ -601,56 +562,6 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                         options={[{ value: "Yes", label: "Sí" }, { value: "No", label: "No" }]}
                         ariaLabel="LLC confidentiality NDA" name={field.name} />
                     )} />
-                </div>
-              </div>
-              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
-                <div>
-                  <label className="label flex items-center gap-2">¿Incluir cláusula de no denigración?
-                    <InfoTooltip title="No Denigración" body="Impide que los miembros hagan declaraciones negativas o perjudiciales sobre la compañía o sus socios después de su salida." />
-                  </label>
-                </div>
-                <div className="md:col-start-2 md:justify-self-end">
-                  <Controller name="agreement.llc_nonDisparagement" control={control}
-                    render={({ field }) => (
-                      <SegmentedToggle value={field.value || "Yes"} onChange={field.onChange}
-                        options={[{ value: "Yes", label: "Sí" }, { value: "No", label: "No" }]}
-                        ariaLabel="LLC non disparagement" name={field.name} />
-                    )} />
-                </div>
-              </div>
-              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
-                <div>
-                  <label className="label flex items-center gap-2">Frecuencia de distribución de ganancias
-                    <InfoTooltip title="Distribuciones" body="Define con qué frecuencia se distribuyen las ganancias a los miembros." />
-                  </label>
-                </div>
-                <div className="md:col-start-2 md:justify-self-end">
-                  <Controller name="agreement.distributionFrequency" control={control}
-                    render={({ field }) => (
-                      <SegmentedToggle value={field.value || "Trimestral"} onChange={field.onChange}
-                        options={[
-                          { value: "Trimestral", label: "Trimestral" },
-                          { value: "Semestral", label: "Semestral" },
-                          { value: "Anual", label: "Anual" },
-                          { value: "Discreción de la Junta", label: "Discreción" },
-                        ]}
-                        ariaLabel="LLC distribution frequency" name={field.name} />
-                    )} />
-                </div>
-              </div>
-              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
-                <div>
-                  <label className="label flex items-center gap-2">Distribución mínima de impuestos (%)
-                    <InfoTooltip title="Distribución de Impuestos" body="Porcentaje mínimo de las ganancias que se distribuirá a los miembros para cubrir sus obligaciones fiscales personales. Por defecto 30%." />
-                  </label>
-                </div>
-                <div className="md:col-start-2 md:justify-self-end">
-                  <div className="flex items-center gap-2">
-                    <input type="number" min="0" max="100" step="1" className="input w-24"
-                      {...register("agreement.llc_minTaxDistribution", { valueAsNumber: true })}
-                      defaultValue={30} />
-                    <span className="text-sm text-gray-500">%</span>
-                  </div>
                 </div>
               </div>
             </>
