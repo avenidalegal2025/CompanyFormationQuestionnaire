@@ -204,10 +204,10 @@ function applyLLCVotingReplacements(
       replace: `${votingText(answers.shareholder_loans_voting)} consent of the Members`,
       votingKey: "shareholder_loans_voting",
     },
-    // Sec 8 - Sale of company/assets
+    // Sec 8 / 10.3 - Sale of company/assets
     {
-      find: "acceptance by the Members shall require a Majority",
-      replace: `acceptance by the Members shall require a ${votingText(answers.sale_of_company_voting)}`,
+      find: "requires the Majority consent of the Members",
+      replace: `requires the ${votingText(answers.sale_of_company_voting)} consent of the Members`,
       votingKey: "sale_of_company_voting",
     },
     // Sec 11.4(i) - Major decisions
@@ -290,6 +290,7 @@ function removeLLCConditionalSections(
     xml = removeXmlParagraphsContaining(xml, [
       "12.1Right of First Refusal",
       "12.1 Right of First Refusal",
+      "Right of First Refusal.",
       "Offer.  Subject to Section 12",
       "Concurrence or Acceptance.  The Offerees",
       "Rights of Buyer.  A purchaser of the Selling Member",
