@@ -447,10 +447,10 @@ function applyCorpVotingReplacements(
       find: "approved by a Majority of the Shareholders",
       replace: `approved by a ${votingText(answers.new_member_admission_voting)} of the Shareholders`,
     },
-    // Sec 7.3 - Shareholder loans
+    // Sec 7.3 - Shareholder loans ("explicit Majority" is unique to the loans clause)
     {
-      find: "Majority consent of the Shareholders",
-      replace: `${votingText(answers.shareholder_loans_voting)} consent of the Shareholders`,
+      find: "explicit Majority approval of the Board of Directors",
+      replace: `explicit ${votingText(answers.shareholder_loans_voting)} approval of the Board of Directors`,
     },
     // Sec 9.1 / 10.2.e - Sale of corporation
     {
