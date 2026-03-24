@@ -141,7 +141,7 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
     data[`member_${num}_amount`] = formatCurrency(
       answers.owners_list[i].capital_contribution
     );
-    data[`member_${num}_pct`] = `${answers.owners_list[i].shares_or_percentage}%`;
+    data[`member_${num}_pct`] = `${answers.owners_list[i].shares_or_percentage}`;
   }
 
   doc.render(data);
