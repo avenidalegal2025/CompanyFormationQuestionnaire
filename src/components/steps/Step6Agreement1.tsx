@@ -91,26 +91,29 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext, session
                   />
                 </div>
                 {watch("agreement.corp_hasSpecificResponsibilities") === "Yes" && (
-                  <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[420px] space-y-3">
+                  <div className="mt-4 md:col-span-2 space-y-4">
                   {Array.from({ length: ownersCount }).map((_, idx) => {
                     const ownerName = ownersData[idx]?.fullName || `Accionista ${idx + 1}`;
                     return (
-                      <div key={idx} className="grid grid-cols-2 gap-4 items-center">
-                        <div className="text-sm font-medium text-gray-700">
-                          {ownerName}:
-                        </div>
-                        <div>
+                      <div key={idx} className="bg-gray-50/40 rounded-xl p-5 space-y-3">
+                        <div className="text-sm font-semibold text-gray-800">{ownerName}</div>
+                        <div className="grid grid-cols-[auto_1fr] gap-3 items-center">
+                          <label className="text-sm text-gray-600">Título / Cargo:</label>
                           <Controller
                             name={`agreement.corp_specificResponsibilities_${idx}` as never}
                             control={control}
                             render={({ field }) => (
-                              <input
-                                type="text"
-                                className="input w-full"
-                                placeholder="CEO, CTO, CFO, etc."
-                                value={field.value || ""}
-                                onChange={field.onChange}
-                              />
+                              <input type="text" className="input w-full" placeholder="CEO, CTO, CFO, etc." value={field.value || ""} onChange={field.onChange} />
+                            )}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm text-gray-600">Responsabilidades específicas:</label>
+                          <Controller
+                            name={`agreement.corp_responsibilityDesc_${idx}` as never}
+                            control={control}
+                            render={({ field }) => (
+                              <textarea className="input w-full mt-1" rows={3} placeholder="Describa las responsabilidades específicas de este dueño..." value={field.value || ""} onChange={field.onChange} />
                             )}
                           />
                         </div>
@@ -230,26 +233,29 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext, session
                   />
                 </div>
                 {watch("agreement.llc_hasSpecificRoles") === "Yes" && (
-                  <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[420px] space-y-3">
+                  <div className="mt-4 md:col-span-2 space-y-4">
                   {Array.from({ length: ownersCount }).map((_, idx) => {
                     const ownerName = ownersData[idx]?.fullName || `Socio ${idx + 1}`;
                     return (
-                      <div key={idx} className="grid grid-cols-2 gap-4 items-center">
-                        <div className="text-sm font-medium text-gray-700">
-                          {ownerName}:
-                        </div>
-                        <div>
+                      <div key={idx} className="bg-gray-50/40 rounded-xl p-5 space-y-3">
+                        <div className="text-sm font-semibold text-gray-800">{ownerName}</div>
+                        <div className="grid grid-cols-[auto_1fr] gap-3 items-center">
+                          <label className="text-sm text-gray-600">Rol / Cargo:</label>
                           <Controller
                             name={`agreement.llc_specificRoles_${idx}` as never}
                             control={control}
                             render={({ field }) => (
-                              <input
-                                type="text"
-                                className="input w-full"
-                                placeholder="CEO, CTO, CFO, etc."
-                                value={field.value || ""}
-                                onChange={field.onChange}
-                              />
+                              <input type="text" className="input w-full" placeholder="CEO, CTO, CFO, etc." value={field.value || ""} onChange={field.onChange} />
+                            )}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm text-gray-600">Responsabilidades específicas:</label>
+                          <Controller
+                            name={`agreement.llc_roleDesc_${idx}` as never}
+                            control={control}
+                            render={({ field }) => (
+                              <textarea className="input w-full mt-1" rows={3} placeholder="Describa las responsabilidades específicas de este socio..." value={field.value || ""} onChange={field.onChange} />
                             )}
                           />
                         </div>

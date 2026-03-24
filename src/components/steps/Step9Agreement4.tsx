@@ -18,45 +18,10 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
   const isCorp = watch("company.entityType") === "C-Corp" || watch("company.entityType") === "S-Corp";
 
   // Helper function to check if input should be red
-  const isInputInvalid = (decisionValue: string, majorityValue: number | undefined) => {
-    if (decisionValue === "Mayoría" || decisionValue === "Supermayoría") {
-      return !majorityValue || majorityValue < 50.01 || majorityValue > 99.99;
-    }
-    return false;
-  };
+  const isInputInvalid = () => false;
 
   // Custom validation for majority percentages
-  const validateMajorityPercentages = () => {
-    if (isCorp) {
-      // Check corp_transferToRelativesMajority if applicable
-      const transferPolicy = watch("agreement.corp_transferToRelatives");
-      if (transferPolicy && transferPolicy.includes("Mayoría")) {
-        const majority = watch("agreement.corp_transferToRelativesMajority");
-        if (!majority || majority < 50.01 || majority > 99.99) {
-          alert("Por favor ingrese un porcentaje válido para la mayoría de transferencia a familiares (entre 50.01% y 99.99%)");
-          return false;
-        }
-      }
-    } else {
-      // Check LLC majority percentages
-      if (["Mayoría", "Supermayoría"].includes(watch("agreement.llc_newPartnersAdmission") || "")) {
-        const majority = watch("agreement.llc_newPartnersMajority");
-        if (!majority || majority < 50.01 || majority > 99.99) {
-          alert("Por favor ingrese un porcentaje válido para la mayoría de nuevos socios (entre 50.01% y 99.99%)");
-          return false;
-        }
-      }
-
-      if (["Mayoría", "Supermayoría"].includes(watch("agreement.llc_dissolutionDecision") || "")) {
-        const majority = watch("agreement.llc_dissolutionDecisionMajority");
-        if (!majority || majority < 50.01 || majority > 99.99) {
-          alert("Por favor ingrese un porcentaje válido para la mayoría de decisión de disolución (entre 50.01% y 99.99%)");
-          return false;
-        }
-      }
-    }
-    return true;
-  };
+  const validateMajorityPercentages = () => true;
 
   const handleContinue = async () => {
     if (!validateMajorityPercentages()) {
@@ -146,39 +111,6 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                     )}
                   />
                 </div>
-                {watch("agreement.corp_transferToRelatives") === "Sí, podrán transferir sus acciones si la decisión de la mayoría los accionistas." && (
-                  <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[500px]">
-                    <label className="label flex items-center gap-5">Porcentaje requerido para mayoría
-                      <InfoTooltip
-                        title="Porcentaje de Mayoría"
-                        body="Porcentaje mínimo necesario para aprobar la transferencia por mayoría (por ejemplo, 66.67%)."
-                      />
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <div className="w-1/6 min-w-[120px]">
-                        <input
-                          type="number"
-                          min="50.01"
-                          max="99.99"
-                          step="0.01"
-                          className={`input w-full ${
-                            isInputInvalid(
-                              watch("agreement.corp_transferToRelatives") || "", 
-                              watch("agreement.corp_transferToRelativesMajority")
-                            ) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''
-                          }`}
-                          {...register("agreement.corp_transferToRelativesMajority", { 
-                            valueAsNumber: true,
-                            min: 50.01,
-                            max: 99.99
-                          })}
-                        />
-                      </div>
-                      <span className="text-sm text-gray-500">%</span>
-                    </div>
-                    <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
-              </div>
-                )}
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
                 <label className="label inline-flex items-start gap-5 max-w-prose">
@@ -376,34 +308,6 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                     )}
                   />
                 </div>
-                {["Mayoría", "Supermayoría"].includes(watch("agreement.llc_newPartnersAdmission") || "") && (
-                  <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[500px]">
-                    <label className="label">Porcentaje requerido para mayoría</label>
-                    <div className="flex items-center gap-2">
-                      <div className="w-1/6 min-w-[120px]">
-                        <input
-                          type="number"
-                          min="50.01"
-                          max="99.99"
-                          step="0.01"
-                          className={`input w-full ${
-                            isInputInvalid(
-                              watch("agreement.llc_newPartnersAdmission") || "", 
-                              watch("agreement.llc_newPartnersMajority")
-                            ) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''
-                          }`}
-                          {...register("agreement.llc_newPartnersMajority", {
-                            valueAsNumber: true,
-                            min: 50.01,
-                            max: 99.99,
-                          })}
-                        />
-                      </div>
-                      <span className="text-sm text-gray-500">%</span>
-                    </div>
-                    <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
-                  </div>
-                )}
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
                 <label className="label inline-flex items-start gap-5 max-w-prose">
@@ -432,34 +336,6 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                     )}
                   />
                 </div>
-                {["Mayoría", "Supermayoría"].includes(watch("agreement.llc_dissolutionDecision") || "") && (
-                  <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[500px]">
-                    <label className="label">Porcentaje requerido para mayoría</label>
-                    <div className="flex items-center gap-2">
-                      <div className="w-1/6 min-w-[120px]">
-                        <input
-                          type="number"
-                          min="50.01"
-                          max="99.99"
-                          step="0.01"
-                          className={`input w-full ${
-                            isInputInvalid(
-                              watch("agreement.llc_dissolutionDecision") || "", 
-                              watch("agreement.llc_dissolutionDecisionMajority")
-                            ) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''
-                          }`}
-                          {...register("agreement.llc_dissolutionDecisionMajority", {
-                            valueAsNumber: true,
-                            min: 50.01,
-                            max: 99.99,
-                          })}
-                        />
-                      </div>
-                      <span className="text-sm text-gray-500">%</span>
-                    </div>
-                    <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
-              </div>
-                )}
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
                 <label className="label inline-flex items-start gap-5 max-w-prose">

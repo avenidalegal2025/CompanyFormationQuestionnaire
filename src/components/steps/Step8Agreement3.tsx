@@ -17,62 +17,10 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
   const { register, watch, control, formState: { errors } } = form;
   const isCorp = watch("company.entityType") === "C-Corp" || watch("company.entityType") === "S-Corp";
 
-  // Helper function to check if input should be red
-  const isInputInvalid = (decisionValue: string, majorityValue: number | undefined) => {
-    if (decisionValue === "Mayoría" || decisionValue === "Supermayoría") {
-      return !majorityValue || majorityValue < 50.01 || majorityValue > 99.99;
-    }
-    return false;
-  };
+  const isInputInvalid = () => false;
 
   // Custom validation for majority percentages
   const validateMajorityPercentages = () => {
-    if (isCorp) {
-      // Check corp_saleDecisionThreshold
-      if (["Mayoría", "Supermayoría"].includes(watch("agreement.corp_saleDecisionThreshold") || "")) {
-        const majority = watch("agreement.corp_saleDecisionMajority");
-        if (!majority || majority < 50.01 || majority > 99.99) {
-          alert("Por favor ingrese un porcentaje válido para la mayoría de decisión de venta (entre 50.01% y 99.99%)");
-          return false;
-        }
-      }
-
-      // Check corp_majorDecisionThreshold
-      if (["Mayoría", "Supermayoría"].includes(watch("agreement.corp_majorDecisionThreshold") || "")) {
-        const majority = watch("agreement.corp_majorDecisionMajority");
-        if (!majority || majority < 50.01 || majority > 99.99) {
-          alert("Por favor ingrese un porcentaje válido para la mayoría de decisiones importantes (entre 50.01% y 99.99%)");
-          return false;
-        }
-      }
-    } else {
-      // Check LLC majority percentages
-      if (["Mayoría", "Supermayoría"].includes(watch("agreement.llc_companySaleDecision") || "")) {
-        const majority = watch("agreement.llc_companySaleDecisionMajority");
-        if (!majority || majority < 50.01 || majority > 99.99) {
-          alert("Por favor ingrese un porcentaje válido para la mayoría de decisión de venta de la LLC (entre 50.01% y 99.99%)");
-          return false;
-        }
-      }
-
-      // Check llc_majorDecisions
-      if (["Mayoría", "Supermayoría"].includes(watch("agreement.llc_majorDecisions") || "")) {
-        const majority = watch("agreement.llc_majorDecisionsMajority");
-        if (!majority || majority < 50.01 || majority > 99.99) {
-          alert("Por favor ingrese un porcentaje válido para la mayoría de decisiones mayores (entre 50.01% y 99.99%)");
-          return false;
-        }
-      }
-
-      // Check llc_minorDecisions
-      if (["Mayoría", "Supermayoría"].includes(watch("agreement.llc_minorDecisions") || "")) {
-        const majority = watch("agreement.llc_minorDecisionsMajority");
-        if (!majority || majority < 50.01 || majority > 99.99) {
-          alert("Por favor ingrese un porcentaje válido para la mayoría de decisiones menores (entre 50.01% y 99.99%)");
-          return false;
-        }
-      }
-    }
     return true;
   };
 
@@ -88,6 +36,35 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
       <HeroMiami3 title="Acciones & Sucesión" />
       <div className="card">
         <h2 className="text-xl font-semibold text-gray-900">Gobierno & Decisiones</h2>
+
+        {/* Voting threshold definition */}
+        <div className="mt-6 bg-blue-50 rounded-xl p-6 border border-blue-100">
+          <h3 className="text-base font-semibold text-blue-900 mb-3">Defina los umbrales de votación para su acuerdo</h3>
+          <p className="text-sm text-blue-700 mb-4">Estos porcentajes se aplicarán a todas las decisiones que requieran Mayoría o Supermayoría.</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="label flex items-center gap-2 text-sm">Mayoría se define como:
+                <InfoTooltip title="Mayoría" body="Porcentaje mínimo de votos necesario para aprobar una decisión por mayoría. Por defecto es 50.01%." />
+              </label>
+              <div className="flex items-center gap-2 mt-1">
+                <input type="number" min="50.01" max="99.99" step="0.01" className="input w-28" defaultValue={50.01}
+                  {...register("agreement.majorityThreshold", { valueAsNumber: true })} />
+                <span className="text-sm text-gray-500">%</span>
+              </div>
+            </div>
+            <div>
+              <label className="label flex items-center gap-2 text-sm">Supermayoría se define como:
+                <InfoTooltip title="Supermayoría" body="Porcentaje necesario para decisiones que requieren una aprobación superior a la mayoría simple. Por defecto es 75%." />
+              </label>
+              <div className="flex items-center gap-2 mt-1">
+                <input type="number" min="51" max="99.99" step="0.01" className="input w-28" defaultValue={75}
+                  {...register("agreement.supermajorityThreshold", { valueAsNumber: true })} />
+                <span className="text-sm text-gray-500">%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="mt-6 space-y-16 md:pl-12">
           {isCorp ? (
             <>
@@ -119,39 +96,6 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                   )}
                 />
                 </div>
-                {["Mayoría", "Supermayoría"].includes(watch("agreement.corp_saleDecisionThreshold") || "") && (
-                  <div className="mt-3 md:col-start-2 md:justify-self-end">
-                    <label className="label flex items-center gap-5">Porcentaje requerido para mayoría
-                      <InfoTooltip
-                        title="Porcentaje de Mayoría"
-                        body="Porcentaje mínimo necesario para aprobar la venta de la compañía por mayoría (por ejemplo, 66.67%)."
-                      />
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <div className="w-1/6 min-w-[120px]">
-                        <input
-                          type="number"
-                          min="50.01"
-                          max="99.99"
-                          step="0.01"
-                          className={`input w-full ${
-                            isInputInvalid(
-                              watch("agreement.corp_saleDecisionThreshold") || "", 
-                              watch("agreement.corp_saleDecisionMajority")
-                            ) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''
-                          }`}
-                          {...register("agreement.corp_saleDecisionMajority", { 
-                            valueAsNumber: true,
-                            min: 50.01,
-                            max: 99.99
-                          })}
-                        />
-                      </div>
-                      <span className="text-sm text-gray-500">%</span>
-                    </div>
-                    <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
-                  </div>
-                )}
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
               <div>
@@ -209,39 +153,6 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                   )}
                 />
                 </div>
-                {["Mayoría", "Supermayoría"].includes(watch("agreement.corp_majorDecisionThreshold") || "") && (
-                  <div className="mt-3 md:col-start-2 md:justify-self-end">
-                    <label className="label flex items-center gap-5">Porcentaje requerido para mayoría
-                      <InfoTooltip
-                        title="Porcentaje de Mayoría"
-                        body="Porcentaje mínimo necesario para aprobar decisiones importantes por mayoría (por ejemplo, 60% o 75%)."
-                      />
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <div className="w-1/6 min-w-[120px]">
-                        <input
-                          type="number"
-                          min="50.01"
-                          max="99.99"
-                          step="0.01"
-                          className={`input w-full ${
-                            isInputInvalid(
-                              watch("agreement.corp_majorDecisionThreshold") || "", 
-                              watch("agreement.corp_majorDecisionMajority")
-                            ) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''
-                          }`}
-                          {...register("agreement.corp_majorDecisionMajority", { 
-                            valueAsNumber: true,
-                            min: 50.01,
-                            max: 99.99
-                          })}
-                        />
-                      </div>
-                      <span className="text-sm text-gray-500">%</span>
-              </div>
-                    <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
-              </div>
-                )}
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
               <div>
@@ -383,20 +294,6 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                         ariaLabel="Officer removal voting" name={field.name} />
                     )} />
                 </div>
-                {["Mayoría", "Supermayoría"].includes(watch("agreement.corp_officerRemovalVoting") || "") && (
-                  <div className="mt-3 md:col-start-2 md:justify-self-end">
-                    <label className="label">Porcentaje requerido</label>
-                    <div className="flex items-center gap-2">
-                      <div className="w-1/6 min-w-[120px]">
-                        <input type="number" min="50.01" max="99.99" step="0.01"
-                          className={`input w-full ${isInputInvalid(watch("agreement.corp_officerRemovalVoting") || "", watch("agreement.corp_officerRemovalMajority")) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''}`}
-                          {...register("agreement.corp_officerRemovalMajority", { valueAsNumber: true, min: 50.01, max: 99.99 })} />
-                      </div>
-                      <span className="text-sm text-gray-500">%</span>
-                    </div>
-                    <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
-                  </div>
-                )}
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
                 <div>
@@ -479,34 +376,6 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                   )}
                 />
                 </div>
-                {["Mayoría", "Supermayoría"].includes(watch("agreement.llc_companySaleDecision") || "") && (
-                  <div className="mt-3 md:col-start-2 md:justify-self-end">
-                    <label className="label">Porcentaje requerido para mayoría</label>
-                    <div className="flex items-center gap-2">
-                      <div className="w-1/6 min-w-[120px]">
-                        <input
-                          type="number"
-                          min="50.01"
-                          max="99.99"
-                          step="0.01"
-                          className={`input w-full ${
-                            isInputInvalid(
-                              watch("agreement.llc_companySaleDecision") || "", 
-                              watch("agreement.llc_companySaleDecisionMajority")
-                            ) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''
-                          }`}
-                          {...register("agreement.llc_companySaleDecisionMajority", {
-                            valueAsNumber: true,
-                            min: 50.01,
-                            max: 99.99,
-                          })}
-                        />
-              </div>
-                      <span className="text-sm text-gray-500">%</span>
-              </div>
-                    <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
-              </div>
-                )}
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
               <div>
@@ -642,34 +511,6 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                   )}
                 />
                 </div>
-                {["Mayoría", "Supermayoría"].includes(watch("agreement.llc_majorDecisions") || "") && (
-                  <div className="mt-3 md:col-start-2 md:justify-self-end">
-                    <label className="label">Porcentaje requerido para mayoría</label>
-                    <div className="flex items-center gap-2">
-                      <div className="w-1/6 min-w-[120px]">
-                        <input
-                          type="number"
-                          min="50.01"
-                          max="99.99"
-                          step="0.01"
-                          className={`input w-full ${
-                            isInputInvalid(
-                              watch("agreement.llc_majorDecisions") || "", 
-                              watch("agreement.llc_majorDecisionsMajority")
-                            ) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''
-                          }`}
-                          {...register("agreement.llc_majorDecisionsMajority", {
-                            valueAsNumber: true,
-                            min: 50.01,
-                            max: 99.99,
-                          })}
-                        />
-                      </div>
-                      <span className="text-sm text-gray-500">%</span>
-                    </div>
-                    <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
-                  </div>
-                )}
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
               <div>
@@ -699,34 +540,6 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                   )}
                 />
                 </div>
-                {["Mayoría", "Supermayoría"].includes(watch("agreement.llc_minorDecisions") || "") && (
-                  <div className="mt-3 md:col-start-2 md:justify-self-end">
-                    <label className="label">Porcentaje requerido para mayoría</label>
-                    <div className="flex items-center gap-2">
-                      <div className="w-1/6 min-w-[120px]">
-                        <input
-                          type="number"
-                          min="50.01"
-                          max="99.99"
-                          step="0.01"
-                          className={`input w-full ${
-                            isInputInvalid(
-                              watch("agreement.llc_minorDecisions") || "", 
-                              watch("agreement.llc_minorDecisionsMajority")
-                            ) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''
-                          }`}
-                          {...register("agreement.llc_minorDecisionsMajority", {
-                            valueAsNumber: true,
-                            min: 50.01,
-                            max: 99.99,
-                          })}
-                        />
-                      </div>
-                      <span className="text-sm text-gray-500">%</span>
-                    </div>
-                    <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
-                  </div>
-                )}
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
                 <div>
@@ -759,20 +572,6 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                         ariaLabel="LLC officer removal voting" name={field.name} />
                     )} />
                 </div>
-                {["Mayoría", "Supermayoría"].includes(watch("agreement.llc_officerRemovalVoting") || "") && (
-                  <div className="mt-3 md:col-start-2 md:justify-self-end">
-                    <label className="label">Porcentaje requerido</label>
-                    <div className="flex items-center gap-2">
-                      <div className="w-1/6 min-w-[120px]">
-                        <input type="number" min="50.01" max="99.99" step="0.01"
-                          className={`input w-full ${isInputInvalid(watch("agreement.llc_officerRemovalVoting") || "", watch("agreement.llc_officerRemovalMajority")) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''}`}
-                          {...register("agreement.llc_officerRemovalMajority", { valueAsNumber: true, min: 50.01, max: 99.99 })} />
-                      </div>
-                      <span className="text-sm text-gray-500">%</span>
-                    </div>
-                    <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
-                  </div>
-                )}
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
                 <div>

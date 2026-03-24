@@ -18,53 +18,10 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
   const isCorp = watch("company.entityType") === "C-Corp" || watch("company.entityType") === "S-Corp";
 
   // Helper function to check if input should be red
-  const isInputInvalid = (decisionValue: string, majorityValue: number | undefined) => {
-    if (decisionValue === "Mayoría" || decisionValue === "Supermayoría") {
-      return !majorityValue || majorityValue < 50.01 || majorityValue > 99.99;
-    }
-    return false;
-  };
+  const isInputInvalid = () => false;
 
   // Custom validation for majority percentages
-  const validateMajorityPercentages = () => {
-    if (isCorp) {
-      // Check corp_newShareholdersAdmission
-      if (["Mayoría", "Supermayoría"].includes(watch("agreement.corp_newShareholdersAdmission") || "")) {
-        const majority = watch("agreement.corp_newShareholdersMajority");
-        if (!majority || majority < 50.01 || majority > 99.99) {
-          alert("Por favor ingrese un porcentaje válido para la mayoría de nuevos accionistas (entre 50.01% y 99.99%)");
-          return false;
-        }
-      }
-
-      // Check corp_moreCapitalDecision
-      if (["Mayoría", "Supermayoría"].includes(watch("agreement.corp_moreCapitalDecision") || "")) {
-        const majority = watch("agreement.corp_moreCapitalMajority");
-        if (!majority || majority < 50.01 || majority > 99.99) {
-          alert("Por favor ingrese un porcentaje válido para la mayoría de capital adicional (entre 50.01% y 99.99%)");
-          return false;
-        }
-      }
-    } else {
-      // Check LLC majority percentages
-      if (["Mayoría", "Supermayoría"].includes(watch("agreement.llc_newMembersAdmission") || "")) {
-        const majority = watch("agreement.llc_newMembersMajority");
-        if (!majority || majority < 50.01 || majority > 99.99) {
-          alert("Por favor ingrese un porcentaje válido para la mayoría de nuevos miembros (entre 50.01% y 99.99%)");
-          return false;
-        }
-      }
-
-      if (["Mayoría", "Supermayoría"].includes(watch("agreement.llc_additionalContributionsDecision") || "")) {
-        const majority = watch("agreement.llc_additionalContributionsMajority");
-        if (!majority || majority < 50.01 || majority > 99.99) {
-          alert("Por favor ingrese un porcentaje válido para la mayoría de contribuciones adicionales (entre 50.01% y 99.99%)");
-          return false;
-        }
-      }
-    }
-    return true;
-  };
+  const validateMajorityPercentages = () => true;
 
   const handleContinue = async () => {
     if (!validateMajorityPercentages()) {
@@ -108,48 +65,6 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                   )}
                 />
                 </div>
-                {["Mayoría", "Supermayoría"].includes(watch("agreement.corp_newShareholdersAdmission") || "") && (
-                  <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[420px]">
-                    <label className="label flex items-center gap-2">Porcentaje requerido para mayoría
-                      <InfoTooltip
-                        title="Porcentaje de Mayoría"
-                        body="Define el porcentaje mínimo de votos necesario para aprobar una decisión por mayoría. Por ejemplo, 60% o 75%."
-                      />
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <div className="w-1/6 min-w-[120px]">
-                        <input
-                          type="number"
-                          min="50.01"
-                          max="99.99"
-                          step="0.01"
-                          className={`input w-full ${
-                            isInputInvalid(
-                              watch("agreement.corp_newShareholdersAdmission") || "", 
-                              watch("agreement.corp_newShareholdersMajority")
-                            ) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''
-                          }`}
-                          {...register("agreement.corp_newShareholdersMajority", { 
-                            valueAsNumber: true,
-                            min: {
-                              value: 50.01,
-                              message: "El valor debe ser mayor o igual a 50.01"
-                            },
-                            max: {
-                              value: 99.99,
-                              message: "El valor debe ser menor o igual a 99.99"
-                            }
-                          })}
-                        />
-                      </div>
-                      <span className="text-sm text-gray-500">%</span>
-                    </div>
-                    <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
-                    {errors.agreement?.corp_newShareholdersMajority && (
-                      <p className="text-red-500 text-sm mt-1">{errors.agreement.corp_newShareholdersMajority.message}</p>
-                    )}
-                  </div>
-                )}
               </div>
               <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
                 <label className="label inline-flex items-start gap-3 max-w-prose">
@@ -202,45 +117,6 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                         />
                       )}
                     />
-                    {["Mayoría", "Supermayoría"].includes(watch("agreement.corp_moreCapitalDecision") || "") && (
-                      <div className="mt-3">
-                        <label className="label flex items-center gap-3">Porcentaje requerido para mayoría
-                          <InfoTooltip
-                            title="Porcentaje de Mayoría"
-                            body="Porcentaje mínimo de aprobación para decisiones tomadas por mayoría (p. ej., 66.67%)."
-                          />
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <div className="w-1/6 min-w-[120px]">
-                            <input
-                              type="number"
-                              min="50.01"
-                              max="99.99"
-                              step="0.01"
-                              className={`input w-full ${
-                                isInputInvalid(
-                                  watch("agreement.corp_moreCapitalDecision") || "", 
-                                  watch("agreement.corp_moreCapitalMajority")
-                                ) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''
-                              }`}
-                              {...register("agreement.corp_moreCapitalMajority", { 
-                                valueAsNumber: true,
-                                min: {
-                                  value: 50.01,
-                                  message: "El valor debe ser mayor o igual a 50.01"
-                                },
-                                max: {
-                                  value: 99.99,
-                                  message: "El valor debe ser menor o igual a 99.99"
-                                }
-                              })}
-                            />
-                          </div>
-                          <span className="text-sm text-gray-500">%</span>
-                        </div>
-                        <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
-                      </div>
-                    )}
               </div>
                 )}
               </div>
@@ -298,22 +174,6 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                         )}
                       />
                     </div>
-                    {["Mayoría", "Supermayoría"].includes(watch("agreement.corp_shareholderLoansVoting") || "") && (
-                      <div className="mt-3 md:col-span-2 md:justify-self-end md:w-[420px]">
-                        <label className="label flex items-center gap-2">Porcentaje requerido
-                          <InfoTooltip title="Porcentaje" body="Porcentaje mínimo de aprobación para préstamos de accionistas." />
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <div className="w-1/6 min-w-[120px]">
-                            <input type="number" min="50.01" max="99.99" step="0.01"
-                              className={`input w-full ${isInputInvalid(watch("agreement.corp_shareholderLoansVoting") || "", watch("agreement.corp_shareholderLoansVotingMajority")) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''}`}
-                              {...register("agreement.corp_shareholderLoansVotingMajority", { valueAsNumber: true, min: 50.01, max: 99.99 })} />
-                          </div>
-                          <span className="text-sm text-gray-500">%</span>
-                        </div>
-                        <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
@@ -346,103 +206,6 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                       />
                     )}
                   />
-                  {["Mayoría", "Supermayoría"].includes(watch("agreement.llc_newMembersAdmission") || "") && (
-                    <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[420px]">
-                      <label className="label flex items-center gap-2">Porcentaje requerido para mayoría
-                        <InfoTooltip
-                          title="Porcentaje de Mayoría"
-                          body="Define el porcentaje mínimo de votos necesario para aprobar una decisión por mayoría. Por ejemplo, 60% o 75%."
-                        />
-                      </label>
-                    <div className="flex items-center gap-2">
-                      <div className="w-1/6 min-w-[120px]">
-                        <Controller
-                          name="agreement.llc_newMembersMajority"
-                          control={control}
-                          render={({ field }) => {
-                            const currentValue = field.value;
-                            const displayValue = currentValue !== undefined && currentValue !== null 
-                              ? String(currentValue) 
-                              : '';
-                            
-                            return (
-                        <input
-                          type="number"
-                          min="50.01"
-                          max="99.99"
-                          step="0.01"
-                          className={`input w-full ${
-                            isInputInvalid(
-                              watch("agreement.llc_newMembersAdmission") || "", 
-                                    currentValue
-                            ) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''
-                          }`}
-                                value={displayValue}
-                                onChange={(e) => {
-                                  const inputValue = e.target.value;
-                                  // Allow empty input
-                                  if (inputValue === '') {
-                                    field.onChange(undefined);
-                                    return;
-                                  }
-                                  // Parse as number but preserve precision
-                                  const numValue = parseFloat(inputValue);
-                                  if (!isNaN(numValue)) {
-                                    // Round to 2 decimal places to prevent precision issues
-                                    const rounded = Math.round(numValue * 100) / 100;
-                                    field.onChange(rounded);
-                                  }
-                                }}
-                                onBlur={(e) => {
-                                  const inputValue = e.target.value;
-                                  if (inputValue === '') {
-                                    return;
-                                  }
-                                  const numValue = parseFloat(inputValue);
-                                  if (!isNaN(numValue)) {
-                                    // Ensure value is rounded to 2 decimal places on blur
-                                    const rounded = Math.round(numValue * 100) / 100;
-                                    if (rounded !== numValue) {
-                                      field.onChange(rounded);
-                                    }
-                                  }
-                                }}
-                              />
-                            );
-                          }}
-                          rules={{
-                              min: {
-                                value: 50.01,
-                                message: "El valor debe ser mayor o igual a 50.01"
-                              },
-                              max: {
-                                value: 99.99,
-                                message: "El valor debe ser menor o igual a 99.99"
-                            },
-                            validate: (value) => {
-                              if (value === undefined || value === null) {
-                                return "Por favor ingrese un porcentaje";
-                              }
-                              const num = typeof value === 'number' ? value : parseFloat(String(value));
-                              if (isNaN(num)) {
-                                return "Por favor ingrese un número válido";
-                              }
-                              if (num < 50.01 || num > 99.99) {
-                                return "El valor debe estar entre 50.01 y 99.99";
-                              }
-                              return true;
-                              }
-                          }}
-                        />
-                      </div>
-                      <span className="text-sm text-gray-500">%</span>
-                      </div>
-                      <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
-                      {errors.agreement?.llc_newMembersMajority && (
-                        <p className="text-red-500 text-sm mt-1">{errors.agreement.llc_newMembersMajority.message}</p>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
               <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
@@ -496,45 +259,6 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                           />
                         )}
                       />
-                      {["Mayoría", "Supermayoría"].includes(watch("agreement.llc_additionalContributionsDecision") || "") && (
-                      <div className="mt-3">
-                        <label className="label flex items-center gap-2">Porcentaje requerido para mayoría
-                          <InfoTooltip
-                            title="Porcentaje de Mayoría"
-                            body="Porcentaje mínimo de aprobación para decisiones tomadas por mayoría (p. ej., 66.67%)."
-                          />
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <div className="w-1/6 min-w-[120px]">
-                            <input
-                              type="number"
-                              min="50.01"
-                              max="99.99"
-                              step="0.01"
-                              className={`input w-full ${
-                                isInputInvalid(
-                                  watch("agreement.llc_additionalContributionsDecision") || "", 
-                                  watch("agreement.llc_additionalContributionsMajority")
-                                ) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''
-                              }`}
-                              {...register("agreement.llc_additionalContributionsMajority", { 
-                                valueAsNumber: true,
-                                min: {
-                                  value: 50.01,
-                                  message: "El valor debe ser mayor o igual a 50.01"
-                                },
-                                max: {
-                                  value: 99.99,
-                                  message: "El valor debe ser menor o igual a 99.99"
-                                }
-                              })}
-                            />
-                          </div>
-                          <span className="text-sm text-gray-500">%</span>
-                        </div>
-                        <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
-                    </div>
-                    )}
               </div>
                 )}
               </div>
@@ -592,22 +316,6 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                         )}
                       />
                     </div>
-                    {["Mayoría", "Supermayoría"].includes(watch("agreement.llc_memberLoansVoting") || "") && (
-                      <div className="mt-3 md:col-span-2 md:justify-self-end md:w-[420px]">
-                        <label className="label flex items-center gap-2">Porcentaje requerido
-                          <InfoTooltip title="Porcentaje" body="Porcentaje mínimo de aprobación para préstamos de socios." />
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <div className="w-1/6 min-w-[120px]">
-                            <input type="number" min="50.01" max="99.99" step="0.01"
-                              className={`input w-full ${isInputInvalid(watch("agreement.llc_memberLoansVoting") || "", watch("agreement.llc_memberLoansVotingMajority")) ? 'border-red-500 bg-red-50 focus:ring-red-500' : ''}`}
-                              {...register("agreement.llc_memberLoansVotingMajority", { valueAsNumber: true, min: 50.01, max: 99.99 })} />
-                          </div>
-                          <span className="text-sm text-gray-500">%</span>
-                        </div>
-                        <p className="help">Ingrese un porcentaje entre 50.01% y 99.99%</p>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
