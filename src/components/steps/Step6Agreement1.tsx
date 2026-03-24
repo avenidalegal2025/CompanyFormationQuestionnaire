@@ -31,38 +31,55 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext, session
         <div className="mt-6 space-y-10 md:pl-12">
           {isCorp ? (
             <>
-              <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start first:mt-0 first:pt-0 first:border-0">
-                <label className="label inline-flex items-start gap-5 max-w-prose">¿Cuánto capital ha invertido cada dueño?
+              <div className="first:mt-0 first:pt-0 first:border-0">
+                <label className="label inline-flex items-start gap-5 max-w-prose">Aportaciones de capital: ¿Cuánto dinero está contribuyendo cada accionista?
                   <InfoTooltip
-                    title="Capital Invertido"
-                    body="Monto de dinero que cada dueño ha aportado inicialmente a la compañía. Sirve para documentar la inversión de cada parte."
+                    title="Aportaciones de Capital"
+                    body="Monto de dinero que cada accionista aporta. No tiene que ser proporcional al número de acciones."
                   />
                 </label>
-                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px] space-y-3">
-                  {Array.from({ length: ownersCount }).map((_, idx) => {
-                    const ownerName = ownersData[idx]?.fullName || `Accionista ${idx + 1}`;
-                    return (
-                      <div key={idx} className="grid grid-cols-2 gap-4 items-center">
-                        <div className="text-sm font-medium text-gray-700">
-                          {ownerName}:
-                        </div>
-                        <div>
-                          <Controller
-                            name={`agreement.corp_capitalPerOwner_${idx}` as never}
-                            control={control}
-                            render={({ field }) => (
-                              <CurrencyInput
-                                value={field.value || ""}
-                                onChange={field.onChange}
-                                placeholder="0.00"
-                                className="w-full"
+                <div className="mt-4 overflow-x-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="bg-gray-50 text-gray-600">
+                        <th className="text-left p-3 font-medium border border-gray-200">Nombre</th>
+                        <th className="text-center p-3 font-medium border border-gray-200">Acciones</th>
+                        <th className="text-center p-3 font-medium border border-gray-200">% de Participación</th>
+                        <th className="text-center p-3 font-medium border border-gray-200">Aportación de Capital</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Array.from({ length: ownersCount }).map((_, idx) => {
+                        const owner = ownersData[idx] || {};
+                        const ownerName = owner.fullName || [owner.firstName, owner.lastName].filter(Boolean).join(' ') || `Accionista ${idx + 1}`;
+                        const companyData = watch("company") as Record<string, unknown> || {};
+                        const totalShares = Number(companyData.sharesCount || companyData.numberOfShares || 1000);
+                        const pct = Number(owner.ownership || 0);
+                        const shares = Math.round(totalShares * pct / 100);
+                        return (
+                          <tr key={idx} className="border border-gray-200">
+                            <td className="p-3 font-medium text-gray-900">{ownerName}</td>
+                            <td className="p-3 text-center text-gray-700">{shares.toLocaleString()}</td>
+                            <td className="p-3 text-center text-gray-700">{pct.toFixed(2)}%</td>
+                            <td className="p-3 text-center">
+                              <Controller
+                                name={`agreement.corp_capitalPerOwner_${idx}` as never}
+                                control={control}
+                                render={({ field }) => (
+                                  <div className="flex items-center justify-center gap-1">
+                                    <span className="text-gray-500">$</span>
+                                    <input type="text" className="input w-32 text-center" placeholder="0"
+                                      value={field.value ? Number(String(field.value).replace(/,/g, '')).toLocaleString('en-US') : ''}
+                                      onChange={(e) => { const raw = e.target.value.replace(/,/g, ''); if (/^\d*$/.test(raw)) field.onChange(raw); }} />
+                                  </div>
+                                )}
                               />
-                            )}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               </div>
               <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
@@ -126,38 +143,50 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext, session
             </>
           ) : (
             <>
-              <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start first:mt-0 first:pt-0 first:border-0">
-                <label className="label inline-flex items-start gap-5 max-w-prose">Aportaciones de capital: ¿Cuánto dinero está contribuyendo cada dueño al negocio?
+              <div className="first:mt-0 first:pt-0 first:border-0">
+                <label className="label inline-flex items-start gap-5 max-w-prose">Aportaciones de capital: ¿Cuánto dinero está contribuyendo cada socio?
                   <InfoTooltip
                     title="Aportaciones de Capital"
-                    body="Monto que cada socio aporta al inicio. Se utiliza para definir la inversión de cada socio y, en algunos casos, su porcentaje de participación."
+                    body="Monto que cada socio aporta al inicio. No tiene que ser proporcional al porcentaje de participación."
                   />
                 </label>
-                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px] space-y-3">
-                  {Array.from({ length: ownersCount }).map((_, idx) => {
-                    const ownerName = ownersData[idx]?.fullName || `Socio ${idx + 1}`;
-                    return (
-                      <div key={idx} className="grid grid-cols-2 gap-4 items-center">
-                        <div className="text-sm font-medium text-gray-700">
-                          {ownerName}:
-                        </div>
-                        <div>
-                          <Controller
-                            name={`agreement.llc_capitalContributions_${idx}` as never}
-                            control={control}
-                            render={({ field }) => (
-                              <CurrencyInput
-                                value={field.value || ""}
-                                onChange={field.onChange}
-                                placeholder="0.00"
-                                className="w-full"
+                <div className="mt-4 overflow-x-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="bg-gray-50 text-gray-600">
+                        <th className="text-left p-3 font-medium border border-gray-200">Nombre</th>
+                        <th className="text-center p-3 font-medium border border-gray-200">% de Participación</th>
+                        <th className="text-center p-3 font-medium border border-gray-200">Aportación de Capital</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Array.from({ length: ownersCount }).map((_, idx) => {
+                        const owner = ownersData[idx] || {};
+                        const ownerName = owner.fullName || [owner.firstName, owner.lastName].filter(Boolean).join(' ') || `Socio ${idx + 1}`;
+                        const pct = Number(owner.ownership || 0);
+                        return (
+                          <tr key={idx} className="border border-gray-200">
+                            <td className="p-3 font-medium text-gray-900">{ownerName}</td>
+                            <td className="p-3 text-center text-gray-700">{pct.toFixed(2)}%</td>
+                            <td className="p-3 text-center">
+                              <Controller
+                                name={`agreement.llc_capitalContributions_${idx}` as never}
+                                control={control}
+                                render={({ field }) => (
+                                  <div className="flex items-center justify-center gap-1">
+                                    <span className="text-gray-500">$</span>
+                                    <input type="text" className="input w-32 text-center" placeholder="0"
+                                      value={field.value ? Number(String(field.value).replace(/,/g, '')).toLocaleString('en-US') : ''}
+                                      onChange={(e) => { const raw = e.target.value.replace(/,/g, ''); if (/^\d*$/.test(raw)) field.onChange(raw); }} />
+                                  </div>
+                                )}
                               />
-                            )}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               </div>
               <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
