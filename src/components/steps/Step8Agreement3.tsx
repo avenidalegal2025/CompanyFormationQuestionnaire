@@ -139,44 +139,41 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                   name="agreement.corp_taxOwner"
                   control={control}
                   render={({ field }) => {
-                    // For C-Corp, only show officers; for other entity types, show all owners
-                    const officersCount = watch("admin.officersCount") || 0;
+                    // Build list of people to choose from
+                    const people: Array<{ name: string }> = [];
+                    const ownersCount = watch("ownersCount") || 1;
                     const officersAllOwners = watch("admin.officersAllOwners");
-                    
-                    // Get list of officers
-                    const officers: Array<{ name: string; idx: number }> = [];
+                    const ownersData = watch("owners") || {};
+
                     if (isCorp && officersAllOwners === "No") {
-                      // If not all owners are officers, get the specific officers
+                      // Specific officers
+                      const officersCount = watch("admin.officersCount") || 0;
                       Array.from({ length: officersCount }).forEach((_, idx) => {
-                        const officerName = watch(`admin.officer${idx + 1}Name`) as string;
-                        if (officerName) {
-                          officers.push({ name: officerName, idx: idx + 1 });
-                        }
-                      });
-                    } else if (isCorp && officersAllOwners === "Yes") {
-                      // If all owners are officers, show all owners
-                      Array.from({ length: watch("ownersCount") || 1 }).forEach((_, idx) => {
-                        const ownerName = watch(`owners.${idx}.fullName`) as string;
-                        if (ownerName) {
-                          officers.push({ name: ownerName, idx: idx });
-                        }
-                      });
-                    } else {
-                      // For non-C-Corp entities, show all owners (fallback)
-                      Array.from({ length: watch("ownersCount") || 1 }).forEach((_, idx) => {
-                        const ownerName = watch(`owners.${idx}.fullName`) as string;
-                        if (ownerName) {
-                          officers.push({ name: ownerName, idx: idx });
-                        }
+                        const name = (watch(`admin.officer${idx + 1}Name`) as string) || '';
+                        if (name) people.push({ name });
                       });
                     }
-                    
+
+                    // Always add all owners as fallback
+                    if (people.length === 0) {
+                      Array.from({ length: ownersCount }).forEach((_, idx) => {
+                        const owner = (ownersData as Record<string, Record<string, string>>)?.[String(idx)] || {};
+                        const name = owner.fullName || [owner.firstName, owner.lastName].filter(Boolean).join(' ') || '';
+                        if (name) people.push({ name });
+                      });
+                    }
+
+                    // Auto-select if only 1 person and nothing selected
+                    if (people.length === 1 && !field.value) {
+                      field.onChange(people[0].name);
+                    }
+
                     return (
                       <select className="input mt-1" {...field}>
                         <option value="">Seleccionar {isCorp ? "oficial" : "accionista"}</option>
-                        {officers.map((officer, idx) => (
-                          <option key={idx} value={officer.name}>
-                            {officer.name}
+                        {people.map((p, idx) => (
+                          <option key={idx} value={p.name}>
+                            {p.name}
                           </option>
                         ))}
                       </select>
@@ -346,19 +343,24 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                 <Controller
                   name="agreement.llc_taxPartner"
                   control={control}
-                  render={({ field }) => (
-                    <select className="input mt-1" {...field}>
-                      <option value="">Seleccionar socio</option>
-                      {Array.from({ length: watch("ownersCount") || 1 }).map((_, idx) => {
-                        const ownerName = watch(`owners.${idx}.fullName`) || `Socio ${idx + 1}`;
-                        return (
-                          <option key={idx} value={ownerName}>
-                            {ownerName}
-                          </option>
-                        );
-                      })}
-                    </select>
-                  )}
+                  render={({ field }) => {
+                    const ownersData = watch("owners") || {};
+                    const ownersCount = watch("ownersCount") || 1;
+                    const people = Array.from({ length: ownersCount }).map((_, idx) => {
+                      const owner = (ownersData as Record<string, Record<string, string>>)?.[String(idx)] || {};
+                      return owner.fullName || [owner.firstName, owner.lastName].filter(Boolean).join(' ') || `Socio ${idx + 1}`;
+                    });
+                    // Auto-select if only 1 person
+                    if (people.length === 1 && !field.value) field.onChange(people[0]);
+                    return (
+                      <select className="input mt-1" {...field}>
+                        <option value="">Seleccionar socio</option>
+                        {people.map((name, idx) => (
+                          <option key={idx} value={name}>{name}</option>
+                        ))}
+                      </select>
+                    );
+                  }}
                 />
               </div>
               </div>
