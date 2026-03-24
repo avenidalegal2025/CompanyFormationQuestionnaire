@@ -266,8 +266,8 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
                 <label className="label inline-flex items-start gap-5 max-w-prose">
-                  ¿Podrán los socios libremente transferir sus participaciones a sus parientes?
-                  <InfoTooltip title="Transferencia a Parientes" body="Establece si los socios pueden transferir libremente sus participaciones a familiares o si requiere aprobación." />
+                  ¿Podrán los socios libremente transferir sus participaciones a sus parientes, o deberá ser esta transferencia sujeta a una decisión unánime o mayoría de los socios?
+                  <InfoTooltip title="Transferencia a Parientes" body="Esta cláusula establece si los socios pueden transferir sus participaciones a familiares sin restricciones, o si requiere aprobación de otros socios. Puede ser libre, requerir decisión unánime, o requerir mayoría." />
                 </label>
                 <div className="mt-3 md:mt-0 md:justify-self-end md:w-full">
                   <Controller name="agreement.llc_transferToRelatives" control={control}

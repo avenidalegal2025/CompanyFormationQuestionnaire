@@ -303,7 +303,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
             <>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start first:mt-0 first:pt-0 first:border-0 first:bg-transparent first:p-0 first:rounded-none first:shadow-none">
               <div>
-                  <label className="label flex items-center gap-2">Venta de la compañía: ¿Decisión unánime o por mayoría?
+                  <label className="label flex items-center gap-2">Si hubiese una oferta de compra o si usted quisiese vender la compañía, ¿quisiera que esta decisión se tome unánimemente o por mayoría?
                   <InfoTooltip
                     title="Decisión de Venta de la Compañía (LLC)"
                     body="Esta cláusula establece el proceso para decidir si vender la compañía. Puede requerir decisión unánime (todos los miembros deben estar de acuerdo) o mayoría (un porcentaje específico de miembros)."
@@ -366,7 +366,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
               <div>
-                  <label className="label flex items-center gap-2">Non Compete: ¿Covenant de no competencia entre los dueños?
+                  <label className="label flex items-center gap-2">¿Quieren una cláusula de no competencia? Para impedir competencia por alguien involucrado en la compañía.
                   <InfoTooltip
                     title="Covenant de No Competencia"
                     body="Un covenant de no competencia impide que los socios compitan con la LLC durante y después de su participación. Esto puede incluir restricciones geográficas, temporales y de industria."
