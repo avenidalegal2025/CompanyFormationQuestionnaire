@@ -255,9 +255,8 @@ function applyLLCVotingReplacements(
   // Replace spending threshold in Sec 11.4
   if (answers.major_spending_threshold) {
     const threshold = formatCurrency(answers.major_spending_threshold);
-    // The LLC template has specific spending thresholds
-    xml = xmlTextReplace(xml, "$10,000.00", `$${threshold}`);
-    xml = xmlTextReplace(xml, "$2,000.00", `$${formatCurrency(Math.min(2000, answers.major_spending_threshold))}`);
+    // The LLC template has $5,000.00 in multiple sub-items of Sec 11.4
+    xml = xmlTextReplace(xml, "$5,000.00", `$${threshold}`, true);
   }
 
   return xml;
