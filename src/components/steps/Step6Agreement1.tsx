@@ -32,10 +32,10 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext, session
           {isCorp ? (
             <>
               <div className="first:mt-0 first:pt-0 first:border-0">
-                <label className="label inline-flex items-start gap-5 max-w-prose">Aportaciones de capital: ¿Cuánto dinero está contribuyendo cada accionista?
+                <label className="label inline-flex items-start gap-5 max-w-prose">Aportaciones de capital: ¿Cuánto está contribuyendo cada accionista? (dinero, servicios, conocimientos, etc.)
                   <InfoTooltip
                     title="Aportaciones de Capital"
-                    body="Monto de dinero que cada accionista aporta. No tiene que ser proporcional al número de acciones."
+                    body="La contribución de cada accionista puede ser monetaria (dinero), en especie (equipos, propiedad intelectual) o en servicios/conocimientos (know-how). Lo importante es el porcentaje de participación accionaria."
                   />
                 </label>
                 <div className="mt-4 overflow-x-auto">
@@ -144,10 +144,10 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext, session
           ) : (
             <>
               <div className="first:mt-0 first:pt-0 first:border-0">
-                <label className="label inline-flex items-start gap-5 max-w-prose">Aportaciones de capital: ¿Cuánto dinero está contribuyendo cada socio?
+                <label className="label inline-flex items-start gap-5 max-w-prose">Aportaciones de capital: ¿Cuánto está contribuyendo cada socio? (dinero, servicios, conocimientos, etc.)
                   <InfoTooltip
                     title="Aportaciones de Capital"
-                    body="Monto que cada socio aporta al inicio. No tiene que ser proporcional al porcentaje de participación."
+                    body="La contribución de cada socio puede ser monetaria (dinero), en especie (equipos, propiedad intelectual) o en servicios/conocimientos (know-how). Lo importante es el porcentaje de participación."
                   />
                 </label>
                 <div className="mt-4 overflow-x-auto">
