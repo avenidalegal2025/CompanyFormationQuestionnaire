@@ -293,11 +293,18 @@ def post_process_shareholder_registry(doc):
     """
     print("===> Post-processing: fixing template formatting...")
 
-    # --- 1. Fix Corporation Address tab ---
+    # --- 1. Fix Corporation Address alignment ---
+    # The header fields ("Corporation Address:", "Authorized Shares:", etc.) use
+    # tab characters to align their values.  "Corporation Address:" is the longest
+    # label, so a single default tab stop may leave its value misaligned with the
+    # shorter labels.  Fix: ensure a tab exists between label and value AND set an
+    # explicit tab stop at 2.5" so all header values line up at the same position.
+    TAB_STOP_INCHES = 2.5  # position where header values should start
     for paragraph in doc.paragraphs:
         text = paragraph.text
         if 'Corporation Address:' in text:
             runs = paragraph.runs
+            # 1a. Insert a tab run between label and value if missing
             for i, run in enumerate(runs):
                 if 'Corporation Address:' in run.text and i + 1 < len(runs):
                     next_run = runs[i + 1]
@@ -308,6 +315,38 @@ def post_process_shareholder_registry(doc):
                         run._element.addnext(tab_run._element)
                         print("===> Fixed: added tab between 'Corporation Address:' and value")
                     break
+
+            # 1b. Set an explicit left tab stop so the value aligns with other fields
+            pPr = paragraph._p.find(qn('w:pPr'))
+            if pPr is None:
+                pPr = OxmlElement('w:pPr')
+                paragraph._p.insert(0, pPr)
+            # Remove any existing tabs element to avoid duplicates
+            for old_tabs in pPr.findall(qn('w:tabs')):
+                pPr.remove(old_tabs)
+            tabs = OxmlElement('w:tabs')
+            tab_stop = OxmlElement('w:tab')
+            tab_stop.set(qn('w:val'), 'left')
+            tab_stop.set(qn('w:pos'), str(int(TAB_STOP_INCHES * 1440)))  # twips
+            tabs.append(tab_stop)
+            pPr.append(tabs)
+            print(f"===> Fixed: set tab stop at {TAB_STOP_INCHES}\" on Corporation Address paragraph")
+
+        # Also normalise tab stops on the other header fields so everything is consistent
+        if any(label in text for label in ['Authorized Shares:', 'Outstanding Shares:', 'Date of Formation:']):
+            pPr = paragraph._p.find(qn('w:pPr'))
+            if pPr is None:
+                pPr = OxmlElement('w:pPr')
+                paragraph._p.insert(0, pPr)
+            for old_tabs in pPr.findall(qn('w:tabs')):
+                pPr.remove(old_tabs)
+            tabs = OxmlElement('w:tabs')
+            tab_stop = OxmlElement('w:tab')
+            tab_stop.set(qn('w:val'), 'left')
+            tab_stop.set(qn('w:pos'), str(int(TAB_STOP_INCHES * 1440)))
+            tabs.append(tab_stop)
+            pPr.append(tabs)
+            print(f"===> Fixed: set tab stop at {TAB_STOP_INCHES}\" on '{text.split(':')[0].strip()}' paragraph")
 
     # --- 2. Remove "PAGE X" footer text ---
     pages_removed = 0
@@ -332,17 +371,18 @@ def post_process_shareholder_registry(doc):
     # --- 4. Adjust table column widths ---
     # Shareholder table has 6 columns:
     #   Date Acquired | Name | Transaction | # Shares | Class | Percentage
-    # Give Name the most room; compact the others (total ≈ 6.5" = full page)
+    # "Transaction" header must not wrap — needs ≥1.0" at 12pt TNR.
+    # Give Name the most room; keep total ≈ 6.3" (letter page with ~1" margins).
     for table in doc.tables:
         if len(table.rows) > 0 and len(table.rows[0].cells) == 6:
             col_widths_in = [
                 0.95,   # Date Acquired (MM/DD/YYYY — needs ~0.95 to avoid wrap)
-                1.80,   # Name (widest — room for full names)
-                0.85,   # Transaction ("Allotted" needs ~0.85)
+                1.60,   # Name (widest — room for full names)
+                1.05,   # Transaction ("Transaction" header needs ~1.05 to avoid wrap)
                 0.80,   # Number of Shares Owned
-                0.80,   # Class of Shares
+                0.85,   # Class of Shares
                 1.05,   # Percentage Ownership
-            ]  # total = 6.25"
+            ]  # total = 6.30"
             _set_table_col_widths(table, col_widths_in)
             print("===> Fixed: adjusted shareholder table column widths")
 

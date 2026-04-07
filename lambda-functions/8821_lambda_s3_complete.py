@@ -185,11 +185,29 @@ def create_overlay(data, path):
         designee_address_2 = truncate_at_word_boundary(designee_address_2, max_length=80)
     
     # Tax authorization details - Section 3
-    # ALWAYS set to "N/A" for all fields
-    tax_info = "N/A"
-    tax_form = "N/A"
-    tax_years = "N/A"
-    tax_matters = "N/A"
+    # Bug #12 fix: Use actual tax info from form data instead of hardcoded "N/A"
+    entity_type = form_data.get("entityType", "LLC")
+    is_llc = entity_type == "LLC"
+    is_s_corp = entity_type == "S-Corp"
+
+    tax_info = form_data.get("authorizedType", "INCOME TAX")
+    if is_llc:
+        tax_form = form_data.get("authorizedForm", "1065")
+    elif is_s_corp:
+        tax_form = form_data.get("authorizedForm", "1120-S")
+    else:
+        tax_form = form_data.get("authorizedForm", "1120")
+
+    payment_date = form_data.get("paymentDate", "")
+    if payment_date:
+        try:
+            formation_year = payment_date[:4]
+        except Exception:
+            formation_year = str(datetime.now().year)
+    else:
+        formation_year = str(datetime.now().year)
+    tax_years = form_data.get("authorizedYear", formation_year)
+    tax_matters = form_data.get("taxMatters", "EIN APPLICATION")
     
     # Page 1 - Fill form fields
     # Line 1: Taxpayer info

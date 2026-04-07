@@ -659,11 +659,13 @@ export function mapAirtableTo8821(record: any): any {
     designeePhone: '786-512-0434',
     designeeFax: '866-496-4957',
     
-    // Authorization details - Section 3 always "N/A", Section 4 always checked
-    taxInfo: 'N/A',
-    taxForms: 'N/A',
-    taxYears: 'N/A',
-    taxMatters: 'N/A',
+    // Authorization details - Section 3 (Bug #12 fix: populate with actual tax info)
+    entityType: entityType,
+    authorizedType: 'INCOME TAX',
+    authorizedForm: isLLC ? '1065' : (entityType === 'S-Corp' ? '1120-S' : '1120'),
+    authorizedYear: new Date(fields['Payment Date'] || Date.now()).getFullYear().toString(),
+    paymentDate: fields['Payment Date'] || '',
+    taxMatters: 'EIN APPLICATION',
     
     // Signature information
     signatureName: responsibleParty.name || fields['Owner 1 Name'] || '',

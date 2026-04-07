@@ -20,6 +20,58 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://company-formation-
 const base = new Airtable({ apiKey: AIRTABLE_API_KEY }).base(AIRTABLE_BASE_ID);
 
 /**
+ * Spell-check common AI misspellings (Spanglish, verb conjugation errors, etc.)
+ * Applied to the final ALL-CAPS summary before returning.
+ */
+function spellCheckSummary(text: string): string {
+  // Map of known misspellings → corrections (all uppercase)
+  const corrections: Record<string, string> = {
+    'ORGANIZATE': 'ORGANIZE',
+    'ORGANISATE': 'ORGANIZE',
+    'ORGANISE': 'ORGANIZE',
+    'ADMINISTRATE': 'ADMINISTER',
+    'DEVELOPEMENT': 'DEVELOPMENT',
+    'DEVELOPPING': 'DEVELOPING',
+    'MANAGMENT': 'MANAGEMENT',
+    'MANAGAMENT': 'MANAGEMENT',
+    'RESTUARANT': 'RESTAURANT',
+    'RESTARANT': 'RESTAURANT',
+    'MAINTAINANCE': 'MAINTENANCE',
+    'MAINTANANCE': 'MAINTENANCE',
+    'ACCOMODATION': 'ACCOMMODATION',
+    'ACOMMODATION': 'ACCOMMODATION',
+    'CONSTRUCION': 'CONSTRUCTION',
+    'CONSTUCTION': 'CONSTRUCTION',
+    'TECNOLOGY': 'TECHNOLOGY',
+    'TECHNOLGY': 'TECHNOLOGY',
+    'CONSULTTING': 'CONSULTING',
+    'CONSULING': 'CONSULTING',
+    'TRANSPORTACION': 'TRANSPORTATION',
+    'INVESTEMENT': 'INVESTMENT',
+    'INVESTIMENT': 'INVESTMENT',
+    'PROFESIONAL': 'PROFESSIONAL',
+    'PROFFESIONAL': 'PROFESSIONAL',
+    'BUSSINESS': 'BUSINESS',
+    'BUSINES': 'BUSINESS',
+    'COMERCIAL': 'COMMERCIAL',
+    'IMPORTACION': 'IMPORTATION',
+    'EXPORTACION': 'EXPORTATION',
+    'DISTRIBUSION': 'DISTRIBUTION',
+    'MANUFACTURACION': 'MANUFACTURING',
+    'SERVICIOS': 'SERVICES',
+    'OPERACIONES': 'OPERATIONS',
+  };
+
+  let result = text;
+  for (const [wrong, right] of Object.entries(corrections)) {
+    // Word-boundary replacement to avoid replacing within other words
+    const regex = new RegExp(`\\b${wrong}\\b`, 'gi');
+    result = result.replace(regex, right);
+  }
+  return result;
+}
+
+/**
  * Summarize Business Purpose using OpenAI API to max 35 characters
  */
 async function summarizeBusinessPurpose(businessPurpose: string): Promise<string> {
@@ -53,6 +105,8 @@ async function summarizeBusinessPurpose(businessPurpose: string): Promise<string
             content: `This is for IRS Form SS-4, Line 10 "Reason for applying" - the text field next to the "Started new business" checkbox.
 
 CRITICAL: Do NOT return only "Started new business" or "STARTED NEW BUSINESS". You MUST specify what the business does.
+
+IMPORTANT: Always respond in CORRECT English. Do NOT use Spanish verb forms (e.g. "ORGANIZATE" is wrong — use "ORGANIZE"). Double-check spelling.
 
 Summarize this business purpose into a SHORT, SPECIFIC reason (maximum 35 characters). Examples: "Started LLC for film production", "Real estate development", "Retail clothing sales", "Restaurant and catering".
 
@@ -91,7 +145,7 @@ Return ONLY the specific reason (e.g. "Started LLC for film production"). Maximu
     if (finalSummary.length > 35) {
       finalSummary = finalSummary.substring(0, 35).trim();
     }
-    const upperSummary = finalSummary.toUpperCase();
+    const upperSummary = spellCheckSummary(finalSummary.toUpperCase());
     // If still generic, use business purpose so Line 10 specifies the business
     if (/^STARTED NEW BUSINESS\.?$/i.test(upperSummary) || upperSummary.length < 5) {
       console.warn('⚠️ Line 10 was generic, using business purpose for specificity');
@@ -342,10 +396,10 @@ Return ONLY the description (max 75 chars, ALL CAPS, must be a complete self-con
     // Safety net: strip any trailing dangling words (FOR, TO, AND, etc.)
     finalAnalysis = stripDanglingWords(finalAnalysis);
 
-    return finalAnalysis.toUpperCase();
+    return spellCheckSummary(finalAnalysis.toUpperCase());
   } catch (error: any) {
     console.error('❌ Error calling OpenAI API for Line 17:', error);
-    return truncateAtWordBoundary(businessPurpose.toUpperCase(), 75);
+    return spellCheckSummary(truncateAtWordBoundary(businessPurpose.toUpperCase(), 75));
   }
 }
 

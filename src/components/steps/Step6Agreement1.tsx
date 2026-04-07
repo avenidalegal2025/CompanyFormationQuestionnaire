@@ -68,7 +68,7 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext, session
                                 render={({ field }) => (
                                   <div className="flex items-center justify-center gap-1">
                                     <span className="text-gray-500">$</span>
-                                    <input type="text" className="input w-32 text-center" placeholder="0"
+                                    <input type="text" className="input w-32 text-center" placeholder=""
                                       value={field.value ? Number(String(field.value).replace(/,/g, '')).toLocaleString('en-US') : ''}
                                       onChange={(e) => { const raw = e.target.value.replace(/,/g, ''); if (/^\d*$/.test(raw)) field.onChange(raw); }} />
                                   </div>
@@ -175,7 +175,7 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext, session
                                 render={({ field }) => (
                                   <div className="flex items-center justify-center gap-1">
                                     <span className="text-gray-500">$</span>
-                                    <input type="text" className="input w-32 text-center" placeholder="0"
+                                    <input type="text" className="input w-32 text-center" placeholder=""
                                       value={field.value ? Number(String(field.value).replace(/,/g, '')).toLocaleString('en-US') : ''}
                                       onChange={(e) => { const raw = e.target.value.replace(/,/g, ''); if (/^\d*$/.test(raw)) field.onChange(raw); }} />
                                   </div>

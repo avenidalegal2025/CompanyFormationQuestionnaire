@@ -847,6 +847,85 @@ def post_process_org_resolution(doc):
             if i + 1 < len(all_paras) and not all_paras[i + 1].text.strip():
                 _add_keep_next(all_paras[i + 1])
 
+    # --- Bug #17: Align share distribution text in RESOLVED clause ---
+    # The Corp 216 templates have shareholder distribution lines like:
+    #   \tName\tX,XXX Shares, or XX% of the Company
+    # After placeholder replacement, the tab between name and shares causes
+    # misalignment because names have different lengths.  Fix: replace the
+    # tab between name and shares text with a consistent separator so the
+    # lines read naturally: "Name — X,XXX Shares, or XX% of the Company".
+    share_dist_fixed = 0
+    share_dist_pattern = re.compile(
+        r'^(.*?\S)\s*\t+\s*(\d[\d,]*\s+Shares?,\s+or\s+\d)', re.IGNORECASE
+    )
+    for paragraph in doc.paragraphs:
+        full_text = paragraph.text
+        if not full_text:
+            continue
+        m = share_dist_pattern.search(full_text)
+        if not m:
+            continue
+        # Rebuild runs: collapse tab(s) between name and shares into " — "
+        # Walk the runs and replace any tab characters that sit between the
+        # name portion and the shares portion with " — ".
+        for run in paragraph.runs:
+            if '\t' in run.text:
+                # Only replace tabs that are followed (eventually) by the
+                # shares pattern.  We use a targeted regex on the run text.
+                run.text = re.sub(
+                    r'\t+(\d[\d,]*\s+Shares?)',
+                    r' \1',
+                    run.text,
+                )
+                # Also handle the case where the tab is at the end of a run
+                # and shares start in the next run — strip trailing tabs.
+                run.text = run.text.rstrip('\t')
+        share_dist_fixed += 1
+    if share_dist_fixed:
+        print(f"===> Bug #17 fix: Aligned {share_dist_fixed} share distribution lines")
+
+    # --- Bug #19: Add spacing between By: and Name: lines for signatures ---
+    # The signature section needs more vertical space between "By: ___" and
+    # "Name:" lines so there is room for a physical ink signature.  We insert
+    # an empty paragraph (with matching font/size) after each "By: ___" line.
+    sig_spacing_added = 0
+    in_sig_section = False
+    body = doc.element.body
+    for paragraph in list(doc.paragraphs):
+        txt = paragraph.text.strip()
+        if 'IN WITNESS WHEREOF' in txt:
+            in_sig_section = True
+            continue
+        if not in_sig_section:
+            continue
+        if re.match(r'^By:\s*_', txt):
+            # Insert an empty paragraph after this "By:" paragraph for
+            # physical signature space.
+            empty_p = OxmlElement('w:p')
+            # Copy paragraph properties (indentation/tabs) from the By: para
+            by_pPr = paragraph._p.find(qn('w:pPr'))
+            if by_pPr is not None:
+                empty_pPr = deepcopy(by_pPr)
+                empty_p.append(empty_pPr)
+            # Add an empty run with matching font so the blank line has the
+            # same line height as surrounding text.
+            empty_r = OxmlElement('w:r')
+            empty_rPr = OxmlElement('w:rPr')
+            empty_rFonts = OxmlElement('w:rFonts')
+            empty_rFonts.set(qn('w:ascii'), 'Times New Roman')
+            empty_rFonts.set(qn('w:hAnsi'), 'Times New Roman')
+            empty_rPr.append(empty_rFonts)
+            empty_sz = OxmlElement('w:sz')
+            empty_sz.set(qn('w:val'), '24')  # 12pt
+            empty_rPr.append(empty_sz)
+            empty_r.append(empty_rPr)
+            empty_p.append(empty_r)
+            # Insert the empty paragraph right after the "By:" paragraph
+            paragraph._p.addnext(empty_p)
+            sig_spacing_added += 1
+    if sig_spacing_added:
+        print(f"===> Bug #19 fix: Added {sig_spacing_added} blank lines after By: signature lines")
+
     # --- 5. Normalize shareholder signature blocks to match Bylaws format ---
     # Target: single "SHAREHOLDERS" header (bold + underline), no repeated headers,
     # no "XX% Owner" lines, names not bold.
