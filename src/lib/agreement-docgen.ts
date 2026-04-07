@@ -144,7 +144,7 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
     Manager_2: answers.directors_managers[1]?.name || "",
   };
 
-  // Map owners to the hardcoded member_01/member_02 slots
+  // Map first 2 owners to the hardcoded member_01/member_02 slots
   for (let i = 0; i < Math.min(answers.owners_list.length, 2); i++) {
     const num = String(i + 1).padStart(2, "0");
     data[`member_${num}_full_name`] = answers.owners_list[i].full_name;
@@ -154,11 +154,25 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
     data[`member_${num}_pct`] = `${answers.owners_list[i].shares_or_percentage}`;
   }
 
+  // Fix preamble for 3+ owners: "by A and B" → "by A, B, and C"
+  if (answers.owners_list.length > 2) {
+    const allNames = answers.owners_list.map((o) => o.full_name);
+    const preambleNames =
+      allNames.slice(0, -1).join(", ") + ", and " + allNames[allNames.length - 1];
+    data["member_01_full_name"] = preambleNames;
+    data["member_02_full_name"] = ""; // Clear the "and member_02" — it's now in member_01
+  }
+
   doc.render(data);
 
   // Get the rendered XML for post-processing
   const renderedZip = doc.getZip();
   let xml = renderedZip.file("word/document.xml")!.asText();
+
+  // For 3+ owners: duplicate capital contribution, MPI, and signature blocks
+  if (answers.owners_list.length > 2) {
+    xml = addExtraLLCMembers(xml, answers);
+  }
 
   // Post-processing: voting text, bank accounts, conditional sections
   xml = applyLLCVotingReplacements(xml, answers);
@@ -174,6 +188,88 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     })
   );
+}
+
+// ─── LLC Extra Members (3-6 owners) ──────────────────────────────────
+
+/**
+ * For LLCs with 3+ members, the template only has member_01 and member_02.
+ * This function adds extra member lines to:
+ * 1. Capital contributions (Sec 5.1) — add rows after member_02's amount
+ * 2. MPI percentages (Sec 7.4) — add rows after member_02's percentage
+ * 3. Signature blocks — add "By:" / "Name:" / "% Owner" blocks
+ */
+function addExtraLLCMembers(
+  xml: string,
+  answers: QuestionnaireAnswers
+): string {
+  const extraOwners = answers.owners_list.slice(2); // members 3, 4, 5, 6
+
+  // Build text lines for capital contributions (Sec 5.1)
+  for (const owner of extraOwners) {
+    const line = `${owner.full_name}           $${formatCurrency(owner.capital_contribution)}`;
+    // Insert after the last capital contribution line (member_02's amount)
+    const member02Amount = formatCurrency(answers.owners_list[1]?.capital_contribution || 0);
+    const searchText = `$${member02Amount}`;
+    xml = xmlTextReplace(
+      xml,
+      searchText,
+      `${searchText}</w:t></w:r></w:p><w:p><w:r><w:t>${line}`,
+      false
+    );
+  }
+
+  // Build text lines for MPI percentages (Sec 7.4)
+  for (const owner of extraOwners) {
+    const line = `${owner.full_name}           ${owner.shares_or_percentage}%`;
+    // Insert after member_02's percentage
+    const member02Pct = `${answers.owners_list[1]?.shares_or_percentage || 0}%`;
+    xml = xmlTextReplace(
+      xml,
+      member02Pct,
+      `${member02Pct}</w:t></w:r></w:p><w:p><w:r><w:t>${line}`,
+      false
+    );
+  }
+
+  // Build signature blocks for extra members
+  // Find the last "% Owner of the Company" signature block and add more after it
+  const lastMember2Sig = `${answers.owners_list[1]?.shares_or_percentage || 0}% Owner of the Company`;
+  const extraSigBlocks = extraOwners
+    .map(
+      (owner) =>
+        `</w:t></w:r></w:p>` +
+        `<w:p><w:r><w:t>By: __________________________</w:t></w:r></w:p>` +
+        `<w:p><w:r><w:t>Name: ${owner.full_name}</w:t></w:r></w:p>` +
+        `<w:p><w:r><w:t>${owner.shares_or_percentage}% Owner of the Company`
+    )
+    .join("");
+
+  xml = xmlTextReplace(
+    xml,
+    lastMember2Sig,
+    lastMember2Sig + extraSigBlocks,
+    false
+  );
+
+  // Also add extra managers if needed
+  if (answers.directors_managers.length > 2) {
+    const extraManagers = answers.directors_managers.slice(2);
+    const manager2Name = answers.directors_managers[1]?.name || "";
+    if (manager2Name) {
+      const extraManagerText = extraManagers
+        .map((m) => ` and ${m.name}`)
+        .join("");
+      xml = xmlTextReplace(
+        xml,
+        manager2Name + " to serve as the Managers",
+        manager2Name + extraManagerText + " to serve as the Managers",
+        false
+      );
+    }
+  }
+
+  return xml;
 }
 
 // ─── LLC Voting Replacements ─────────────────────────────────────────

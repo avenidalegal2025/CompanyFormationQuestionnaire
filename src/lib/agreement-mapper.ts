@@ -150,10 +150,14 @@ export function mapFormToDocgenAnswers(data: FormData): QuestionnaireAnswers {
   const agreement = data.agreement || {};
   const ownerCount = data.ownersCount || 1;
 
-  // Build company name
-  const companyNameBase = data.company?.companyNameBase || "";
-  const suffix = data.company?.entitySuffix || "";
-  const entityName = `${companyNameBase} ${suffix}`.trim();
+  // Build company name — avoid double suffix (e.g., "ACME LLC LLC")
+  const companyNameBase = (data.company?.companyNameBase || "").trim();
+  const suffix = (data.company?.entitySuffix || "").trim();
+  // If the base name already ends with the suffix, don't append it again
+  const baseEndsWithSuffix = suffix && companyNameBase.toUpperCase().endsWith(suffix.toUpperCase());
+  const entityName = baseEndsWithSuffix
+    ? companyNameBase
+    : `${companyNameBase} ${suffix}`.trim();
 
   // Build address
   const addr = data.company || {};
