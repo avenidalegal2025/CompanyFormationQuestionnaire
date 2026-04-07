@@ -358,6 +358,21 @@ function applyLLCVotingReplacements(
     xml = xmlTextReplace(xml, "50.1%", `${answers.majority_threshold}.1%`);
   }
 
+  // Add Super Majority definition for LLC (after Sec 19.7 Majority)
+  // Attorney format: "Super Majority. Members collectively holding greater than
+  // SEVENTY FIVE PERCENT (75.00%) of the MPI of all the Members eligible to vote."
+  if (answers.supermajority_threshold) {
+    const supPct = answers.supermajority_threshold;
+    const supPctFormatted = supPct.toFixed ? supPct.toFixed(2) : `${supPct}.00`;
+    const supText = `${numberToWords(supPct).toUpperCase()} PERCENT (${supPctFormatted}%)`;
+    xml = xmlTextReplace(
+      xml,
+      "eligible to vote.",
+      `eligible to vote.  19.8 Super Majority. Members collectively holding greater than ${supText} of the MPI of all the Members eligible to vote.`,
+      false
+    );
+  }
+
   // Replace spending threshold in Sec 11.4
   if (answers.major_spending_threshold) {
     const threshold = formatCurrency(answers.major_spending_threshold);
@@ -416,10 +431,29 @@ function removeLLCConditionalSections(
     ]);
   }
 
-  // Non-compete: The LLC template doesn't have a standalone non-compete
-  // section (SDD notes it's in Sec 11.11 but the actual template has
-  // "Intellectual Property" at 11.11, not non-compete).
-  // Non-compete would need to be added if needed.
+  // Non-compete: Insert Sec 11.12 when non-compete=Yes
+  // The LLC template doesn't have this section — we add it via XML post-processing.
+  // Text provided by attorney Antonio Regojo.
+  if (answers.include_noncompete) {
+    const duration = answers.noncompete_duration || 2;
+    const durationWord = numberToWords(duration).toUpperCase();
+    const nonCompeteText =
+      `11.12 Non-competition. ` +
+      `(a) Covenant Against Competition. During the term of this Agreement and for ${durationWord} (${duration}) years following termination as a Member, Manager and/or employee of the Company (the "Restrictive Period"), no Member (nor any member, partner, owner, officer, director or manager of such Member) shall directly or indirectly, individually or on behalf of any Person other than the Company or any affiliate or subsidiary of the Company: ` +
+      `(i) solicit any Customers of the Company for the purpose of selling to them products or services competitive with the products or services sold by the Company; ` +
+      `(ii) provide directly or indirectly products, services, or assist anyone to provide the products or services of the type provided by the Company during the term of this Agreement, to any Person (other than the Company) which is then engaged within the Territory in a business similar to the Company's Business; or ` +
+      `(iii) solicit or induce, or in any manner attempt to solicit or induce, any person employed by the Company to leave such employment, whether or not such employment is pursuant to a written contract with the Company or is at-will. ` +
+      `The Member's obligations under this paragraph shall survive any expiration or termination of this Agreement. As used herein, the term "Territory" means anywhere in the United States where the Company has Customers. As used herein, the term "Customers" means all Persons that have conducted business with the Company during the three (3) year period immediately prior to any termination or expiration of this Agreement. Notwithstanding the foregoing, the Members shall be permitted to provide services for others provided that such services are in compliance with this Section.`;
+
+    // Insert after the last section before Article 12 (Transfers)
+    // Look for "11.11" or "Intellectual Property" and add after it
+    xml = xmlTextReplace(
+      xml,
+      "Intellectual Property",
+      `Intellectual Property</w:t></w:r></w:p><w:p><w:r><w:t xml:space="preserve">${nonCompeteText}`,
+      false
+    );
+  }
 
   // Non-disparagement removal is not needed (always included per template)
 
@@ -501,13 +535,13 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   // Conditional section removal
   xml = removeCorpConditionalSections(xml, answers);
 
-  // Fix #27: Add Supermajority definition after Majority definition (1.6)
-  // The template has "1.6 Majority" but no "1.11 Super Majority" definition.
-  // Insert it by replacing the Majority definition text to include Supermajority.
+  // Add Super Majority definition after Majority definition (1.6) for Corp
+  // Attorney format: "Super Majority. Shareholders collectively holding greater than
+  // SEVENTY FIVE PERCENT (75.00%) of the Percentage Interests of all the Shareholders eligible to vote."
   if (answers.supermajority_threshold) {
     const supPct = answers.supermajority_threshold;
-    const supText = `${numberToWords(supPct).toUpperCase()} PERCENT (${supPct}%)`;
-    // Add supermajority definition text after the majority definition paragraph
+    const supPctFormatted = typeof supPct === 'number' && supPct % 1 === 0 ? `${supPct}.00` : String(supPct);
+    const supText = `${numberToWords(supPct).toUpperCase()} PERCENT (${supPctFormatted}%)`;
     xml = xmlTextReplace(
       xml,
       "eligible to vote.",
@@ -724,6 +758,29 @@ function removeCorpConditionalSections(
   // Tag-Along = No
   if (!answers.tag_along) {
     xml = removeXmlParagraphsContaining(xml, ["Tag Along"]);
+  }
+
+  // Non-compete: Insert Sec 10.8 when non-compete=Yes
+  // The Corp template may not have this section — add it via post-processing.
+  // Text provided by attorney Antonio Regojo.
+  if (answers.include_noncompete) {
+    const duration = answers.noncompete_duration || 2;
+    const durationWord = numberToWords(duration).toUpperCase();
+    const nonCompeteText =
+      `10.8 Nondisclosure and Non competition. ` +
+      `(a) Covenant Against Competition. During the term of this Agreement and for ${durationWord} (${duration}) years following termination as a Shareholder, Officer and/or employee of the Corporation (the "Restrictive Period"), no Shareholder shall directly or indirectly, individually or on behalf of any Person other than the Corporation or any affiliate or subsidiary of the Corporation: ` +
+      `(i) solicit any Customers of the Corporation for the purpose of selling to them products or services competitive with the products or services sold by the Corporation; ` +
+      `(ii) provide directly or indirectly products, services, or assist anyone to provide the products or services of the type provided by the Corporation during the term of this Agreement, to any Person (other than the Corporation) which is then engaged within the Territory in a business similar to the Corporation's Business; or ` +
+      `(iii) solicit or induce, or in any manner attempt to solicit or induce, any person employed by the Corporation to leave such employment, whether or not such employment is pursuant to a written contract with the Corporation or is at-will. ` +
+      `The Shareholder's obligations under this paragraph shall survive any expiration or termination of this Agreement. As used herein, the term "Territory" means anywhere in the United States where the Corporation has Customers. As used herein, the term "Customers" means all Persons that have conducted business with the Corporation during the three (3) year period immediately prior to any termination or expiration of this Agreement.`;
+
+    // Insert before the signature/witness section — look for "IN WITNESS WHEREOF"
+    xml = xmlTextReplace(
+      xml,
+      "IN WITNESS WHEREOF",
+      `${nonCompeteText}</w:t></w:r></w:p><w:p><w:r><w:t xml:space="preserve">IN WITNESS WHEREOF`,
+      false
+    );
   }
 
   return xml;
