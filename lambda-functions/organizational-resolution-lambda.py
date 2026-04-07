@@ -603,6 +603,18 @@ def replace_placeholders(doc, data):
                 # First run is only whitespace (tabs/spaces); normalize to 6 tabs
                 first_run.text = SIG_LINE_TAB_COUNT
 
+    # --- Bug #17: Fix share distribution alignment ---
+    # Template has: \tName\t2,750 Shares, or 55% of the Company
+    # The tab between name and shares causes misalignment for different-length names.
+    # Replace the tab with a space so it reads: \tName 2,750 Shares, or 55%...
+    for paragraph in doc.paragraphs:
+        full_text = paragraph.text
+        if 'Shares, or' in full_text and '%' in full_text:
+            for run in paragraph.runs:
+                if '\t' in run.text and ('Shares' in run.text or run.text.strip().endswith(',')):
+                    run.text = run.text.replace('\t', ' ')
+                    print(f"===> Bug #17 fix: replaced tab with space in share distribution line")
+
     # --- Bug #19: Add vertical spacing between "By:" and "Name:" signature lines ---
     # The template has minimal spacing between signature elements.
     # Add space_after on "By:" lines so there's room for a physical signature.
