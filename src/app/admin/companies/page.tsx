@@ -155,6 +155,7 @@ export default function AdminCompaniesPage() {
                   <th className="px-4 py-2 text-left font-medium text-gray-700">Tipo</th>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">Estado</th>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">Cliente</th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">Acuerdo</th>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">Pago</th>
                   <th className="px-4 py-2 text-right font-medium text-gray-700">Acciones</th>
                 </tr>
@@ -176,6 +177,15 @@ export default function AdminCompaniesPage() {
                       <td className="px-4 py-2 text-gray-700">{company.formationState}</td>
                       <td className="px-4 py-2 text-gray-700">
                         <span className="font-mono text-xs">{company.customerEmail}</span>
+                      </td>
+                      <td className="px-4 py-2">
+                        {(company as any).hasAgreement ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            {(company as any).agreementType || "Acuerdo"}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 text-xs">Sin acuerdo</span>
+                        )}
                       </td>
                       <td className="px-4 py-2 text-gray-700">
                         {company.paymentDate || "—"}

@@ -31,6 +31,8 @@ interface AdminCompany {
   createdTime: string;
   customerEmail: string;
   vaultPath?: string;
+  hasAgreement?: boolean;
+  agreementType?: string;
 }
 
 export async function GET(request: NextRequest) {
@@ -77,6 +79,8 @@ export async function GET(request: NextRequest) {
               createdTime: (record as any).createdTime || (record as any)._rawJson?.createdTime || '',
               customerEmail: ((fields['Customer Email'] as string) || '').toLowerCase().trim(),
               vaultPath: (fields['Vault Path'] as string) || undefined,
+              hasAgreement: (fields['Want Agreement'] as string) === 'Yes',
+              agreementType: ((fields['Entity Type'] as string) || '').includes('LLC') ? 'Operating Agreement' : 'Shareholder Agreement',
             });
           });
           fetchNextPage();
@@ -101,6 +105,8 @@ export async function GET(request: NextRequest) {
               createdTime: (record as any).createdTime || (record as any)._rawJson?.createdTime || '',
               customerEmail: ((fields['Customer Email'] as string) || '').toLowerCase().trim(),
               vaultPath: (fields['Vault Path'] as string) || undefined,
+              hasAgreement: (fields['Want Agreement'] as string) === 'Yes',
+              agreementType: ((fields['Entity Type'] as string) || '').includes('LLC') ? 'Operating Agreement' : 'Shareholder Agreement',
             });
           });
           fetchNextPage();
