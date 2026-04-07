@@ -349,12 +349,14 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   const shareholderData: Record<string, string> = {};
   answers.owners_list.forEach((owner, i) => {
     const idx = i + 1;
-    const shares = Math.round(owner.shares_or_percentage);
-    const pct = ((shares / totalShares) * 100).toFixed(2);
+    // owner.shares_or_percentage is the ownership %; calculate actual shares
+    const pct = owner.shares_or_percentage;
+    const shares = Math.round((pct / 100) * totalShares);
+    const actualPct = ((shares / totalShares) * 100).toFixed(2);
     shareholderData[`shareholder_${idx}_name`] = owner.full_name;
-    shareholderData[`shareholder_${idx}_shares`] = String(shares);
+    shareholderData[`shareholder_${idx}_shares`] = shares.toLocaleString();
     shareholderData[`shareholder_${idx}_contribution`] = formatCurrency(owner.capital_contribution);
-    shareholderData[`shareholder_${idx}_pct`] = pct;
+    shareholderData[`shareholder_${idx}_pct`] = actualPct;
   });
 
   const bankSigneesText = answers.bank_signees === "two" ? "two" : "one";
@@ -369,8 +371,8 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   });
 
   doc.render({
-    corp_name: answers.entity_name,
-    corp_name_short: answers.entity_name.replace(/\s+(Inc\.|LLC|Corp\.?)$/i, ""),
+    corp_name: answers.entity_name.toUpperCase(),
+    corp_name_short: answers.entity_name.replace(/\s+(Inc\.|LLC|Corp\.?)$/i, "").toUpperCase(),
     effective_date: formatDateForCorpTemplate(answers.date_of_formation),
     principal_address: answers.principal_address,
     county: answers.county,
@@ -398,15 +400,31 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   // Conditional section removal
   xml = removeCorpConditionalSections(xml, answers);
 
-  // Supermajority definition (Sec 1.11) — if present
+  // Fix #27: Add Supermajority definition after Majority definition (1.6)
+  // The template has "1.6 Majority" but no "1.11 Super Majority" definition.
+  // Insert it by replacing the Majority definition text to include Supermajority.
   if (answers.supermajority_threshold) {
+    const supPct = answers.supermajority_threshold;
+    const supText = `${numberToWords(supPct).toUpperCase()} PERCENT (${supPct}%)`;
+    // Add supermajority definition text after the majority definition paragraph
     xml = xmlTextReplace(
       xml,
-      "greater than __%",
-      `greater than ${answers.supermajority_threshold}%`,
+      "eligible to vote.",
+      `eligible to vote.  1.7 Super Majority. Shareholders collectively holding greater than ${supText} of the Percentage Interests of all the Shareholders eligible to vote.`,
       false
     );
   }
+
+  // Fix #30: Replace hardcoded ownership percentages in signature section
+  answers.owners_list.forEach((owner, i) => {
+    const pct = owner.shares_or_percentage;
+    const actualPct = ((Math.round((pct / 100) * totalShares) / totalShares) * 100).toFixed(2);
+    const hardcodedPcts = ["75%", "12.5%", "12.5%"];
+    if (i < hardcodedPcts.length) {
+      // Replace only the first remaining occurrence
+      xml = xmlTextReplace(xml, hardcodedPcts[i] + " Owner", actualPct + "% Owner", false);
+    }
+  });
 
   renderedZip.file("word/document.xml", xml);
 

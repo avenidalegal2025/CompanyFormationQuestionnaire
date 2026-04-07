@@ -125,63 +125,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                 />
                 </div>
               </div>
-              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
-              <div>
-                  <label className="label flex items-center gap-2">¿Quién será el accionista responsable de impuestos (Tax Owner)?
-                  <InfoTooltip
-                    title="Tax Owner"
-                    body="El accionista responsable de impuestos es quien se encarga de presentar las declaraciones de impuestos de la corporación y mantener los registros fiscales. Para C-Corp, debe ser un oficial de la corporación."
-                  />
-                </label>
-                </div>
-                <div className="md:col-start-2 md:justify-self-end">
-                <Controller
-                  name="agreement.corp_taxOwner"
-                  control={control}
-                  render={({ field }) => {
-                    // Build list of people to choose from
-                    const people: Array<{ name: string }> = [];
-                    const ownersCount = watch("ownersCount") || 1;
-                    const officersAllOwners = watch("admin.officersAllOwners");
-                    const ownersData = watch("owners") || {};
-
-                    if (isCorp && officersAllOwners === "No") {
-                      // Specific officers
-                      const officersCount = watch("admin.officersCount") || 0;
-                      Array.from({ length: officersCount }).forEach((_, idx) => {
-                        const name = (watch(`admin.officer${idx + 1}Name`) as string) || '';
-                        if (name) people.push({ name });
-                      });
-                    }
-
-                    // Always add all owners as fallback
-                    if (people.length === 0) {
-                      Array.from({ length: ownersCount }).forEach((_, idx) => {
-                        const owner = (ownersData as Record<string, Record<string, string>>)?.[String(idx)] || {};
-                        const name = owner.fullName || [owner.firstName, owner.lastName].filter(Boolean).join(' ') || '';
-                        if (name) people.push({ name });
-                      });
-                    }
-
-                    // Auto-select if only 1 person and nothing selected
-                    if (people.length === 1 && !field.value) {
-                      field.onChange(people[0].name);
-                    }
-
-                    return (
-                      <select className="input mt-1" {...field}>
-                        <option value="">Seleccionar {isCorp ? "oficial" : "accionista"}</option>
-                        {people.map((p, idx) => (
-                          <option key={idx} value={p.name}>
-                            {p.name}
-                          </option>
-                        ))}
-                      </select>
-                    );
-                  }}
-                />
-              </div>
-              </div>
+              {/* Tax Owner removed for C-Corp per attorney review — only applies to LLC */}
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
               <div>
                   <label className="label flex items-center gap-2">¿Quieren una cláusula de no competencia? Para impedir competencia por alguien involucrado en la compañía.
@@ -268,10 +212,11 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                     )} />
                 </div>
               </div>
+              {watch("agreement.corp_nonCompete") !== "Yes" && (
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
                 <div>
                   <label className="label flex items-center gap-2">¿Incluir cláusula de no solicitud?
-                    <InfoTooltip title="No Solicitud" body="Impide que las partes recluten empleados o clientes de la compañía después de su salida." />
+                    <InfoTooltip title="No Solicitud" body="Impide que las partes recluten empleados o clientes de la compañía después de su salida. Se oculta cuando ya se incluye cláusula de no competencia (que es más amplia)." />
                   </label>
                 </div>
                 <div className="md:col-start-2 md:justify-self-end">
@@ -283,6 +228,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                     )} />
                 </div>
               </div>
+              )}
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
                 <div>
                   <label className="label flex items-center gap-2">¿Incluir cláusula de confidencialidad / NDA?
@@ -536,10 +482,11 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                     )} />
                 </div>
               </div>
+              {watch("agreement.llc_nonCompete") !== "Yes" && (
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
                 <div>
                   <label className="label flex items-center gap-2">¿Incluir cláusula de no solicitud?
-                    <InfoTooltip title="No Solicitud" body="Impide que las partes recluten empleados o clientes de la compañía después de su salida." />
+                    <InfoTooltip title="No Solicitud" body="Impide que las partes recluten empleados o clientes de la compañía después de su salida. Se oculta cuando ya se incluye cláusula de no competencia (que es más amplia)." />
                   </label>
                 </div>
                 <div className="md:col-start-2 md:justify-self-end">
@@ -551,6 +498,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                     )} />
                 </div>
               </div>
+              )}
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
                 <div>
                   <label className="label flex items-center gap-2">¿Incluir cláusula de confidencialidad / NDA?
