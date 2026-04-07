@@ -603,6 +603,14 @@ def replace_placeholders(doc, data):
                 # First run is only whitespace (tabs/spaces); normalize to 6 tabs
                 first_run.text = SIG_LINE_TAB_COUNT
 
+    # --- Bug #19: Add vertical spacing between "By:" and "Name:" signature lines ---
+    # The template has minimal spacing between signature elements.
+    # Add space_after on "By:" lines so there's room for a physical signature.
+    for paragraph in doc.paragraphs:
+        txt = paragraph.text.strip()
+        if re.match(r'^By:\s*_', txt):
+            paragraph.paragraph_format.space_after = Pt(18)  # ~0.25 inch gap for signature
+
     # --- Bug #16: Replace hardcoded "1,000 shares" with actual totalShares ---
     # The Corp Org Resolution templates have "1,000 shares" and "$0.01 per Share" hardcoded.
     # Replace with actual values from Airtable data.
@@ -852,34 +860,36 @@ def post_process_org_resolution(doc):
     #   \tName\tX,XXX Shares, or XX% of the Company
     # After placeholder replacement, the tab between name and shares causes
     # misalignment because names have different lengths.  Fix: replace the
-    # tab between name and shares text with a consistent separator so the
-    # lines read naturally: "Name — X,XXX Shares, or XX% of the Company".
+    # tab between name and shares text with a consistent separator (a space)
+    # so the lines read naturally: "\tName X,XXX Shares, or XX% of the Company".
+    #
+    # Tabs may be split across runs (e.g. Run1="Name", Run2="\t",
+    # Run3="2,750 Shares ...") so we work on the concatenated paragraph text,
+    # then rewrite runs preserving the first run's formatting.
     share_dist_fixed = 0
+    # Match: (leading-tabs)(Name-text)(tab(s))(shares-text-to-end)
     share_dist_pattern = re.compile(
-        r'^(.*?\S)\s*\t+\s*(\d[\d,]*\s+Shares?,\s+or\s+\d)', re.IGNORECASE
+        r'^(\t*)(.*?\S)\s*\t+\s*(\d[\d,]*\s+Shares?,\s+or\s+.+)$', re.IGNORECASE
     )
     for paragraph in doc.paragraphs:
         full_text = paragraph.text
         if not full_text:
             continue
-        m = share_dist_pattern.search(full_text)
+        m = share_dist_pattern.match(full_text)
         if not m:
             continue
-        # Rebuild runs: collapse tab(s) between name and shares into " — "
-        # Walk the runs and replace any tab characters that sit between the
-        # name portion and the shares portion with " — ".
-        for run in paragraph.runs:
-            if '\t' in run.text:
-                # Only replace tabs that are followed (eventually) by the
-                # shares pattern.  We use a targeted regex on the run text.
-                run.text = re.sub(
-                    r'\t+(\d[\d,]*\s+Shares?)',
-                    r' \1',
-                    run.text,
-                )
-                # Also handle the case where the tab is at the end of a run
-                # and shares start in the next run — strip trailing tabs.
-                run.text = run.text.rstrip('\t')
+        leading_tabs = m.group(1)
+        name_part = m.group(2)
+        shares_part = m.group(3)
+        # Rebuild: keep leading tabs, name, single space, shares text
+        new_text = leading_tabs + name_part + ' ' + shares_part
+        if new_text == full_text:
+            continue
+        # Re-write the paragraph: put all fixed text in the first run, clear others.
+        if paragraph.runs:
+            paragraph.runs[0].text = new_text
+            for run in paragraph.runs[1:]:
+                run.text = ''
         share_dist_fixed += 1
     if share_dist_fixed:
         print(f"===> Bug #17 fix: Aligned {share_dist_fixed} share distribution lines")
@@ -890,7 +900,6 @@ def post_process_org_resolution(doc):
     # an empty paragraph (with matching font/size) after each "By: ___" line.
     sig_spacing_added = 0
     in_sig_section = False
-    body = doc.element.body
     for paragraph in list(doc.paragraphs):
         txt = paragraph.text.strip()
         if 'IN WITNESS WHEREOF' in txt:
