@@ -487,6 +487,11 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   const renderedZip = doc.getZip();
   let xml = renderedZip.file("word/document.xml")!.asText();
 
+  // For 4+ shareholders: add extra rows to capital table and signature block
+  if (answers.owners_list.length > 3) {
+    xml = addExtraCorpShareholders(xml, answers, totalShares);
+  }
+
   // Voting text replacements
   xml = applyCorpVotingReplacements(xml, answers);
 
@@ -531,6 +536,75 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     })
   );
+}
+
+// ─── Corp Extra Shareholders (4-6 owners) ───────────────────────────
+
+/**
+ * For Corps with 4+ shareholders, the template only has shareholder_1/2/3.
+ * This adds extra rows to the capital contributions table and signature block.
+ */
+function addExtraCorpShareholders(
+  xml: string,
+  answers: QuestionnaireAnswers,
+  totalShares: number
+): string {
+  const extraOwners = answers.owners_list.slice(3); // shareholders 4, 5, 6
+
+  // Add extra rows to the capital contributions table (Sec 4.2)
+  // Find shareholder_3's contribution and add after it
+  const sh3 = answers.owners_list[2];
+  if (sh3) {
+    const sh3Pct = ((Math.round((sh3.shares_or_percentage / 100) * totalShares) / totalShares) * 100).toFixed(2);
+    const searchPct = `${sh3Pct}%`;
+
+    for (const owner of extraOwners) {
+      const shares = Math.round((owner.shares_or_percentage / 100) * totalShares);
+      const pct = ((shares / totalShares) * 100).toFixed(2);
+      const row = `</w:t></w:r></w:p></w:tc></w:tr>` +
+        `<w:tr><w:tc><w:p><w:r><w:t>${owner.full_name}</w:t></w:r></w:p></w:tc>` +
+        `<w:tc><w:p><w:r><w:t>${shares.toLocaleString()}</w:t></w:r></w:p></w:tc>` +
+        `<w:tc><w:p><w:r><w:t>$${formatCurrency(owner.capital_contribution)}</w:t></w:r></w:p></w:tc>` +
+        `<w:tc><w:p><w:r><w:t>${pct}%`;
+      // Insert after the last cell of shareholder 3's row
+      xml = xmlTextReplace(xml, searchPct, searchPct + row, false);
+    }
+  }
+
+  // Add extra signature blocks
+  // The template has hardcoded percentages that get replaced by fix #30
+  // For 4+ owners, we need to add new "By:" / "Name:" blocks
+  const lastSh3Name = answers.owners_list[2]?.full_name || "";
+  if (lastSh3Name) {
+    const extraSigs = extraOwners
+      .map((owner) => {
+        const pct = ((Math.round((owner.shares_or_percentage / 100) * totalShares) / totalShares) * 100).toFixed(2);
+        return `</w:t></w:r></w:p>` +
+          `<w:p><w:r><w:t>By: ______________________</w:t></w:r></w:p>` +
+          `<w:p><w:r><w:t>Name:   ${owner.full_name}</w:t></w:r></w:p>` +
+          `<w:p><w:r><w:t>${pct}% Owner`;
+      })
+      .join("");
+
+    // Find the last signature block (shareholder 3's "Owner" line)
+    // After fix #30 replaces percentages, look for shareholder 3's name in signature
+    xml = xmlTextReplace(
+      xml,
+      `Name:   ${lastSh3Name}`,
+      `Name:   ${lastSh3Name}`,
+      false
+    );
+    // Actually insert after the "% Owner" line following shareholder 3
+    const sh3Pct = ((Math.round((sh3.shares_or_percentage / 100) * totalShares) / totalShares) * 100).toFixed(2);
+    xml = xmlTextReplace(
+      xml,
+      `12.5% Owner`,
+      `${sh3Pct}% Owner` + extraSigs,
+      false
+    );
+  }
+
+  return xml;
 }
 
 // ─── Corp Voting Replacements ────────────────────────────────────────
