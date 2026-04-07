@@ -170,7 +170,9 @@ export async function POST(request: NextRequest) {
         )
       : (() => {
           const shareholders = orgResolutionData.memberCount || 1;
-          const directors = (orgResolutionData as { directorCount?: number }).directorCount ?? 1;
+          // Bug fix: directorCount=0 means "all owners are directors" — use shareholders count
+          const rawDirectors = (orgResolutionData as { directorCount?: number }).directorCount;
+          const directors = (rawDirectors && rawDirectors > 0) ? rawDirectors : shareholders;
           const officers = orgResolutionData.managerCount || 1;
           const fileName = getCorpOrganizationalResolution216TemplateName(shareholders, directors, officers);
           return `${CORPORATE_216_TEMPLATE_BASE_PATH}/${fileName}`;
