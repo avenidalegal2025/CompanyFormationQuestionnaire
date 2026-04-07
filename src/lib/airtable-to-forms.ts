@@ -1036,9 +1036,12 @@ export function mapAirtableToCorpOrganizationalResolution(record: any): any {
     const directorAddress = formatAddress(fields[`Director ${i} Address`] || '');
     directors.push({ name: directorName.trim(), address: directorAddress });
   }
-  // If no directors were found in Airtable, default to first member as director
+  // Bug #18 fix: If no directors were found in Airtable, ALL shareholders become directors
+  // (the questionnaire's "all owners = directors" selection may not populate individual Director fields)
   if (directors.length === 0 && members.length > 0) {
-    directors.push({ name: members[0].name, address: members[0].address });
+    for (const member of members) {
+      directors.push({ name: member.name, address: member.address });
+    }
   }
   const directorCount = directors.length || rawDirectorCount;
 

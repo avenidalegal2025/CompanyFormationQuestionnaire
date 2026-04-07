@@ -472,7 +472,66 @@ def post_process_bylaws(doc):
                     ind_el.set(qn('w:left'), '0')
                     indent_fixes += 1
 
-    print(f"===> Post-processing done: {headings_fixed} headings keepNext, {typos_fixed} typos fixed, {indent_fixes} indents normalized, {removed} excess empty paras removed from signature")
+    # --- 8. Fix broken section numbering (10→0, 11→1, 12→2) in Articles III & IV ---
+    # The DOCX templates lose the leading "1" for two-digit section numbers,
+    # so "10." appears as "0.", "11." as "1.", "12." as "2.".
+    # Strategy: track when we enter an Article heading, then once we've seen
+    # section "9." in that article, the next occurrences of "0.", "1.", "2."
+    # (followed by lots of whitespace + ALL-CAPS text) get corrected to 10/11/12.
+    numbering_fixes = 0
+    seen_section_9 = False
+    in_article = False
+    # Pattern: line starts with a single digit 0-2, period, then 2+ spaces, then ALL-CAPS word
+    broken_num_pattern = re.compile(r'^([012])\.(\s{2,}[A-Z][A-Z\s\-–,\.]+)$')
+    section_9_pattern = re.compile(r'^9\.\s{2,}[A-Z]')
+
+    for paragraph in doc.paragraphs:
+        text = paragraph.text.strip()
+        if not text:
+            continue
+
+        # Detect Article headings to reset state
+        if re.match(r'^ARTICLE\s+[IVXLC]+', text):
+            in_article = True
+            seen_section_9 = False
+            continue
+
+        if not in_article:
+            continue
+
+        # Detect section 9 in the current article
+        if section_9_pattern.match(text):
+            seen_section_9 = True
+            continue
+
+        # Only fix numbering after we've seen section 9 in this article
+        if not seen_section_9:
+            continue
+
+        m = broken_num_pattern.match(text)
+        if m:
+            wrong_digit = m.group(1)  # "0", "1", or "2"
+            correct_num = str(int('1' + wrong_digit))  # "10", "11", or "12"
+            # Replace in runs: the digit may be in its own run or share a run
+            # with the period. Handle both cases.
+            fixed = False
+            for run in paragraph.runs:
+                rt = run.text
+                # Case 1: run starts with "0.", "1.", or "2."
+                run_match = re.match(r'^([012])\.', rt)
+                if run_match and run_match.group(1) == wrong_digit:
+                    run.text = correct_num + '.' + rt[len(wrong_digit) + 1:]
+                    fixed = True
+                    break
+                # Case 2: run contains just the bare digit (period is in next run)
+                if rt.strip() == wrong_digit:
+                    run.text = rt.replace(wrong_digit, correct_num, 1)
+                    fixed = True
+                    break
+            if fixed:
+                numbering_fixes += 1
+
+    print(f"===> Post-processing done: {headings_fixed} headings keepNext, {typos_fixed} typos fixed, {indent_fixes} indents normalized, {removed} excess empty paras removed from signature, {numbering_fixes} section numbers fixed")
 
 
 def lambda_handler(event, context):

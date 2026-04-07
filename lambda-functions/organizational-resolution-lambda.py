@@ -603,6 +603,32 @@ def replace_placeholders(doc, data):
                 # First run is only whitespace (tabs/spaces); normalize to 6 tabs
                 first_run.text = SIG_LINE_TAB_COUNT
 
+    # --- Bug #16: Replace hardcoded "1,000 shares" with actual totalShares ---
+    # The Corp Org Resolution templates have "1,000 shares" and "$0.01 per Share" hardcoded.
+    # Replace with actual values from Airtable data.
+    total_shares = data.get('totalShares', 1000)
+    if isinstance(total_shares, str):
+        total_shares = int(total_shares.replace(',', ''))
+    if total_shares and total_shares != 1000:
+        total_shares_str = f"{int(total_shares):,}"
+        for paragraph in doc.paragraphs:
+            if '1,000 shares' in paragraph.text:
+                for run in paragraph.runs:
+                    if '1,000' in run.text:
+                        run.text = run.text.replace('1,000', total_shares_str)
+                        print(f"===> Bug #16 fix: Replaced '1,000' with '{total_shares_str}' in RESOLVED clause")
+    # Also replace in tables (if the RESOLVED clause is in a table cell)
+    if total_shares and total_shares != 1000:
+        total_shares_str = f"{int(total_shares):,}"
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for paragraph in cell.paragraphs:
+                        if '1,000 shares' in paragraph.text:
+                            for run in paragraph.runs:
+                                if '1,000' in run.text:
+                                    run.text = run.text.replace('1,000', total_shares_str)
+
     # --- #7: Dynamic authority clause ---
     # For companies with >1 officer or >1 director, replace "the President" with
     # "any officer or director" in banking/authority RESOLVED clauses.

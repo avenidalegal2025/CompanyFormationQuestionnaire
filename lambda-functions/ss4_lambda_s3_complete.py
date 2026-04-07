@@ -1317,8 +1317,19 @@ def map_data_to_ss4_fields(form_data):
             return ssn
         # Remove all non-digits
         ssn_clean = ''.join(filter(str.isdigit, ssn))
-        # Format as XXX-XX-XXXX if we have 9 digits
+        # 9 digits: detect SSN/ITIN vs EIN
+        # EIN format: XX-XXXXXXX (first 2 digits are IRS campus code, range 10-99)
+        # SSN/ITIN format: XXX-XX-XXXX
         if len(ssn_clean) == 9:
+            first_two = int(ssn_clean[:2])
+            # EIN prefixes are 10-99 (never start with 0); SSN/ITIN can start with 0
+            # Heuristic: if the input was originally formatted as XX-XXXXXXX, treat as EIN
+            if ssn and '-' in ssn:
+                # Check if original format matches EIN pattern (XX-XXXXXXX)
+                parts = ssn.strip().split('-')
+                if len(parts) == 2 and len(parts[0].strip()) == 2:
+                    return f"{ssn_clean[:2]}-{ssn_clean[2:]}"
+            # Default: format as SSN (XXX-XX-XXXX)
             return f"{ssn_clean[:3]}-{ssn_clean[3:5]}-{ssn_clean[5:]}"
         # If already formatted or invalid, return as is
         return ssn
