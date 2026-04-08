@@ -205,43 +205,46 @@ function addExtraLLCMembers(
 ): string {
   const extraOwners = answers.owners_list.slice(2); // members 3, 4, 5, 6
 
+  // Extract formatting from the capital contributions section
+  const capFmt = extractFormatting(xml, "member_02_amount") || extractFormatting(xml, "$");
+  const sigFmt = extractFormatting(xml, "Owner of the Company");
+
   // Build text lines for capital contributions (Sec 5.1)
   for (const owner of extraOwners) {
     const line = `${owner.full_name}           $${formatCurrency(owner.capital_contribution)}`;
-    // Insert after the last capital contribution line (member_02's amount)
     const member02Amount = formatCurrency(answers.owners_list[1]?.capital_contribution || 0);
     const searchText = `$${member02Amount}`;
     xml = xmlTextReplace(
       xml,
       searchText,
-      `${searchText}</w:t></w:r></w:p><w:p><w:r><w:t>${line}`,
+      `${searchText}</w:t></w:r></w:p>${buildFormattedParagraph(line, capFmt.pPr, capFmt.rPr)}<w:p><w:r><w:t xml:space="preserve">`,
       false
     );
   }
 
   // Build text lines for MPI percentages (Sec 7.4)
+  const mpiFmt = extractFormatting(xml, "Members Percentage Interests");
   for (const owner of extraOwners) {
     const line = `${owner.full_name}           ${owner.shares_or_percentage}%`;
-    // Insert after member_02's percentage
     const member02Pct = `${answers.owners_list[1]?.shares_or_percentage || 0}%`;
     xml = xmlTextReplace(
       xml,
       member02Pct,
-      `${member02Pct}</w:t></w:r></w:p><w:p><w:r><w:t>${line}`,
+      `${member02Pct}</w:t></w:r></w:p>${buildFormattedParagraph(line, mpiFmt.pPr, mpiFmt.rPr)}<w:p><w:r><w:t xml:space="preserve">`,
       false
     );
   }
 
-  // Build signature blocks for extra members
-  // Find the last "% Owner of the Company" signature block and add more after it
+  // Build signature blocks for extra members with matching formatting
   const lastMember2Sig = `${answers.owners_list[1]?.shares_or_percentage || 0}% Owner of the Company`;
   const extraSigBlocks = extraOwners
     .map(
       (owner) =>
         `</w:t></w:r></w:p>` +
-        `<w:p><w:r><w:t>By: __________________________</w:t></w:r></w:p>` +
-        `<w:p><w:r><w:t>Name: ${owner.full_name}</w:t></w:r></w:p>` +
-        `<w:p><w:r><w:t>${owner.shares_or_percentage}% Owner of the Company`
+        buildFormattedParagraph(`By: __________________________`, sigFmt.pPr, sigFmt.rPr) +
+        buildFormattedParagraph(`Name: ${owner.full_name}`, sigFmt.pPr, sigFmt.rPr) +
+        buildFormattedParagraph(`${owner.shares_or_percentage}% Owner of the Company`, sigFmt.pPr, sigFmt.rPr) +
+        `<w:p><w:r><w:t xml:space="preserve">`
     )
     .join("");
 
@@ -358,17 +361,23 @@ function applyLLCVotingReplacements(
     xml = xmlTextReplace(xml, "50.1%", `${answers.majority_threshold}.1%`);
   }
 
-  // Add Super Majority definition for LLC (after Sec 19.7 Majority)
-  // Attorney format: "Super Majority. Members collectively holding greater than
-  // SEVENTY FIVE PERCENT (75.00%) of the MPI of all the Members eligible to vote."
+  // Add Super Majority definition for LLC (between Sec 19.7 and 19.8)
+  // LLC template has "19.7 Majority Defined" then "19.8 INDEMNIFICATION"
+  // Insert Super Majority definition and renumber INDEMNIFICATION to 19.9
   if (answers.supermajority_threshold) {
     const supPct = answers.supermajority_threshold;
-    const supPctFormatted = supPct.toFixed ? supPct.toFixed(2) : `${supPct}.00`;
+    const supPctFormatted = typeof supPct === 'number' && supPct % 1 === 0 ? `${supPct}.00` : String(supPct);
     const supText = `${numberToWords(supPct).toUpperCase()} PERCENT (${supPctFormatted}%)`;
+    // The LLC Majority definition ends with "50.1% of the total MPI held by all Members."
+    // Insert Super Majority definition after that text.
+    const llcSupFmt = extractFormatting(xml, "Majority Defined");
     xml = xmlTextReplace(
       xml,
-      "eligible to vote.",
-      `eligible to vote.  19.8 Super Majority. Members collectively holding greater than ${supText} of the MPI of all the Members eligible to vote.`,
+      "total MPI held by all Members.",
+      `total MPI held by all Members.${closeParagraphAndInsert(
+        `19.8 Super Majority Defined. Members collectively holding greater than ${supText} of the total MPI held by all Members.`,
+        llcSupFmt.pPr, llcSupFmt.rPr
+      )}`,
       false
     );
   }
@@ -445,12 +454,12 @@ function removeLLCConditionalSections(
       `(iii) solicit or induce, or in any manner attempt to solicit or induce, any person employed by the Company to leave such employment, whether or not such employment is pursuant to a written contract with the Company or is at-will. ` +
       `The Member's obligations under this paragraph shall survive any expiration or termination of this Agreement. As used herein, the term "Territory" means ${answers.noncompete_scope ? answers.noncompete_scope : "anywhere in the United States where the Company has Customers"}. As used herein, the term "Customers" means all Persons that have conducted business with the Company during the three (3) year period immediately prior to any termination or expiration of this Agreement. Notwithstanding the foregoing, the Members shall be permitted to provide services for others provided that such services are in compliance with this Section.`;
 
-    // Insert after the last section before Article 12 (Transfers)
-    // Look for "11.11" or "Intellectual Property" and add after it
+    // Insert after "Intellectual Property" section with matching formatting
+    const llcFmt = extractFormatting(xml, "Intellectual Property");
     xml = xmlTextReplace(
       xml,
       "Intellectual Property",
-      `Intellectual Property</w:t></w:r></w:p><w:p><w:r><w:t xml:space="preserve">${nonCompeteText}`,
+      `Intellectual Property${closeParagraphAndInsert(nonCompeteText, llcFmt.pPr, llcFmt.rPr)}`,
       false
     );
   }
@@ -605,30 +614,22 @@ function addExtraCorpShareholders(
     }
   }
 
-  // Add extra signature blocks
-  // The template has hardcoded percentages that get replaced by fix #30
-  // For 4+ owners, we need to add new "By:" / "Name:" blocks
+  // Add extra signature blocks with formatting from existing signatures
+  const corpSigFmt = extractFormatting(xml, "Owner");
   const lastSh3Name = answers.owners_list[2]?.full_name || "";
-  if (lastSh3Name) {
+  if (lastSh3Name && sh3) {
     const extraSigs = extraOwners
       .map((owner) => {
         const pct = ((Math.round((owner.shares_or_percentage / 100) * totalShares) / totalShares) * 100).toFixed(2);
         return `</w:t></w:r></w:p>` +
-          `<w:p><w:r><w:t>By: ______________________</w:t></w:r></w:p>` +
-          `<w:p><w:r><w:t>Name:   ${owner.full_name}</w:t></w:r></w:p>` +
-          `<w:p><w:r><w:t>${pct}% Owner`;
+          buildFormattedParagraph(`By: ______________________`, corpSigFmt.pPr, corpSigFmt.rPr) +
+          buildFormattedParagraph(`Name:   ${owner.full_name}`, corpSigFmt.pPr, corpSigFmt.rPr) +
+          buildFormattedParagraph(`${pct}% Owner`, corpSigFmt.pPr, corpSigFmt.rPr) +
+          `<w:p><w:r><w:t xml:space="preserve">`;
       })
       .join("");
 
-    // Find the last signature block (shareholder 3's "Owner" line)
-    // After fix #30 replaces percentages, look for shareholder 3's name in signature
-    xml = xmlTextReplace(
-      xml,
-      `Name:   ${lastSh3Name}`,
-      `Name:   ${lastSh3Name}`,
-      false
-    );
-    // Actually insert after the "% Owner" line following shareholder 3
+    // Insert after shareholder 3's "% Owner" line
     const sh3Pct = ((Math.round((sh3.shares_or_percentage / 100) * totalShares) / totalShares) * 100).toFixed(2);
     xml = xmlTextReplace(
       xml,
@@ -774,16 +775,61 @@ function removeCorpConditionalSections(
       `(iii) solicit or induce, or in any manner attempt to solicit or induce, any person employed by the Corporation to leave such employment, whether or not such employment is pursuant to a written contract with the Corporation or is at-will. ` +
       `The Shareholder's obligations under this paragraph shall survive any expiration or termination of this Agreement. As used herein, the term "Territory" means ${answers.noncompete_scope ? answers.noncompete_scope : "anywhere in the United States where the Corporation has Customers"}. As used herein, the term "Customers" means all Persons that have conducted business with the Corporation during the three (3) year period immediately prior to any termination or expiration of this Agreement.`;
 
-    // Insert after 10.9 Non-Disparagement section
+    // Insert after 10.9 Non-Disparagement section with matching formatting
+    const corpFmt = extractFormatting(xml, "Non-Disparagement.");
     xml = xmlTextReplace(
       xml,
       "Non-Disparagement.",
-      `Non-Disparagement.</w:t></w:r></w:p><w:p><w:r><w:t xml:space="preserve">${nonCompeteText}`,
+      `Non-Disparagement.${closeParagraphAndInsert(nonCompeteText, corpFmt.pPr, corpFmt.rPr)}`,
       false
     );
   }
 
   return xml;
+}
+
+// ─── Formatted Paragraph Builder ─────────────────────────────────────
+
+/**
+ * Extract paragraph and run formatting properties from a reference paragraph
+ * in the XML. Returns the pPr and rPr XML strings to use for new paragraphs.
+ */
+function extractFormatting(xml: string, nearText: string): { pPr: string; rPr: string } {
+  const idx = xml.indexOf(nearText);
+  if (idx < 0) return { pPr: "", rPr: "" };
+
+  const pStart = xml.lastIndexOf("<w:p", idx);
+  const pEnd = xml.indexOf("</w:p>", idx);
+  if (pStart < 0 || pEnd < 0) return { pPr: "", rPr: "" };
+
+  const para = xml.substring(pStart, pEnd);
+
+  // Extract <w:pPr>...</w:pPr>
+  const pPrMatch = para.match(/<w:pPr>[\s\S]*?<\/w:pPr>/);
+  const pPr = pPrMatch ? pPrMatch[0] : "";
+
+  // Extract <w:rPr>...</w:rPr> from the first run
+  const rPrMatch = para.match(/<w:r[^>]*>[\s\S]*?(<w:rPr>[\s\S]*?<\/w:rPr>)/);
+  const rPr = rPrMatch ? rPrMatch[1] : "";
+
+  return { pPr, rPr };
+}
+
+/**
+ * Build a properly formatted paragraph XML string that matches
+ * the template's existing style (font size, indentation, justification).
+ */
+function buildFormattedParagraph(text: string, pPr: string, rPr: string): string {
+  return `<w:p>${pPr}<w:r>${rPr}<w:t xml:space="preserve">${text}</w:t></w:r></w:p>`;
+}
+
+/**
+ * Build a formatted paragraph and return it as a string to insert
+ * after closing the current paragraph's text element.
+ * Usage: xmlTextReplace(xml, "anchor text", "anchor text" + closeParagraphAndInsert(newText, pPr, rPr))
+ */
+function closeParagraphAndInsert(text: string, pPr: string, rPr: string): string {
+  return `</w:t></w:r></w:p>${buildFormattedParagraph(text, pPr, rPr)}<w:p><w:r><w:t xml:space="preserve">`;
 }
 
 // ─── XML Utility Functions ───────────────────────────────────────────
