@@ -597,6 +597,26 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
       `eligible to vote.  1.7 Super Majority. Shareholders collectively holding greater than ${supText} of the Percentage Interests of all the Shareholders eligible to vote.`,
       false
     );
+    // Renumber subsequent sections: 1.7 Officers → 1.8, 1.8 → 1.9, etc.
+    // The Corp template has 1.7 Officers, 1.8 Percentage Interest, etc.
+    // Find "1.7" that's the Officers heading (in a <w:t> near "Officers")
+    const offIdx = xml.indexOf("Officers");
+    if (offIdx >= 0) {
+      const before = xml.substring(0, offIdx);
+      const last17 = before.lastIndexOf(">1.7<");
+      if (last17 >= 0 && (offIdx - last17) < 300) {
+        xml = before.substring(0, last17) + ">1.8<" + before.substring(last17 + 5) + xml.substring(offIdx);
+        // Also renumber 1.8 Percentage Interest → 1.9, etc.
+        const piIdx = xml.indexOf("Percentage Interest");
+        if (piIdx >= 0) {
+          const before2 = xml.substring(0, piIdx);
+          const last18 = before2.lastIndexOf(">1.8<");
+          if (last18 >= 0 && (piIdx - last18) < 300) {
+            xml = before2.substring(0, last18) + ">1.9<" + before2.substring(last18 + 5) + xml.substring(piIdx);
+          }
+        }
+      }
+    }
   }
 
   // Fix #30: Replace hardcoded ownership percentages in signature section
@@ -815,14 +835,22 @@ function removeCorpConditionalSections(
       `(iii) solicit or induce, or in any manner attempt to solicit or induce, any person employed by the Corporation to leave such employment, whether or not such employment is pursuant to a written contract with the Corporation or is at-will. ` +
       `The Shareholder's obligations under this paragraph shall survive any expiration or termination of this Agreement. As used herein, the term "Territory" means ${answers.noncompete_scope ? answers.noncompete_scope : "anywhere in the United States where the Corporation has Customers"}. As used herein, the term "Customers" means all Persons that have conducted business with the Corporation during the three (3) year period immediately prior to any termination or expiration of this Agreement.`;
 
-    // Insert after 10.9 Non-Disparagement section with matching formatting
-    const corpFmt = extractFormatting(xml, "Non-Disparagement.");
-    xml = xmlTextReplace(
-      xml,
-      "Non-Disparagement.",
-      `Non-Disparagement.${closeParagraphAndInsert(nonCompeteText, corpFmt.pPr, corpFmt.rPr)}`,
-      false
-    );
+    // Insert after 10.9 Non-Disparagement section
+    // The Corp template splits "Non-Disparagemen" + "t" across XML runs.
+    // Use "10.9" as anchor since it's in a single <w:t> element.
+    const corpFmt = extractFormatting(xml, "10.9");
+    const corpPPr = corpFmt.pPr || '<w:pPr><w:jc w:val="both"/><w:rPr><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:pPr>';
+    const corpRPr = corpFmt.rPr || '<w:rPr><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr>';
+    // Find the paragraph containing 10.9 and insert the non-compete after it
+    const sec109Idx = xml.indexOf(">10.9<");
+    if (sec109Idx >= 0) {
+      const pEnd = xml.indexOf("</w:p>", sec109Idx);
+      if (pEnd >= 0) {
+        const insertPoint = pEnd + 6;
+        const ncParagraph = buildFormattedParagraph(nonCompeteText, corpPPr, corpRPr);
+        xml = xml.substring(0, insertPoint) + ncParagraph + xml.substring(insertPoint);
+      }
+    }
   }
 
   return xml;
