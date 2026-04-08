@@ -154,14 +154,9 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
     data[`member_${num}_pct`] = `${answers.owners_list[i].shares_or_percentage}`;
   }
 
-  // Fix preamble for 3+ owners: "by A and B" → "by A, B, and C"
-  if (answers.owners_list.length > 2) {
-    const allNames = answers.owners_list.map((o) => o.full_name);
-    const preambleNames =
-      allNames.slice(0, -1).join(", ") + ", and " + allNames[allNames.length - 1];
-    data["member_01_full_name"] = preambleNames;
-    data["member_02_full_name"] = ""; // Clear the "and member_02" — it's now in member_01
-  }
+  // For 3+ owners, keep member_01 and member_02 as individual names
+  // (used in capital table, MPI table, signatures).
+  // The preamble "by A and B" will be fixed via post-processing.
 
   doc.render(data);
 
@@ -205,8 +200,26 @@ function addExtraLLCMembers(
 ): string {
   const extraOwners = answers.owners_list.slice(2); // members 3, 4, 5, 6
 
+  // Fix preamble: "by Ana Perfecta and Bruno Perfecto" → "by Ana Perfecta, Bruno Perfecto, and Carmen Perfecta"
+  const owner1 = answers.owners_list[0]?.full_name || "";
+  const owner2 = answers.owners_list[1]?.full_name || "";
+  if (owner1 && owner2) {
+    const allNames = answers.owners_list.map((o) => o.full_name);
+    const preambleNames = allNames.length === 2
+      ? `${allNames[0]} and ${allNames[1]}`
+      : allNames.slice(0, -1).join(", ") + ", and " + allNames[allNames.length - 1];
+    // The template renders "by {{member_01_full_name}} and {{member_02_full_name}}"
+    // After docxtemplater, it becomes "by Ana Perfecta and Bruno Perfecto"
+    xml = xmlTextReplace(
+      xml,
+      `${owner1} and ${owner2}`,
+      preambleNames,
+      false // only replace the first occurrence (preamble)
+    );
+  }
+
   // Extract formatting from the capital contributions section
-  const capFmt = extractFormatting(xml, "member_02_amount") || extractFormatting(xml, "$");
+  const capFmt = extractFormatting(xml, answers.owners_list[1]?.full_name || "$");
   const sigFmt = extractFormatting(xml, "Owner of the Company");
 
   // Build text lines for capital contributions (Sec 5.1)
@@ -357,8 +370,12 @@ function applyLLCVotingReplacements(
   }
 
   // Replace majority threshold percentage in Sec 19.7
-  if (answers.majority_threshold && answers.majority_threshold !== 50) {
-    xml = xmlTextReplace(xml, "50.1%", `${answers.majority_threshold}.1%`);
+  // Template has "50.1%" — replace with user's threshold (e.g., "50.01%")
+  if (answers.majority_threshold) {
+    const majPct = typeof answers.majority_threshold === 'number'
+      ? answers.majority_threshold.toFixed(2).replace(/\.?0+$/, '')
+      : String(answers.majority_threshold);
+    xml = xmlTextReplace(xml, "50.1%", `${majPct}%`, true);
   }
 
   // Add Super Majority definition for LLC (between Sec 19.7 and 19.8)
@@ -387,6 +404,16 @@ function applyLLCVotingReplacements(
     const threshold = formatCurrency(answers.major_spending_threshold);
     // The LLC template has $5,000.00 in multiple sub-items of Sec 11.4
     xml = xmlTextReplace(xml, "$5,000.00", `$${threshold}`, true);
+  }
+
+  // Replace ROFR offer period (Sec 12.1) — template has "30 calendar days"
+  if (answers.rofr_offer_period && answers.rofr_offer_period !== 30) {
+    xml = xmlTextReplace(
+      xml,
+      "30 calendar days of receiving the Proposal",
+      `${answers.rofr_offer_period} calendar days of receiving the Proposal`,
+      false
+    );
   }
 
   return xml;
@@ -454,14 +481,27 @@ function removeLLCConditionalSections(
       `(iii) solicit or induce, or in any manner attempt to solicit or induce, any person employed by the Company to leave such employment, whether or not such employment is pursuant to a written contract with the Company or is at-will. ` +
       `The Member's obligations under this paragraph shall survive any expiration or termination of this Agreement. As used herein, the term "Territory" means ${answers.noncompete_scope ? answers.noncompete_scope : "anywhere in the United States where the Company has Customers"}. As used herein, the term "Customers" means all Persons that have conducted business with the Company during the three (3) year period immediately prior to any termination or expiration of this Agreement. Notwithstanding the foregoing, the Members shall be permitted to provide services for others provided that such services are in compliance with this Section.`;
 
-    // Insert after "Intellectual Property" section with matching formatting
-    const llcFmt = extractFormatting(xml, "Intellectual Property");
-    xml = xmlTextReplace(
-      xml,
-      "Intellectual Property",
-      `Intellectual Property${closeParagraphAndInsert(nonCompeteText, llcFmt.pPr, llcFmt.rPr)}`,
-      false
-    );
+    // Insert BEFORE Non-Disparagement (11.12) and renumber it to 11.13
+    // In the XML, "11.12" and "Non-Disparagement" are in separate <w:t> runs.
+    // Strategy: find the <w:t> containing "11.12" that's closest before "Non-Disparagement"
+    const llcFmt = extractFormatting(xml, "Non-Disparagement");
+    const ndIdx = xml.indexOf("Non-Disparagement");
+    if (ndIdx >= 0) {
+      // Find "11.12" in a <w:t> tag closest to (before) Non-Disparagement
+      // Search backwards from Non-Disparagement position
+      const beforeND = xml.substring(0, ndIdx);
+      const lastT = beforeND.lastIndexOf(">11.12<");
+      if (lastT >= 0) {
+        // Replace this specific "11.12" with "11.13"
+        xml = beforeND.substring(0, lastT) + ">11.13<" + beforeND.substring(lastT + 7) + xml.substring(ndIdx);
+
+        // Now insert the non-compete paragraph BEFORE the paragraph containing 11.13/Non-Disparagement
+        const p13Idx = xml.indexOf("11.13");
+        const pStart = xml.lastIndexOf("<w:p", p13Idx);
+        const ncParagraph = buildFormattedParagraph(nonCompeteText, llcFmt.pPr, llcFmt.rPr);
+        xml = xml.substring(0, pStart) + ncParagraph + xml.substring(pStart);
+      }
+    }
   }
 
   // Non-disparagement removal is not needed (always included per template)
