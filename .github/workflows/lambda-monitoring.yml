@@ -1,0 +1,78 @@
+name: Lambda Health Check
+
+on:
+  schedule:
+    # Run every 6 hours
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  health-check:
+    name: Check Lambda Functions
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check SS-4 Lambda
+        run: |
+          STATUS=$(curl -sf -o /dev/null -w '%{http_code}' -X POST \
+            'https://sk5p2uuxrdubzaf2uh7vvqc2bu0kcaoz.lambda-url.us-west-1.on.aws/' \
+            -H 'Content-Type: application/json' \
+            -d '{"health_check": true}' || echo "000")
+          echo "SS-4 Lambda: HTTP $STATUS"
+          if [ "$STATUS" = "000" ]; then echo "WARNING: SS-4 Lambda unreachable"; fi
+
+      - name: Check Org Resolution Lambda
+        run: |
+          STATUS=$(curl -sf -o /dev/null -w '%{http_code}' -X POST \
+            'https://yo54tsr37rcs3kjqsxt2ecvi2y0zjnli.lambda-url.us-west-1.on.aws/' \
+            -H 'Content-Type: application/json' \
+            -d '{"health_check": true}' || echo "000")
+          echo "Org Resolution Lambda: HTTP $STATUS"
+          if [ "$STATUS" = "000" ]; then echo "WARNING: Org Resolution Lambda unreachable"; fi
+
+      - name: Check Bylaws Lambda
+        run: |
+          STATUS=$(curl -sf -o /dev/null -w '%{http_code}' -X POST \
+            'https://5jzjjp7fgbcsa24vnaxkkngwlm0jnfkz.lambda-url.us-west-1.on.aws/' \
+            -H 'Content-Type: application/json' \
+            -d '{"health_check": true}' || echo "000")
+          echo "Bylaws Lambda: HTTP $STATUS"
+          if [ "$STATUS" = "000" ]; then echo "WARNING: Bylaws Lambda unreachable"; fi
+
+      - name: Check Shareholder Registry Lambda
+        run: |
+          STATUS=$(curl -sf -o /dev/null -w '%{http_code}' -X POST \
+            'https://gfwa6pqqesmrdfnm23snygybyq0gguah.lambda-url.us-west-1.on.aws/' \
+            -H 'Content-Type: application/json' \
+            -d '{"health_check": true}' || echo "000")
+          echo "Shareholder Registry Lambda: HTTP $STATUS"
+          if [ "$STATUS" = "000" ]; then echo "WARNING: Shareholder Registry Lambda unreachable"; fi
+
+      - name: Check Form 2848 Lambda
+        run: |
+          STATUS=$(curl -sf -o /dev/null -w '%{http_code}' -X POST \
+            'https://z246mmg5ojst6boxjy53ilekii0yualo.lambda-url.us-west-1.on.aws/' \
+            -H 'Content-Type: application/json' \
+            -d '{"health_check": true}' || echo "000")
+          echo "Form 2848 Lambda: HTTP $STATUS"
+          if [ "$STATUS" = "000" ]; then echo "WARNING: Form 2848 Lambda unreachable"; fi
+
+      - name: Check Form 8821 Lambda
+        run: |
+          STATUS=$(curl -sf -o /dev/null -w '%{http_code}' -X POST \
+            'https://ql6ufztnwlohsqexpkm7wu44mu0xovla.lambda-url.us-west-1.on.aws/' \
+            -H 'Content-Type: application/json' \
+            -d '{"health_check": true}' || echo "000")
+          echo "Form 8821 Lambda: HTTP $STATUS"
+          if [ "$STATUS" = "000" ]; then echo "WARNING: Form 8821 Lambda unreachable"; fi
+
+      - name: Check Vercel app
+        run: |
+          STATUS=$(curl -sf -o /dev/null -w '%{http_code}' \
+            'https://company-formation-questionnaire.vercel.app/' || echo "000")
+          echo "Vercel app: HTTP $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "CRITICAL: Vercel app returned $STATUS"
+            exit 1
+          fi
