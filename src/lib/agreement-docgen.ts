@@ -760,25 +760,25 @@ function removeCorpConditionalSections(
     xml = removeXmlParagraphsContaining(xml, ["Tag Along"]);
   }
 
-  // Non-compete: Insert Sec 10.8 when non-compete=Yes
-  // The Corp template may not have this section — add it via post-processing.
+  // Non-compete: Insert Sec 10.10 after Non-Disparagement (10.9) when non-compete=Yes
+  // Template already has 10.8 Non-Disclosure and 10.9 Non-Disparagement.
   // Text provided by attorney Antonio Regojo.
   if (answers.include_noncompete) {
     const duration = answers.noncompete_duration || 2;
     const durationWord = numberToWords(duration).toUpperCase();
     const nonCompeteText =
-      `10.8 Nondisclosure and Non competition. ` +
-      `(a) Covenant Against Competition. During the term of this Agreement and for ${durationWord} (${duration}) years following termination as a Shareholder, Officer and/or employee of the Corporation (the "Restrictive Period"), no Shareholder shall directly or indirectly, individually or on behalf of any Person other than the Corporation or any affiliate or subsidiary of the Corporation: ` +
+      `10.10 Covenant Against Competition. ` +
+      `During the term of this Agreement and for ${durationWord} (${duration}) years following termination as a Shareholder, Officer and/or employee of the Corporation (the "Restrictive Period"), no Shareholder shall directly or indirectly, individually or on behalf of any Person other than the Corporation or any affiliate or subsidiary of the Corporation: ` +
       `(i) solicit any Customers of the Corporation for the purpose of selling to them products or services competitive with the products or services sold by the Corporation; ` +
       `(ii) provide directly or indirectly products, services, or assist anyone to provide the products or services of the type provided by the Corporation during the term of this Agreement, to any Person (other than the Corporation) which is then engaged within the Territory in a business similar to the Corporation's Business; or ` +
       `(iii) solicit or induce, or in any manner attempt to solicit or induce, any person employed by the Corporation to leave such employment, whether or not such employment is pursuant to a written contract with the Corporation or is at-will. ` +
       `The Shareholder's obligations under this paragraph shall survive any expiration or termination of this Agreement. As used herein, the term "Territory" means ${answers.noncompete_scope ? answers.noncompete_scope : "anywhere in the United States where the Corporation has Customers"}. As used herein, the term "Customers" means all Persons that have conducted business with the Corporation during the three (3) year period immediately prior to any termination or expiration of this Agreement.`;
 
-    // Insert before the signature/witness section — look for "IN WITNESS WHEREOF"
+    // Insert after 10.9 Non-Disparagement section
     xml = xmlTextReplace(
       xml,
-      "IN WITNESS WHEREOF",
-      `${nonCompeteText}</w:t></w:r></w:p><w:p><w:r><w:t xml:space="preserve">IN WITNESS WHEREOF`,
+      "Non-Disparagement.",
+      `Non-Disparagement.</w:t></w:r></w:p><w:p><w:r><w:t xml:space="preserve">${nonCompeteText}`,
       false
     );
   }
