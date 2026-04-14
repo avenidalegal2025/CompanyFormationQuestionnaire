@@ -575,6 +575,10 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
     xml = addExtraCorpShareholders(xml, answers, totalShares);
   }
 
+  // Clean up unused shareholder slots (template has 3 slots)
+  // For companies with fewer than 3 shareholders, remove empty rows and signature blocks
+  xml = cleanupEmptyCorpShareholders(xml, answers.owners_list.length);
+
   // Voting text replacements
   xml = applyCorpVotingReplacements(xml, answers);
 
@@ -639,6 +643,90 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     })
   );
+}
+
+// ─── Corp Cleanup Empty Shareholders ─────────────────────────────────
+
+/**
+ * Remove empty shareholder rows from the capital table and signature block.
+ * The Corp template has 3 hardcoded shareholder slots. If there are fewer
+ * than 3 owners, the unused slots render as empty rows ("$", "%") in the
+ * capital table and empty signature blocks ("Name: [blank]", "12.5% Owner").
+ */
+function cleanupEmptyCorpShareholders(xml: string, ownerCount: number): string {
+  if (ownerCount >= 3) return xml; // All 3 slots used
+
+  // Remove empty capital table rows by finding <w:tr> that contain "$" and "%"
+  // but no actual shareholder name. We look for table rows where the first cell
+  // (name) is empty.
+  // Strategy: find all paragraphs, assemble per-row text, remove empty rows.
+
+  // Simpler: remove paragraphs containing just "$" or just "%" that are in table cells
+  // The empty row renders as: [empty] | [empty] | $ | %
+  // In the assembled text this shows as "$%" between two shareholder rows
+
+  // Remove the 3rd signature block: "By: ___" + "Name: [empty]" + "12.5% Owner"
+  if (ownerCount < 3) {
+    // Remove "12.5% Owner" paragraph
+    xml = removeXmlParagraphsContaining(xml, ["12.5% Owner"]);
+
+    // Find and remove the "By: ______" and "Name:   " paragraphs for the empty 3rd slot.
+    // These are the LAST occurrence of "By: ______" and the empty "Name:" before "CORPORATION"
+    const corpIdx = xml.indexOf("CORPORATION");
+    if (corpIdx >= 0) {
+      // Work backwards from "CORPORATION" to find the empty signature block
+      const beforeCorp = xml.substring(0, corpIdx);
+
+      // Find last "By:" paragraph before CORPORATION that has no name after it
+      // The pattern is: By: ___ </w:p> <w:p> Name: </w:p> (empty name)
+      // Remove the last By: + Name: pair before CORPORATION
+      const lastByIdx = beforeCorp.lastIndexOf("By: ______");
+      if (lastByIdx >= 0) {
+        // Find the paragraph start for this "By:"
+        const byPStart = xml.lastIndexOf("<w:p", lastByIdx);
+        // Find the next paragraph after "By:" which should be "Name: [empty]"
+        const byPEnd = xml.indexOf("</w:p>", lastByIdx);
+        const nameStart = xml.indexOf("<w:p", byPEnd);
+        const namePEnd = xml.indexOf("</w:p>", nameStart);
+
+        // Check if this Name paragraph is empty (just "Name:" with whitespace)
+        const namePara = xml.substring(nameStart, namePEnd + 6);
+        const nameTexts = (namePara.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+          .map((t: string) => t.replace(/<[^>]+>/g, "")).join("").trim();
+
+        if (nameTexts.startsWith("Name:") && nameTexts.replace("Name:", "").trim() === "") {
+          // Remove both paragraphs (By: + empty Name:)
+          xml = xml.substring(0, byPStart) + xml.substring(namePEnd + 6);
+        }
+      }
+    }
+  }
+
+  // Remove empty capital table row
+  // Find table rows where all cells are empty or just contain "$" / "%"
+  // The empty row in assembled text is just "$%" between valid rows
+  // In XML: it's a <w:tr> with cells containing no text or just "$" / "%"
+  const trRegex = /<w:tr\b[^>]*>[\s\S]*?<\/w:tr>/g;
+  let match;
+  const rowsToRemove: string[] = [];
+  while ((match = trRegex.exec(xml)) !== null) {
+    const row = match[0];
+    const rowTexts = (row.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+      .map((t: string) => t.replace(/<[^>]+>/g, "")).join("").trim();
+    // Empty row: just "$" and/or "%" with no actual name/data
+    if (rowTexts === "$%" || rowTexts === "$" || rowTexts === "%" || rowTexts === "") {
+      // But only remove if it's in the capital contributions table (has exactly 4 cells)
+      const cellCount = (row.match(/<w:tc\b/g) || []).length;
+      if (cellCount === 4) {
+        rowsToRemove.push(row);
+      }
+    }
+  }
+  for (const row of rowsToRemove) {
+    xml = xml.replace(row, "");
+  }
+
+  return xml;
 }
 
 // ─── Corp Extra Shareholders (4-6 owners) ───────────────────────────
