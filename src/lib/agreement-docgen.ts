@@ -154,6 +154,7 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
     data[`member_${num}_pct`] = `${answers.owners_list[i].shares_or_percentage}`;
   }
 
+
   // For 3+ owners, keep member_01 and member_02 as individual names
   // (used in capital table, MPI table, signatures).
   // The preamble "by A and B" will be fixed via post-processing.
@@ -173,6 +174,19 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
   xml = applyLLCVotingReplacements(xml, answers);
   xml = applyLLCBankAccountText(xml, answers);
   xml = removeLLCConditionalSections(xml, answers);
+
+  // Remove % from signature lines — "60% Owner of the Company" → "Owner of the Company"
+  for (const owner of answers.owners_list) {
+    xml = xmlTextReplace(
+      xml,
+      `${owner.shares_or_percentage}% Owner of the Company`,
+      "Owner of the Company",
+      false
+    );
+  }
+
+  // Add keepNext to all section headings to prevent page breaks between heading and body
+  xml = addKeepNextToHeadings(xml);
 
   renderedZip.file("word/document.xml", xml);
 
@@ -249,14 +263,14 @@ function addExtraLLCMembers(
   }
 
   // Build signature blocks for extra members with matching formatting
-  const lastMember2Sig = `${answers.owners_list[1]?.shares_or_percentage || 0}% Owner of the Company`;
+  const lastMember2Sig = `Owner of the Company`;
   const extraSigBlocks = extraOwners
     .map(
       (owner) =>
         `</w:t></w:r></w:p>` +
         buildFormattedParagraph(`By: __________________________`, sigFmt.pPr, sigFmt.rPr) +
         buildFormattedParagraph(`Name: ${owner.full_name}`, sigFmt.pPr, sigFmt.rPr) +
-        buildFormattedParagraph(`${owner.shares_or_percentage}% Owner of the Company`, sigFmt.pPr, sigFmt.rPr) +
+        buildFormattedParagraph(`Owner of the Company`, sigFmt.pPr, sigFmt.rPr) +
         `<w:p><w:r><w:t xml:space="preserve">`
     )
     .join("");
@@ -575,6 +589,21 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
     xml = addExtraCorpShareholders(xml, answers, totalShares);
   }
 
+  // Fix #30: Replace hardcoded ownership percentages in signature section
+  // IMPORTANT: Must run BEFORE cleanupEmptyCorpShareholders, because cleanup
+  // removes "12.5% Owner" paragraphs. If cleanup runs first, owner 2's
+  // percentage replacement ("12.5% Owner" -> "45.00% Owner") would fail
+  // because the target text was already removed.
+  answers.owners_list.forEach((owner, i) => {
+    const pct = owner.shares_or_percentage;
+    const actualPct = ((Math.round((pct / 100) * totalShares) / totalShares) * 100).toFixed(2);
+    const hardcodedPcts = ["75%", "12.5%", "12.5%"];
+    if (i < hardcodedPcts.length) {
+      // Replace only the first remaining occurrence
+      xml = xmlTextReplace(xml, hardcodedPcts[i] + " Owner", "Owner", false);
+    }
+  });
+
   // Clean up unused shareholder slots (template has 3 slots)
   // For companies with fewer than 3 shareholders, remove empty rows and signature blocks
   xml = cleanupEmptyCorpShareholders(xml, answers.owners_list.length);
@@ -623,16 +652,8 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
     }
   }
 
-  // Fix #30: Replace hardcoded ownership percentages in signature section
-  answers.owners_list.forEach((owner, i) => {
-    const pct = owner.shares_or_percentage;
-    const actualPct = ((Math.round((pct / 100) * totalShares) / totalShares) * 100).toFixed(2);
-    const hardcodedPcts = ["75%", "12.5%", "12.5%"];
-    if (i < hardcodedPcts.length) {
-      // Replace only the first remaining occurrence
-      xml = xmlTextReplace(xml, hardcodedPcts[i] + " Owner", actualPct + "% Owner", false);
-    }
-  });
+  // Add keepNext to all section headings to prevent page breaks between heading and body
+  xml = addKeepNextToHeadings(xml);
 
   renderedZip.file("word/document.xml", xml);
 
@@ -672,7 +693,10 @@ function cleanupEmptyCorpShareholders(xml: string, ownerCount: number): string {
 
     // Find and remove the "By: ______" and "Name:   " paragraphs for the empty 3rd slot.
     // These are the LAST occurrence of "By: ______" and the empty "Name:" before "CORPORATION"
-    const corpIdx = xml.indexOf("CORPORATION");
+    // Use lastIndexOf to find the CORPORATION in the signature block (not in article headings)
+    const corpIdx = xml.lastIndexOf('"CORPORATION"') >= 0
+      ? xml.lastIndexOf('"CORPORATION"')
+      : xml.lastIndexOf("CORPORATION");
     if (corpIdx >= 0) {
       // Work backwards from "CORPORATION" to find the empty signature block
       const beforeCorp = xml.substring(0, corpIdx);
@@ -772,7 +796,7 @@ function addExtraCorpShareholders(
         return `</w:t></w:r></w:p>` +
           buildFormattedParagraph(`By: ______________________`, corpSigFmt.pPr, corpSigFmt.rPr) +
           buildFormattedParagraph(`Name:   ${owner.full_name}`, corpSigFmt.pPr, corpSigFmt.rPr) +
-          buildFormattedParagraph(`${pct}% Owner`, corpSigFmt.pPr, corpSigFmt.rPr) +
+          buildFormattedParagraph(`Owner`, corpSigFmt.pPr, corpSigFmt.rPr) +
           `<w:p><w:r><w:t xml:space="preserve">`;
       })
       .join("");
@@ -942,6 +966,47 @@ function removeCorpConditionalSections(
   }
 
   return xml;
+}
+
+// ─── Keep Next (prevent orphaned headings) ───────────────────────────
+
+/**
+ * Add w:keepNext to all section heading paragraphs so they don't get
+ * separated from the following body text by a page break.
+ *
+ * Matches:
+ * - LLC: "1.  Formation", "5.   Capital Contributions", "19.   Miscellaneous"
+ * - Corp: "ARTICLE I: DEFINITIONS", "1.1Act.", "10.5Board of Directors"
+ * - Sub-sections: "5.1The initial...", "11.4Notwithstanding..."
+ */
+function addKeepNextToHeadings(xml: string): string {
+  // Find all <w:p> elements and check if their text starts with a section number
+  return xml.replace(/<w:p([ >][\s\S]*?)<\/w:p>/g, (fullMatch, inner) => {
+    // Extract text from this paragraph
+    const texts = (fullMatch.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+      .map((t: string) => t.replace(/<[^>]+>/g, "")).join("").trim();
+
+    // Check if this is a heading:
+    // "5.   Capital Contributions" or "ARTICLE I" or "11.4Notwithstanding"
+    const isHeading =
+      /^\d+\.\s{2,}[A-Z]/.test(texts) ||       // "5.   Capital Contributions"
+      /^ARTICLE\s+[IVXLC]/i.test(texts) ||      // "ARTICLE I: DEFINITIONS"
+      /^\d+\.\d+\s*[A-Z][a-z]/.test(texts);     // "5.1The initial..." (sub-section start)
+
+    if (!isHeading) return fullMatch;
+
+    // Already has keepNext?
+    if (fullMatch.includes("w:keepNext")) return fullMatch;
+
+    // Add keepNext to pPr (or create pPr if missing)
+    if (fullMatch.includes("<w:pPr>")) {
+      // Insert keepNext inside existing pPr (after the opening tag)
+      return fullMatch.replace("<w:pPr>", "<w:pPr><w:keepNext/>");
+    } else {
+      // Create pPr with keepNext
+      return fullMatch.replace("<w:p>", "<w:p><w:pPr><w:keepNext/></w:pPr>");
+    }
+  });
 }
 
 // ─── Formatted Paragraph Builder ─────────────────────────────────────
