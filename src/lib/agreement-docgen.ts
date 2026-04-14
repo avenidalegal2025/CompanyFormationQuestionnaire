@@ -187,6 +187,7 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
 
   // Add keepNext to all section headings to prevent page breaks between heading and body
   xml = addKeepNextToHeadings(xml);
+  xml = normalizeSubItemTabs(xml);
 
   renderedZip.file("word/document.xml", xml);
 
@@ -654,6 +655,7 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
 
   // Add keepNext to all section headings to prevent page breaks between heading and body
   xml = addKeepNextToHeadings(xml);
+  xml = normalizeSubItemTabs(xml);
 
   renderedZip.file("word/document.xml", xml);
 
@@ -966,6 +968,56 @@ function removeCorpConditionalSections(
   }
 
   return xml;
+}
+
+// ─── Tab Normalization ───────────────────────────────────────────────
+
+/**
+ * Normalize tab stops for sub-items to ensure consistent indentation:
+ * - (i), (ii), (iii) roman numeral items → left indent 1440 twips (1 inch)
+ * - A., B., C. lettered items → left indent 720 twips (0.5 inch)
+ *
+ * The attorney's templates have inconsistent indentation on these items.
+ * This normalizes them all to use the same tab positions.
+ */
+function normalizeSubItemTabs(xml: string): string {
+  return xml.replace(/<w:p([ >][\s\S]*?)<\/w:p>/g, (fullMatch, inner) => {
+    const texts = (fullMatch.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+      .map((t: string) => t.replace(/<[^>]+>/g, "")).join("").trim();
+
+    // Check if this is a roman numeral sub-item: (i), (ii), (iii), (iv), (v), (vi)
+    const isRoman = /^\((?:i{1,3}|iv|v|vi)\)\s*/.test(texts);
+    // Check if this is a lettered sub-item: A., B., C.
+    const isLetter = /^[A-C]\.\s/.test(texts);
+
+    if (!isRoman && !isLetter) return fullMatch;
+
+    const targetLeft = isRoman ? "1440" : "720";  // 1 inch for romans, 0.5 inch for letters
+    const targetFirstLine = "0";
+
+    // If paragraph has pPr with ind, normalize it
+    if (fullMatch.includes("<w:pPr>")) {
+      // Replace or add w:ind within existing pPr
+      if (fullMatch.includes("<w:ind ")) {
+        return fullMatch.replace(
+          /<w:ind [^/]*\/>/,
+          `<w:ind w:left="${targetLeft}" w:firstLine="${targetFirstLine}"/>`
+        );
+      } else {
+        return fullMatch.replace(
+          "<w:pPr>",
+          `<w:pPr><w:ind w:left="${targetLeft}" w:firstLine="${targetFirstLine}"/>`
+        );
+      }
+    } else if (fullMatch.includes("<w:p>")) {
+      return fullMatch.replace(
+        "<w:p>",
+        `<w:p><w:pPr><w:ind w:left="${targetLeft}" w:firstLine="${targetFirstLine}"/></w:pPr>`
+      );
+    }
+
+    return fullMatch;
+  });
 }
 
 // ─── Keep Next (prevent orphaned headings) ───────────────────────────
