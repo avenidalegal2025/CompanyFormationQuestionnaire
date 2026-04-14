@@ -188,6 +188,7 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
   // Add keepNext to all section headings to prevent page breaks between heading and body
   xml = addKeepNextToHeadings(xml);
   xml = normalizeSubItemTabs(xml);
+  xml = repairXml(xml);
 
   renderedZip.file("word/document.xml", xml);
 
@@ -656,6 +657,7 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   // Add keepNext to all section headings to prevent page breaks between heading and body
   xml = addKeepNextToHeadings(xml);
   xml = normalizeSubItemTabs(xml);
+  xml = repairXml(xml);
 
   renderedZip.file("word/document.xml", xml);
 
@@ -1020,6 +1022,62 @@ function normalizeSubItemTabs(xml: string): string {
   });
 }
 
+// ─── XML Repair ─────────────────────────────────────────────────────
+
+/**
+ * Fix unclosed tags left by post-processing insertions.
+ */
+function repairXml(xml: string): string {
+  // Remove empty trailing reopened paragraphs: <w:p><w:r><w:t xml:space="preserve">
+  // followed by </w:t></w:r></w:p> or by the next paragraph/section
+  // These are left by closeParagraphAndInsert when there's no remaining text.
+
+  // Pattern: <w:p><w:r><w:t xml:space="preserve"></w:t></w:r></w:p> (completely empty)
+  xml = xml.replace(/<w:p><w:r><w:t xml:space="preserve"><\/w:t><\/w:r><\/w:p>/g, "");
+
+  // Pattern: trailing <w:p><w:r><w:t xml:space="preserve"> before </w:sectPr> or </w:body>
+  // These are unclosed — remove them entirely
+  xml = xml.replace(/<w:p><w:r><w:t xml:space="preserve">(\s*)<\/w:sectPr>/g, "</w:sectPr>");
+  xml = xml.replace(/<w:p><w:r><w:t xml:space="preserve">(\s*)<\/w:body>/g, "</w:body>");
+
+  // More aggressive: find any <w:p><w:r><w:t ...> that's immediately followed by
+  // another <w:p> (meaning the reopened paragraph has no content before the next paragraph starts)
+  xml = xml.replace(/<w:p><w:r><w:t xml:space="preserve"><\/w:t><\/w:r><\/w:p>/g, "");
+
+  // Handle case where the empty reopen is followed by a closing </w:p>
+  // which creates: ...content</w:p><w:p><w:r><w:t xml:space="preserve"></w:p>
+  // Remove the orphaned <w:p><w:r><w:t xml:space="preserve">
+  xml = xml.replace(/<w:p><w:r><w:t xml:space="preserve">(<\/w:p>)/g, "$1");
+
+  // Final safety: count and fix any remaining mismatches
+  // Process innermost first: w:t, then w:r, then w:p
+  for (const tag of ["w:t", "w:r", "w:p"]) {
+    const openCount = (xml.match(new RegExp(`<${tag}[ >]`, "g")) || []).length;
+    const closeCount = (xml.match(new RegExp(`</${tag}>`, "g")) || []).length;
+    if (openCount > closeCount) {
+      // Find the last unclosed tag and remove it (not add closing — that's fragile)
+      for (let i = 0; i < openCount - closeCount; i++) {
+        // Remove the last bare <w:p><w:r><w:t...> sequence before </w:body>
+        const bodyIdx = xml.lastIndexOf("</w:body>");
+        const lastOpen = xml.lastIndexOf(`<${tag}`, bodyIdx);
+        if (lastOpen >= 0) {
+          // Check if this tag has a matching close after it
+          const afterTag = xml.indexOf(">", lastOpen) + 1;
+          const nextClose = xml.indexOf(`</${tag}>`, afterTag);
+          const nextOpen = xml.indexOf(`<${tag}`, afterTag);
+          if (nextClose < 0 || (nextOpen >= 0 && nextOpen < nextClose)) {
+            // This tag is unclosed — remove it and its content up to the next tag
+            const endOfTag = xml.indexOf(">", lastOpen) + 1;
+            xml = xml.substring(0, lastOpen) + xml.substring(endOfTag);
+          }
+        }
+      }
+    }
+  }
+
+  return xml;
+}
+
 // ─── Keep Next (prevent orphaned headings) ───────────────────────────
 
 /**
@@ -1102,6 +1160,9 @@ function buildFormattedParagraph(text: string, pPr: string, rPr: string): string
  * Usage: xmlTextReplace(xml, "anchor text", "anchor text" + closeParagraphAndInsert(newText, pPr, rPr))
  */
 function closeParagraphAndInsert(text: string, pPr: string, rPr: string): string {
+  // Close current text/run/paragraph, insert new formatted paragraph,
+  // then reopen for remaining text. The repairXml function will clean up
+  // any unclosed tags if there's no remaining text.
   return `</w:t></w:r></w:p>${buildFormattedParagraph(text, pPr, rPr)}<w:p><w:r><w:t xml:space="preserve">`;
 }
 
