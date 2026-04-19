@@ -816,7 +816,7 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
       if (hasAgreement && formData?.agreement) {
         try {
           console.log(`📄 Generating filled ${entityType === 'LLC' ? 'Operating' : 'Shareholder'} Agreement...`);
-          const answers = mapFormToDocgenAnswers(formData);
+          const answers = await mapFormToDocgenAnswers(formData);
           const { buffer, filename } = await generateDocument(answers);
 
           const agreementFileName = formatCompanyFileName(

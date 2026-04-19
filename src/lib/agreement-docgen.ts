@@ -192,6 +192,9 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
 
   renderedZip.file("word/document.xml", xml);
 
+  // Force Times New Roman as the default font (template's styles.xml defaults to Arial)
+  forceTimesNewRomanFont(renderedZip);
+
   return Buffer.from(
     renderedZip.generate({
       type: "nodebuffer",
@@ -661,6 +664,9 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
 
   renderedZip.file("word/document.xml", xml);
 
+  // Force Times New Roman as the default font (template's styles.xml defaults to Arial)
+  forceTimesNewRomanFont(renderedZip);
+
   return Buffer.from(
     renderedZip.generate({
       type: "nodebuffer",
@@ -1076,6 +1082,37 @@ function repairXml(xml: string): string {
   }
 
   return xml;
+}
+
+// ─── Force Times New Roman (fix template Arial default) ───────────────
+
+/**
+ * The LLC and Corp templates have Arial set as the default font in
+ * word/styles.xml and word/theme/theme1.xml. Even though every run in
+ * document.xml has an explicit Times New Roman rFonts override, some
+ * renderers (notably WPS Office, Word Online in certain states, and any
+ * content we insert via post-processing that lacks explicit rFonts) fall
+ * back to the styles.xml / theme defaults and display Arial.
+ *
+ * Patch those fallback declarations so the default font IS Times New
+ * Roman. Georgia (used for a few heading styles) is preserved. This
+ * mutates the PizZip instance in place.
+ */
+function forceTimesNewRomanFont(zip: PizZip): void {
+  const targets = ["word/styles.xml", "word/theme/theme1.xml"];
+  for (const part of targets) {
+    const file = zip.file(part);
+    if (!file) continue;
+    let content = file.asText();
+    // rFonts attribute values — styles.xml uses this on every style's base font.
+    content = content.replace(/w:ascii="Arial"/g, 'w:ascii="Times New Roman"');
+    content = content.replace(/w:hAnsi="Arial"/g, 'w:hAnsi="Times New Roman"');
+    content = content.replace(/w:cs="Arial"/g, 'w:cs="Times New Roman"');
+    content = content.replace(/w:eastAsia="Arial"/g, 'w:eastAsia="Times New Roman"');
+    // theme1.xml uses a:latin / a:ea / a:cs with a typeface="..." attribute.
+    content = content.replace(/typeface="Arial"/g, 'typeface="Times New Roman"');
+    zip.file(part, content);
+  }
 }
 
 // ─── Keep Next (prevent orphaned headings) ───────────────────────────

@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 1. Map form fields to the docgen interface
-    const answers = mapFormToDocgenAnswers(formData);
+    const answers = await mapFormToDocgenAnswers(formData);
 
     if (!answers.entity_type || !answers.entity_name) {
       return NextResponse.json(

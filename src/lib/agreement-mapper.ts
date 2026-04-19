@@ -4,6 +4,7 @@
  */
 
 import type { QuestionnaireAnswers } from "./agreement-docgen";
+import { resolveCounty } from "./county-lookup";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type FormData = Record<string, any>;
@@ -143,8 +144,13 @@ function mapFamilyTransfer(val: string | undefined): string {
  * Main mapping function: converts the full form data object
  * (as stored by React Hook Form / AllStepsSchema)
  * to the QuestionnaireAnswers interface for document generation.
+ *
+ * Async because the county resolver may need to hit the Google Maps
+ * Geocoding API as a fallback when the city isn't in our local map.
  */
-export function mapFormToDocgenAnswers(data: FormData): QuestionnaireAnswers {
+export async function mapFormToDocgenAnswers(
+  data: FormData,
+): Promise<QuestionnaireAnswers> {
   const entityType = data.company?.entityType;
   const isCorp = entityType === "C-Corp" || entityType === "S-Corp";
   const agreement = data.agreement || {};
@@ -171,13 +177,36 @@ export function mapFormToDocgenAnswers(data: FormData): QuestionnaireAnswers {
     .filter(Boolean)
     .join(", ");
 
+  // Resolve county: prefer explicit questionnaire values, else derive from the
+  // company address using the same pipeline the SS-4 Lambda uses (local
+  // city→county map with Google Maps fallback). This fixes the
+  // "...shall be held in County, Florida..." template-placeholder bug when
+  // the user didn't manually enter a litigation county.
+  const explicitCounty =
+    agreement.litigationCounty || data.company?.litigationCounty || "";
+  const countyResolution = await resolveCounty({
+    airtableCounty: explicitCounty,
+    city: addr.city,
+    state: addr.state,
+    address: principalAddress,
+  });
+  if (!countyResolution.county) {
+    console.warn(
+      `[agreement-mapper] Could not resolve county for address "${principalAddress}" — template placeholders will be empty.`,
+    );
+  } else {
+    console.log(
+      `[agreement-mapper] County resolved to "${countyResolution.county}" (source: ${countyResolution.source})`,
+    );
+  }
+
   return {
     entity_type: isCorp ? "CORP" : "LLC",
     entity_name: entityName,
     state_of_formation: data.company?.formationState || "Florida",
     date_of_formation: new Date().toISOString(),
     principal_address: principalAddress,
-    county: agreement.litigationCounty || data.company?.litigationCounty || "",
+    county: countyResolution.county,
     business_purpose: data.company?.businessPurpose || "Any lawful purpose",
 
     // Owners
