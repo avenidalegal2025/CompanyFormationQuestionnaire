@@ -1,0 +1,237 @@
+name: (Reusable) Deploy a Python Lambda
+
+# Generic deploy pipeline for any of the document-generation Lambdas.
+# Called by per-Lambda trigger workflows (deploy-ss4-lambda.yml, etc.)
+# so we have one source of truth for the rebuild + smoke + version
+# + alias sequence.
+#
+# Context: On 2026-04-07 multiple Lambdas were overwritten with
+# source-only 5-30 KB zips (no deps) AND had their handler configs
+# drifted to 'lambda_function.lambda_handler' regardless of actual
+# source filename. Every generation silently 5xx'd for 12 days.
+# This workflow re-deploys with full deps, enforces the correct
+# handler, smoke-tests, and pins a 'prod' alias to the new version.
+
+on:
+  workflow_call:
+    inputs:
+      function_name:
+        description: "AWS Lambda function name"
+        type: string
+        required: true
+      source_file:
+        description: "Python source file under lambda-functions/"
+        type: string
+        required: true
+      target_filename:
+        description: "Filename inside the zip (usually 'lambda_function.py' for single-file handlers)"
+        type: string
+        required: true
+        default: lambda_function.py
+      handler:
+        description: "Lambda handler (e.g. 'lambda_function.lambda_handler')"
+        type: string
+        required: true
+      runtime:
+        description: "Lambda Python runtime (e.g. python3.9, python3.11)"
+        type: string
+        required: true
+      architecture:
+        description: "Lambda architecture (x86_64 | arm64)"
+        type: string
+        required: true
+        default: x86_64
+      deps:
+        description: "Space-separated pip deps (e.g. 'reportlab PyPDF2 typing_extensions')"
+        type: string
+        required: false
+        default: ""
+      stub_pil:
+        description: "Stub PIL to prevent Pillow binary-ext import errors (set true for reportlab)"
+        type: boolean
+        required: false
+        default: false
+      aws_region:
+        type: string
+        required: false
+        default: us-west-1
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python matching Lambda runtime
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.runtime == 'python3.9' && '3.9' || inputs.runtime == 'python3.11' && '3.11' || inputs.runtime == 'python3.12' && '3.12' || '3.11' }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ inputs.aws_region }}
+
+      - name: Build deployment package
+        run: |
+          set -e
+          mkdir -p build
+          cp "lambda-functions/${{ inputs.source_file }}" "build/${{ inputs.target_filename }}"
+          cd build
+          if [ -n "${{ inputs.deps }}" ]; then
+            PLATFORM_FLAG=""
+            if [ "${{ inputs.architecture }}" = "arm64" ]; then
+              PLATFORM_FLAG="--platform manylinux2014_aarch64"
+            else
+              PLATFORM_FLAG="--platform manylinux2014_x86_64"
+            fi
+            PY_VER="${{ inputs.runtime }}"
+            PY_VER="${PY_VER#python}"
+            # Try platform-pinned first (most reproducible for Lambda).
+            # Fall back to plain install if platform wheels aren't available
+            # for some pure-Python dep.
+            pip install --quiet --target . \
+                $PLATFORM_FLAG \
+                --python-version "$PY_VER" \
+                --only-binary=:all: \
+                --implementation cp \
+                ${{ inputs.deps }} || \
+            pip install --quiet --target . ${{ inputs.deps }}
+          fi
+          if [ "${{ inputs.stub_pil }}" = "true" ]; then
+            rm -rf PIL Pillow* pillow*
+            mkdir -p PIL
+            echo 'PIL_VERSION = "1.0.0"' > PIL/__init__.py
+            printf 'class Image:\n    pass\n' > PIL/Image.py
+          fi
+          find . -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true
+          echo "Package files:"
+          ls | head -20
+          echo "Package size:"
+          du -sh .
+
+      - name: Zip package
+        run: |
+          cd build
+          # Use python's zipfile for cross-platform reproducibility
+          python - <<'PY'
+          import zipfile, os
+          with zipfile.ZipFile('../lambda.zip', 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zf:
+              for root, dirs, files in os.walk('.'):
+                  for f in files:
+                      full = os.path.join(root, f)
+                      arc = os.path.relpath(full, '.')
+                      zf.write(full, arc)
+          print(f"zipped: {os.path.getsize('../lambda.zip')} bytes")
+          PY
+          ls -lh ../lambda.zip
+
+      - name: Sanity-check the zip
+        run: |
+          python - <<'PY'
+          import zipfile, sys
+          z = zipfile.ZipFile('lambda.zip')
+          names = z.namelist()
+          required = ['${{ inputs.target_filename }}']
+          # Depend-specific required paths
+          for dep in '${{ inputs.deps }}'.split():
+              hints = {
+                  'reportlab': 'reportlab/pdfgen/canvas.py',
+                  'PyPDF2': 'PyPDF2/__init__.py',
+                  'typing_extensions': 'typing_extensions.py',
+                  'docx': 'docx/__init__.py',
+                  'python-docx': 'docx/__init__.py',
+              }
+              if dep in hints:
+                  required.append(hints[dep])
+          missing = [n for n in required if n not in names]
+          if missing:
+              print('FAIL: missing from zip:', missing)
+              print('(first 20 names:', names[:20], ')')
+              sys.exit(1)
+          print(f'OK: {len(names)} files; all required paths present')
+          PY
+
+      - name: Update Lambda code
+        run: |
+          aws lambda update-function-code \
+            --function-name "${{ inputs.function_name }}" \
+            --zip-file "fileb://lambda.zip" \
+            --region "${{ inputs.aws_region }}" \
+            --output json \
+            --query "{CodeSize:CodeSize,LastModified:LastModified}"
+          aws lambda wait function-updated \
+            --function-name "${{ inputs.function_name }}" \
+            --region "${{ inputs.aws_region }}"
+
+      - name: Enforce correct handler config
+        # Defensive: if someone (or a prior broken deploy) changed the handler,
+        # reset it to the one we know matches target_filename. Idempotent.
+        run: |
+          aws lambda update-function-configuration \
+            --function-name "${{ inputs.function_name }}" \
+            --handler "${{ inputs.handler }}" \
+            --region "${{ inputs.aws_region }}" \
+            --output json \
+            --query "{Handler:Handler,LastUpdateStatus:LastUpdateStatus}"
+          aws lambda wait function-updated \
+            --function-name "${{ inputs.function_name }}" \
+            --region "${{ inputs.aws_region }}"
+
+      - name: Smoke test — invoke with empty payload
+        run: |
+          aws lambda invoke \
+            --function-name "${{ inputs.function_name }}" \
+            --region "${{ inputs.aws_region }}" \
+            --payload '{}' \
+            --cli-binary-format raw-in-base64-out \
+            response.json \
+            > invoke-meta.json
+          cat invoke-meta.json
+          echo "--- response body ---"
+          cat response.json
+          echo ""
+          if grep -q '"errorType"' response.json; then
+            echo "::error::Lambda threw an uncaught error on invoke — import or config problem"
+            cat response.json
+            exit 1
+          fi
+          if ! grep -q 'statusCode' response.json; then
+            echo "::error::Response is not a valid Lambda response (likely import crash)"
+            cat response.json
+            exit 1
+          fi
+          echo "OK: Lambda responds without import errors (400 for empty payload expected)"
+
+      - name: Publish + point 'prod' alias at the new version
+        run: |
+          VERSION=$(aws lambda publish-version \
+            --function-name "${{ inputs.function_name }}" \
+            --description "CI deploy from commit ${GITHUB_SHA::7}" \
+            --region "${{ inputs.aws_region }}" \
+            --query 'Version' --output text)
+          echo "Published version: $VERSION"
+          # Create alias if missing, else update
+          if aws lambda get-alias \
+              --function-name "${{ inputs.function_name }}" \
+              --name prod \
+              --region "${{ inputs.aws_region }}" >/dev/null 2>&1; then
+            aws lambda update-alias \
+              --function-name "${{ inputs.function_name }}" \
+              --name prod \
+              --function-version "$VERSION" \
+              --region "${{ inputs.aws_region }}" \
+              --query "{Name:Name,FunctionVersion:FunctionVersion}"
+          else
+            aws lambda create-alias \
+              --function-name "${{ inputs.function_name }}" \
+              --name prod \
+              --function-version "$VERSION" \
+              --description "Auto-created from CI" \
+              --region "${{ inputs.aws_region }}" \
+              --query "{Name:Name,FunctionVersion:FunctionVersion}"
+          fi

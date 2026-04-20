@@ -1,175 +1,24 @@
 name: Deploy SS-4 Lambda
 
-# Auto-redeploy the SS-4 Lambda whenever its source file changes on main.
-# Also available on manual dispatch.
-#
-# Context: On 2026-04-07 someone pushed a 28 KB zip to the Lambda with only
-# the .py source (no reportlab / PyPDF2 dependencies) AND the handler config
-# was set to 'lambda_function.lambda_handler' instead of
-# 'ss4_lambda_s3_complete.lambda_handler'. Every SS-4 generation silently
-# 502'd for 12 days before we caught it. This workflow rebuilds the full
-# package (source + deps + PIL stub) and re-deploys the correct handler
-# name in one atomic step, eliminating that drift.
-#
-# Required secrets:
-#   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY — credentials for llc-admin
-#     (or whichever IAM user has lambda:UpdateFunctionCode +
-#      lambda:UpdateFunctionConfiguration on ss4-lambda-s3-complete)
-
 on:
   push:
     branches: [main]
     paths:
       - 'lambda-functions/ss4_lambda_s3_complete.py'
-      - 'deploy_ss4_lambda.sh'
       - '.github/workflows/deploy-ss4-lambda.yml'
+      - '.github/workflows/deploy-lambda-reusable.yml'
   workflow_dispatch:
 
 jobs:
   deploy:
-    name: Rebuild and deploy SS-4 Lambda
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    env:
-      FUNCTION_NAME: ss4-lambda-s3-complete
-      HANDLER: ss4_lambda_s3_complete.lambda_handler
-      AWS_REGION: us-west-1
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python 3.9 (matches Lambda runtime)
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.9'
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Build deployment package
-        run: |
-          set -e
-          mkdir -p build
-          cp lambda-functions/ss4_lambda_s3_complete.py build/
-          cd build
-          # Install the exact dependency set the Lambda needs.
-          # reportlab: PDF generation
-          # PyPDF2: PDF manipulation (template merge)
-          # typing_extensions: PyPDF2 dep on 3.9
-          pip install --quiet --target . \
-              --platform manylinux2014_x86_64 \
-              --python-version 3.9 \
-              --only-binary=:all: \
-              --implementation cp \
-              reportlab PyPDF2 typing_extensions
-          # Pillow ships with reportlab but needs C extensions that break in Lambda.
-          # Stub it — we don't use image features.
-          rm -rf PIL Pillow* pillow*
-          mkdir -p PIL
-          echo 'PIL_VERSION = "1.0.0"' > PIL/__init__.py
-          printf 'class Image:\n    pass\n' > PIL/Image.py
-          # Remove cache + metadata noise that bloats the zip
-          find . -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true
-          echo "Package contents:"
-          ls
-          echo "Package size:"
-          du -sh .
-
-      - name: Zip package
-        run: |
-          cd build
-          zip -rq ../ss4-lambda.zip .
-          ls -lh ../ss4-lambda.zip
-
-      - name: Sanity-check the zip
-        run: |
-          python3 - <<'PY'
-          import zipfile, sys
-          z = zipfile.ZipFile('ss4-lambda.zip')
-          names = z.namelist()
-          required = [
-              'ss4_lambda_s3_complete.py',
-              'reportlab/pdfgen/canvas.py',
-              'PyPDF2/__init__.py',
-          ]
-          missing = [n for n in required if n not in names]
-          if missing:
-              sys.exit(f'FAIL: missing from zip: {missing}')
-          print(f'OK: {len(names)} files; all required paths present')
-          PY
-
-      - name: Update Lambda code
-        run: |
-          aws lambda update-function-code \
-            --function-name "$FUNCTION_NAME" \
-            --zip-file "fileb://ss4-lambda.zip" \
-            --region "$AWS_REGION" \
-            --output json \
-            --query "{CodeSize:CodeSize,LastModified:LastModified}"
-          aws lambda wait function-updated \
-            --function-name "$FUNCTION_NAME" \
-            --region "$AWS_REGION"
-
-      - name: Enforce correct handler config
-        # Defensive: if someone or a prior broken deploy changed the handler
-        # name, reset it to the file in the zip. Idempotent.
-        run: |
-          aws lambda update-function-configuration \
-            --function-name "$FUNCTION_NAME" \
-            --handler "$HANDLER" \
-            --region "$AWS_REGION" \
-            --output json \
-            --query "{Handler:Handler,LastUpdateStatus:LastUpdateStatus}"
-          aws lambda wait function-updated \
-            --function-name "$FUNCTION_NAME" \
-            --region "$AWS_REGION"
-
-      - name: Smoke test — invoke Lambda with empty payload
-        # A fixed Lambda returns 400 "Missing form_data" for an empty body.
-        # A broken Lambda 502s on import. We assert on the former.
-        run: |
-          aws lambda invoke \
-            --function-name "$FUNCTION_NAME" \
-            --region "$AWS_REGION" \
-            --payload '{}' \
-            --cli-binary-format raw-in-base64-out \
-            response.json \
-            > invoke-meta.json
-          cat invoke-meta.json
-          echo "--- response body ---"
-          cat response.json
-          echo ""
-          # Must be a handled 4xx response, not an import error.
-          if grep -q '"errorType"' response.json; then
-            echo "::error::Lambda threw an uncaught error on invoke — import or config problem"
-            cat response.json
-            exit 1
-          fi
-          if ! grep -q 'statusCode' response.json; then
-            echo "::error::Response does not look like a valid API Gateway response"
-            exit 1
-          fi
-          echo "OK: Lambda responds without import errors"
-
-      - name: Publish + point 'prod' alias at the new version
-        # Every green deploy produces a numbered version AND advances the
-        # 'prod' alias. Rolling back after a bad push is:
-        #   aws lambda update-alias --name prod --function-version <N-1>
-        run: |
-          VERSION=$(aws lambda publish-version \
-            --function-name "$FUNCTION_NAME" \
-            --description "CI deploy from commit ${GITHUB_SHA::7}" \
-            --region "$AWS_REGION" \
-            --query 'Version' --output text)
-          echo "Published version: $VERSION"
-          aws lambda update-alias \
-            --function-name "$FUNCTION_NAME" \
-            --name prod \
-            --function-version "$VERSION" \
-            --region "$AWS_REGION" \
-            --query "{Name:Name,FunctionVersion:FunctionVersion}"
+    uses: ./.github/workflows/deploy-lambda-reusable.yml
+    secrets: inherit
+    with:
+      function_name: ss4-lambda-s3-complete
+      source_file: ss4_lambda_s3_complete.py
+      target_filename: ss4_lambda_s3_complete.py
+      handler: ss4_lambda_s3_complete.lambda_handler
+      runtime: python3.9
+      architecture: x86_64
+      deps: "reportlab PyPDF2 typing_extensions"
+      stub_pil: true

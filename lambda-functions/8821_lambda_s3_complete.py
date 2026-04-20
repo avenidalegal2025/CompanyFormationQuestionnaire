@@ -1,6 +1,7 @@
 import os
 import json
 import tempfile
+from datetime import datetime
 from reportlab.pdfgen import canvas
 from PyPDF2 import PdfReader, PdfWriter
 import boto3
@@ -186,19 +187,22 @@ def create_overlay(data, path):
     
     # Tax authorization details - Section 3
     # Bug #12 fix: Use actual tax info from form data instead of hardcoded "N/A"
-    entity_type = form_data.get("entityType", "LLC")
+    # Note: `data` is the parameter of create_overlay(); earlier revisions of this
+    # block referenced `form_data` which only exists in lambda_handler, causing a
+    # NameError at invoke time (observed 2026-04-19).
+    entity_type = data.get("entityType", "LLC")
     is_llc = entity_type == "LLC"
     is_s_corp = entity_type == "S-Corp"
 
-    tax_info = form_data.get("authorizedType", "INCOME TAX")
+    tax_info = data.get("authorizedType", "INCOME TAX")
     if is_llc:
-        tax_form = form_data.get("authorizedForm", "1065")
+        tax_form = data.get("authorizedForm", "1065")
     elif is_s_corp:
-        tax_form = form_data.get("authorizedForm", "1120-S")
+        tax_form = data.get("authorizedForm", "1120-S")
     else:
-        tax_form = form_data.get("authorizedForm", "1120")
+        tax_form = data.get("authorizedForm", "1120")
 
-    payment_date = form_data.get("paymentDate", "")
+    payment_date = data.get("paymentDate", "")
     if payment_date:
         try:
             formation_year = payment_date[:4]
@@ -206,8 +210,8 @@ def create_overlay(data, path):
             formation_year = str(datetime.now().year)
     else:
         formation_year = str(datetime.now().year)
-    tax_years = form_data.get("authorizedYear", formation_year)
-    tax_matters = form_data.get("taxMatters", "EIN APPLICATION")
+    tax_years = data.get("authorizedYear", formation_year)
+    tax_matters = data.get("taxMatters", "EIN APPLICATION")
     
     # Page 1 - Fill form fields
     # Line 1: Taxpayer info

@@ -1,0 +1,24 @@
+name: Deploy 8821 Lambda
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'lambda-functions/8821_lambda_s3_complete.py'
+      - '.github/workflows/deploy-8821-lambda.yml'
+      - '.github/workflows/deploy-lambda-reusable.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/deploy-lambda-reusable.yml
+    secrets: inherit
+    with:
+      function_name: Fill8821Lambda-arm64
+      source_file: 8821_lambda_s3_complete.py
+      target_filename: lambda_function.py
+      handler: lambda_function.lambda_handler
+      runtime: python3.11
+      architecture: arm64
+      deps: "reportlab PyPDF2 typing_extensions"
+      stub_pil: true
