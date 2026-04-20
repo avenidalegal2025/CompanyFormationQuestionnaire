@@ -52,14 +52,35 @@ async function main() {
     },
   };
 
-  const answers = await mapFormToDocgenAnswers(formData);
-  console.log("entity_name:", answers.entity_name);
-  console.log("principal_address:", answers.principal_address);
-  console.log("county:", answers.county);
-  console.log("state_of_formation:", answers.state_of_formation);
+  // Case A: user provided a US address
+  const answersA = await mapFormToDocgenAnswers(formData);
+  console.log("\n--- Case A: user-provided address ---");
+  console.log("principal_address:", answersA.principal_address);
+  console.log("county:", answersA.county);
+  const okA = answersA.county === "MIAMI-DADE";
 
-  const countyOk = answers.county === "MIAMI-DADE";
-  console.log(countyOk ? "\nOK — county auto-resolved from address" : "\nFAIL — expected MIAMI-DADE");
-  process.exit(countyOk ? 0 : 1);
+  // Case B: user selected "No US address" (hasUsaAddress="No") — no city/state
+  const formDataB: any = {
+    ...formData,
+    company: {
+      entityType: "C-Corp",
+      companyNameBase: "PLAYWRIGHT QA",
+      entitySuffix: "Corp",
+      formationState: "Florida",
+      hasUsaAddress: "No",
+      numberOfShares: 5000,
+    },
+  };
+  const answersB = await mapFormToDocgenAnswers(formDataB);
+  console.log("\n--- Case B: no US address (Avenida Legal fallback) ---");
+  console.log("principal_address:", answersB.principal_address);
+  console.log("county:", answersB.county);
+  const okB =
+    answersB.county === "MIAMI-DADE" &&
+    answersB.principal_address === "12550 Biscayne Blvd Ste 110, North Miami, FL 33181";
+
+  const allOk = okA && okB;
+  console.log(`\n${allOk ? "ALL PASS" : "FAIL"} — A=${okA} B=${okB}`);
+  process.exit(allOk ? 0 : 1);
 }
 main().catch((err) => { console.error(err); process.exit(1); });

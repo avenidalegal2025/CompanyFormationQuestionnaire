@@ -165,9 +165,25 @@ export async function mapFormToDocgenAnswers(
     ? companyNameBase
     : `${companyNameBase} ${suffix}`.trim();
 
-  // Build address
+  // Build address — if the user said "No" to having a US address, substitute
+  // Avenida Legal's default address (same rule airtable.ts uses). This way
+  // the Agreement's "principal place of business" and the arbitration/mediation
+  // county always resolve to something real instead of a half-filled sentence
+  // like "The principal place of business shall be at  or such other place...".
   const addr = data.company || {};
-  const principalAddress = [
+  const noUsAddress =
+    addr.hasUsaAddress === "No" ||
+    addr.hasUsAddress === "No" ||
+    addr.hasUsaAddress === false ||
+    addr.hasUsAddress === false;
+  const AVENIDA_LEGAL_ADDRESS = {
+    line1: "12550 Biscayne Blvd Ste 110",
+    city: "North Miami",
+    state: "FL",
+    zip: "33181",
+    full: "12550 Biscayne Blvd Ste 110, North Miami, FL 33181",
+  };
+  const userAddress = [
     addr.addressLine1,
     addr.addressLine2,
     addr.city,
@@ -176,6 +192,18 @@ export async function mapFormToDocgenAnswers(
   ]
     .filter(Boolean)
     .join(", ");
+  const principalAddress = noUsAddress || !userAddress.trim()
+    ? AVENIDA_LEGAL_ADDRESS.full
+    : userAddress;
+
+  // For county resolution, use the matching city/state (user-provided or
+  // Avenida Legal's fallback — both need to flow through resolveCounty).
+  const resolverCity = noUsAddress || !addr.city
+    ? AVENIDA_LEGAL_ADDRESS.city
+    : addr.city;
+  const resolverState = noUsAddress || !addr.state
+    ? AVENIDA_LEGAL_ADDRESS.state
+    : addr.state;
 
   // Resolve county: prefer explicit questionnaire values, else derive from the
   // company address using the same pipeline the SS-4 Lambda uses (local
@@ -186,8 +214,8 @@ export async function mapFormToDocgenAnswers(
     agreement.litigationCounty || data.company?.litigationCounty || "";
   const countyResolution = await resolveCounty({
     airtableCounty: explicitCounty,
-    city: addr.city,
-    state: addr.state,
+    city: resolverCity,
+    state: resolverState,
     address: principalAddress,
   });
   if (!countyResolution.county) {
