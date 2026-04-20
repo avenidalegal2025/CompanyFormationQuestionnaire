@@ -506,9 +506,12 @@ async function main() {
     await clickToggle(page, 'Non solicitation', 'Sí');
     // Confidentiality: Sí
     await clickToggle(page, 'Confidentiality NDA', 'Sí');
-    // Spending threshold: $7,500
-    await setFormValue(page, 'agreement.corp_majorSpendingThreshold', '7500');
-    console.log('  Set spending threshold: $7,500');
+    // Spending threshold: $25,000 — same value the client entered in
+    // video1120173093 that produced "$225,000.00" in the generated doc
+    // (v2 TODO #13). This is the end-to-end regression test for the
+    // applyCorpVotingReplacements fallback-bug fix.
+    await setFormValue(page, 'agreement.corp_majorSpendingThreshold', '25000');
+    console.log('  Set spending threshold: $25,000 (v2 TODO #13 reproducer)');
 
     await page.evaluate(() => window.scrollTo(0, 0));
     await shot(page, 'step7_top');
