@@ -629,6 +629,40 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
     "",
   );
 
+  // ── Fix trailing commas in directors list (TODO #7, video-review bug) ──
+  // Template is `initial Directors shall be {{s1}}, {{s2}}, {{s3}}.`; when
+  // there are only 2 directors {{s3}} renders empty, producing
+  // "...Jane TestTwo, ." — strip the orphan comma.
+  // Also handle the 1-director case (", ,") same way.
+  xml = xmlTextReplace(xml, ", , .", ".", true);
+  xml = xmlTextReplace(xml, ", .", ".", true);
+  xml = xmlTextReplace(xml, ",  .", ".", true);
+
+  // ── Fix initial Officers list (TODO #7) ──
+  // Template has `The initial Officers shall be as set forth in Section 10.6
+  // below.` but Section 10.6 doesn't actually list them. Replace with an
+  // inline list of the officers the questionnaire collected.
+  if (answers.officers && answers.officers.length > 0) {
+    const officersList = answers.officers
+      .filter((o) => o && o.name)
+      .map((o) => (o.title ? `${o.name} (${o.title})` : o.name))
+      .join(", ");
+    if (officersList) {
+      xml = xmlTextReplace(
+        xml,
+        "The initial Officers shall be as set forth in Section 10.6 below.",
+        `The initial Officers shall be: ${officersList}.`,
+        false,
+      );
+    }
+  }
+
+  // ── Number the Article II sub-items (TODO #6b) ──
+  // Template captions "Articles", "Purpose", "Name", "Place of Business" have
+  // no sub-numbering. Prefix them with 2.1, 2.2, 2.3, 2.4 (they occur in this
+  // order between "ARTICLE II: INCORPORATION" and "ARTICLE III").
+  xml = prefixArticle2Subsections(xml);
+
   // Conditional section removal
   xml = removeCorpConditionalSections(xml, answers);
 
@@ -1092,6 +1126,64 @@ function repairXml(xml: string): string {
   }
 
   return xml;
+}
+
+// ─── Prefix Article II sub-items with 2.1 / 2.2 / 2.3 / 2.4 ───────────
+
+/**
+ * The Corp template has four sub-items under ARTICLE II: INCORPORATION —
+ * "Articles", "Purpose", "Name", "Place of Business" — each bolded but
+ * without a sub-number (no 2.1, 2.2, ...). Client review flagged this:
+ * every other article numbers its subsections, Article II doesn't.
+ *
+ * Each caption is its own <w:t> inside a paragraph. Target them by
+ * matching the exact caption text *between* ARTICLE II and ARTICLE III,
+ * and insert "2.1 ", "2.2 ", "2.3 ", "2.4 " prefixes into the first <w:t>
+ * of the caption run.
+ *
+ * Guardrails:
+ *   - Only touch the first four captions between ARTICLE II and ARTICLE III
+ *   - Do nothing if the caption already starts with "2." (idempotent)
+ *   - Leave other occurrences of "Name" / "Purpose" elsewhere untouched
+ */
+function prefixArticle2Subsections(xml: string): string {
+  const startIdx = xml.indexOf("ARTICLE II: INCORPORATION");
+  if (startIdx < 0) return xml;
+  const endIdx = xml.indexOf("ARTICLE III", startIdx + 20);
+  if (endIdx < 0) return xml;
+
+  const before = xml.substring(0, startIdx);
+  let block = xml.substring(startIdx, endIdx);
+  const after = xml.substring(endIdx);
+
+  const captions: Array<[string, string]> = [
+    ["Articles", "2.1 "],
+    ["Purpose", "2.2 "],
+    ["Name", "2.3 "],
+    ["Place of Business", "2.4 "],
+  ];
+
+  for (const [caption, prefix] of captions) {
+    // Match a <w:t ...>caption</w:t> (exact text) — only the first occurrence
+    // inside this block. Skip if already prefixed with "2.".
+    const tagRe = new RegExp(
+      `(<w:t[^>]*>)(${caption.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")})(</w:t>)`,
+    );
+    const m = tagRe.exec(block);
+    if (!m) continue;
+    // Idempotency: check the content before the match isn't already "2.x "
+    const lookbehind = block.substring(Math.max(0, m.index - 60), m.index);
+    if (/2\.\d\s*$/.test(lookbehind)) continue;
+    block =
+      block.substring(0, m.index) +
+      m[1] +
+      prefix +
+      m[2] +
+      m[3] +
+      block.substring(m.index + m[0].length);
+  }
+
+  return before + block + after;
 }
 
 // ─── Force Times New Roman (fix template Arial default) ───────────────
