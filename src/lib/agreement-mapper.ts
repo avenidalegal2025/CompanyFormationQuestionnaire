@@ -325,8 +325,8 @@ export async function mapFormToDocgenAnswers(
       ? agreement.corp_rofr === "Yes"
       : agreement.llc_rofr === "Yes",
     rofr_offer_period: isCorp
-      ? agreement.corp_rofrOfferPeriod || 180
-      : agreement.llc_rofrOfferPeriod || 180,
+      ? agreement.corp_rofrOfferPeriod || 60
+      : agreement.llc_rofrOfferPeriod || 60,
     death_incapacity_forced_sale: isCorp
       ? agreement.corp_incapacityHeirsPolicy === "Yes"
       : agreement.llc_incapacityHeirsPolicy === "Yes",

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { Controller } from "react-hook-form";
 import HeroMiami3 from "@/components/HeroMiami3";
 import SegmentedToggle from "@/components/SegmentedToggle";
@@ -14,8 +15,42 @@ interface Step8Agreement3Props extends StepProps {
 }
 
 export default function Step8Agreement3({ form, setStep, onSave, onNext, session, anonymousId }: Step8Agreement3Props) {
-  const { register, watch, control, formState: { errors } } = form;
+  const { register, watch, control, setValue, formState: { errors } } = form;
   const isCorp = watch("company.entityType") === "C-Corp" || watch("company.entityType") === "S-Corp";
+
+  // TODO #1 + #2 (client video review): when the user enables non-compete,
+  // auto-fill duration (2 years) and geographic scope ("Estado de <formation state>")
+  // if they haven't typed anything. The fields stay editable — we just remove
+  // the burden of typing a sensible default the lawyer expects.
+  const corpNC = watch("agreement.corp_nonCompete");
+  const llcNC = watch("agreement.llc_nonCompete");
+  const formationState = watch("company.formationState") || "Florida";
+  const corpNCDuration = watch("agreement.corp_nonCompeteDuration");
+  const corpNCScope = watch("agreement.corp_nonCompeteScope");
+  const llcNCDuration = watch("agreement.llc_nonCompeteDuration");
+  const llcNCScope = watch("agreement.llc_nonCompeteScope");
+
+  useEffect(() => {
+    if (corpNC === "Yes") {
+      if (corpNCDuration === undefined || corpNCDuration === null) {
+        setValue("agreement.corp_nonCompeteDuration", 2, { shouldDirty: false });
+      }
+      if (!corpNCScope) {
+        setValue("agreement.corp_nonCompeteScope", `Estado de ${formationState}`, { shouldDirty: false });
+      }
+    }
+  }, [corpNC, formationState, corpNCDuration, corpNCScope, setValue]);
+
+  useEffect(() => {
+    if (llcNC === "Yes") {
+      if (llcNCDuration === undefined || llcNCDuration === null) {
+        setValue("agreement.llc_nonCompeteDuration", 2, { shouldDirty: false });
+      }
+      if (!llcNCScope) {
+        setValue("agreement.llc_nonCompeteScope", `Estado de ${formationState}`, { shouldDirty: false });
+      }
+    }
+  }, [llcNC, formationState, llcNCDuration, llcNCScope, setValue]);
 
   const isInputInvalid = () => false;
 
@@ -156,7 +191,10 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                 {watch("agreement.corp_nonCompete") === "Yes" && (
                   <>
                     <div className="mt-3 md:col-span-2 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
-                      <label className="label">Duración de no competencia (años después de salir)</label>
+                      <label className="label flex items-center gap-2">
+                        Duración de no competencia (años después de salir)
+                        <InfoTooltip title="Duración" body="Período de tiempo tras dejar la compañía durante el cual el accionista no podrá competir directamente. Los tribunales de Florida suelen considerar razonables plazos de 2 años; plazos más largos pueden ser difíciles de hacer cumplir." />
+                      </label>
                       <div className="md:col-start-2 md:justify-self-end">
                         <div className="flex items-center gap-2">
                           <input type="number" min="1" max="5" className="input w-24"
@@ -166,7 +204,10 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                       </div>
                     </div>
                     <div className="mt-3 md:col-span-2 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
-                      <label className="label">Alcance geográfico de la no competencia</label>
+                      <label className="label flex items-center gap-2">
+                        Alcance geográfico de la no competencia
+                        <InfoTooltip title="Alcance geográfico" body="Territorio donde se aplicará la restricción. Por defecto usamos el estado de formación. Un alcance más amplio (e.g., EE.UU. completo) es más difícil de defender ante un tribunal." />
+                      </label>
                       <div className="md:col-start-2 md:justify-self-end">
                         <input type="text" className="input w-full" placeholder="ej. Estado de Florida"
                           {...register("agreement.corp_nonCompeteScope")} />
@@ -340,7 +381,10 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                 {watch("agreement.llc_nonCompete") === "Yes" && (
                   <>
                     <div className="mt-3 md:col-span-2 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
-                      <label className="label">Duración de no competencia (años después de salir)</label>
+                      <label className="label flex items-center gap-2">
+                        Duración de no competencia (años después de salir)
+                        <InfoTooltip title="Duración" body="Período de tiempo tras dejar la compañía durante el cual el miembro no podrá competir directamente. Los tribunales de Florida suelen considerar razonables plazos de 2 años; plazos más largos pueden ser difíciles de hacer cumplir." />
+                      </label>
                       <div className="md:col-start-2 md:justify-self-end">
                         <div className="flex items-center gap-2">
                           <input type="number" min="1" max="5" className="input w-24"
@@ -350,7 +394,10 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                       </div>
                     </div>
                     <div className="mt-3 md:col-span-2 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
-                      <label className="label">Alcance geográfico de la no competencia</label>
+                      <label className="label flex items-center gap-2">
+                        Alcance geográfico de la no competencia
+                        <InfoTooltip title="Alcance geográfico" body="Territorio donde se aplicará la restricción. Por defecto usamos el estado de formación. Un alcance más amplio (e.g., EE.UU. completo) es más difícil de defender ante un tribunal." />
+                      </label>
                       <div className="md:col-start-2 md:justify-self-end">
                         <input type="text" className="input w-full" placeholder="ej. Estado de Florida"
                           {...register("agreement.llc_nonCompeteScope")} />

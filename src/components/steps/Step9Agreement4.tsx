@@ -71,7 +71,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                     </label>
                     <div className="mt-3 md:mt-0 md:justify-self-end">
                       <div className="flex items-center gap-2">
-                        <input type="number" min="1" className="input w-24" defaultValue={180}
+                        <input type="number" min="1" className="input w-24" defaultValue={60}
                           {...register("agreement.corp_rofrOfferPeriod", { valueAsNumber: true })} />
                         <span className="text-sm text-gray-500">días</span>
                       </div>
@@ -229,7 +229,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                     </label>
                     <div className="mt-3 md:mt-0 md:justify-self-end">
                       <div className="flex items-center gap-2">
-                        <input type="number" min="1" className="input w-24" defaultValue={180}
+                        <input type="number" min="1" className="input w-24" defaultValue={60}
                           {...register("agreement.llc_rofrOfferPeriod", { valueAsNumber: true })} />
                         <span className="text-sm text-gray-500">días</span>
                       </div>
