@@ -57,7 +57,7 @@ async function main() {
   console.log("\n--- Case A: user-provided address ---");
   console.log("principal_address:", answersA.principal_address);
   console.log("county:", answersA.county);
-  const okA = answersA.county === "MIAMI-DADE";
+  const okA = answersA.county === "Miami-Dade";
 
   // Case B: user selected "No US address" (hasUsaAddress="No") — no city/state
   const formDataB: any = {
@@ -76,7 +76,7 @@ async function main() {
   console.log("principal_address:", answersB.principal_address);
   console.log("county:", answersB.county);
   const okB =
-    answersB.county === "MIAMI-DADE" &&
+    answersB.county === "Miami-Dade" &&
     answersB.principal_address === "12550 Biscayne Blvd Ste 110, North Miami, FL 33181";
 
   const allOk = okA && okB;

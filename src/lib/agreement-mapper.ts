@@ -6,6 +6,25 @@
 import type { QuestionnaireAnswers } from "./agreement-docgen";
 import { resolveCounty } from "./county-lookup";
 
+/**
+ * Convert an UPPER-CASE county name ("MIAMI-DADE", "PALM BEACH") to
+ * the mixed case the agreement template uses ("Miami-Dade", "Palm Beach").
+ * The SS-4 resolver returns uppercase because the IRS form demands it, but
+ * the Shareholder/Operating Agreement body text wants title case so the
+ * substituted county matches the template's hardcoded "Miami-Dade County"
+ * references stylistically.
+ */
+function toTitleCaseCounty(s: string): string {
+  if (!s) return s;
+  return s
+    .toLowerCase()
+    .split(/(\s+|-)/) // preserve spaces AND hyphens as separators
+    .map((part) => (part.length > 0 && /[a-z]/.test(part[0])
+      ? part[0].toUpperCase() + part.slice(1)
+      : part))
+    .join("");
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type FormData = Record<string, any>;
 
@@ -234,7 +253,7 @@ export async function mapFormToDocgenAnswers(
     state_of_formation: data.company?.formationState || "Florida",
     date_of_formation: new Date().toISOString(),
     principal_address: principalAddress,
-    county: countyResolution.county,
+    county: toTitleCaseCounty(countyResolution.county),
     business_purpose: data.company?.businessPurpose || "Any lawful purpose",
 
     // Owners
