@@ -193,6 +193,9 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
   // either field populated.
   xml = injectResponsibilitiesSection(xml, answers.owners_list, /*isCorp=*/false);
 
+  // Remove [SIGNATURE PAGE BELOW] dangling heading (v2 TODO #17)
+  xml = removeSignaturePageBelowHeading(xml);
+
   // Remove % from signature lines — "60% Owner of the Company" → "Owner of the Company"
   for (const owner of answers.owners_list) {
     xml = xmlTextReplace(
@@ -202,6 +205,10 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
       false
     );
   }
+
+  // Rewrite "Owner of the Company" under each Name with owner.title (or
+  // remove it if no title was set) — v2 TODO #16.
+  xml = rewriteSignatureOwnerLabel(xml, answers.owners_list);
 
   // Add keepNext to all section headings to prevent page breaks between heading and body
   xml = addKeepNextToHeadings(xml);
@@ -631,6 +638,9 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   // For companies with fewer than 3 shareholders, remove empty rows and signature blocks
   xml = cleanupEmptyCorpShareholders(xml, answers.owners_list.length);
 
+  // Rewrite signature "Owner" label with owner.title (or remove it) — TODO #16
+  xml = rewriteSignatureOwnerLabel(xml, answers.owners_list);
+
   // Voting text replacements
   xml = applyCorpVotingReplacements(xml, answers);
 
@@ -686,6 +696,16 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   // order between "ARTICLE II: INCORPORATION" and "ARTICLE III").
   xml = prefixArticle2Subsections(xml);
 
+  // ── Shrink § 4.2 Capital Contributions table (v2 TODO #10) ──
+  xml = fixCapitalTableWidth(xml);
+
+  // ── Remove [SIGNATURE PAGE BELOW] dangling heading (v2 TODO #17) ──
+  xml = removeSignaturePageBelowHeading(xml);
+
+  // NOTE: fixSection92ListIndent is applied AFTER normalizeSubItemTabs
+  // below, otherwise normalizeSubItemTabs will overwrite its 720/hanging
+  // indent with the standard 1440 left indent for all romanette paragraphs.
+
   // Conditional section removal
   xml = removeCorpConditionalSections(xml, answers);
 
@@ -727,6 +747,10 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   // Add keepNext to all section headings to prevent page breaks between heading and body
   xml = addKeepNextToHeadings(xml);
   xml = normalizeSubItemTabs(xml);
+  // § 9.2 romanette list fix (v2 #11/#12) must run AFTER normalizeSubItemTabs:
+  // that pass resets <w:ind> on all romanette paragraphs to the standard
+  // 1440 / firstLine=0 layout, which would otherwise clobber our hanging-indent fix.
+  xml = fixSection92ListIndent(xml);
   xml = repairXml(xml);
 
   renderedZip.file("word/document.xml", xml);
@@ -950,12 +974,15 @@ function applyCorpVotingReplacements(
     xml = xmlTextReplace(xml, r.find, r.replace);
   }
 
-  // Major spending threshold
-  if (answers.major_spending_threshold) {
-    const threshold = formatCurrency(answers.major_spending_threshold);
-    xml = xmlTextReplace(xml, "$5,000.00", `$${threshold}`);
-    xml = xmlTextReplace(xml, "5,000.00", threshold);
-  }
+  // NOTE: spending threshold rendering is handled by the direct docxtemplater
+  // placeholder `${{major_spending_threshold}}` (see generateCorp's render
+  // payload). No post-processing needed here.
+  //
+  // A previous block tried `xmlTextReplace(xml, "5,000.00", threshold)` as a
+  // fallback, but the pattern "5,000.00" also matches inside any threshold
+  // ending in 5,000 (e.g. 25,000.00 / 35,000.00 / 45,000.00), producing
+  // compound substitutions like "$25,000.00" -> "$225,000.00" — the exact
+  // bug the client flagged in video1120173093 TODO #13.
 
   return xml;
 }
@@ -1209,6 +1236,227 @@ function prefixArticle2Subsections(xml: string): string {
   return before + block + after;
 }
 
+// ─── Signature block "Owner" label — replace with title or remove ─────
+
+/**
+ * The sig block for each owner currently renders as:
+ *   By: _____________
+ *   Name: <full name>
+ *   Owner[ of the Company]          ← the label we're rewriting
+ *
+ * Client video TODO #16 flags this label as noise. Replacement rule:
+ *   - If the owner filled in a title via Step 6 (Specific Responsibilities),
+ *     render that title in place of "Owner".
+ *   - Otherwise, remove the paragraph entirely (no dangling blank line).
+ *
+ * We find each "Name: <owner.full_name>" paragraph and then rewrite or
+ * remove the next paragraph, which (per the templates and our extra-sig
+ * builders) is always the "Owner" / "Owner of the Company" line.
+ */
+function rewriteSignatureOwnerLabel(
+  xml: string,
+  owners: Owner[],
+): string {
+  for (const owner of owners) {
+    if (!owner || !owner.full_name) continue;
+    const nameAnchor = `Name:`;
+    // Find the paragraph that contains both the nameAnchor and the
+    // owner's full name, then the very next <w:p> after it.
+    const pattern = new RegExp(
+      `(<w:p\\b[^>]*>[\\s\\S]*?Name:[\\s\\S]*?` +
+        owner.full_name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") +
+        `[\\s\\S]*?</w:p>)([\\s\\S]*?)` +
+        `(<w:p\\b[^>]*>[\\s\\S]*?</w:p>)`,
+    );
+    const m = xml.match(pattern);
+    if (!m) continue;
+    const nextPara = m[3];
+    const nextText = (nextPara.match(/<w:t[^>]*>[^<]*<\/w:t>/g) || [])
+      .map((t) => t.replace(/<[^>]+>/g, ""))
+      .join("")
+      .trim();
+    // Only touch if the next paragraph's text is the "Owner..." label.
+    if (!/^Owner(?:\s+of\s+the\s+Company)?$/i.test(nextText)) continue;
+
+    const title = (owner.title || "").trim();
+    if (title) {
+      // Swap "Owner..." text for the user-supplied title.
+      const rewritten = nextPara.replace(
+        /<w:t[^>]*>[^<]*<\/w:t>/,
+        `<w:t xml:space="preserve">${title}</w:t>`,
+      );
+      xml = xml.replace(pattern, `$1$2${rewritten}`);
+    } else {
+      // Remove the "Owner" paragraph entirely.
+      xml = xml.replace(pattern, `$1$2`);
+    }
+  }
+  return xml;
+}
+
+// ─── [SIGNATURE PAGE BELOW] heading — remove ──────────────────────────
+
+/**
+ * The Corp + LLC templates contain a centered bold paragraph reading
+ * "[SIGNATURE PAGE BELOW]" immediately before a page break. When the
+ * main content ends mid-page, this heading dangles on a mostly-blank
+ * page by itself before the actual signature page — client video
+ * TODO #17.
+ *
+ * Easiest clean fix: delete the "[SIGNATURE PAGE BELOW]" paragraph
+ * entirely. The page break right after it stays intact (so signatures
+ * still start on their own page), but there's no more dangling half-
+ * empty page with a stray heading.
+ */
+function removeSignaturePageBelowHeading(xml: string): string {
+  // Find any <w:p> whose text is exactly "[SIGNATURE PAGE BELOW]"
+  // (possibly with surrounding whitespace) and delete the whole <w:p>.
+  return xml.replace(/<w:p\b[^>]*>[\s\S]*?<\/w:p>/g, (para) => {
+    const paraText = (para.match(/<w:t[^>]*>[^<]*<\/w:t>/g) || [])
+      .map((t) => t.replace(/<[^>]+>/g, ""))
+      .join("")
+      .trim();
+    if (paraText === "[SIGNATURE PAGE BELOW]") return "";
+    return para;
+  });
+}
+
+// ─── § 9.2 Involuntary-Transfer romanette list — fix indent ────────────
+
+/**
+ * § 9.2 ("Involuntary Transfer") in the Corp template has its enumerated
+ * items (i)(ii)(iii)(iv) inside a paragraph whose <w:pPr> declares:
+ *   <w:ind w:left="1440" w:firstLine="0"/>
+ *   <w:tabs>
+ *     <w:tab w:val="left" w:pos="8640"/>  ← 6 inches from left margin
+ *     <w:tab w:val="left" w:pos="9360"/>  ← past page width
+ *     ... (continues to pos="17280")
+ *   </w:tabs>
+ *
+ * Each romanette marker is followed by a tab character. Word jumps to the
+ * first tab stop at 8640 twips, pushing the list text to the far right of
+ * the page and leaving a huge empty gap in the middle — client video
+ * TODOs #11 and #12. (The gap is so wide the list *looks* like a broken
+ * two-column layout.)
+ *
+ * Fix: replace the §9.2 paragraph's <w:tabs> with a single reasonable tab
+ * stop (1800 twips = 1.25"), and normalize its indent to a standard
+ * hanging-indent list format. Targeted at paragraphs whose text contains
+ * "(i)" or "court order" AND a left indent of 1440 — the signature of
+ * this specific offending section.
+ */
+function fixSection92ListIndent(xml: string): string {
+  // Any <w:p> that contains a romanette marker (`(i)`..`(vi)`) in its text
+  // AND has the broken 1440-twip left indent with wide tabs (>= 8000) gets
+  // its tabs collapsed to a single 1800-twip stop and its indent tightened
+  // to a standard hanging list (720 left / 360 hanging).
+  return xml.replace(/<w:p\b[^>]*>[\s\S]*?<\/w:p>/g, (para) => {
+    const paraText = (para.match(/<w:t[^>]*>[^<]*<\/w:t>/g) || [])
+      .map((t) => t.replace(/<[^>]+>/g, ""))
+      .join("");
+    if (!/\((?:i|ii|iii|iv|v|vi)\)/.test(paraText)) return para;
+
+    const hasBadIndent = /<w:ind\s+w:left="1440"/.test(para);
+    // Tabs can be written either with w:leader attribute or without, and
+    // with attributes in any order. Just check for any tab with pos >= 8000.
+    const hasBadTabs = /<w:tab\b[^/]*w:pos="(?:[89]\d{3}|1\d{4})"/.test(para);
+    if (!hasBadIndent || !hasBadTabs) return para;
+
+    let fixed = para;
+    fixed = fixed.replace(
+      /<w:tabs>[\s\S]*?<\/w:tabs>/,
+      '<w:tabs><w:tab w:val="left" w:pos="1800"/></w:tabs>',
+    );
+    fixed = fixed.replace(
+      /<w:ind\s+w:left="1440"\s+w:firstLine="0"\s*\/>/,
+      '<w:ind w:left="720" w:hanging="360"/>',
+    );
+    return fixed;
+  });
+}
+
+// ─── Capital Contributions Table — fix width overflow ─────────────────
+
+/**
+ * The Corp template's § 4.2 Initial Capital Contributions table ships with
+ *   <w:tblW w:w="10570" w:type="dxa"/>
+ *   <w:tblGrid>2826 + 2522 + 2606 + 2616 = 10570</w:tblGrid>
+ * which is ~7.34 inches. Page content width at US-Letter w/ 1" margins is
+ * only ~9360 twips (6.5"). Result: the table runs past the right margin
+ * and gets cut off when printed — client video TODO #10.
+ *
+ * Shrink the table to 9000 twips (6.25") proportionally:
+ *   Name 30%  Shares 20%  Capital 25%  Percentage 25%  = 2700+1800+2250+2250
+ */
+function fixCapitalTableWidth(xml: string): string {
+  const anchor = "Number of Shares";
+  const anchorIdx = xml.indexOf(anchor);
+  if (anchorIdx < 0) return xml;
+
+  const tblStart = xml.lastIndexOf("<w:tbl>", anchorIdx);
+  const tblEndExclusive = xml.indexOf("</w:tbl>", anchorIdx) + "</w:tbl>".length;
+  if (tblStart < 0 || tblEndExclusive <= tblStart) return xml;
+
+  let tbl = xml.substring(tblStart, tblEndExclusive);
+
+  // 1. Shrink total table width
+  tbl = tbl.replace(
+    /<w:tblW\s+w:w="[\d.]+"\s+w:type="dxa"\s*\/>/,
+    '<w:tblW w:w="9000" w:type="dxa"/>',
+  );
+
+  // 2. Ensure fixed layout (required so column widths are honored)
+  if (!/<w:tblLayout\s+w:type="fixed"\s*\/>/.test(tbl)) {
+    tbl = tbl.replace(
+      /(<w:tblPr>[\s\S]*?)(<\/w:tblPr>)/,
+      '$1<w:tblLayout w:type="fixed"/>$2',
+    );
+  }
+
+  // 3. Replace tblGrid with proportional 4-col grid summing to 9000.
+  //    Keep the <w:tblGridChange> sibling (tracks history) intact.
+  const newGridCols =
+    '<w:gridCol w:w="2700"/>' + // Name
+    '<w:gridCol w:w="1800"/>' + // Shares
+    '<w:gridCol w:w="2250"/>' + // Capital
+    '<w:gridCol w:w="2250"/>';  // Percentage
+  tbl = tbl.replace(
+    /(<w:tblGrid>)(?:<w:gridCol[^/]*\/>)+(<w:tblGridChange[\s\S]*?<\/w:tblGridChange>)?/,
+    `$1${newGridCols}$2`,
+  );
+
+  // 4. Rewrite every row's cell widths (<w:tcW>) to match the new grid.
+  //    Corp template has some cells with tcW and some without; normalize
+  //    by ensuring each row's cells get the right tcW in order.
+  tbl = tbl.replace(/<w:tr\b[\s\S]*?<\/w:tr>/g, (row) => {
+    const widths = [2700, 1800, 2250, 2250];
+    let colIdx = 0;
+    return row.replace(/<w:tc\b[\s\S]*?<\/w:tc>/g, (cell) => {
+      const w = widths[colIdx++] ?? 2250;
+      // If the cell has a tcPr with tcW, replace it. Otherwise insert one.
+      if (/<w:tcW\b[^/]*\/>/.test(cell)) {
+        return cell.replace(
+          /<w:tcW\b[^/]*\/>/,
+          `<w:tcW w:w="${w}" w:type="dxa"/>`,
+        );
+      }
+      if (/<w:tcPr>/.test(cell)) {
+        return cell.replace(
+          /(<w:tcPr>)/,
+          `$1<w:tcW w:w="${w}" w:type="dxa"/>`,
+        );
+      }
+      // No tcPr at all — inject one as the first child of <w:tc>
+      return cell.replace(
+        /(<w:tc\b[^>]*>)/,
+        `$1<w:tcPr><w:tcW w:w="${w}" w:type="dxa"/></w:tcPr>`,
+      );
+    });
+  });
+
+  return xml.substring(0, tblStart) + tbl + xml.substring(tblEndExclusive);
+}
+
 // ─── Force Times New Roman (fix template Arial default) ───────────────
 
 /**
@@ -1224,18 +1472,32 @@ function prefixArticle2Subsections(xml: string): string {
  * mutates the PizZip instance in place.
  */
 function forceTimesNewRomanFont(zip: PizZip): void {
-  const targets = ["word/styles.xml", "word/theme/theme1.xml"];
+  // Fonts we explicitly want to keep as-is. Symbol is needed for bullets;
+  // Courier New is used (rarely) for monospace blocks and shouldn't be
+  // coerced to TNR. Everything else gets normalized.
+  const preserve = new Set(["Times New Roman", "Symbol", "Courier New", "Wingdings"]);
+
+  const targets = ["word/styles.xml", "word/theme/theme1.xml", "word/document.xml"];
   for (const part of targets) {
     const file = zip.file(part);
     if (!file) continue;
     let content = file.asText();
-    // rFonts attribute values — styles.xml uses this on every style's base font.
-    content = content.replace(/w:ascii="Arial"/g, 'w:ascii="Times New Roman"');
-    content = content.replace(/w:hAnsi="Arial"/g, 'w:hAnsi="Times New Roman"');
-    content = content.replace(/w:cs="Arial"/g, 'w:cs="Times New Roman"');
-    content = content.replace(/w:eastAsia="Arial"/g, 'w:eastAsia="Times New Roman"');
-    // theme1.xml uses a:latin / a:ea / a:cs with a typeface="..." attribute.
-    content = content.replace(/typeface="Arial"/g, 'typeface="Times New Roman"');
+
+    // Normalize w:rFonts attributes (styles.xml + document.xml).
+    for (const axis of ["ascii", "hAnsi", "cs", "eastAsia"] as const) {
+      content = content.replace(
+        new RegExp(`w:${axis}="([^"]+)"`, "g"),
+        (_match, face) =>
+          preserve.has(face) ? _match : `w:${axis}="Times New Roman"`,
+      );
+    }
+
+    // theme1.xml uses <a:latin typeface="..."/> + <a:ea .../> + <a:cs .../>.
+    content = content.replace(
+      /typeface="([^"]+)"/g,
+      (m, face) => (preserve.has(face) ? m : 'typeface="Times New Roman"'),
+    );
+
     zip.file(part, content);
   }
 }

@@ -42,11 +42,24 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
     : undefined;
 
   // Track selected officer roles to prevent duplicates
-  const selectedRoles = Array.from({ length: officersCount || 0 }).map((_, idx) => 
+  const selectedRoles = Array.from({ length: officersCount || 0 }).map((_, idx) =>
     watch(`admin.officer${idx + 1}Role`) as string
   ).filter(role => role && role !== "");
 
   const availableRoles = ["President", "Vice-President", "Treasurer", "Secretary"];
+
+  // Reactive checks for the "Al menos uno debe ser presidente" warnings.
+  // Previously the warnings were rendered statically and persisted even
+  // after the user selected a President — client video TODO #1.
+  const ownerCount = (watch("ownersCount") as number) || 1;
+  const shareholderRoles = Array.from({ length: ownerCount }).map((_, idx) =>
+    watch(fp(`admin.shareholderOfficer${idx + 1}Role`)) as string,
+  );
+  const shareholdersHavePresident = shareholderRoles.some((r) => r === "President");
+  const officerRoles = Array.from({ length: officersCount || 0 }).map((_, idx) =>
+    watch(fp(`admin.officer${idx + 1}Role`)) as string,
+  );
+  const officersHavePresident = officerRoles.some((r) => r === "President");
 
   // Validation function to check if at least one president is selected (C‑Corp/S-Corp only)
   const validateOfficers = () => {
@@ -752,9 +765,16 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
               <>
                 <div className="mt-6">
                   <label className="label">Asignar roles a los accionistas</label>
-                  <p className="text-sm text-amber-600 font-medium mb-4">
-                    ⚠️ Al menos uno debe ser presidente
-                  </p>
+                  {!shareholdersHavePresident && (
+                    <p className="text-sm text-amber-600 font-medium mb-4">
+                      ⚠️ Al menos uno debe ser presidente
+                    </p>
+                  )}
+                  {shareholdersHavePresident && (
+                    <p className="text-sm text-green-600 font-medium mb-4">
+                      ✓ Presidente asignado
+                    </p>
+                  )}
                   
                   {Array.from({ length: watch("ownersCount") || 1 }).map((_, idx) => {
                     // Get owner name - try firstName + lastName first, then fullName, then fallback
@@ -842,9 +862,16 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
                       value: 1,
                     })}
                   />
-                  <p className="help">
-                    Debe elegir al menos un oficial con el rol de Presidente.
-                  </p>
+                  {!officersHavePresident && (
+                    <p className="help text-amber-600 font-medium">
+                      ⚠️ Debe elegir al menos un oficial con el rol de Presidente.
+                    </p>
+                  )}
+                  {officersHavePresident && (
+                    <p className="help text-green-600 font-medium">
+                      ✓ Presidente asignado
+                    </p>
+                  )}
                 </div>
 
                 {Array.from({ length: officersCount || 0 }).map((_, idx) => (
