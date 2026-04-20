@@ -619,11 +619,15 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   // Bank account text (additional replacements beyond the template var)
   xml = applyCorpBankAccountText(xml, answers);
 
-  // Template bug: the principal-place-of-business sentence has a literal
-  // "{{principal_address}}th " in the template (stray "th" between the
-  // placeholder and the following word). Rendered output comes out as
-  // "...at <address>th or such other place...". Strip it.
-  xml = xmlTextReplace(xml, "th or such other place", " or such other place", true);
+  // Template bug: after {{principal_address}} the template has a stray
+  // superscripted "th" run (left over from when that placeholder was a date).
+  // It renders as "...FL 33181ᵗʰ or such other place...". The "th" lives in
+  // its own <w:r> marked <w:vertAlign w:val="superscript"/>, so a text-level
+  // replace can't span it. Remove the whole run outright.
+  xml = xml.replace(
+    /<w:r\b[^>]*>(?:(?!<\/w:r>)[\s\S])*?<w:vertAlign\s+w:val="superscript"\s*\/>(?:(?!<\/w:r>)[\s\S])*?<w:t[^>]*>th<\/w:t>[\s\S]*?<\/w:r>/g,
+    "",
+  );
 
   // Conditional section removal
   xml = removeCorpConditionalSections(xml, answers);

@@ -110,12 +110,17 @@ console.log(`  Bare "County, Florida" (should be 0): ${bareCounty.length}`);
 console.log(`  "Miami-Dade County" mentions (should be >0): ${miamiDadeMentions.length}`);
 console.log(`  Principal-place sentence: "${principalPlace.substring(0, 200)}"`);
 
+const hasThArtifact = /33181th|Florida\s+33181\s*th\b/i.test(texts) || /\bth\s+or\s+such\s+other\s+place\b/i.test(texts);
+
+console.log(`  'th' artifact in principal-place sentence: ${hasThArtifact}  ${hasThArtifact ? '✗ FAIL' : '✓ PASS'}`);
+
 const pass =
   fontCounts.stylesArial === 0 &&
   fontCounts.themeArial === 0 &&
   fontCounts.docArial === 0 &&
   bareCounty.length === 0 &&
-  miamiDadeMentions.length > 0;
+  miamiDadeMentions.length > 0 &&
+  !hasThArtifact;
 
 console.log(`\n=== VERDICT: ${pass ? 'PASS' : 'FAIL'} ===`);
 process.exit(pass ? 0 : 1);
