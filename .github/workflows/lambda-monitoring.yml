@@ -13,59 +13,47 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      - name: Check SS-4 Lambda
+      # Reusable function: $1=name, $2=url, fails the job on non-2xx/3xx or total unreachability.
+      #
+      # Prior version only alerted on HTTP 000 (unreachable) — SS-4 Lambda returned
+      # 502 for 12 days (2026-04-07 to 2026-04-19) and was never flagged because
+      # 502 != 000. New logic fails on any 5xx and treats 4xx as warning.
+      - name: Check all Lambdas
         run: |
-          STATUS=$(curl -sf -o /dev/null -w '%{http_code}' -X POST \
-            'https://sk5p2uuxrdubzaf2uh7vvqc2bu0kcaoz.lambda-url.us-west-1.on.aws/' \
-            -H 'Content-Type: application/json' \
-            -d '{"health_check": true}' || echo "000")
-          echo "SS-4 Lambda: HTTP $STATUS"
-          if [ "$STATUS" = "000" ]; then echo "WARNING: SS-4 Lambda unreachable"; fi
+          check_lambda() {
+            local name="$1"
+            local url="$2"
+            # Send a harmless health_check payload and capture the HTTP status.
+            local status
+            status=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+              "$url" \
+              -H 'Content-Type: application/json' \
+              -d '{"health_check": true}' \
+              --max-time 30 || echo "000")
+            echo "${name}: HTTP ${status}"
+            case "$status" in
+              000)  echo "::error title=${name}::Unreachable (HTTP 000)"; return 1 ;;
+              2*|3*) return 0 ;;
+              4*)  echo "::warning title=${name}::HTTP ${status} (client error — may be expected for bare health_check payload)"; return 0 ;;
+              5*)  echo "::error title=${name}::HTTP ${status} — SERVER ERROR, Lambda likely crashing on invoke"; return 1 ;;
+              *)   echo "::error title=${name}::Unexpected HTTP ${status}"; return 1 ;;
+            esac
+          }
 
-      - name: Check Org Resolution Lambda
-        run: |
-          STATUS=$(curl -sf -o /dev/null -w '%{http_code}' -X POST \
-            'https://yo54tsr37rcs3kjqsxt2ecvi2y0zjnli.lambda-url.us-west-1.on.aws/' \
-            -H 'Content-Type: application/json' \
-            -d '{"health_check": true}' || echo "000")
-          echo "Org Resolution Lambda: HTTP $STATUS"
-          if [ "$STATUS" = "000" ]; then echo "WARNING: Org Resolution Lambda unreachable"; fi
+          # Accumulate failures so every Lambda is probed even if one fails
+          fails=0
+          check_lambda "SS-4 Lambda"                 "https://sk5p2uuxrdubzaf2uh7vvqc2bu0kcaoz.lambda-url.us-west-1.on.aws/" || fails=$((fails+1))
+          check_lambda "Org Resolution Lambda"       "https://yo54tsr37rcs3kjqsxt2ecvi2y0zjnli.lambda-url.us-west-1.on.aws/" || fails=$((fails+1))
+          check_lambda "Bylaws Lambda"               "https://5jzjjp7fgbcsa24vnaxkkngwlm0jnfkz.lambda-url.us-west-1.on.aws/" || fails=$((fails+1))
+          check_lambda "Shareholder Registry Lambda" "https://gfwa6pqqesmrdfnm23snygybyq0gguah.lambda-url.us-west-1.on.aws/" || fails=$((fails+1))
+          check_lambda "Form 2848 Lambda"            "https://z246mmg5ojst6boxjy53ilekii0yualo.lambda-url.us-west-1.on.aws/" || fails=$((fails+1))
+          check_lambda "Form 8821 Lambda"            "https://ql6ufztnwlohsqexpkm7wu44mu0xovla.lambda-url.us-west-1.on.aws/" || fails=$((fails+1))
+          check_lambda "Membership Registry Lambda"  "https://rbkwy3w6jltg47gr5q7v543wci0mwxcw.lambda-url.us-west-1.on.aws/" || fails=$((fails+1))
 
-      - name: Check Bylaws Lambda
-        run: |
-          STATUS=$(curl -sf -o /dev/null -w '%{http_code}' -X POST \
-            'https://5jzjjp7fgbcsa24vnaxkkngwlm0jnfkz.lambda-url.us-west-1.on.aws/' \
-            -H 'Content-Type: application/json' \
-            -d '{"health_check": true}' || echo "000")
-          echo "Bylaws Lambda: HTTP $STATUS"
-          if [ "$STATUS" = "000" ]; then echo "WARNING: Bylaws Lambda unreachable"; fi
-
-      - name: Check Shareholder Registry Lambda
-        run: |
-          STATUS=$(curl -sf -o /dev/null -w '%{http_code}' -X POST \
-            'https://gfwa6pqqesmrdfnm23snygybyq0gguah.lambda-url.us-west-1.on.aws/' \
-            -H 'Content-Type: application/json' \
-            -d '{"health_check": true}' || echo "000")
-          echo "Shareholder Registry Lambda: HTTP $STATUS"
-          if [ "$STATUS" = "000" ]; then echo "WARNING: Shareholder Registry Lambda unreachable"; fi
-
-      - name: Check Form 2848 Lambda
-        run: |
-          STATUS=$(curl -sf -o /dev/null -w '%{http_code}' -X POST \
-            'https://z246mmg5ojst6boxjy53ilekii0yualo.lambda-url.us-west-1.on.aws/' \
-            -H 'Content-Type: application/json' \
-            -d '{"health_check": true}' || echo "000")
-          echo "Form 2848 Lambda: HTTP $STATUS"
-          if [ "$STATUS" = "000" ]; then echo "WARNING: Form 2848 Lambda unreachable"; fi
-
-      - name: Check Form 8821 Lambda
-        run: |
-          STATUS=$(curl -sf -o /dev/null -w '%{http_code}' -X POST \
-            'https://ql6ufztnwlohsqexpkm7wu44mu0xovla.lambda-url.us-west-1.on.aws/' \
-            -H 'Content-Type: application/json' \
-            -d '{"health_check": true}' || echo "000")
-          echo "Form 8821 Lambda: HTTP $STATUS"
-          if [ "$STATUS" = "000" ]; then echo "WARNING: Form 8821 Lambda unreachable"; fi
+          if [ "$fails" -gt 0 ]; then
+            echo "::error::${fails} lambda(s) failing health check"
+            exit 1
+          fi
 
       - name: Check Vercel app
         run: |
@@ -73,6 +61,6 @@ jobs:
             'https://company-formation-questionnaire.vercel.app/' || echo "000")
           echo "Vercel app: HTTP $STATUS"
           if [ "$STATUS" != "200" ]; then
-            echo "CRITICAL: Vercel app returned $STATUS"
+            echo "::error::Vercel app returned $STATUS"
             exit 1
           fi
