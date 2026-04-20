@@ -9,6 +9,19 @@ export interface Owner {
   full_name: string;
   shares_or_percentage: number;
   capital_contribution: number;
+  /**
+   * Optional title/cargo for the Specific Responsibilities section
+   * (Step 6 Agreement field: corp_specificResponsibilities_X or llc_specificRoles_X).
+   * Empty string = no title entered.
+   */
+  title?: string;
+  /**
+   * Optional free-text description of this owner's day-to-day responsibilities
+   * (Step 6 Agreement field: corp_responsibilityDesc_X or llc_roleDesc_X).
+   * Only rendered into the agreement when at least one owner has a non-empty
+   * title or responsibilities.
+   */
+  responsibilities?: string;
 }
 
 export interface DirectorManager {
@@ -174,6 +187,11 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
   xml = applyLLCVotingReplacements(xml, answers);
   xml = applyLLCBankAccountText(xml, answers);
   xml = removeLLCConditionalSections(xml, answers);
+
+  // Specific Responsibilities (per-member title + desc from Step 6).
+  // Inserted after the Manager-designation paragraph when any member has
+  // either field populated.
+  xml = injectResponsibilitiesSection(xml, answers.owners_list, /*isCorp=*/false);
 
   // Remove % from signature lines — "60% Owner of the Company" → "Owner of the Company"
   for (const owner of answers.owners_list) {
@@ -656,6 +674,11 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
       );
     }
   }
+
+  // ── Specific Responsibilities section (from Step 6 of the questionnaire) ──
+  // Each owner can have an optional title + responsibilities paragraph.
+  // Inject a new section after the Officers sentence if any owner has either.
+  xml = injectResponsibilitiesSection(xml, answers.owners_list, /*isCorp=*/true);
 
   // ── Number the Article II sub-items (TODO #6b) ──
   // Template captions "Articles", "Purpose", "Name", "Place of Business" have
@@ -1215,6 +1238,81 @@ function forceTimesNewRomanFont(zip: PizZip): void {
     content = content.replace(/typeface="Arial"/g, 'typeface="Times New Roman"');
     zip.file(part, content);
   }
+}
+
+// ─── Specific Responsibilities (per-owner title + description) ────────
+
+/**
+ * Inject a "Specific Responsibilities" section into the generated agreement
+ * when one or more owners have a title or responsibilities populated via
+ * Step 6 of the questionnaire.
+ *
+ * Prior to this, Step 6 collected these fields, Airtable stored them, but
+ * the generated document never mentioned them — the user's intent was lost.
+ *
+ * The section is injected as a new paragraph block immediately after the
+ * paragraph that contains an entity-specific anchor:
+ *   - Corp: the "The initial Officers shall be ..." sentence (which the
+ *           Officers-inline fix already rewrote; we piggyback on that).
+ *   - LLC:  the Manager-designation paragraph (`... the "Managers")`).
+ *
+ * No-op if no owner has either a title or a description filled in.
+ */
+function injectResponsibilitiesSection(
+  xml: string,
+  owners: Owner[],
+  isCorp: boolean,
+): string {
+  const withResp = owners.filter(
+    (o) => (o.title || "").trim() || (o.responsibilities || "").trim(),
+  );
+  if (withResp.length === 0) return xml;
+
+  // Corp anchor piggy-backs on the officers-inline fix sentence.
+  // LLC anchor is inside the Manager-designation paragraph — "serve as the
+  // Managers" is short and stable across 1/2-manager variants. (A fuller
+  // anchor with curly quotes from the template fails because runs are split
+  // and smart quotes may encode as numeric entities in document.xml.)
+  const anchor = isCorp
+    ? "The initial Officers shall be"
+    : "serve as the Managers";
+
+  const anchorIdx = xml.indexOf(anchor);
+  if (anchorIdx < 0) return xml;
+
+  // Match the formatting of the surrounding paragraph so the inserted block
+  // visually blends in (same font size, indent, line spacing, etc.).
+  const fmt = extractFormatting(xml, anchor);
+
+  const heading = isCorp
+    ? "Specific Responsibilities of Shareholders."
+    : "Specific Responsibilities of Members.";
+  const intro = isCorp
+    ? "The Shareholders have agreed to allocate the following specific responsibilities:"
+    : "The Members have agreed to allocate the following specific responsibilities:";
+
+  const lines = withResp.map((o, i) => {
+    // (a), (b), (c), ... — will roll over past 'z' but unlikely for 6-owner max.
+    const label = String.fromCharCode(97 + (i % 26));
+    const title = (o.title || "").trim();
+    const desc = (o.responsibilities || "").trim();
+    if (title && desc) return `(${label}) ${o.full_name}, as ${title}: ${desc}`;
+    if (title) return `(${label}) ${o.full_name}, as ${title}.`;
+    return `(${label}) ${o.full_name}: ${desc}`;
+  });
+
+  const paragraphs =
+    buildFormattedParagraph(heading, fmt.pPr, fmt.rPr) +
+    buildFormattedParagraph(intro, fmt.pPr, fmt.rPr) +
+    lines
+      .map((line) => buildFormattedParagraph(line, fmt.pPr, fmt.rPr))
+      .join("");
+
+  // Insert after the closing </w:p> of the anchor's paragraph.
+  const pEnd = xml.indexOf("</w:p>", anchorIdx);
+  if (pEnd < 0) return xml;
+  const insertAt = pEnd + "</w:p>".length;
+  return xml.substring(0, insertAt) + paragraphs + xml.substring(insertAt);
 }
 
 // ─── Keep Next (prevent orphaned headings) ───────────────────────────

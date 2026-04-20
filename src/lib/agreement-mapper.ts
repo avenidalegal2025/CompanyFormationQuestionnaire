@@ -50,6 +50,15 @@ function buildOwnersList(
   isCorp: boolean
 ): QuestionnaireAnswers["owners_list"] {
   const owners: QuestionnaireAnswers["owners_list"] = [];
+  const agreement = data.agreement || {};
+
+  // Only pull responsibility text into the doc when the user actually turned
+  // the feature on in Step 6. Prevents stale defaults from an earlier draft
+  // leaking into the document if the user later said "No" to the toggle.
+  const hasResponsibilities = isCorp
+    ? agreement.corp_hasSpecificResponsibilities === "Yes"
+    : agreement.llc_hasSpecificRoles === "Yes";
+
   for (let i = 0; i < ownerCount; i++) {
     const owner = data.owners?.[i] || {};
     const fullName =
@@ -61,12 +70,32 @@ function buildOwnersList(
     const capitalKey = isCorp
       ? `corp_capitalPerOwner_${i}`
       : `llc_capitalContributions_${i}`;
-    const capital = parseCurrency(data.agreement?.[capitalKey]);
+    const capital = parseCurrency(agreement[capitalKey]);
+
+    // Per-owner title / responsibilities, if the feature is enabled.
+    // Corp: corp_specificResponsibilities_X (title) + corp_responsibilityDesc_X (desc)
+    // LLC:  llc_specificRoles_X            (title) + llc_roleDesc_X           (desc)
+    const title = hasResponsibilities
+      ? String(
+          (isCorp
+            ? agreement[`corp_specificResponsibilities_${i}`]
+            : agreement[`llc_specificRoles_${i}`]) || "",
+        ).trim()
+      : "";
+    const responsibilities = hasResponsibilities
+      ? String(
+          (isCorp
+            ? agreement[`corp_responsibilityDesc_${i}`]
+            : agreement[`llc_roleDesc_${i}`]) || "",
+        ).trim()
+      : "";
 
     owners.push({
       full_name: fullName,
       shares_or_percentage: Number(owner.ownership || 0),
       capital_contribution: capital,
+      title: title || undefined,
+      responsibilities: responsibilities || undefined,
     });
   }
   return owners;
