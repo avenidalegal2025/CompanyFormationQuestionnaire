@@ -184,6 +184,45 @@ export default function ClientPage() {
     fetchDocuments();
   }, [selectedCompanyId]);
 
+  // After payment, documents generate asynchronously via the Stripe webhook
+  // (SS-4 in particular can take 20-40s because it invokes a Lambda). A single
+  // fetch at T+3s is not enough — the SS-4 card doesn't appear until the user
+  // manually refreshes the page. Poll every 5s for up to 90s whenever the
+  // paymentCompleted flag is set and the expected document set is incomplete.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const paymentCompleted = localStorage.getItem('paymentCompleted');
+    if (paymentCompleted !== 'true') return;
+    if (!selectedCompanyId) return;
+
+    const START = Date.now();
+    const MAX_MS = 90_000;   // stop polling 90s after payment
+    const INTERVAL_MS = 5_000;
+
+    // We consider the set "complete" once SS-4 (the slow one) has shown up.
+    const hasSs4 = (docs: typeof documents) =>
+      docs.some((d) => {
+        const key = `${d.id || ''} ${d.name || ''} ${d.documentType || ''}`.toLowerCase();
+        return key.includes('ss-4') || key.includes('ss4') || key.includes('ein');
+      });
+
+    // Already complete? Clear the flag and do nothing.
+    if (hasSs4(documents)) {
+      localStorage.removeItem('paymentCompleted');
+      return;
+    }
+
+    const interval = setInterval(() => {
+      if (Date.now() - START > MAX_MS) {
+        clearInterval(interval);
+        return;
+      }
+      console.log('🔄 Polling for post-payment documents...');
+      fetchDocuments();
+    }, INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [selectedCompanyId, documents]);
+
   // Fetch userEmail and companies on mount
   useEffect(() => {
     const email = localStorage.getItem('userEmail') || '';
