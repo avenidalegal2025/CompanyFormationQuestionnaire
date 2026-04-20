@@ -466,9 +466,17 @@ async function main() {
     await clickToggle(page, 'Managing members', 'Sí');
     console.log('  Managing members: Yes (all)');
 
-    // Specific roles: No (default)
-    await clickToggle(page, 'Has specific roles', 'No');
-    console.log('  Specific roles: No');
+    // Specific roles = Sí, with per-member titles + descriptions.
+    // Exercises the Specific Responsibilities feature (commit a3c4e960).
+    await clickToggle(page, 'Has specific roles', 'Sí');
+    await waitForStable(page, 1000);
+    await setFormValue(page, 'agreement.llc_specificRoles_0', 'Managing Member');
+    await setFormValue(page, 'agreement.llc_roleDesc_0', 'Day-to-day operations, client relations, and team leadership.');
+    await setFormValue(page, 'agreement.llc_specificRoles_1', 'Finance Lead');
+    await setFormValue(page, 'agreement.llc_roleDesc_1', 'Books, tax compliance, and vendor management.');
+    await setFormValue(page, 'agreement.llc_specificRoles_2', 'Product Lead');
+    await setFormValue(page, 'agreement.llc_roleDesc_2', 'Product roadmap and engineering oversight.');
+    console.log('  Specific roles: Managing Member / Finance Lead / Product Lead');
 
     await page.evaluate(() => window.scrollTo(0, 0));
     await shot(page, 'step5_top');

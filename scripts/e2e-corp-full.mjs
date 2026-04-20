@@ -458,7 +458,17 @@ async function main() {
     await setFormValue(page, 'agreement.corp_capitalPerOwner_1', '40000');
     console.log('  Set capital: $50,000 / $40,000');
 
-    // Specific responsibilities = No (default)
+    // Specific responsibilities = Sí, with per-owner titles + descriptions.
+    // Exercises the feature shipped in commit a3c4e960 (Specific Responsibilities
+    // of Shareholders section in the generated doc).
+    await clickToggle(page, 'Has specific responsibilities', 'Sí');
+    await waitForStable(page, 1000);
+    await setFormValue(page, 'agreement.corp_specificResponsibilities_0', 'Chief Executive Officer');
+    await setFormValue(page, 'agreement.corp_responsibilityDesc_0', 'Overall strategy, fundraising, and external partnerships.');
+    await setFormValue(page, 'agreement.corp_specificResponsibilities_1', 'Chief Technology Officer');
+    await setFormValue(page, 'agreement.corp_responsibilityDesc_1', 'Product engineering, hiring, and tech operations.');
+    console.log('  Set responsibilities: CEO (Alice-ish) / CTO (Bob-ish)');
+
     await page.evaluate(() => window.scrollTo(0, 0));
     await shot(page, 'step5_top');
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
