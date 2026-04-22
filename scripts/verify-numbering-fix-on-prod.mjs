@@ -34,6 +34,11 @@ const formData = {
     corp_capitalPerOwner_0: 50000,
     corp_capitalPerOwner_1: 40000,
     majorityThreshold: 50.01, supermajorityThreshold: 75,
+    // Enable the per-owner responsibilities feature — without this toggle
+    // the mapper correctly skips title/responsibilities (prevents stale
+    // drafts from leaking into the doc). Real UI sets this via Step 6
+    // SegmentedToggle.
+    corp_hasSpecificResponsibilities: 'Yes',
     corp_specificResponsibilities_0: 'Chief Executive Officer',
     corp_responsibilityDesc_0: 'Overall strategy, fundraising, and external partnerships.',
     corp_specificResponsibilities_1: 'Chief Technology Officer',
