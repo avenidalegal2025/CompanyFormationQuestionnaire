@@ -724,25 +724,10 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   // Template captions "Articles", "Purpose", "Name", "Place of Business" have
   // no sub-numbering. Prefix them with 2.1, 2.2, 2.3, 2.4 (they occur in this
   // order between "ARTICLE II: INCORPORATION" and "ARTICLE III").
+  // These captions aren't Heading3-styled so the generic renumber pass below
+  // would skip them; prefixArticle2Subsections handles them via exact-text
+  // matching. The later renumber pass is idempotent on them (already 2.1-2.4).
   xml = prefixArticle2Subsections(xml);
-
-  // ── Number every OTHER Article's unnumbered Heading3 sub-items ──
-  // The template leaves many sub-section captions unnumbered: Article III
-  // (Commencement, Dissolution, Articles of Dissolution, Termination),
-  // Article IV (Authorized Shares), Article V (Allocation of Net Income,
-  // Net Losses, Dissolution), Article VI (Reimbursable Expenses), Article
-  // VIII (Records, Reports, Tax Returns), Article IX (Shareholder
-  // Assignment Prohibited), Article X (Control in Officers, Limitation on
-  // Officers' Authority, Indemnification, Agreements with Officers),
-  // Article XI (Voting Rights, Action Without a Meeting, Removal), Article
-  // XII (Right of First Refusal, Offer, Concurrence or Acceptance), Article
-  // XIII (Withdrawing Shareholder's Status, Valuation of Successor's
-  // Interest, Payment Upon Withdrawal).
-  //
-  // Walks <w:p> in order, tracks ARTICLE roman numeral, and prepends
-  // "N.M " to each unnumbered Heading3 sub-item — preserving the template's
-  // intentional gaps (e.g. missing 1.2, 7.1, 15.2).
-  xml = prefixAllArticleSubsections(xml);
 
   // ── Shrink § 4.2 Capital Contributions table (v2 TODO #10) ──
   xml = fixCapitalTableWidth(xml);
@@ -782,6 +767,16 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
     //    Heading3 style / tabs / indent of surrounding definitions.
     xml = insertSuperMajorityCorp(xml, supText);
   }
+
+  // ── Sequentially renumber every Article's Heading3 sub-items ──
+  // Runs AFTER all conditional content changes (responsibilities injection,
+  // ROFR/Drag-Along/Tag-Along removal, Non-Compete insertion, Super Majority
+  // insertion) so numbering reflects the final surviving paragraph set. This
+  // closes any template gaps (e.g. missing 1.2) AND gaps introduced by
+  // conditional removal (e.g. removing Article XII's ROFR sections). Builds
+  // an old→new map and rewrites every "Section N.M" / "Paragraph N.M" /
+  // "Article N.M" cross-reference in the body text accordingly.
+  xml = renumberAndRemapSubsections(xml);
 
   // Add keepNext to all section headings to prevent page breaks between heading and body
   xml = addKeepNextToHeadings(xml);
@@ -1433,85 +1428,144 @@ function prefixArticle2Subsections(xml: string): string {
   return before + block + after;
 }
 
-// ─── Prefix ALL unnumbered Heading3 paragraphs across every Article ───
+// ─── Sequentially renumber every Article's Heading3 sub-items + remap cross-refs ───
 /**
- * The Corp template has many Heading3 paragraphs with a bolded caption but
- * no section number (e.g. "Commencement." instead of "3.1 Commencement.").
- * `prefixArticle2Subsections` only fixed Article II. This function handles
- * every other article by walking paragraphs in document order, tracking
- * the current article (from "ARTICLE N:" headings) and assigning the next
- * sequential sub-number to every unnumbered Heading3 paragraph inside it.
+ * Walks every `<w:p>` in document order. On each "ARTICLE N:" heading,
+ * resets the sub-counter. On each Heading3 paragraph inside an article,
+ * assigns a fresh sequential `N.M` number — OVERWRITING any existing
+ * `N.M` prefix the template carried — so the final doc reads 1.1, 1.2,
+ * 1.3 … with no gaps, regardless of:
  *
- * Already-numbered paragraphs keep their existing number. If a paragraph
- * has an explicit "N.M" prefix, we update `nextSub` to max(current, M+1)
- * so subsequent unnumbered ones don't collide with template-provided
- * numbers — preserving intentional gaps (e.g. template skips 1.2, 7.1,
- * 15.2 — the renumber keeps those gaps).
+ *   1. **Template author gaps.** The attorney's corp template skips 1.2
+ *      (Article I goes 1.1 → 1.3 → 1.4 …). This closes that.
+ *   2. **Conditional content changes.** If the questionnaire removes a
+ *      section (ROFR=No kills Article XII's ROFR subsections, Drag/Tag-Along=No
+ *      kills their respective sections), this renumbers whatever survives
+ *      so no holes remain.
+ *   3. **Conditional content additions.** If Non-Compete=Yes inserts a new
+ *      10.10 paragraph, or Super Majority is injected at 1.7, they get
+ *      their proper sequential slot automatically.
  *
- * Idempotent: re-running won't double-prefix.
+ * As it renumbers, it builds an `oldNum → newNum` map (keyed on the
+ * paragraph's prior `N.M` prefix, if any). A second pass then rewrites
+ * every body-text cross-reference — "Section 9.2", "Paragraph 10.5",
+ * "Article 4.3", lowercase "paragraph 13.2" — using that map. Unknown
+ * cross-references (e.g. template's bogus "Section 10.6" that points to
+ * a never-existed section) are left untouched so they don't silently
+ * degrade to something misleading.
  *
- * Skips paragraphs already handled by prefixArticle2Subsections (Article II)
- * and the Article I definitions (all already numbered 1.1-1.10).
+ * Must run AFTER all conditional paragraph injection/removal so numbering
+ * reflects the final surviving paragraph set.
+ *
+ * Idempotent on subsequent runs.
  */
 const ROMAN_TO_INT: Record<string, number> = {
   I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6, VII: 7, VIII: 8,
   IX: 9, X: 10, XI: 11, XII: 12, XIII: 13, XIV: 14, XV: 15, XVI: 16,
 };
 
-function prefixAllArticleSubsections(xml: string): string {
-  // Walk <w:p> elements in order.
+function renumberAndRemapSubsections(xml: string): string {
+  const remap = new Map<string, string>();
   let currentArticle: number | null = null;
   let nextSub = 1;
 
-  return xml.replace(/<w:p([ >][\s\S]*?)<\/w:p>/g, (fullMatch) => {
-    // Extract plain text of the paragraph (concatenate every <w:t>).
-    const texts = (fullMatch.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
-      .map((t) => t.replace(/<[^>]+>/g, ""));
-    const fullText = texts.join("").trim();
-    if (!fullText) return fullMatch;
+  // ── Pass 1: sequentially renumber every Heading3, build remap map ──
+  const renumbered = xml.replace(
+    /<w:p([ >][\s\S]*?)<\/w:p>/g,
+    (fullMatch) => {
+      // Concatenated plain text of this paragraph across all <w:t> runs.
+      const texts = (fullMatch.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+        .map((t) => t.replace(/<[^>]+>/g, ""));
+      const fullText = texts.join("").trim();
+      if (!fullText) return fullMatch;
 
-    // "ARTICLE N:" heading — reset article counter.
-    const artMatch = fullText.match(/^ARTICLE\s+([IVXLCDM]+)(?::|\b)/i);
-    if (artMatch) {
-      const num = ROMAN_TO_INT[artMatch[1].toUpperCase()];
-      if (num) {
-        currentArticle = num;
-        nextSub = 1;
+      // "ARTICLE N: …" heading — reset article + sub counter.
+      const artMatch = fullText.match(/^ARTICLE\s+([IVXLCDM]+)(?::|\b)/i);
+      if (artMatch) {
+        const num = ROMAN_TO_INT[artMatch[1].toUpperCase()];
+        if (num) {
+          currentArticle = num;
+          nextSub = 1;
+        }
+        return fullMatch;
       }
-      return fullMatch;
-    }
 
-    // Only process Heading3 paragraphs (the sub-section style).
-    if (!/<w:pStyle w:val="Heading3"\/>/.test(fullMatch)) return fullMatch;
+      // Only renumber Heading3 paragraphs (the sub-section style).
+      // Article II's "Articles/Purpose/Name/Place of Business" captions
+      // aren't Heading3 — prefixArticle2Subsections handles those and
+      // their 2.1-2.4 prefixes are already sequential, so skipping them
+      // here is safe.
+      if (!/<w:pStyle w:val="Heading3"\/>/.test(fullMatch)) return fullMatch;
+      if (currentArticle === null) return fullMatch;
 
-    if (currentArticle === null) return fullMatch;
+      const newNum = `${currentArticle}.${nextSub}`;
+      nextSub += 1;
 
-    // If the first <w:t> already starts with a section number, respect it
-    // and update nextSub so subsequent unnumbered ones don't collide.
-    const firstTMatch = fullMatch.match(/<w:t[^>]*>([^<]*)<\/w:t>/);
-    if (!firstTMatch) return fullMatch;
-    const firstT = firstTMatch[1];
-    const alreadyNum = firstT.match(/^(\d+)\.(\d+)(?:\s|$)/);
-    if (alreadyNum) {
-      const subN = parseInt(alreadyNum[2], 10);
-      nextSub = Math.max(nextSub, subN + 1);
-      return fullMatch;
-    }
+      // Detect the existing N.M number from the joined text. This catches
+      // both single-run ("1.3") and split-run ("1." + "3") variants. We
+      // only use this to build the remap — the actual rewrite operates on
+      // the first <w:t> below.
+      const existingNumMatch = fullText.match(/^(\d+)\.(\d+)\b/);
+      if (existingNumMatch) {
+        const oldNum = `${existingNumMatch[1]}.${existingNumMatch[2]}`;
+        if (oldNum !== newNum) remap.set(oldNum, newNum);
+      }
 
-    // Skip if the caption was already prefixed by prefixArticle2Subsections.
-    // That function inserts "2.N " at the start of the first <w:t>; the
-    // `alreadyNum` check above catches this, so we'd only reach here for
-    // genuinely unnumbered captions.
+      // Rewrite the first <w:t>'s body to carry the new number.
+      //   Shape A (number alone in first run, caption in subsequent run):
+      //     <w:t>1.3</w:t><w:tab/><w:t>Assignee</w:t>   → replace "1.3" with newNum
+      //   Shape B (number + caption in same run):
+      //     <w:t>2.1 Articles</w:t>                     → swap the leading "2.1"
+      //   Shape C (unnumbered caption):
+      //     <w:t>Commencement</w:t>                     → prepend "newNum "
+      return fullMatch.replace(
+        /(<w:t[^>]*>)([^<]*)(<\/w:t>)/,
+        (_m, open, body, close) => {
+          const numOnly = body.match(/^(\d+\.\d+)\s*$/);
+          if (numOnly) return `${open}${newNum}${close}`;
+          const numPlus = body.match(/^(\d+\.\d+)\s+([\s\S]+)$/);
+          if (numPlus) return `${open}${newNum} ${numPlus[2]}${close}`;
+          // No existing number on this run — prepend. Note: if the number
+          // was split into "1." / "3" across runs we'd land here and
+          // produce "newNum 1." — this shouldn't happen in the attorney's
+          // template (Word emits complete numbers in one run) but we log
+          // it rather than silently corrupt.
+          if (/^(\d+\.)$/.test(body) || /^\d$/.test(body)) {
+            // eslint-disable-next-line no-console
+            console.warn(
+              `[renumberAndRemapSubsections] first <w:t> body "${body}" ` +
+                `looks like a split number run — newNum=${newNum} may conflict`,
+            );
+          }
+          return `${open}${newNum} ${body}${close}`;
+        },
+      );
+    },
+  );
 
-    // Prepend "N.M " to the first <w:t>'s content.
-    const prefix = `${currentArticle}.${nextSub} `;
-    nextSub += 1;
-    const replaced = fullMatch.replace(
-      /(<w:t[^>]*>)([^<]*)(<\/w:t>)/,
-      (_m, open, body, close) => `${open}${prefix}${body}${close}`,
-    );
-    return replaced;
-  });
+  // Nothing to remap? Skip the second pass.
+  if (remap.size === 0) return renumbered;
+
+  // ── Pass 2: rewrite body-text cross-references via the remap ──
+  // Matches "Section 9.2", "Sections 9.2", "Paragraph 10.5", "paragraph 13.2",
+  // "Article 4.3", "Articles 4.3" — case-insensitive on the keyword, preserves
+  // the original keyword casing (including singular/plural) in the output.
+  // Operates within each <w:t> body independently; cross-refs that were
+  // split across runs won't match (extremely rare in practice).
+  return renumbered.replace(
+    /(<w:t[^>]*>)([^<]*)(<\/w:t>)/g,
+    (full, open, body, close) => {
+      const newBody = body.replace(
+        /\b(Sections?|Paragraphs?|Articles?)(\s+)(\d+\.\d+)\b/gi,
+        (m: string, word: string, sep: string, num: string) => {
+          const remapped = remap.get(num);
+          if (!remapped || remapped === num) return m;
+          return `${word}${sep}${remapped}`;
+        },
+      );
+      return newBody === body ? full : `${open}${newBody}${close}`;
+    },
+  );
 }
 
 // ─── Signature block "Owner" label — replace with title or remove ─────
@@ -1928,13 +1982,18 @@ function injectResponsibilitiesSection(
   );
   if (withResp.length === 0) return xml;
 
-  // Corp anchor piggy-backs on the officers-inline fix sentence.
+  // Corp anchor: "Agreements with Officers" is unique to Article X's last
+  // sub-section (10.4 in the template), so the injected section lands at
+  // the end of Article X — where "who does what" content semantically
+  // belongs. The previous anchor ("The initial Officers shall be") matched
+  // inside Article I's 1.7 Officers DEFINITION paragraph (the only place
+  // that phrase appears in the template), placing the responsibilities
+  // inside the glossary of defined terms — visually and structurally
+  // wrong.
   // LLC anchor is inside the Manager-designation paragraph — "serve as the
-  // Managers" is short and stable across 1/2-manager variants. (A fuller
-  // anchor with curly quotes from the template fails because runs are split
-  // and smart quotes may encode as numeric entities in document.xml.)
+  // Managers" is short and stable across 1/2-manager variants.
   const anchor = isCorp
-    ? "The initial Officers shall be"
+    ? "Agreements with Officers"
     : "serve as the Managers";
 
   const anchorIdx = xml.indexOf(anchor);
@@ -1982,11 +2041,20 @@ function injectResponsibilitiesSection(
       )
     : '<w:pPr><w:spacing w:before="120"/></w:pPr>';
 
+  // Strip the Heading3 style from intro + list-item paragraphs so the
+  // sequential renumber pass only numbers the section HEADING (e.g. 10.5
+  // Specific Responsibilities of Shareholders), leaving the intro and
+  // (a)/(b)/(c) list items as unnumbered body text — otherwise every
+  // list item would become its own numbered sub-section (10.6, 10.7, …)
+  // which is wrong both visually and legally.
+  const bodyPPr = (fmt.pPr || '<w:pPr></w:pPr>')
+    .replace(/<w:pStyle w:val="Heading3"\/>/g, '');
+
   const paragraphs =
     buildFormattedParagraph(heading, spacedPPr, boldUnderlineRPr) +
-    buildFormattedParagraph(intro, fmt.pPr, fmt.rPr) +
+    buildFormattedParagraph(intro, bodyPPr, fmt.rPr) +
     lines
-      .map((line) => buildFormattedParagraph(line, fmt.pPr, fmt.rPr))
+      .map((line) => buildFormattedParagraph(line, bodyPPr, fmt.rPr))
       .join("");
 
   // Insert after the closing </w:p> of the anchor's paragraph.
