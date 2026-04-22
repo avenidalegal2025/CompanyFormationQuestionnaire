@@ -73,6 +73,19 @@ Setting `cell.width = Inches(x)` alone does NOT reliably override template colum
 See `_set_table_col_widths()` in both Lambda files for the working implementation.
 
 ## Testing / Verification
+
+### Visual QA requirement — per-page, not "eyeball"
+When verifying a generated DOCX visually (font, numbering, tabs, spacing,
+indentation, page breaks, signature blocks, tables), **Read EVERY slice
+one by one** and report observations per page. Do not skim, do not
+declare "looks good" from a single screenshot. The Word Online
+screenshot script (`scripts/word-online-screenshot-fixed.mjs`) produces
+readable-NN.png slices at 1600×1800 — each covers ~1.5 pages. Step
+through them sequentially (`readable-01.png` through `readable-14.png`
+or however many there are), call out anything odd per slice, and only
+then claim formatting is verified. "I eyeballed a few slices" is not
+sufficient QA.
+
 ### Batch test all document variants
 ```bash
 node scripts/batch-test-lambdas.mjs              # run all 20 tests
