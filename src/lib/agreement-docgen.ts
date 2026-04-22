@@ -1519,6 +1519,20 @@ function renumberAndRemapSubsections(xml: string): string {
       const hasNumTabPattern =
         /<w:t[^>]*>\d+\.\d+<\/w:t>\s*<w:tab\/>/.test(fullMatch);
 
+      // Branch (d): Heading4 paragraph whose first <w:t> starts with a
+      // hardcoded "N.M" prefix. Only match "15.11 WAIVER OF JURY TRIAL"
+      // right now — Article XV's jury-trial waiver, typeset all-caps with
+      // pStyle="Heading4" (not Heading3) and a leading " 15.11" glued
+      // directly to "WAIVER" with no space. The other Heading4 paragraph
+      // in the template ("i.Voting.") starts with "i" so is unaffected.
+      let isHeading4WithInlineNum = false;
+      if (/<w:pStyle w:val="Heading4"\/>/.test(fullMatch)) {
+        const firstT = fullMatch.match(/<w:t[^>]*>([^<]*)<\/w:t>/);
+        if (firstT && /^\s*\d+\.\d+/.test(firstT[1])) {
+          isHeading4WithInlineNum = true;
+        }
+      }
+
       // Detect branch (c): first body run is underlined short title, next
       // <w:t> starts with "." (period glue between title and body).
       let hasUnderlinedTitlePattern = false;
@@ -1547,7 +1561,12 @@ function renumberAndRemapSubsections(xml: string): string {
         }
       }
 
-      if (!isHeading3 && !hasNumTabPattern && !hasUnderlinedTitlePattern) {
+      if (
+        !isHeading3 &&
+        !hasNumTabPattern &&
+        !hasUnderlinedTitlePattern &&
+        !isHeading4WithInlineNum
+      ) {
         return fullMatch;
       }
       if (currentArticle === null) return fullMatch;
@@ -1585,18 +1604,27 @@ function renumberAndRemapSubsections(xml: string): string {
       //     <w:t>2.1 Articles</w:t>                     → swap the leading "2.1"
       //   Shape C (unnumbered caption):
       //     <w:t>Commencement</w:t>                     → prepend "newNum "
+      //   Shape D (number glued to caption, branch-d Heading4):
+      //     <w:t> 15.11WAIVER OF JURY TRIAL</w:t>       → swap "15.11" preserving "WAIVER…"
       return fullMatch.replace(
         /(<w:t[^>]*>)([^<]*)(<\/w:t>)/,
         (_m, open, body, close) => {
-          const numOnly = body.match(/^(\d+\.\d+)\s*$/);
-          if (numOnly) return `${open}${newNum}${close}`;
-          const numPlus = body.match(/^(\d+\.\d+)\s+([\s\S]+)$/);
-          if (numPlus) return `${open}${newNum} ${numPlus[2]}${close}`;
-          // No existing number on this run — prepend. Note: if the number
-          // was split into "1." / "3" across runs we'd land here and
-          // produce "newNum 1." — this shouldn't happen in the attorney's
-          // template (Word emits complete numbers in one run) but we log
-          // it rather than silently corrupt.
+          // Shapes A + B + D unified: body starts with "N.M" (optional
+          // leading ws, then digits.digits, then anything — whitespace,
+          // text, or end-of-string). Preserve leading whitespace and
+          // whatever follows the old number verbatim (so glued-caption
+          // paragraphs like "15.11WAIVER" stay glued, not double-spaced).
+          const numPrefix = body.match(/^(\s*)(\d+\.\d+)([\s\S]*)$/);
+          if (numPrefix) {
+            const [, leadWS, , rest] = numPrefix;
+            return `${open}${leadWS}${newNum}${rest}${close}`;
+          }
+          // Shape C: no existing number on this run — prepend "newNum ".
+          // Split-number guard: if the number was split into "1." / "3"
+          // across runs we'd land here and produce "newNum 1." — this
+          // shouldn't happen in the attorney's template (Word emits
+          // complete numbers in one run) but we log it rather than
+          // silently corrupt.
           if (/^(\d+\.)$/.test(body) || /^\d$/.test(body)) {
             // eslint-disable-next-line no-console
             console.warn(

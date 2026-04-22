@@ -79,10 +79,15 @@ function analyzeHeadings(buf) {
     const body = match[1];
     const isH3 = body.includes('<w:pStyle w:val="Heading3"/>');
     const hasNumTab = /<w:t[^>]*>\d+\.\d+<\/w:t>\s*<w:tab\/>/.test(body);
-    if (!isH3 && !hasNumTab) continue;
     const texts = (body.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
       .map((t) => t.replace(/<[^>]+>/g, '')).join('').trim();
     if (!texts) continue;
+    // Branch (c): renumberer prepends "N.M " in its own un-styled run.
+    const startsWithNumSpace = /^\d+\.\d+\s/.test(texts);
+    // Branch (d): Heading4 w/ leading N.M (the WAIVER OF JURY TRIAL).
+    const isH4WithNum =
+      body.includes('<w:pStyle w:val="Heading4"/>') && /^\d+\.\d+/.test(texts);
+    if (!isH3 && !hasNumTab && !startsWithNumSpace && !isH4WithNum) continue;
     rows.push(texts.substring(0, 90));
   }
   const unnumbered = rows.filter((r) => !/^\d+\.\d+/.test(r));

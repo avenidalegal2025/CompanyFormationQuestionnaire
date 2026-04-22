@@ -66,10 +66,11 @@ const { buffer: buf } = await generateDocument(answers);
 const xml = new PizZip(buf).file('word/document.xml').asText();
 
 // Collect every numbered section paragraph's concatenated text in doc order.
-// Matches any of the three template shapes the renumberer understands:
+// Matches all four template shapes the renumberer handles:
 //   (a) <w:pStyle w:val="Heading3"/> captions
 //   (b) <w:t>N.M</w:t><w:tab/> pattern (no pStyle, tab-separated)
-//   (c) first <w:t> starts with "N.M " (branch-c-style inline section)
+//   (c) first <w:t> starts with "N.M " (branch-c inline underlined section)
+//   (d) <w:pStyle w:val="Heading4"/> with leading N.M (15.11 WAIVER)
 const pattern = /<w:p[^>]*>([^]*?)<\/w:p>/g;
 const rows = [];
 let match;
@@ -77,13 +78,14 @@ while ((match = pattern.exec(xml)) !== null) {
   const body = match[1];
   const isH3 = body.includes('<w:pStyle w:val="Heading3"/>');
   const hasNumTab = /<w:t[^>]*>\d+\.\d+<\/w:t>\s*<w:tab\/>/.test(body);
-  // Concatenated text — used both as the detection signal for branch (c)
-  // (starts with "N.M ") and for the reporting row.
   const text = (body.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
     .map((t) => t.replace(/<[^>]+>/g, '')).join('').trim();
   if (!text) continue;
   const startsWithNumSpace = /^\d+\.\d+\s/.test(text);
-  if (!isH3 && !hasNumTab && !startsWithNumSpace) continue;
+  // Branch (d): Heading4 + first <w:t> leads with N.M (may be glued).
+  const isH4WithNum =
+    body.includes('<w:pStyle w:val="Heading4"/>') && /^\d+\.\d+/.test(text);
+  if (!isH3 && !hasNumTab && !startsWithNumSpace && !isH4WithNum) continue;
   rows.push(text.substring(0, 100));
 }
 

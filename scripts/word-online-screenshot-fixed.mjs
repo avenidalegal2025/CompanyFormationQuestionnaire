@@ -61,12 +61,14 @@ await page.waitForTimeout(90000);
 const pageHeight = await page.evaluate(() => document.documentElement.scrollHeight);
 console.log(`  document height: ${pageHeight}px`);
 
-const sliceHeight = 5000;
+// 1800px slices render ~1.5 pages each at readable zoom so individual
+// paragraphs can be eyeballed — vs 5000px which compresses too far.
+const sliceHeight = 1800;
 const numSlices = Math.ceil(pageHeight / sliceHeight);
 for (let i = 0; i < numSlices; i++) {
   const y = i * sliceHeight;
   const h = Math.min(sliceHeight, pageHeight - y);
-  const out = join(OUT, `slice-${String(i + 1).padStart(2, '0')}.png`);
+  const out = join(OUT, `readable-${String(i + 1).padStart(2, '0')}.png`);
   await page.screenshot({
     path: out,
     clip: { x: 0, y, width: 1600, height: h },
