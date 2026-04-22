@@ -23,8 +23,8 @@ const BASE_URL = 'https://company-formation-questionnaire.vercel.app';
 const DIR = join(process.env.USERPROFILE || '.', 'Downloads', 'e2e-qa-screenshots');
 mkdirSync(DIR, { recursive: true });
 
-const EMAIL = `test+e2e_corp_${Date.now()}@gmail.com`;
-const PASSWORD = 'Test2026!Secure';
+const EMAIL = process.env.E2E_EMAIL || `test+e2e_corp_${Date.now()}@gmail.com`;
+const PASSWORD = process.env.E2E_PASSWORD || 'Test2026!Secure';
 
 let shotN = 0;
 async function shot(page, label) {

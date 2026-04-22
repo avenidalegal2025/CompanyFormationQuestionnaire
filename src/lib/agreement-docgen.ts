@@ -726,6 +726,24 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   // order between "ARTICLE II: INCORPORATION" and "ARTICLE III").
   xml = prefixArticle2Subsections(xml);
 
+  // ── Number every OTHER Article's unnumbered Heading3 sub-items ──
+  // The template leaves many sub-section captions unnumbered: Article III
+  // (Commencement, Dissolution, Articles of Dissolution, Termination),
+  // Article IV (Authorized Shares), Article V (Allocation of Net Income,
+  // Net Losses, Dissolution), Article VI (Reimbursable Expenses), Article
+  // VIII (Records, Reports, Tax Returns), Article IX (Shareholder
+  // Assignment Prohibited), Article X (Control in Officers, Limitation on
+  // Officers' Authority, Indemnification, Agreements with Officers),
+  // Article XI (Voting Rights, Action Without a Meeting, Removal), Article
+  // XII (Right of First Refusal, Offer, Concurrence or Acceptance), Article
+  // XIII (Withdrawing Shareholder's Status, Valuation of Successor's
+  // Interest, Payment Upon Withdrawal).
+  //
+  // Walks <w:p> in order, tracks ARTICLE roman numeral, and prepends
+  // "N.M " to each unnumbered Heading3 sub-item — preserving the template's
+  // intentional gaps (e.g. missing 1.2, 7.1, 15.2).
+  xml = prefixAllArticleSubsections(xml);
+
   // ── Shrink § 4.2 Capital Contributions table (v2 TODO #10) ──
   xml = fixCapitalTableWidth(xml);
 
@@ -1413,6 +1431,87 @@ function prefixArticle2Subsections(xml: string): string {
   }
 
   return before + block + after;
+}
+
+// ─── Prefix ALL unnumbered Heading3 paragraphs across every Article ───
+/**
+ * The Corp template has many Heading3 paragraphs with a bolded caption but
+ * no section number (e.g. "Commencement." instead of "3.1 Commencement.").
+ * `prefixArticle2Subsections` only fixed Article II. This function handles
+ * every other article by walking paragraphs in document order, tracking
+ * the current article (from "ARTICLE N:" headings) and assigning the next
+ * sequential sub-number to every unnumbered Heading3 paragraph inside it.
+ *
+ * Already-numbered paragraphs keep their existing number. If a paragraph
+ * has an explicit "N.M" prefix, we update `nextSub` to max(current, M+1)
+ * so subsequent unnumbered ones don't collide with template-provided
+ * numbers — preserving intentional gaps (e.g. template skips 1.2, 7.1,
+ * 15.2 — the renumber keeps those gaps).
+ *
+ * Idempotent: re-running won't double-prefix.
+ *
+ * Skips paragraphs already handled by prefixArticle2Subsections (Article II)
+ * and the Article I definitions (all already numbered 1.1-1.10).
+ */
+const ROMAN_TO_INT: Record<string, number> = {
+  I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6, VII: 7, VIII: 8,
+  IX: 9, X: 10, XI: 11, XII: 12, XIII: 13, XIV: 14, XV: 15, XVI: 16,
+};
+
+function prefixAllArticleSubsections(xml: string): string {
+  // Walk <w:p> elements in order.
+  let currentArticle: number | null = null;
+  let nextSub = 1;
+
+  return xml.replace(/<w:p([ >][\s\S]*?)<\/w:p>/g, (fullMatch) => {
+    // Extract plain text of the paragraph (concatenate every <w:t>).
+    const texts = (fullMatch.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+      .map((t) => t.replace(/<[^>]+>/g, ""));
+    const fullText = texts.join("").trim();
+    if (!fullText) return fullMatch;
+
+    // "ARTICLE N:" heading — reset article counter.
+    const artMatch = fullText.match(/^ARTICLE\s+([IVXLCDM]+)(?::|\b)/i);
+    if (artMatch) {
+      const num = ROMAN_TO_INT[artMatch[1].toUpperCase()];
+      if (num) {
+        currentArticle = num;
+        nextSub = 1;
+      }
+      return fullMatch;
+    }
+
+    // Only process Heading3 paragraphs (the sub-section style).
+    if (!/<w:pStyle w:val="Heading3"\/>/.test(fullMatch)) return fullMatch;
+
+    if (currentArticle === null) return fullMatch;
+
+    // If the first <w:t> already starts with a section number, respect it
+    // and update nextSub so subsequent unnumbered ones don't collide.
+    const firstTMatch = fullMatch.match(/<w:t[^>]*>([^<]*)<\/w:t>/);
+    if (!firstTMatch) return fullMatch;
+    const firstT = firstTMatch[1];
+    const alreadyNum = firstT.match(/^(\d+)\.(\d+)(?:\s|$)/);
+    if (alreadyNum) {
+      const subN = parseInt(alreadyNum[2], 10);
+      nextSub = Math.max(nextSub, subN + 1);
+      return fullMatch;
+    }
+
+    // Skip if the caption was already prefixed by prefixArticle2Subsections.
+    // That function inserts "2.N " at the start of the first <w:t>; the
+    // `alreadyNum` check above catches this, so we'd only reach here for
+    // genuinely unnumbered captions.
+
+    // Prepend "N.M " to the first <w:t>'s content.
+    const prefix = `${currentArticle}.${nextSub} `;
+    nextSub += 1;
+    const replaced = fullMatch.replace(
+      /(<w:t[^>]*>)([^<]*)(<\/w:t>)/,
+      (_m, open, body, close) => `${open}${prefix}${body}${close}`,
+    );
+    return replaced;
+  });
 }
 
 // ─── Signature block "Owner" label — replace with title or remove ─────
