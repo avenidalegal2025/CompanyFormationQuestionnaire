@@ -1490,12 +1490,25 @@ function renumberAndRemapSubsections(xml: string): string {
         return fullMatch;
       }
 
-      // Only renumber Heading3 paragraphs (the sub-section style).
+      // A paragraph is a "numbered section" if it EITHER:
+      //   (a) has <w:pStyle w:val="Heading3"/> — the standard sub-section
+      //       style used by most of the template, OR
+      //   (b) has a first <w:t>N.M</w:t><w:tab/> structural pattern — the
+      //       attorney's template marks "1.2 Affiliate" this way with no
+      //       pStyle at all; if we skipped these, renumbering Heading3-
+      //       styled paragraphs would collide with their hard-coded
+      //       template number.
+      //
       // Article II's "Articles/Purpose/Name/Place of Business" captions
-      // aren't Heading3 — prefixArticle2Subsections handles those and
-      // their 2.1-2.4 prefixes are already sequential, so skipping them
-      // here is safe.
-      if (!/<w:pStyle w:val="Heading3"\/>/.test(fullMatch)) return fullMatch;
+      // hit path (a) after prefixArticle2Subsections prepends their "2.N "
+      // prefixes (the captions themselves aren't Heading3 but we detect
+      // the N.M prefix — wait, they're not N.M<tab>, they're "2.1 Articles"
+      // in a single <w:t>). Those are NOT picked up here; they stay at
+      // 2.1-2.4 from prefixArticle2Subsections which is already sequential.
+      const isHeading3 = /<w:pStyle w:val="Heading3"\/>/.test(fullMatch);
+      const hasNumTabPattern =
+        /<w:t[^>]*>\d+\.\d+<\/w:t>\s*<w:tab\/>/.test(fullMatch);
+      if (!isHeading3 && !hasNumTabPattern) return fullMatch;
       if (currentArticle === null) return fullMatch;
 
       const newNum = `${currentArticle}.${nextSub}`;

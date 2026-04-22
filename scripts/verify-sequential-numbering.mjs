@@ -71,7 +71,9 @@ const rows = [];
 let match;
 while ((match = pattern.exec(xml)) !== null) {
   const body = match[1];
-  if (!body.includes('<w:pStyle w:val="Heading3"/>')) continue;
+  const isH3 = body.includes('<w:pStyle w:val="Heading3"/>');
+  const hasNumTab = /<w:t[^>]*>\d+\.\d+<\/w:t>\s*<w:tab\/>/.test(body);
+  if (!isH3 && !hasNumTab) continue;
   const text = (body.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
     .map((t) => t.replace(/<[^>]+>/g, '')).join('').trim();
   if (!text) continue;
