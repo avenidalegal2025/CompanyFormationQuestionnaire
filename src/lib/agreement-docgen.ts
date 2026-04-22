@@ -3,6 +3,29 @@ import Docxtemplater from "docxtemplater";
 import fs from "fs";
 import path from "path";
 
+// ─── OOXML helpers ────────────────────────────────────────────────────
+// Plain `xml.lastIndexOf("<w:p", i)` also matches `<w:pPr>`, `<w:pStyle>`,
+// `<w:pgBorders>` etc., which would cut mid-paragraph and leave an
+// unclosed <w:p> tag — that's enough to make LibreOffice/Office Online
+// reject the document. Use these helpers to find the *paragraph opener*
+// (`<w:p` followed by whitespace or `>`) only.
+function paragraphStartBefore(xml: string, from: number): number {
+  const re = /<w:p[\s>]/g;
+  let best = -1;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(xml)) !== null) {
+    if (m.index > from) break;
+    best = m.index;
+  }
+  return best;
+}
+function paragraphStartAtOrAfter(xml: string, from: number): number {
+  const re = /<w:p[\s>]/g;
+  re.lastIndex = Math.max(0, from);
+  const m = re.exec(xml);
+  return m ? m.index : -1;
+}
+
 // ─── Types ────────────────────────────────────────────────────────────
 
 export interface Owner {
@@ -317,8 +340,10 @@ function addExtraLLCMembers(
     const extraManagers = answers.directors_managers.slice(2);
     const manager2Name = answers.directors_managers[1]?.name || "";
     if (manager2Name) {
+      // Manager names are user-supplied and go straight into the XML via
+      // xmlTextReplace, so escape `&`, `<`, `>` to keep document.xml valid.
       const extraManagerText = extraManagers
-        .map((m) => ` and ${m.name}`)
+        .map((m) => ` and ${xmlEscape(m.name)}`)
         .join("");
       xml = xmlTextReplace(
         xml,
@@ -541,9 +566,11 @@ function removeLLCConditionalSections(
 
         // Now insert the non-compete paragraph BEFORE the paragraph containing 11.13/Non-Disparagement
         const p13Idx = xml.indexOf("11.13");
-        const pStart = xml.lastIndexOf("<w:p", p13Idx);
-        const ncParagraph = buildFormattedParagraph(nonCompeteText, llcFmt.pPr, llcFmt.rPr);
-        xml = xml.substring(0, pStart) + ncParagraph + xml.substring(pStart);
+        const pStart = paragraphStartBefore(xml, p13Idx);
+        if (pStart >= 0) {
+          const ncParagraph = buildFormattedParagraph(nonCompeteText, llcFmt.pPr, llcFmt.rPr);
+          xml = xml.substring(0, pStart) + ncParagraph + xml.substring(pStart);
+        }
       }
     }
   }
@@ -671,9 +698,12 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   // below.` but Section 10.6 doesn't actually list them. Replace with an
   // inline list of the officers the questionnaire collected.
   if (answers.officers && answers.officers.length > 0) {
+    // Officer name/title are user-supplied and injected directly into the
+    // XML via xmlTextReplace. Escape `&`, `<`, `>` (e.g. "President & CEO")
+    // so the resulting document.xml stays valid.
     const officersList = answers.officers
       .filter((o) => o && o.name)
-      .map((o) => (o.title ? `${o.name} (${o.title})` : o.name))
+      .map((o) => (o.title ? `${xmlEscape(o.name)} (${xmlEscape(o.title)})` : xmlEscape(o.name)))
       .join(", ");
     if (officersList) {
       xml = xmlTextReplace(
@@ -712,36 +742,27 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   // Add Super Majority definition after Majority definition (1.6) for Corp
   // Attorney format: "Super Majority. Shareholders collectively holding greater than
   // SEVENTY FIVE PERCENT (75.00%) of the Percentage Interests of all the Shareholders eligible to vote."
+  //
+  // Strategy: cascade-renumber sections 1.7..1.10 → 1.8..1.11 FIRST (in reverse
+  // to avoid collisions), then insert the new 1.7 Super Majority as a proper
+  // standalone paragraph cloning the 1.6 Majority formatting.
   if (answers.supermajority_threshold) {
     const supPct = answers.supermajority_threshold;
-    const supPctFormatted = typeof supPct === 'number' && supPct % 1 === 0 ? `${supPct}.00` : String(supPct);
+    const supPctFormatted =
+      typeof supPct === "number" && supPct % 1 === 0
+        ? `${supPct}.00`
+        : String(supPct);
     const supText = `${numberToWords(supPct).toUpperCase()} PERCENT (${supPctFormatted}%)`;
-    xml = xmlTextReplace(
-      xml,
-      "eligible to vote.",
-      `eligible to vote.  1.7 Super Majority. Shareholders collectively holding greater than ${supText} of the Percentage Interests of all the Shareholders eligible to vote.`,
-      false
-    );
-    // Renumber subsequent sections: 1.7 Officers → 1.8, 1.8 → 1.9, etc.
-    // The Corp template has 1.7 Officers, 1.8 Percentage Interest, etc.
-    // Find "1.7" that's the Officers heading (in a <w:t> near "Officers")
-    const offIdx = xml.indexOf("Officers");
-    if (offIdx >= 0) {
-      const before = xml.substring(0, offIdx);
-      const last17 = before.lastIndexOf(">1.7<");
-      if (last17 >= 0 && (offIdx - last17) < 300) {
-        xml = before.substring(0, last17) + ">1.8<" + before.substring(last17 + 5) + xml.substring(offIdx);
-        // Also renumber 1.8 Percentage Interest → 1.9, etc.
-        const piIdx = xml.indexOf("Percentage Interest");
-        if (piIdx >= 0) {
-          const before2 = xml.substring(0, piIdx);
-          const last18 = before2.lastIndexOf(">1.8<");
-          if (last18 >= 0 && (piIdx - last18) < 300) {
-            xml = before2.substring(0, last18) + ">1.9<" + before2.substring(last18 + 5) + xml.substring(piIdx);
-          }
-        }
-      }
-    }
+
+    // 1. Collect all numbered section paragraphs in Article I whose first <w:t>
+    //    is "1.N" (N >= 7). These are Officers, Percentage Interest, Share or
+    //    Shares, Successor. Renumber in reverse order so we don't collide.
+    xml = cascadeRenumberCorpArticleI(xml, 7);
+
+    // 2. Insert a NEW 1.7 Super Majority paragraph right after the 1.6 Majority
+    //    paragraph, cloning its <w:pPr> so the new paragraph matches the
+    //    Heading3 style / tabs / indent of surrounding definitions.
+    xml = insertSuperMajorityCorp(xml, supText);
   }
 
   // Add keepNext to all section headings to prevent page breaks between heading and body
@@ -751,6 +772,11 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   // that pass resets <w:ind> on all romanette paragraphs to the standard
   // 1440 / firstLine=0 layout, which would otherwise clobber our hanging-indent fix.
   xml = fixSection92ListIndent(xml);
+  // Normalize numbered-section heading indents/tabs so that all section titles
+  // (1.1 / 1.10 / 2.1 / 15.11 etc.) align at the same horizontal position
+  // regardless of number width. The template has baked-in per-paragraph
+  // variations (w:left ranges from 706 to 787) that we flatten here.
+  xml = normalizeSectionNumberTabs(xml);
   xml = repairXml(xml);
 
   renderedZip.file("word/document.xml", xml);
@@ -807,12 +833,14 @@ function cleanupEmptyCorpShareholders(xml: string, ownerCount: number): string {
       // Remove the last By: + Name: pair before CORPORATION
       const lastByIdx = beforeCorp.lastIndexOf("By: ______");
       if (lastByIdx >= 0) {
-        // Find the paragraph start for this "By:"
-        const byPStart = xml.lastIndexOf("<w:p", lastByIdx);
-        // Find the next paragraph after "By:" which should be "Name: [empty]"
+        const byPStart = paragraphStartBefore(xml, lastByIdx);
         const byPEnd = xml.indexOf("</w:p>", lastByIdx);
-        const nameStart = xml.indexOf("<w:p", byPEnd);
-        const namePEnd = xml.indexOf("</w:p>", nameStart);
+        const nameStart = byPEnd >= 0 ? paragraphStartAtOrAfter(xml, byPEnd + 6) : -1;
+        const namePEnd = nameStart >= 0 ? xml.indexOf("</w:p>", nameStart) : -1;
+        if (byPStart < 0 || byPEnd < 0 || nameStart < 0 || namePEnd < 0) {
+          // Bail out — can't locate both paragraphs cleanly.
+          return xml;
+        }
 
         // Check if this Name paragraph is empty (just "Name:" with whitespace)
         const namePara = xml.substring(nameStart, namePEnd + 6);
@@ -877,8 +905,9 @@ function addExtraCorpShareholders(
     for (const owner of extraOwners) {
       const shares = Math.round((owner.shares_or_percentage / 100) * totalShares);
       const pct = ((shares / totalShares) * 100).toFixed(2);
+      // owner.full_name is user-supplied; escape before injecting into XML.
       const row = `</w:t></w:r></w:p></w:tc></w:tr>` +
-        `<w:tr><w:tc><w:p><w:r><w:t>${owner.full_name}</w:t></w:r></w:p></w:tc>` +
+        `<w:tr><w:tc><w:p><w:r><w:t>${xmlEscape(owner.full_name)}</w:t></w:r></w:p></w:tc>` +
         `<w:tc><w:p><w:r><w:t>${shares.toLocaleString()}</w:t></w:r></w:p></w:tc>` +
         `<w:tc><w:p><w:r><w:t>$${formatCurrency(owner.capital_contribution)}</w:t></w:r></w:p></w:tc>` +
         `<w:tc><w:p><w:r><w:t>${pct}%`;
@@ -1122,6 +1151,156 @@ function normalizeSubItemTabs(xml: string): string {
   });
 }
 
+// ─── Section Number Tab Normalization ────────────────────────────────
+
+/**
+ * Normalize indentation and tab stops on all numbered-section heading paragraphs
+ * so that titles align at the same horizontal position regardless of the section
+ * number's width. The Corp template has per-paragraph w:left values ranging from
+ * 706 to 787 twips and inconsistent use of w:hanging vs w:firstLine, which makes
+ * "1.8 Officers" and "1.10 Share or Shares" end up at slightly different columns.
+ *
+ * Heuristic: a "numbered section heading" is any paragraph whose first <w:t> run
+ * is exactly a "N.M" (digit.digit(s)) pattern and is immediately followed by a
+ * <w:tab/>. We skip paragraphs whose pStyle is Heading4 (those are list items
+ * like §15.11 with complex multi-tab layouts).
+ */
+function normalizeSectionNumberTabs(xml: string): string {
+  return xml.replace(/<w:p([ >][\s\S]*?)<\/w:p>/g, (fullMatch) => {
+    // Is the first <w:t> in this paragraph a "N.M" pattern?
+    // Two shapes the template uses for numbered headings:
+    //   Article I style:   <w:t>1.8</w:t><w:tab/>...<w:t>Officers</w:t>
+    //   Article II style:  <w:t>2.1 Articles</w:t>...<w:tab/>...<w:t>The Articles...</w:t>
+    // We match both: first <w:t> starts with "N.M" (optionally followed by text).
+    const firstT = fullMatch.match(/<w:t[^>]*>([^<]*)<\/w:t>/);
+    if (!firstT) return fullMatch;
+    const firstTxt = firstT[1];
+    const numMatch = firstTxt.match(/^(\d+\.\d+)(?:\s|$)/);
+    if (!numMatch) return fullMatch;
+
+    // Skip Heading4 (list-style paragraphs with many tab stops, e.g. §15.11)
+    if (/<w:pStyle w:val="Heading4"\/>/.test(fullMatch)) return fullMatch;
+
+    // Target layout for numbered section headings:
+    //   Number at left margin (column 0), title at 720 twips (0.5"),
+    //   body text inline, wrap at 1440 twips (1.0") — matching the body
+    //   wrap position used by unnumbered Heading3 paragraphs (Commencement,
+    //   Dissolution, Authorized Shares, etc.) which use w:left="1440".
+    // Achieved via w:hanging=1440 so the first line starts at 0 while the
+    // wrap indent stays at 1440.
+    const newInd = `<w:ind w:left="1440" w:hanging="1440"/>`;
+    const newTabs = `<w:tabs><w:tab w:val="left" w:leader="none" w:pos="720"/></w:tabs>`;
+
+    let result = fullMatch;
+
+    if (result.includes("<w:pPr>")) {
+      // Replace existing <w:ind .../>
+      if (/<w:ind [^/]*\/>/.test(result)) {
+        result = result.replace(/<w:ind [^/]*\/>/, newInd);
+      } else {
+        result = result.replace("<w:pPr>", `<w:pPr>${newInd}`);
+      }
+      // Replace existing <w:tabs>...</w:tabs>
+      if (/<w:tabs>[\s\S]*?<\/w:tabs>/.test(result)) {
+        result = result.replace(/<w:tabs>[\s\S]*?<\/w:tabs>/, newTabs);
+      } else {
+        result = result.replace("<w:pPr>", `<w:pPr>${newTabs}`);
+      }
+    } else {
+      // Paragraph has no pPr — add one with both ind and tabs
+      result = result.replace(
+        /(<w:p\b[^>]*>)/,
+        `$1<w:pPr>${newTabs}${newInd}</w:pPr>`,
+      );
+    }
+
+    return result;
+  });
+}
+
+// ─── Corp Super Majority Insertion ───────────────────────────────────
+
+/**
+ * Insert a new "1.7 Super Majority" paragraph immediately after the 1.6 Majority
+ * paragraph. Clones the 1.6 paragraph's <w:pPr> and run structure (number +
+ * <w:tab/> + underlined title + period + <w:tab/> + body) so formatting matches.
+ *
+ * Must run AFTER cascadeRenumberCorpArticleI has bumped 1.7..1.10 → 1.8..1.11,
+ * so this new paragraph slots into the now-vacant 1.7 position.
+ */
+function insertSuperMajorityCorp(xml: string, supText: string): string {
+  // Find the 1.6 paragraph by locating the <w:t>1.6</w:t><w:tab/> marker
+  const marker = xml.match(/<w:t[^>]*>1\.6<\/w:t>\s*<w:tab\/>/);
+  if (!marker || marker.index === undefined) return xml;
+
+  const pStart = paragraphStartBefore(xml, marker.index);
+  const pCloseIdx = xml.indexOf("</w:p>", marker.index);
+  if (pStart < 0 || pCloseIdx < 0) return xml;
+  const pEnd = pCloseIdx + "</w:p>".length;
+
+  const majPara = xml.substring(pStart, pEnd);
+  const pPrMatch = majPara.match(/<w:pPr>[\s\S]*?<\/w:pPr>/);
+  const pPr = pPrMatch ? pPrMatch[0] : "<w:pPr/>";
+
+  // Build a new paragraph with the same pPr. Runs:
+  //   [run: "1.7" + <w:tab/>]
+  //   [underlined run: "Super Majority"]
+  //   [run: ".  " + body + final period + <w:tab/> is NOT needed since body is inline]
+  const newPara =
+    `<w:p>${pPr}` +
+    `<w:r><w:rPr><w:vertAlign w:val="baseline"/><w:rtl w:val="0"/></w:rPr>` +
+    `<w:t xml:space="preserve">1.7</w:t><w:tab/></w:r>` +
+    `<w:r><w:rPr><w:u w:val="single"/><w:vertAlign w:val="baseline"/><w:rtl w:val="0"/></w:rPr>` +
+    `<w:t xml:space="preserve">Super Majority</w:t></w:r>` +
+    `<w:r><w:rPr><w:vertAlign w:val="baseline"/><w:rtl w:val="0"/></w:rPr>` +
+    `<w:t xml:space="preserve">.</w:t><w:tab/>` +
+    `<w:t xml:space="preserve">Shareholders collectively holding greater than ${supText} of the Percentage Interests of all the Shareholders eligible to vote.</w:t>` +
+    `</w:r></w:p>`;
+
+  return xml.substring(0, pEnd) + newPara + xml.substring(pEnd);
+}
+
+// ─── Corp Article I Cascade Renumber ─────────────────────────────────
+
+/**
+ * Renumber all Article I section headings whose number is >= `fromN` by +1.
+ * E.g. with fromN=7: 1.7 Officers → 1.8, 1.8 Percentage Interest → 1.9,
+ * 1.9 Share or Shares → 1.10, 1.10 Successor → 1.11. Processes in reverse
+ * order to avoid collisions (renumbering 1.9 → 1.10 before 1.10 → 1.11 would
+ * create two 1.10s temporarily).
+ *
+ * A "section heading" is a paragraph whose first <w:t> run is exactly "1.N"
+ * followed by <w:tab/>. This intentionally skips body text like "1.5(a)" that
+ * might appear in later prose.
+ */
+function cascadeRenumberCorpArticleI(xml: string, fromN: number): string {
+  const paraRe = /<w:p\b[^>]*>[\s\S]*?<\/w:p>/g;
+  type Entry = { idx: number; para: string; n: number };
+  const entries: Entry[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = paraRe.exec(xml)) !== null) {
+    const para = m[0];
+    const first = para.match(/<w:t[^>]*>1\.(\d+)<\/w:t>\s*<w:tab\/>/);
+    if (first) {
+      const n = parseInt(first[1], 10);
+      if (n >= fromN) entries.push({ idx: m.index, para, n });
+    }
+  }
+  // Process largest n first
+  entries.sort((a, b) => b.n - a.n);
+  for (const { para, n } of entries) {
+    const newN = n + 1;
+    const newPara = para.replace(
+      new RegExp(`(<w:t[^>]*>)1\\.${n}(</w:t>\\s*<w:tab\\/>)`),
+      `$11.${newN}$2`,
+    );
+    if (newPara !== para) {
+      xml = xml.replace(para, newPara);
+    }
+  }
+  return xml;
+}
+
 // ─── XML Repair ─────────────────────────────────────────────────────
 
 /**
@@ -1280,10 +1459,13 @@ function rewriteSignatureOwnerLabel(
 
     const title = (owner.title || "").trim();
     if (title) {
-      // Swap "Owner..." text for the user-supplied title.
+      // Swap "Owner..." text for "Title: <title>". The "Title:" prefix
+      // mirrors the "Name:" label above it so the T in Title lines up
+      // with the N in Name (both sit after the same 7 leading tabs).
+      // Two spaces after the colon match the template's "Name:  " format.
       const rewritten = nextPara.replace(
         /<w:t[^>]*>[^<]*<\/w:t>/,
-        `<w:t xml:space="preserve">${title}</w:t>`,
+        `<w:t xml:space="preserve">Title:  ${title}</w:t>`,
       );
       xml = xml.replace(pattern, `$1$2${rewritten}`);
     } else {
@@ -1294,31 +1476,84 @@ function rewriteSignatureOwnerLabel(
   return xml;
 }
 
-// ─── [SIGNATURE PAGE BELOW] heading — remove ──────────────────────────
+// ─── [SIGNATURE PAGE BELOW] heading — keep-together + conditional ─────
 
 /**
  * The Corp + LLC templates contain a centered bold paragraph reading
- * "[SIGNATURE PAGE BELOW]" immediately before a page break. When the
- * main content ends mid-page, this heading dangles on a mostly-blank
- * page by itself before the actual signature page — client video
- * TODO #17.
+ * "[SIGNATURE PAGE BELOW]" followed by a separate paragraph with a
+ * <w:br w:type="page"/>, then the "IN WITNESS WHEREOF" signature block.
  *
- * Easiest clean fix: delete the "[SIGNATURE PAGE BELOW]" paragraph
- * entirely. The page break right after it stays intact (so signatures
- * still start on their own page), but there's no more dangling half-
- * empty page with a stray heading.
+ * Per-template intent: the heading is a visual cue at the BOTTOM of
+ * the last content page telling the reader signatures are on the
+ * following page. Removing it unconditionally is wrong: for a long
+ * agreement the signatures always land on a separate page, so the cue
+ * is accurate and should stay.
+ *
+ * Two things we DO need to fix:
+ *   1. Client video TODO #17 ("heading dangles on a mostly-blank
+ *      page by itself"): this happens when the last content paragraph
+ *      wraps such that the heading gets pushed alone onto a new page.
+ *      Fix: apply <w:keepNext/> to the paragraph immediately BEFORE
+ *      the heading so Word pulls the heading up with that paragraph,
+ *      preventing the dangle.
+ *   2. When the signature block actually FITS on the last content
+ *      page alongside the heading (very short doc), the heading
+ *      reads redundantly ("below" when sigs are right there). In
+ *      that unlikely case we can still remove the heading, but only
+ *      if the document is demonstrably short — not applied here
+ *      because our Shareholders' Agreement is always multi-page.
  */
 function removeSignaturePageBelowHeading(xml: string): string {
-  // Find any <w:p> whose text is exactly "[SIGNATURE PAGE BELOW]"
-  // (possibly with surrounding whitespace) and delete the whole <w:p>.
-  return xml.replace(/<w:p\b[^>]*>[\s\S]*?<\/w:p>/g, (para) => {
-    const paraText = (para.match(/<w:t[^>]*>[^<]*<\/w:t>/g) || [])
+  // Locate the "[SIGNATURE PAGE BELOW]" paragraph.
+  const pRe = /<w:p\b[^>]*>[\s\S]*?<\/w:p>/g;
+  let match: RegExpExecArray | null;
+  let headingStart = -1;
+  let headingEnd = -1;
+  while ((match = pRe.exec(xml)) !== null) {
+    const para = match[0];
+    const txt = (para.match(/<w:t[^>]*>[^<]*<\/w:t>/g) || [])
       .map((t) => t.replace(/<[^>]+>/g, ""))
       .join("")
       .trim();
-    if (paraText === "[SIGNATURE PAGE BELOW]") return "";
-    return para;
-  });
+    if (txt === "[SIGNATURE PAGE BELOW]") {
+      headingStart = match.index;
+      headingEnd = match.index + para.length;
+      break;
+    }
+  }
+  if (headingStart < 0) return xml;
+
+  // Add <w:keepNext/> to the paragraph IMMEDIATELY PRECEDING the heading
+  // so Word pulls the heading up with the last content paragraph instead
+  // of orphaning it onto a blank new page.
+  const beforeHeading = xml.substring(0, headingStart);
+  const precedingPClose = beforeHeading.lastIndexOf("</w:p>");
+  if (precedingPClose >= 0) {
+    const precedingPStart = paragraphStartBefore(beforeHeading, precedingPClose);
+    if (precedingPStart >= 0) {
+      const precedingP = beforeHeading.substring(
+        precedingPStart,
+        precedingPClose + "</w:p>".length,
+      );
+      if (!/<w:keepNext\s*\/>/.test(precedingP)) {
+        let fixedP: string;
+        if (/<w:pPr>/.test(precedingP)) {
+          fixedP = precedingP.replace(/<w:pPr>/, "<w:pPr><w:keepNext/>");
+        } else {
+          fixedP = precedingP.replace(
+            /(<w:p\b[^>]*>)/,
+            "$1<w:pPr><w:keepNext/></w:pPr>",
+          );
+        }
+        return (
+          xml.substring(0, precedingPStart) +
+          fixedP +
+          xml.substring(precedingPClose + "</w:p>".length)
+        );
+      }
+    }
+  }
+  return xml;
 }
 
 // ─── § 9.2 Involuntary-Transfer romanette list — fix indent ────────────
@@ -1454,7 +1689,71 @@ function fixCapitalTableWidth(xml: string): string {
     });
   });
 
-  return xml.substring(0, tblStart) + tbl + xml.substring(tblEndExclusive);
+  // 5. Keep the whole table on one page (never split across a page break).
+  //    - <w:cantSplit/> on every row prevents a single row from being torn
+  //      in half by a page break.
+  //    - <w:keepNext/> on every paragraph inside every row EXCEPT the last
+  //      glues each row to the next one, so Word treats the entire table
+  //      (header + data rows) as an atomic block that moves together.
+  const rows = tbl.match(/<w:tr\b[\s\S]*?<\/w:tr>/g) || [];
+  rows.forEach((row, i) => {
+    const isLast = i === rows.length - 1;
+    let fixed = row;
+    // cantSplit
+    if (!/<w:cantSplit\s*\/>/.test(fixed)) {
+      if (/<w:trPr>/.test(fixed)) {
+        fixed = fixed.replace(/<w:trPr>/, "<w:trPr><w:cantSplit/>");
+      } else {
+        fixed = fixed.replace(
+          /(<w:tr\b[^>]*>)/,
+          "$1<w:trPr><w:cantSplit/></w:trPr>",
+        );
+      }
+    }
+    // keepNext on every paragraph of every non-last row
+    if (!isLast) {
+      fixed = fixed.replace(
+        /<w:p\b([^>]*)>([\s\S]*?)<\/w:p>/g,
+        (pMatch, attrs, inner) => {
+          if (/<w:keepNext\s*\/>/.test(inner)) return pMatch;
+          if (/<w:pPr>/.test(inner)) {
+            return `<w:p${attrs}>${inner.replace(
+              /<w:pPr>/,
+              "<w:pPr><w:keepNext/>",
+            )}</w:p>`;
+          }
+          return `<w:p${attrs}><w:pPr><w:keepNext/></w:pPr>${inner}</w:p>`;
+        },
+      );
+    }
+    if (fixed !== row) tbl = tbl.replace(row, fixed);
+  });
+
+  // 6. Also add <w:keepNext/> to the paragraph IMMEDIATELY preceding the
+  //    table so the "4.2 Initial Capital Contributions..." intro stays
+  //    glued to the table instead of being orphaned on the previous page.
+  let before = xml.substring(0, tblStart);
+  const precedingPClose = before.lastIndexOf("</w:p>");
+  if (precedingPClose >= 0) {
+    const precedingPStart = paragraphStartBefore(before, precedingPClose);
+    if (precedingPStart >= 0) {
+      const precedingP = before.substring(precedingPStart, precedingPClose + "</w:p>".length);
+      if (!/<w:keepNext\s*\/>/.test(precedingP)) {
+        let fixedP: string;
+        if (/<w:pPr>/.test(precedingP)) {
+          fixedP = precedingP.replace(/<w:pPr>/, "<w:pPr><w:keepNext/>");
+        } else {
+          fixedP = precedingP.replace(
+            /(<w:p\b[^>]*>)/,
+            "$1<w:pPr><w:keepNext/></w:pPr>",
+          );
+        }
+        before = before.substring(0, precedingPStart) + fixedP + before.substring(precedingPClose + "</w:p>".length);
+      }
+    }
+  }
+
+  return before + tbl + xml.substring(tblEndExclusive);
 }
 
 // ─── Force Times New Roman (fix template Arial default) ───────────────
@@ -1563,8 +1862,29 @@ function injectResponsibilitiesSection(
     return `(${label}) ${o.full_name}: ${desc}`;
   });
 
+  // Give the section a distinct visual style so it doesn't look like a
+  // runaway continuation of the preceding Officers paragraph:
+  //   - heading: bold + underlined (matches other sub-section headings)
+  //   - intro and list items: plain body weight
+  //   - list items: slight first-line indent so (a), (b), (c) stand out
+  const boldUnderlineRPr = fmt.rPr
+    ? fmt.rPr.replace(
+        /<\/w:rPr>/,
+        '<w:b w:val="1"/><w:bCs w:val="1"/><w:u w:val="single"/></w:rPr>',
+      )
+    : '<w:rPr><w:b w:val="1"/><w:bCs w:val="1"/><w:u w:val="single"/></w:rPr>';
+
+  // Ensure heading and list items have a small top-space so the section
+  // breathes — 120 twips (~6pt) of spacing before each.
+  const spacedPPr = fmt.pPr
+    ? fmt.pPr.replace(
+        /<\/w:pPr>/,
+        '<w:spacing w:before="120"/></w:pPr>',
+      )
+    : '<w:pPr><w:spacing w:before="120"/></w:pPr>';
+
   const paragraphs =
-    buildFormattedParagraph(heading, fmt.pPr, fmt.rPr) +
+    buildFormattedParagraph(heading, spacedPPr, boldUnderlineRPr) +
     buildFormattedParagraph(intro, fmt.pPr, fmt.rPr) +
     lines
       .map((line) => buildFormattedParagraph(line, fmt.pPr, fmt.rPr))
@@ -1628,7 +1948,7 @@ function extractFormatting(xml: string, nearText: string): { pPr: string; rPr: s
   const idx = xml.indexOf(nearText);
   if (idx < 0) return { pPr: "", rPr: "" };
 
-  const pStart = xml.lastIndexOf("<w:p", idx);
+  const pStart = paragraphStartBefore(xml, idx);
   const pEnd = xml.indexOf("</w:p>", idx);
   if (pStart < 0 || pEnd < 0) return { pPr: "", rPr: "" };
 
@@ -1650,7 +1970,24 @@ function extractFormatting(xml: string, nearText: string): { pPr: string; rPr: s
  * the template's existing style (font size, indentation, justification).
  */
 function buildFormattedParagraph(text: string, pPr: string, rPr: string): string {
-  return `<w:p>${pPr}<w:r>${rPr}<w:t xml:space="preserve">${text}</w:t></w:r></w:p>`;
+  return `<w:p>${pPr}<w:r>${rPr}<w:t xml:space="preserve">${xmlEscape(text)}</w:t></w:r></w:p>`;
+}
+
+/**
+ * Escape a plain string for safe inclusion inside a <w:t> element or any XML
+ * text node. Only `&`, `<`, and `>` strictly need escaping inside element
+ * content; we also escape quotes for safety if the string later ends up in
+ * an attribute value. This is idempotent for already-escaped entities
+ * because `&amp;lt;` would just become `&amp;amp;lt;` — so callers must pass
+ * raw user strings, not pre-escaped XML.
+ */
+function xmlEscape(s: string): string {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
 }
 
 /**

@@ -114,13 +114,33 @@ const hasThArtifact = /33181th|Florida\s+33181\s*th\b/i.test(texts) || /\bth\s+o
 
 console.log(`  'th' artifact in principal-place sentence: ${hasThArtifact}  ${hasThArtifact ? '✗ FAIL' : '✓ PASS'}`);
 
+// TODO #6b: Article II subsections numbered 2.1/2.2/2.3/2.4
+console.log('\n=== ARTICLE II NUMBERING (TODO #6b) ===');
+const subs = ['2.1 Articles', '2.2 Purpose', '2.3 Name', '2.4 Place of Business'];
+let numberingOk = true;
+for (const s of subs) {
+  const hit = texts.includes(s);
+  console.log(`  ${hit ? '✓' : '✗'} ${s}`);
+  if (!hit) numberingOk = false;
+}
+
+// TODO #7: Officers inline list + no trailing director comma
+console.log('\n=== OFFICERS + DIRECTORS (TODO #7) ===');
+const officersInline = /initial Officers shall be:\s*.+\(/i.test(texts);
+const directorsTrailingComma = /initial Directors shall be[^.]*,\s*\./.test(texts);
+console.log(`  Officers inline list: ${officersInline}  ${officersInline ? '✓ PASS' : '✗ FAIL'}`);
+console.log(`  Directors trailing comma: ${directorsTrailingComma}  ${!directorsTrailingComma ? '✓ PASS' : '✗ FAIL'}`);
+
 const pass =
   fontCounts.stylesArial === 0 &&
   fontCounts.themeArial === 0 &&
   fontCounts.docArial === 0 &&
   bareCounty.length === 0 &&
   miamiDadeMentions.length > 0 &&
-  !hasThArtifact;
+  !hasThArtifact &&
+  numberingOk &&
+  officersInline &&
+  !directorsTrailingComma;
 
 console.log(`\n=== VERDICT: ${pass ? 'PASS' : 'FAIL'} ===`);
 process.exit(pass ? 0 : 1);

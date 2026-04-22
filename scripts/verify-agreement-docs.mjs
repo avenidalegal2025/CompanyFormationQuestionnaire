@@ -98,8 +98,9 @@ async function gen() {
     entity_type:'CORP', entity_name:'VERIFY CORP Inc', state_of_formation:'Florida',
     date_of_formation:'2026-06-15T00:00:00Z', principal_address:'100 Wall Street, Suite 200, Miami, FL 33131',
     county:'Miami-Dade', owners_list:[
-      {full_name:'Roberto Carlos Mendez',shares_or_percentage:600,capital_contribution:50000},
-      {full_name:'Ana Maria Garcia',shares_or_percentage:400,capital_contribution:30000},
+      // shares_or_percentage is a PERCENT (docgen converts to share count)
+      {full_name:'Roberto Carlos Mendez',shares_or_percentage:60,capital_contribution:50000},
+      {full_name:'Ana Maria Garcia',shares_or_percentage:40,capital_contribution:30000},
     ], total_authorized_shares:1000, par_value:0.01, management_type:'manager',
     directors_managers:[{name:'Roberto Carlos Mendez'},{name:'Ana Maria Garcia'}],
     officers:[{name:'Roberto Carlos Mendez',title:'President'},{name:'Ana Maria Garcia',title:'Treasurer'}],
@@ -121,7 +122,8 @@ async function gen() {
   const corpMin = await generateDocument({
     entity_type:'CORP', entity_name:'MINIMAL CORP Inc', state_of_formation:'Delaware',
     date_of_formation:'2026-01-15T00:00:00Z', principal_address:'456 Broad St, Dover, DE 19901',
-    county:'Kent', owners_list:[{full_name:'Single Owner',shares_or_percentage:1000,capital_contribution:100000}],
+    // 100% owner (not 1000 — shares_or_percentage is a %)
+    county:'Kent', owners_list:[{full_name:'Single Owner',shares_or_percentage:100,capital_contribution:100000}],
     total_authorized_shares:1000, par_value:0.01, management_type:'manager',
     directors_managers:[{name:'Single Owner'}],
     officers:[{name:'Single Owner',title:'President & CEO'}],
@@ -194,8 +196,10 @@ test("Bank: original 'any Member or Manager' removed", notHas(L, "the signature 
 test("Spending: $15,000.00 (replaced $5,000.00)", has(L, "$15,000.00"));
 test("Spending: original $5,000.00 removed", notHas(L, "$5,000.00"));
 
-// Majority definition percentage
-test("Majority definition: 50.1% present", has(L, "50.1%"));
+// LLC majority references in body text — the LLC template uses plain "50%"
+// (not "50.00%" or "FIFTY PERCENT"). Super Majority gets expanded to words.
+test("Majority (50%) appears in body text", has(L, "at least 50%"));
+test("Super Majority (75.00%) expanded", has(L, "SEVENTY-FIVE PERCENT (75.00%)"));
 
 // Conditional sections
 test("ROFR: Section 12.1 present", has(L, "Right of First Refusal"));
@@ -238,20 +242,21 @@ test("Has formatting (fonts + bold + styles)", has(CX, "<w:rFonts") && has(CX, "
 test("No unfilled {{}} variables", notHas(C, "{{"));
 
 // ALL Corp {{}} variables
-test("{{corp_name}} → VERIFY CORP Inc", has(C, "VERIFY CORP Inc"));
-test("{{effective_date}} → June 15th, 2026", has(C, "June 15th, 2026"));
+// Corp entity names are uppercased; Corp dates use "Month D, YYYY" (no ordinal)
+test("{{corp_name}} → VERIFY CORP INC (uppercased)", has(C, "VERIFY CORP INC"));
+test("{{effective_date}} → June 15, 2026", has(C, "June 15, 2026"));
 test("{{majority_threshold_text}} → FIFTY PERCENT", has(C, "FIFTY PERCENT") || has(C, "50.00%"));
 test("{{principal_address}} → 100 Wall Street", has(C, "100 Wall Street"));
 test("{{total_authorized_shares}} → 1,000", has(C, "1,000"));
 test("{{par_value}} → 0.01", has(C, "0.01"));
 test("{{shareholder_1_name}} → Roberto Carlos Mendez", has(C, "Roberto Carlos Mendez"));
-test("{{shareholder_1_shares}} → 600", has(C, "600"));
+test("{{shareholder_1_shares}} → 600 (60% of 1,000)", has(C, "600"));
 test("{{shareholder_1_contribution}} → 50,000", has(C, "50,000"));
-test("{{shareholder_1_pct}} → 60.00", has(C, "60.00"));
+test("{{shareholder_1_pct}} → 60.00%", has(C, "60.00"));
 test("{{shareholder_2_name}} → Ana Maria Garcia", has(C, "Ana Maria Garcia"));
-test("{{shareholder_2_shares}} → 400", has(C, "400"));
+test("{{shareholder_2_shares}} → 400 (40% of 1,000)", has(C, "400"));
 test("{{shareholder_2_contribution}} → 30,000", has(C, "30,000"));
-test("{{shareholder_2_pct}} → 40.00", has(C, "40.00"));
+test("{{shareholder_2_pct}} → 40.00%", has(C, "40.00"));
 test("{{shareholder_3_name}} → empty (only 2 owners)", notHas(C, "{{shareholder_3_name}}"));
 test("{{major_spending_threshold}} → 7,500", has(C, "7,500"));
 test("{{bank_signees_text}} → two", has(C, "two of the Officers"));
@@ -280,12 +285,12 @@ console.log("\n══ 4. Corp Minimal (MINIMAL CORP Inc, Delaware) ══");
 const C2 = fullText(extractDocxXml("/tmp/v_corp_min.docx"));
 
 test("No unfilled {{}} variables", notHas(C2, "{{"));
-test("Company: MINIMAL CORP Inc", has(C2, "MINIMAL CORP Inc"));
+test("Company: MINIMAL CORP INC (uppercased)", has(C2, "MINIMAL CORP INC"));
 test("State: Delaware", has(C2, "Delaware"));
 test("County: Kent", has(C2, "Kent"));
 test("Address: 456 Broad St", has(C2, "456 Broad St"));
 test("Shareholder: Single Owner", has(C2, "Single Owner"));
-test("Date: January 15th, 2026", has(C2, "January 15th, 2026"));
+test("Date: January 15, 2026 (Corp: no ordinal)", has(C2, "January 15, 2026"));
 test("Shares: 1,000", has(C2, "1,000"));
 test("Contribution: 100,000", has(C2, "100,000"));
 test("Spending: 10,000", has(C2, "10,000"));
