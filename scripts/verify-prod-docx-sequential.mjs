@@ -13,6 +13,8 @@ const docx = process.argv[2] ||
 const buf = readFileSync(docx);
 const xml = new PizZip(buf).file('word/document.xml').asText();
 
+// Detect all 3 template shapes the renumberer handles:
+//   (a) Heading3 captions, (b) <w:t>N.M</w:t><w:tab/>, (c) first <w:t> "N.M …"
 const pattern = /<w:p[^>]*>([^]*?)<\/w:p>/g;
 const rows = [];
 let match;
@@ -20,10 +22,11 @@ while ((match = pattern.exec(xml)) !== null) {
   const body = match[1];
   const isH3 = body.includes('<w:pStyle w:val="Heading3"/>');
   const hasNumTab = /<w:t[^>]*>\d+\.\d+<\/w:t>\s*<w:tab\/>/.test(body);
-  if (!isH3 && !hasNumTab) continue;
   const text = (body.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
     .map((t) => t.replace(/<[^>]+>/g, '')).join('').trim();
   if (!text) continue;
+  const startsWithNumSpace = /^\d+\.\d+\s/.test(text);
+  if (!isH3 && !hasNumTab && !startsWithNumSpace) continue;
   rows.push(text.substring(0, 100));
 }
 

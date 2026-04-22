@@ -1490,14 +1490,24 @@ function renumberAndRemapSubsections(xml: string): string {
         return fullMatch;
       }
 
-      // A paragraph is a "numbered section" if it EITHER:
+      // A paragraph is a "numbered section" if it matches ANY of:
       //   (a) has <w:pStyle w:val="Heading3"/> — the standard sub-section
-      //       style used by most of the template, OR
+      //       style used by most of the template.
       //   (b) has a first <w:t>N.M</w:t><w:tab/> structural pattern — the
       //       attorney's template marks "1.2 Affiliate" this way with no
       //       pStyle at all; if we skipped these, renumbering Heading3-
       //       styled paragraphs would collide with their hard-coded
       //       template number.
+      //   (c) inline "underlined title + period + body" header — the
+      //       template author wrote several section headers as a single
+      //       paragraph: first run is an underlined short title, next run
+      //       starts with ". " and carries the body. No pStyle, no leading
+      //       N.M<tab>. Examples: Article IV's "Forfeiture of Shares" /
+      //       "Additional Capital Contributions" / "Dilution"; Article XI's
+      //       "Quarterly Meetings" / "Emergency Meetings" / "Emergency
+      //       Board"; Article XIV's "Death of a Shareholder" / "Incapacity"
+      //       / "Divorce" / "Successor's Interest". Missing these orphans
+      //       cross-refs like "Section 4.4 above".
       //
       // Article II's "Articles/Purpose/Name/Place of Business" captions
       // hit path (a) after prefixArticle2Subsections prepends their "2.N "
@@ -1508,7 +1518,38 @@ function renumberAndRemapSubsections(xml: string): string {
       const isHeading3 = /<w:pStyle w:val="Heading3"\/>/.test(fullMatch);
       const hasNumTabPattern =
         /<w:t[^>]*>\d+\.\d+<\/w:t>\s*<w:tab\/>/.test(fullMatch);
-      if (!isHeading3 && !hasNumTabPattern) return fullMatch;
+
+      // Detect branch (c): first body run is underlined short title, next
+      // <w:t> starts with "." (period glue between title and body).
+      let hasUnderlinedTitlePattern = false;
+      if (!isHeading3 && !hasNumTabPattern) {
+        const firstRunMatch = fullMatch.match(/<w:r\b[\s\S]*?<\/w:r>/);
+        const allTexts = (fullMatch.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+          .map((t) => t.replace(/<[^>]+>/g, ""));
+        if (firstRunMatch && allTexts.length >= 2) {
+          const firstRun = firstRunMatch[0];
+          const firstRunUnderlined = /<w:u w:val="single"\/>/.test(firstRun);
+          const firstRunText = (firstRun.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+            .map((t) => t.replace(/<[^>]+>/g, ""))
+            .join("")
+            .trim();
+          const secondText = allTexts[1] || "";
+          if (
+            firstRunUnderlined &&
+            firstRunText.length > 2 &&
+            firstRunText.length <= 80 &&
+            !/^\d/.test(firstRunText) &&
+            allTexts[0].trim() === firstRunText &&
+            /^\s*\./.test(secondText)
+          ) {
+            hasUnderlinedTitlePattern = true;
+          }
+        }
+      }
+
+      if (!isHeading3 && !hasNumTabPattern && !hasUnderlinedTitlePattern) {
+        return fullMatch;
+      }
       if (currentArticle === null) return fullMatch;
 
       const newNum = `${currentArticle}.${nextSub}`;
@@ -1522,6 +1563,19 @@ function renumberAndRemapSubsections(xml: string): string {
       if (existingNumMatch) {
         const oldNum = `${existingNumMatch[1]}.${existingNumMatch[2]}`;
         if (oldNum !== newNum) remap.set(oldNum, newNum);
+      }
+
+      // Branch (c): insert a new non-styled run BEFORE the first <w:r>
+      // carrying "newNum " so the underlined title (and everything else)
+      // is preserved as-is, and the number renders in normal weight. A
+      // plain space (not <w:tab/>) avoids depending on tab-stop geometry
+      // that wasn't set for these paragraphs.
+      if (hasUnderlinedTitlePattern) {
+        const newRun =
+          `<w:r><w:t xml:space="preserve">${newNum} </w:t></w:r>`;
+        // <w:r\b — word boundary after "r" — will NOT match <w:rPr
+        // because "rP" has no word boundary between the two word chars.
+        return fullMatch.replace(/<w:r\b/, `${newRun}<w:r`);
       }
 
       // Rewrite the first <w:t>'s body to carry the new number.
