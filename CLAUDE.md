@@ -74,6 +74,16 @@ See `_set_table_col_widths()` in both Lambda files for the working implementatio
 
 ## Testing / Verification
 
+### Do your own QA/UAT — never ask the user to verify
+After any UI/DOCX/Lambda change, **run the verification yourself** before
+reporting back: build, invoke prod, screenshot or assert the result, and
+summarize what you saw. Do not end a turn with "want me to verify?" — just
+verify. The user has said this explicitly more than once. Applies to:
+- Vercel deploys (poll the URL, confirm the fix renders)
+- Lambda deploys (invoke the function, inspect the output DOCX)
+- UI changes (Playwright screenshot the deployed page)
+- DOCX output changes (per-page visual QA, see below)
+
 ### Visual QA requirement — per-page, not "eyeball"
 When verifying a generated DOCX visually (font, numbering, tabs, spacing,
 indentation, page breaks, signature blocks, tables), **Read EVERY slice
