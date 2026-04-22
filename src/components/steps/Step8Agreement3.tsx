@@ -15,7 +15,7 @@ interface Step8Agreement3Props extends StepProps {
 }
 
 export default function Step8Agreement3({ form, setStep, onSave, onNext, session, anonymousId }: Step8Agreement3Props) {
-  const { register, watch, control, setValue, formState: { errors } } = form;
+  const { register, watch, control, setValue } = form;
   const isCorp = watch("company.entityType") === "C-Corp" || watch("company.entityType") === "S-Corp";
 
   // TODO #1 + #2 (client video review): when the user enables non-compete,
@@ -52,17 +52,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
     }
   }, [llcNC, formationState, llcNCDuration, llcNCScope, setValue]);
 
-  const isInputInvalid = () => false;
-
-  // Custom validation for majority percentages
-  const validateMajorityPercentages = () => {
-    return true;
-  };
-
   const handleContinue = async () => {
-    if (!validateMajorityPercentages()) {
-      return;
-    }
     await onNext?.();
   };
 

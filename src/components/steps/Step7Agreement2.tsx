@@ -14,19 +14,10 @@ interface Step7Agreement2Props extends StepProps {
 }
 
 export default function Step7Agreement2({ form, setStep, onSave, onNext, session, anonymousId }: Step7Agreement2Props) {
-  const { register, watch, control, formState: { errors } } = form;
+  const { register, watch, control } = form;
   const isCorp = watch("company.entityType") === "C-Corp" || watch("company.entityType") === "S-Corp";
 
-  // Helper function to check if input should be red
-  const isInputInvalid = () => false;
-
-  // Custom validation for majority percentages
-  const validateMajorityPercentages = () => true;
-
   const handleContinue = async () => {
-    if (!validateMajorityPercentages()) {
-      return;
-    }
     await onNext?.();
   };
 
