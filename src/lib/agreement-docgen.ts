@@ -449,7 +449,9 @@ function applyLLCVotingReplacements(
 
   // Add Super Majority definition for LLC (between Sec 19.7 and 19.8)
   // LLC template has "19.7 Majority Defined" then "19.8 INDEMNIFICATION"
-  // Insert Super Majority definition and renumber INDEMNIFICATION to 19.9
+  // Insert Super Majority definition and renumber the three following
+  // sections (INDEMNIFICATION / ATTORNEYS' FEES / WAIVER OF JURY TRIAL)
+  // to 19.9 / 19.10 / 19.11.
   if (answers.supermajority_threshold) {
     const supPct = answers.supermajority_threshold;
     const supPctFormatted = typeof supPct === 'number' && supPct % 1 === 0 ? `${supPct}.00` : String(supPct);
@@ -466,6 +468,28 @@ function applyLLCVotingReplacements(
       )}`,
       false
     );
+
+    // Renumber the three sections that follow "19.7 Majority Defined" in
+    // the LLC template. In document.xml these numbers live in their own
+    // <w:t>N.M</w:t> runs, followed (after some formatting runs) by a
+    // <w:t>SECTION TITLE</w:t> run — the section title stays intact, we
+    // only rewrite the number. Must run in DESCENDING order so the freshly
+    // produced "19.10" from (19.9→19.10) isn't matched again by the next
+    // rule targeting "19.10".
+    const bumps: Array<{ from: string; to: string; title: string }> = [
+      { from: "19.10", to: "19.11", title: "WAIVER OF JURY TRIAL" },
+      { from: "19.9", to: "19.10", title: "ATTORNEYS\u2019 FEES" },
+      { from: "19.8", to: "19.9", title: "INDEMNIFICATION" },
+    ];
+    for (const b of bumps) {
+      // Cap look-ahead to ~600 chars so we don't accidentally bridge across
+      // distant paragraphs. Each section's number-run sits within the same
+      // <w:p> as the title run, well within that window.
+      const re = new RegExp(
+        `(<w:t[^>]*>)${b.from.replace(/\./g, "\\.")}(<\\/w:t>[\\s\\S]{0,600}?<w:t[^>]*>${b.title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}</w:t>)`,
+      );
+      xml = xml.replace(re, `$1${b.to}$2`);
+    }
   }
 
   // Replace spending threshold in Sec 11.4
