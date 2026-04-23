@@ -544,6 +544,28 @@ function removeLLCConditionalSections(
       "Concurrence or Acceptance.  The Offerees",
       "Rights of Buyer.  A purchaser of the Selling Member",
     ]);
+
+    // After removing 12.1, shift 12.2..12.10 down by 1 (→ 12.1..12.9) in
+    // both section headings and body cross-references. The LLC generator
+    // doesn't run renumberAndRemapSubsections, so we do a targeted pass
+    // here, limited to Article XII. Must work in ASCENDING order of NEW
+    // numbers so we don't collide (rewriting 12.2→12.1 before 12.3→12.2
+    // would be fine, but 12.3→12.2 before 12.2→12.1 would make the latter
+    // see two 12.2s).
+    for (let n = 2; n <= 10; n++) {
+      const from = `12.${n}`;
+      const to = `12.${n - 1}`;
+      // Heading runs: <w:t>12.N</w:t> standalone
+      xml = xml.replace(
+        new RegExp(`(<w:t[^>]*>)${from}(</w:t>)`, 'g'),
+        `$1${to}$2`,
+      );
+      // Body cross-refs: "Section 12.N", "Paragraph 12.N", etc.
+      xml = xml.replace(
+        new RegExp(`\\b(Sections?|Paragraphs?|Articles?)(\\s+)${from.replace('.', '\\.')}\\b`, 'gi'),
+        `$1$2${to}`,
+      );
+    }
   }
 
   // Drag-Along = No → Remove drag-along sub-paragraph
@@ -1091,6 +1113,30 @@ function removeCorpConditionalSections(
       "Purchase of Shareholder Interests upon Deadlock",
       "Bona Fide Offer",
     ]);
+
+    // The Corp template has an inline body ref "The application of this
+    // clause shall not trigger paragraph 13.2 below." inside Section 4.4.
+    // Article XIII is entirely ROFR and got removed above, so paragraph
+    // 13.2 no longer exists — strip the dangling sentence. Keep the
+    // leading space tidy.
+    xml = xmlTextReplace(
+      xml,
+      "  The application of this clause shall not trigger paragraph 13.2 below.",
+      "",
+      true,
+    );
+    xml = xmlTextReplace(
+      xml,
+      " The application of this clause shall not trigger paragraph 13.2 below.",
+      "",
+      true,
+    );
+    xml = xmlTextReplace(
+      xml,
+      "The application of this clause shall not trigger paragraph 13.2 below.",
+      "",
+      true,
+    );
   }
 
   // Drag-Along = No
