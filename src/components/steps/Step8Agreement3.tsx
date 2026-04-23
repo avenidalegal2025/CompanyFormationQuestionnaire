@@ -58,7 +58,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
 
   return (
     <section className="space-y-6">
-      <HeroMiami3 title="Acciones & Sucesión" />
+      <HeroMiami3 title="Gobierno & Decisiones" />
       <div className="card">
         <h2 className="text-xl font-semibold text-gray-900">Gobierno & Decisiones</h2>
         <div className="mt-6 space-y-16 md:pl-12">
