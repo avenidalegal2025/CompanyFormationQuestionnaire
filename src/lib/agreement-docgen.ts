@@ -1149,46 +1149,52 @@ function removeCorpConditionalSections(
     xml = removeXmlParagraphsContaining(xml, ["Tag Along"]);
   }
 
-  // Non-compete: insert "Covenant Against Competition" AFTER Non-Disparagement
-  // (the current last numbered section of Article 10 in the Corp template).
-  // Prior versions hardcoded "10.10" as the inserted prefix and "10.9" as the
-  // anchor — both were brittle. Recent template renumbering moved
-  // Non-Disparagement from 10.9 down to 10.7, which silently created a 10.8/10.9
-  // numbering gap in every generated Corp agreement with non-compete=Yes.
-  // We now detect the anchor section's number at generation time and compute
-  // the next sequential number, so future renumbering can't break this again.
+  // Non-compete: insert "Covenant Against Competition" at the end of Article 10
+  // and let the downstream renumberAndRemapSubsections pass assign the correct
+  // section number. Strategy:
+  //   1. Insert a Heading3-styled paragraph WITHOUT any "10.X" prefix in its
+  //      text — just "Covenant Against Competition. …" starting at the body.
+  //   2. Renumber's Shape-C path ("unnumbered caption") then prepends the
+  //      correct sequential "10.N " at rewrite time.
+  // This is self-healing against any future template renumbering because we
+  // never encode a specific number in our inserted text.
+  //
+  // Anchor: the Corp template's literal ">10.9<" still exists in the pre-
+  // renumber XML (confirmed by scanning — 10.5, 10.8, 10.9 are plain
+  // paragraphs with the number in a single <w:t>). ">10.9<" is reliable
+  // until the template is re-authored to remove Non-Disparagement entirely.
+  // If it disappears, we fall back to ">10.8<", then ">10.7<", etc.
+  //
   // Text provided by attorney Antonio Regojo.
   if (answers.include_noncompete) {
     const duration = answers.noncompete_duration || 2;
     const durationWord = numberToWords(duration).toUpperCase();
 
-    const ndIdx = xml.indexOf("Non-Disparagement");
-    if (ndIdx >= 0) {
-      const pStart = paragraphStartBefore(xml, ndIdx);
-      const pEnd = xml.indexOf("</w:p>", ndIdx);
-      if (pStart >= 0 && pEnd >= 0) {
-        const ndPara = xml.substring(pStart, pEnd);
-        // Extract the "N.M" prefix from the Non-Disparagement heading's <w:t>.
-        const numMatch = ndPara.match(/<w:t[^>]*>(\d+)\.(\d+)/);
-        if (numMatch) {
-          const article = parseInt(numMatch[1], 10);
-          const nextSub = parseInt(numMatch[2], 10) + 1;
-          const ncPrefix = `${article}.${nextSub} Covenant Against Competition. `;
-          const nonCompeteText =
-            ncPrefix +
-            `During the term of this Agreement and for ${durationWord} (${duration}) years following termination as a Shareholder, Officer and/or employee of the Corporation (the "Restrictive Period"), no Shareholder shall directly or indirectly, individually or on behalf of any Person other than the Corporation or any affiliate or subsidiary of the Corporation: ` +
-            `(i) solicit any Customers of the Corporation for the purpose of selling to them products or services competitive with the products or services sold by the Corporation; ` +
-            `(ii) provide directly or indirectly products, services, or assist anyone to provide the products or services of the type provided by the Corporation during the term of this Agreement, to any Person (other than the Corporation) which is then engaged within the Territory in a business similar to the Corporation's Business; or ` +
-            `(iii) solicit or induce, or in any manner attempt to solicit or induce, any person employed by the Corporation to leave such employment, whether or not such employment is pursuant to a written contract with the Corporation or is at-will. ` +
-            `The Shareholder's obligations under this paragraph shall survive any expiration or termination of this Agreement. As used herein, the term "Territory" means ${answers.noncompete_scope ? answers.noncompete_scope : "anywhere in the United States where the Corporation has Customers"}. As used herein, the term "Customers" means all Persons that have conducted business with the Corporation during the three (3) year period immediately prior to any termination or expiration of this Agreement.`;
+    const nonCompeteText =
+      `Covenant Against Competition. ` +
+      `During the term of this Agreement and for ${durationWord} (${duration}) years following termination as a Shareholder, Officer and/or employee of the Corporation (the "Restrictive Period"), no Shareholder shall directly or indirectly, individually or on behalf of any Person other than the Corporation or any affiliate or subsidiary of the Corporation: ` +
+      `(i) solicit any Customers of the Corporation for the purpose of selling to them products or services competitive with the products or services sold by the Corporation; ` +
+      `(ii) provide directly or indirectly products, services, or assist anyone to provide the products or services of the type provided by the Corporation during the term of this Agreement, to any Person (other than the Corporation) which is then engaged within the Territory in a business similar to the Corporation's Business; or ` +
+      `(iii) solicit or induce, or in any manner attempt to solicit or induce, any person employed by the Corporation to leave such employment, whether or not such employment is pursuant to a written contract with the Corporation or is at-will. ` +
+      `The Shareholder's obligations under this paragraph shall survive any expiration or termination of this Agreement. As used herein, the term "Territory" means ${answers.noncompete_scope ? answers.noncompete_scope : "anywhere in the United States where the Corporation has Customers"}. As used herein, the term "Customers" means all Persons that have conducted business with the Corporation during the three (3) year period immediately prior to any termination or expiration of this Agreement.`;
 
-          const corpFmt = extractFormatting(xml, "Non-Disparagement");
-          const corpPPr = corpFmt.pPr || '<w:pPr><w:jc w:val="both"/><w:rPr><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:pPr>';
-          const corpRPr = corpFmt.rPr || '<w:rPr><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr>';
-          const insertPoint = pEnd + "</w:p>".length;
-          const ncParagraph = buildFormattedParagraph(nonCompeteText, corpPPr, corpRPr);
-          xml = xml.substring(0, insertPoint) + ncParagraph + xml.substring(insertPoint);
-        }
+    // Find the last Article 10 section number that exists as a standalone
+    // <w:t> content — same reliable pattern the old code used (">10.9<"),
+    // now dynamically discovered instead of hardcoded.
+    let anchor = -1;
+    for (let sub = 15; sub >= 1; sub--) {
+      const candidate = xml.lastIndexOf(`>10.${sub}<`);
+      if (candidate >= 0) { anchor = candidate; break; }
+    }
+    if (anchor >= 0) {
+      const pEnd = xml.indexOf("</w:p>", anchor);
+      if (pEnd >= 0) {
+        const corpFmt = extractFormatting(xml, ">10.1<");
+        const corpPPr = corpFmt.pPr || '<w:pPr><w:pStyle w:val="Heading3"/><w:jc w:val="both"/><w:rPr><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:pPr>';
+        const corpRPr = corpFmt.rPr || '<w:rPr><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr>';
+        const insertPoint = pEnd + "</w:p>".length;
+        const ncParagraph = buildFormattedParagraph(nonCompeteText, corpPPr, corpRPr);
+        xml = xml.substring(0, insertPoint) + ncParagraph + xml.substring(insertPoint);
       }
     }
   }

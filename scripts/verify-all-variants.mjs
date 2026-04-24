@@ -471,7 +471,21 @@ function buildGroupD() {
         entity, ownerCount: 2,
         nonCompete: nc, nonSolicitation: ns, confidentiality: cf, label,
       });
-      v.run = (text) => assertMatrixBase(text, v.meta);
+      v.run = (text) => {
+        const errs = assertMatrixBase(text, v.meta);
+        // Core covenant-presence checks: if the user ticked the toggle, the
+        // corresponding section MUST be in the document. Without this, silent
+        // "injection did nothing" bugs (like the one that just shipped) are
+        // invisible — numbering remains sequential because nothing was
+        // inserted, but the clause the customer paid for is missing.
+        if (nc === 'Yes' && !text.includes('Covenant Against Competition')) {
+          errs.push('non-compete=Yes but "Covenant Against Competition" missing');
+        }
+        if (nc === 'No' && text.includes('Covenant Against Competition')) {
+          errs.push('non-compete=No but "Covenant Against Competition" present');
+        }
+        return errs;
+      };
       out.push(v);
     }
   }
