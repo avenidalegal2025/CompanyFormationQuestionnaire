@@ -1,7 +1,5 @@
 /**
- * Single runner for ALL agreement-docgen variant coverage. Replaces the two
- * older scripts (generate-all-144-variants.mjs + verify-plan-combinations.mjs)
- * with one 180-test matrix:
+ * Single runner for ALL agreement-docgen variant coverage.
  *
  *   Group M (144): base matrix —
  *     entity(2) × voting(3) × ROFR(2) × drag/tag(2) × bank(2) × owners(3)
@@ -12,22 +10,34 @@
  *   Group C (16):  Cross-feature stress —
  *     entity(2) × ownerCount(2,6) × ROFR(Y/N) × drag/tag(Y/N), always with
  *     Responsibilities=Yes, Supermayoría on sale, custom thresholds 60/80
+ *   Group D (16):  Restrictive covenants —
+ *     entity(2) × nonCompete(Y/N) × nonSolicitation(Y/N) × confidentiality(Y/N)
+ *   Group E (30):  Money mechanics —
+ *     entity(2) × distributionFrequency(4) × moreCapital(2) × loans(2), trimmed
+ *   Group F (24):  Succession —
+ *     entity(2) × transferToRelatives(3) × incapacityHeirs(Y/N) × divorceBuyout(Y/N)
  *
  * Every variant also runs universal checks:
  *   • no leftover {{ }} or %% placeholders
  *   • sequential N.M numbering per Article
  *   • no orphan internal cross-refs (Section N.M pointing nowhere)
+ * And per-variant structural stats are collected and diffed against a
+ * committed baseline (scripts/variants-stats-baseline.csv) — any deviation
+ * is surfaced for human review.
  *
  * Run: node scripts/verify-all-variants.mjs
- *      node scripts/verify-all-variants.mjs --only M   # one group
- *      node scripts/verify-all-variants.mjs --save     # write DOCXes locally
+ *      node scripts/verify-all-variants.mjs --only=M        # one group
+ *      node scripts/verify-all-variants.mjs --save          # write DOCXes locally
+ *      node scripts/verify-all-variants.mjs --refresh-baseline
  */
 
 import { inflateRawSync } from 'node:zlib';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const API = 'https://company-formation-questionnaire.vercel.app/api/agreement/generate';
+const API_BASE = process.env.VERIFY_API_BASE ||
+  'https://company-formation-questionnaire.vercel.app';
+const API = `${API_BASE}/api/agreement/generate`;
 const OUT = join(process.env.USERPROFILE || '.', 'Downloads', 'all-variants');
 mkdirSync(OUT, { recursive: true });
 
@@ -158,6 +168,16 @@ function baseFormData({
   entity, voting = 'majority', ownerCount = 2,
   rofr = true, dragTag = true, bank = 'two',
   majorityThreshold = 50.01, supermajorityThreshold = 75,
+  // extended toggles (defaults preserve existing 180 behavior)
+  nonCompete = 'No',
+  nonSolicitation = 'Yes',
+  confidentiality = 'Yes',
+  distributionFrequency = 'Trimestral',
+  transferToRelatives = 'free', // 'free' | 'unanimous' | 'majority'
+  incapacityHeirs = true,
+  divorceBuyout = true,
+  moreCapital = 'Pro-Rata', // 'Pro-Rata' | 'No'
+  loans = true,
   label,
 }) {
   const isCorp = entity === 'C-Corp';
@@ -165,11 +185,18 @@ function baseFormData({
   const v = votingProfile(voting);
   const owners = ownerArray(ownerCount);
 
+  const TRANSFER_OPTS = {
+    free: 'Sí, podrán transferir libremente sus acciones.',
+    unanimous: 'Sí, podrán transferir sus acciones si la decisión de los accionistas es unánime.',
+    majority: 'Sí, podrán transferir sus acciones si la decisión de la mayoría los accionistas.',
+  };
+  const MORE_CAPITAL_OPTS = { 'Pro-Rata': 'Sí, Pro-Rata', 'No': 'No' };
+
   const agreement = {
     wants: 'Yes',
     majorityThreshold,
     supermajorityThreshold,
-    distributionFrequency: 'Trimestral',
+    distributionFrequency,
   };
 
   if (isCorp) {
@@ -179,16 +206,19 @@ function baseFormData({
       corp_majorDecisionThreshold: v.major,
       corp_majorSpendingThreshold: '7500',
       corp_officerRemovalVoting: v.removal,
-      corp_nonCompete: 'No', corp_nonSolicitation: 'Yes', corp_confidentiality: 'Yes',
+      corp_nonCompete: nonCompete,
+      corp_nonSolicitation: nonSolicitation,
+      corp_confidentiality: confidentiality,
       corp_taxOwner: NAMES[0],
       corp_rofr: rofr ? 'Yes' : 'No', corp_rofrOfferPeriod: 90,
-      corp_transferToRelatives: 'Sí, podrán transferir libremente sus acciones.',
-      corp_incapacityHeirsPolicy: 'Yes',
-      corp_divorceBuyoutPolicy: 'Yes',
+      corp_transferToRelatives: TRANSFER_OPTS[transferToRelatives],
+      corp_incapacityHeirsPolicy: incapacityHeirs ? 'Yes' : 'No',
+      corp_divorceBuyoutPolicy: divorceBuyout ? 'Yes' : 'No',
       corp_tagDragRights: dragTag ? 'Yes' : 'No',
       corp_newShareholdersAdmission: v.newMember,
-      corp_moreCapitalProcess: 'Sí, Pro-Rata',
-      corp_shareholderLoans: 'Yes', corp_shareholderLoansVoting: v.loans,
+      corp_moreCapitalProcess: MORE_CAPITAL_OPTS[moreCapital],
+      corp_shareholderLoans: loans ? 'Yes' : 'No',
+      corp_shareholderLoansVoting: v.loans,
     });
     for (let i = 0; i < ownerCount; i++) agreement[`corp_capitalPerOwner_${i}`] = '50000';
   } else {
@@ -198,18 +228,21 @@ function baseFormData({
       llc_majorDecisions: v.major,
       llc_majorSpendingThreshold: '15000',
       llc_officerRemovalVoting: v.removal,
-      llc_nonCompete: 'No', llc_nonSolicitation: 'Yes', llc_confidentiality: 'Yes',
+      llc_nonCompete: nonCompete,
+      llc_nonSolicitation: nonSolicitation,
+      llc_confidentiality: confidentiality,
       llc_nonDisparagement: 'Yes',
       llc_taxPartner: NAMES[0],
       llc_minTaxDistribution: 30,
       llc_rofr: rofr ? 'Yes' : 'No', llc_rofrOfferPeriod: 180,
-      llc_incapacityHeirsPolicy: 'No',
+      llc_incapacityHeirsPolicy: incapacityHeirs ? 'Yes' : 'No',
       llc_dissolutionDecision: v.dissolution,
       llc_newMembersAdmission: v.newMember,
       llc_newPartnersAdmission: v.newMember,
       llc_managingMembers: 'Yes',
-      llc_additionalContributions: 'Sí, Pro-Rata',
-      llc_memberLoans: 'Yes', llc_memberLoansVoting: v.loans,
+      llc_additionalContributions: MORE_CAPITAL_OPTS[moreCapital],
+      llc_memberLoans: loans ? 'Yes' : 'No',
+      llc_memberLoansVoting: v.loans,
     });
     for (let i = 0; i < ownerCount; i++) agreement[`llc_capitalContributions_${i}`] = '50000';
   }
@@ -229,7 +262,12 @@ function baseFormData({
         : { managersAllOwners: 'Yes' },
       agreement,
     },
-    meta: { entity, voting, rofr, dragTag, bank, ownerCount, majorityThreshold, supermajorityThreshold },
+    meta: {
+      entity, voting, rofr, dragTag, bank, ownerCount,
+      majorityThreshold, supermajorityThreshold,
+      nonCompete, nonSolicitation, confidentiality, distributionFrequency,
+      transferToRelatives, incapacityHeirs, divorceBuyout, moreCapital, loans,
+    },
   };
 }
 
@@ -417,7 +455,120 @@ function buildGroupC() {
   return out;
 }
 
+// Group D — Restrictive covenants: nonCompete × nonSolicitation × confidentiality
+// Pairwise (8 combinations) × 2 entities = 16 variants. Exercises all 8 toggle
+// states so any branch that was never rendered gets hit.
+function buildGroupD() {
+  const out = [];
+  const triplets = [
+    ['Yes', 'Yes', 'Yes'], ['Yes', 'Yes', 'No'], ['Yes', 'No', 'Yes'], ['Yes', 'No', 'No'],
+    ['No',  'Yes', 'Yes'], ['No',  'Yes', 'No'], ['No',  'No', 'Yes'], ['No',  'No', 'No'],
+  ];
+  for (const entity of ['C-Corp', 'LLC']) {
+    for (const [nc, ns, cf] of triplets) {
+      const label = `D_${entity}_nc${nc[0]}_ns${ns[0]}_cf${cf[0]}`;
+      const v = baseFormData({
+        entity, ownerCount: 2,
+        nonCompete: nc, nonSolicitation: ns, confidentiality: cf, label,
+      });
+      v.run = (text) => assertMatrixBase(text, v.meta);
+      out.push(v);
+    }
+  }
+  return out;
+}
+
+// Group E — distributionFrequency × moreCapital × loans. Previously pinned to
+// Trimestral + Pro-Rata + Yes; this exercises every branch.
+function buildGroupE() {
+  const out = [];
+  const freqs = ['Trimestral', 'Semestral', 'Anual', 'Discreción de la Junta'];
+  for (const entity of ['C-Corp', 'LLC']) {
+    for (const freq of freqs) {
+      for (const moreCapital of ['Pro-Rata', 'No']) {
+        for (const loans of [true, false]) {
+          if (freq === 'Semestral' && moreCapital === 'No' && !loans) continue; // trim
+          const label = `E_${entity}_${freq.slice(0, 4)}_mc${moreCapital === 'Pro-Rata' ? 'P' : 'N'}_ln${loans ? 'Y' : 'N'}`;
+          const v = baseFormData({
+            entity, ownerCount: 2,
+            distributionFrequency: freq, moreCapital, loans, label,
+          });
+          v.run = (text) => assertMatrixBase(text, v.meta);
+          out.push(v);
+        }
+      }
+    }
+  }
+  return out;
+}
+
+// Group F — transferToRelatives (3 values) × incapacityHeirs × divorceBuyout.
+function buildGroupF() {
+  const out = [];
+  const transfers = ['free', 'unanimous', 'majority'];
+  for (const entity of ['C-Corp', 'LLC']) {
+    for (const transfer of transfers) {
+      for (const heirs of [true, false]) {
+        for (const divorce of [true, false]) {
+          const label = `F_${entity}_xfer${transfer[0]}_heirs${heirs ? 'Y' : 'N'}_div${divorce ? 'Y' : 'N'}`;
+          const v = baseFormData({
+            entity, ownerCount: 2,
+            transferToRelatives: transfer,
+            incapacityHeirs: heirs, divorceBuyout: divorce,
+            label,
+          });
+          v.run = (text) => assertMatrixBase(text, v.meta);
+          out.push(v);
+        }
+      }
+    }
+  }
+  return out;
+}
+
+// ─── Structural stats collection ────────────────────────────────────
+//
+// We DO NOT fail on absolute structural values (tables, rFonts, tab
+// counts, heading counts) — the template itself has baseline quirks
+// (e.g. every run explicitly declares Times New Roman, agreement tables
+// use <w:tblGrid> instead of per-cell <w:tcW>). What we DO is emit
+// per-variant stats, then diff a committed golden baseline on CI. Any
+// deviation gets reviewed by a human. This catches format regressions
+// without brittle structural rules that generate constant noise.
+
+function collectStats(xml) {
+  const stats = {};
+  const tables = xml.match(/<w:tbl[ >][^]*?<\/w:tbl>/g) || [];
+  stats.tables = tables.length;
+
+  const paras = xml.match(/<w:p[ >][^]*?<\/w:p>/g) || [];
+  let totalParas = 0, h3 = 0, h4 = 0, tabs = 0, numbered = 0, rFontsRuns = 0, pageBreaks = 0;
+  for (const p of paras) {
+    totalParas++;
+    if (/<w:pStyle w:val="Heading3"\/>/.test(p)) h3++;
+    if (/<w:pStyle w:val="Heading4"\/>/.test(p)) h4++;
+    tabs += (p.match(/<w:tab\/>/g) || []).length;
+    pageBreaks += (p.match(/<w:br[^>]*w:type="page"/g) || []).length;
+    const text = (p.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+      .map((t) => t.replace(/<[^>]+>/g, '')).join('');
+    if (/^\d{1,2}\.\d{1,2}(?:\s|[A-Za-z])/.test(text)) numbered++;
+    const runs = p.match(/<w:r[ >][^]*?<\/w:r>/g) || [];
+    for (const r of runs) if (/<w:rFonts/.test(r)) rFontsRuns++;
+  }
+  stats.paragraphs = totalParas;
+  stats.h3 = h3;
+  stats.h4 = h4;
+  stats.tabs = tabs;
+  stats.pageBreaks = pageBreaks;
+  stats.numbered = numbered;
+  stats.rFontsRuns = rFontsRuns;
+  stats.bodyLen = xml.length;
+  return stats;
+}
+
 // ─── Runner ──────────────────────────────────────────────────────────
+
+const allStats = [];
 
 async function runOne(v) {
   const resp = await fetch(API, {
@@ -446,6 +597,9 @@ async function runOne(v) {
   const orphans = checkCrossRefs(xml, byArticle);
   if (orphans.length > 0) errs.push(`orphan refs: ${orphans.slice(0, 3).join(', ')}`);
 
+  const stats = collectStats(xml);
+  allStats.push({ label: v.label, meta: v.meta, stats, sectionCount: rows.length });
+
   return { errors: errs, sectionCount: rows.length };
 }
 
@@ -455,6 +609,9 @@ async function main() {
     { name: 'A', variants: buildGroupA() },
     { name: 'B', variants: buildGroupB() },
     { name: 'C', variants: buildGroupC() },
+    { name: 'D', variants: buildGroupD() },
+    { name: 'E', variants: buildGroupE() },
+    { name: 'F', variants: buildGroupF() },
   ];
   const groups = onlyGroup
     ? allGroups.filter((g) => g.name === onlyGroup)
@@ -500,7 +657,82 @@ async function main() {
   } else {
     console.log('STATUS: ALL VARIANTS VERIFIED');
   }
-  process.exit(fail > 0 ? 1 : 0);
+
+  // Write per-variant stats CSV for anomaly triage (launch hardening).
+  // A committed golden baseline (scripts/variants-stats-baseline.csv) is
+  // compared cell-by-cell; any deviation is reported and fails the run
+  // unless --refresh-baseline is passed.
+  const csvDeviations = [];
+  if (allStats.length > 0) {
+    const cols = ['label', 'entity', 'voting', 'ownerCount', 'rofr', 'dragTag',
+      'sectionCount', 'paragraphs', 'h3', 'h4', 'tabs', 'pageBreaks',
+      'numbered', 'tables', 'rFontsRuns', 'bodyLen'];
+    const rowFor = (r) => [
+      r.label,
+      r.meta?.entity ?? '',
+      r.meta?.voting ?? '',
+      r.meta?.ownerCount ?? '',
+      r.meta?.rofr ?? '',
+      r.meta?.dragTag ?? '',
+      r.sectionCount,
+      r.stats.paragraphs,
+      r.stats.h3,
+      r.stats.h4,
+      r.stats.tabs,
+      r.stats.pageBreaks,
+      r.stats.numbered,
+      r.stats.tables,
+      r.stats.rFontsRuns,
+      r.stats.bodyLen,
+    ];
+    const lines = [cols.join(',')];
+    for (const r of allStats) lines.push(rowFor(r).join(','));
+
+    const csvPath = join(OUT, 'variants-stats.csv');
+    writeFileSync(csvPath, lines.join('\n') + '\n');
+    console.log(`\nStats CSV: ${csvPath}`);
+
+    // Baseline diff (only meaningful when running full suite)
+    const baselinePath = 'scripts/variants-stats-baseline.csv';
+    const refresh = argv.has('--refresh-baseline');
+    if (refresh) {
+      writeFileSync(baselinePath, lines.join('\n') + '\n');
+      console.log(`Baseline refreshed: ${baselinePath}`);
+    } else {
+      let baselineSrc = null;
+      try {
+        baselineSrc = readFileSync(baselinePath, 'utf8');
+      } catch { /* no baseline yet */ }
+      if (baselineSrc) {
+        const base = new Map();
+        for (const ln of baselineSrc.trim().split('\n').slice(1)) {
+          const cells = ln.split(',');
+          base.set(cells[0], cells);
+        }
+        for (const r of allStats) {
+          const row = rowFor(r);
+          const key = row[0];
+          const b = base.get(key);
+          if (!b) continue; // new variant; not a deviation
+          for (let i = 6; i < cols.length; i++) {
+            // columns 0..5 are identity; 6.. are structural stats
+            if (String(row[i]) !== String(b[i])) {
+              csvDeviations.push(`${key}.${cols[i]}: baseline=${b[i]} got=${row[i]}`);
+            }
+          }
+        }
+        if (csvDeviations.length > 0) {
+          console.log(`\nSTRUCTURAL DEVIATIONS vs baseline (${csvDeviations.length}):`);
+          for (const d of csvDeviations.slice(0, 30)) console.log(`  ${d}`);
+          if (csvDeviations.length > 30) console.log(`  ...and ${csvDeviations.length - 30} more`);
+        }
+      } else {
+        console.log(`(no baseline at ${baselinePath} — run with --refresh-baseline to create)`);
+      }
+    }
+  }
+
+  process.exit((fail > 0 || csvDeviations.length > 0) ? 1 : 0);
 }
 
 main().catch((e) => { console.error('FATAL:', e); process.exit(1); });
