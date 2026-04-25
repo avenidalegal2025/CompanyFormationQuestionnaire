@@ -13,19 +13,54 @@
  *      pay with 4242 4242 4242 4242 test card.
  *   6. Wait for webhook (poll /api/documents until agreement appears).
  *   7. Download DOCX via /api/documents/view (the actual customer path).
- *   8. STAGE 3: upload to S3 + Word Online per-page screenshot + assertions.
+ *   8. STAGE 4: upload to S3 + Word Online per-page screenshot + content
+ *      assertions (matches scripts/qa-pipeline.mjs's coverage but on the
+ *      actual UI-path-generated DOCX, not the API-direct one).
  *
  * Run from Windows (Playwright Chromium needs system libs not on stock WSL):
  *   cmd.exe /c "cd /d C:\\path\\to\\repo && node scripts\\qa-ui-pipeline.mjs"
  *
  * Flags:
- *   --stage=N    1 = step 1 only, 2 = walk to checkout, 3 = full pay+download
+ *   --stage=N    1=step 1 only, 2=walk to checkout, 3=pay+download,
+ *                4=+Word Online per-page screenshots + assertions (default)
  *   --headed     show the browser
  *   --slow       slowMo 250ms
  */
 import { chromium } from 'playwright';
 import { join } from 'path';
 import { mkdirSync, writeFileSync } from 'fs';
+import { spawnSync } from 'child_process';
+import { inflateRawSync } from 'zlib';
+
+// Extract document.xml text from a DOCX buffer for content assertions.
+// We can't trust Word Online's iframe DOM (cross-origin in some sessions),
+// so the source-of-truth is always the bytes we downloaded.
+function extractDocxText(buf) {
+  let off = 0, xml = '';
+  while (off < buf.length - 4) {
+    if (buf.readUInt32LE(off) === 0x04034b50) {
+      const comp = buf.readUInt16LE(off + 8);
+      const cSize = buf.readUInt32LE(off + 18);
+      const nLen = buf.readUInt16LE(off + 26);
+      const eLen = buf.readUInt16LE(off + 28);
+      const name = buf.toString('utf8', off + 30, off + 30 + nLen);
+      const dStart = off + 30 + nLen + eLen;
+      if (name === 'word/document.xml') {
+        try {
+          const raw = comp === 0
+            ? buf.subarray(dStart, dStart + cSize)
+            : inflateRawSync(buf.subarray(dStart, dStart + cSize));
+          xml = raw.toString('utf8');
+        } catch {}
+        break;
+      }
+      off = dStart + cSize;
+    } else off++;
+  }
+  const text = (xml.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+    .map((t) => t.replace(/<[^>]+>/g, '')).join('');
+  return { xml, text };
+}
 
 const PROD_URL = 'https://company-formation-questionnaire.vercel.app';
 const STAMP = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
@@ -35,9 +70,12 @@ mkdirSync(OUT, { recursive: true });
 
 const argv = new Set(process.argv.slice(2));
 const stageArg = process.argv.find((a) => a.startsWith('--stage='));
-const STAGE = stageArg ? parseInt(stageArg.slice('--stage='.length), 10) : 2;
+const STAGE = stageArg ? parseInt(stageArg.slice('--stage='.length), 10) : 4;
 const HEADED = argv.has('--headed');
 const SLOW = argv.has('--slow') ? 250 : 0;
+const S3_BUCKET = process.env.S3_BUCKET || 'avenida-legal-documents';
+const AWS_PROFILE = process.env.AWS_PROFILE || 'llc-admin';
+const AWS_REGION = process.env.AWS_REGION || 'us-west-1';
 
 console.log(`→ Output: ${OUT}`);
 console.log(`→ Stage: ${STAGE}, Headed: ${HEADED}`);
@@ -480,11 +518,137 @@ async function runVariant(browser, variant) {
     if (!docxBuf || docxBuf.length < 100000) {
       throw new Error(`download stayed at template stub size — Lambda may not have run`);
     }
-    const docxPath = join(OUT, `${variant.label}.docx`);
+    const variantDir = join(OUT, variant.label);
+    mkdirSync(variantDir, { recursive: true });
+    const docxPath = join(variantDir, `${variant.label}.docx`);
     writeFileSync(docxPath, docxBuf);
     console.log(`  ✓ saved DOCX (${docxBuf.length} bytes) → ${docxPath}`);
 
-    return { ok: true, label: variant.label, step, docxPath, docxSize: docxBuf.length };
+    if (STAGE < 4) {
+      return { ok: true, label: variant.label, step, docxPath, docxSize: docxBuf.length };
+    }
+
+    // ─── STAGE 4: per-page Word Online screenshots + assertions ────
+    console.log('  → STAGE 4: uploading to S3 + Word Online render');
+    const key = `debug/qa-ui/${variant.label}-${Date.now()}.docx`;
+    const up = spawnSync('aws', ['s3', 'cp', docxPath, `s3://${S3_BUCKET}/${key}`,
+      '--profile', AWS_PROFILE, '--region', AWS_REGION],
+      { encoding: 'utf8', shell: true });
+    if (up.status !== 0) throw new Error(`s3 upload failed: ${up.stderr}`);
+    const ps = spawnSync('aws', ['s3', 'presign', `s3://${S3_BUCKET}/${key}`,
+      '--profile', AWS_PROFILE, '--region', AWS_REGION, '--expires-in', '3600'],
+      { encoding: 'utf8', shell: true });
+    if (ps.status !== 0) throw new Error(`s3 presign failed: ${ps.stderr}`);
+    const wovUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(ps.stdout.trim())}`;
+
+    const renderCtx = await browser.newContext({ viewport: { width: 1600, height: 30000 } });
+    const renderPage = await renderCtx.newPage();
+    await renderPage.goto(wovUrl, { waitUntil: 'domcontentloaded', timeout: 90000 });
+    console.log('    waiting 75s for Word Online to render all pages…');
+    await renderPage.waitForTimeout(75000);
+    await renderPage.evaluate(async () => {
+      const h = document.documentElement.scrollHeight;
+      for (let y = 0; y < h; y += 800) {
+        window.scrollTo(0, y);
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      window.scrollTo(0, 0);
+    });
+    await renderPage.waitForTimeout(4000);
+    // Diagnostic screenshot in case page-detection fails — saved at variant root.
+    await renderPage.screenshot({ path: join(variantDir, '_wov_state.png'), fullPage: false });
+    // Try English then Spanish aria-labels (Word Online localizes from session).
+    const pageRects = await renderPage.evaluate(() => {
+      const candidates = Array.from(document.querySelectorAll('[role="group"]'));
+      const matched = candidates.filter((el) => {
+        const a = el.getAttribute('aria-label') || '';
+        return /^Page\s+\d+$/i.test(a) || /^Página\s+\d+$/i.test(a);
+      });
+      return matched.map((el) => {
+        const r = el.getBoundingClientRect();
+        const sy = window.scrollY || document.documentElement.scrollTop;
+        return {
+          n: parseInt((el.getAttribute('aria-label') || '').replace(/\D/g, ''), 10),
+          x: Math.round(r.x), y: Math.round(r.y + sy),
+          w: Math.round(r.width), h: Math.round(r.height),
+          text: el.innerText,
+        };
+      });
+    });
+    // Fallback to pixel-slicing if Word Online's iframe is cross-origin
+    // and DOM page-detection finds nothing.
+    if (pageRects.length === 0) {
+      console.log('    DOM aria-label match returned 0 — falling back to pixel slices');
+      const docHeight = await renderPage.evaluate(() => document.documentElement.scrollHeight);
+      const sliceHeight = 1800; // ~1.5 pages each at Word Online zoom
+      const numSlices = Math.ceil(docHeight / sliceHeight);
+      for (let i = 0; i < numSlices; i++) {
+        pageRects.push({
+          n: i + 1,
+          x: 0,
+          y: i * sliceHeight,
+          w: 1600,
+          h: Math.min(sliceHeight, docHeight - i * sliceHeight),
+          text: '(pixel slice — DOM page markers unavailable)',
+        });
+      }
+    }
+    pageRects.sort((a, b) => a.y - b.y);
+    const pages = [];
+    for (const pr of pageRects) {
+      const fn = `page-${String(pr.n).padStart(2, '0')}.png`;
+      await renderPage.screenshot({
+        path: join(variantDir, fn),
+        clip: { x: Math.max(0, pr.x), y: pr.y, width: pr.w, height: pr.h },
+      });
+      pages.push({ n: pr.n, filename: fn, text: pr.text });
+    }
+    await renderCtx.close();
+    console.log(`    ✓ ${pages.length} pages captured`);
+
+    // Content assertions on the downloaded DOCX bytes (source of truth, not
+    // Word Online's iframe DOM which is cross-origin in some sessions).
+    const errors = [];
+    const pageErrors = {};
+    const isCorpV = variant.entityType === 'C-Corp';
+    const { text: docText } = extractDocxText(docxBuf);
+    if (docText.includes('{{')) errors.push('leftover {{ }} placeholder in DOCX');
+    if (docText.includes('%%')) errors.push('leftover %% placeholder in DOCX');
+    if (/DUNE\s+INC/i.test(docText)) errors.push('template leak: "DUNE INC" present');
+    const cNeedle = variant.companyName.replace(/\s+/g, '').toUpperCase();
+    if (!docText.replace(/\s+/g, '').toUpperCase().includes(cNeedle)) {
+      errors.push(`customer company name "${variant.companyName}" missing in DOCX`);
+    }
+    const sigCount = (docText.match(/IN WITNESS WHEREOF/g) || []).length;
+    if (sigCount !== 1) errors.push(`signature blocks = ${sigCount} (expected 1)`);
+    const articleCount = (docText.match(/ARTICLE [IVX]+/g) || []).length;
+    if (isCorpV && articleCount < 14) {
+      errors.push(`only ${articleCount} ARTICLE headers (Corp expects ~15)`);
+    }
+    // First-owner name should appear (verifies the formData reached Lambda).
+    const NAMES = ['Roberto Mendez', 'Ana Garcia', 'Carlos Lopez', 'Maria Torres', 'Pedro Ramirez', 'Sofia Flores'];
+    if (!docText.includes(NAMES[0])) errors.push('first owner "Roberto Mendez" missing in DOCX');
+    if (variant.owners >= 2 && !docText.includes(NAMES[1])) {
+      errors.push('second owner "Ana Garcia" missing in DOCX');
+    }
+    // Per-page text checks (fallback uses placeholder text — skip when so).
+    for (const p of pages) {
+      if (p.text.startsWith('(pixel slice')) continue;
+      const errs = [];
+      if (p.text.includes('{{')) errs.push('{{}} placeholder');
+      if (p.text.includes('%%')) errs.push('%% placeholder');
+      if (/\bundefined\b/i.test(p.text)) errs.push('undefined leaked');
+      if (errs.length) pageErrors[p.n] = errs;
+    }
+    const ok = errors.length === 0 && Object.keys(pageErrors).length === 0;
+    console.log(`    ${ok ? '✓' : '✗'} ${variant.label} — ${errors.length} doc errors, ${Object.keys(pageErrors).length} bad pages`);
+    if (errors.length) errors.forEach((e) => console.log(`      • ${e}`));
+
+    return {
+      ok, label: variant.label, step, docxPath, docxSize: docxBuf.length,
+      pageCount: pages.length, errors, pageErrors,
+      pages: pages.map((p) => ({ n: p.n, filename: p.filename })),
+    };
   } catch (e) {
     console.log(`  ✗ ${e.message}`);
     await shot(page, 'error');
@@ -505,6 +669,48 @@ await browser.close();
 
 writeFileSync(join(OUT, 'results.json'), JSON.stringify(results, null, 2));
 const pass = results.filter((r) => r.ok).length;
+
+if (STAGE >= 4) {
+  const html = `<!doctype html>
+<meta charset=utf-8>
+<title>UI QA — ${STAMP}</title>
+<style>
+  body{font:14px/1.4 system-ui,sans-serif;margin:20px;max-width:1400px}
+  h1{margin:0 0 8px}.sub{color:#666;margin-bottom:24px}
+  .v{border:1px solid #ddd;border-radius:6px;margin-bottom:20px;padding:14px}
+  .v.pass{border-color:#c5e1a5;background:#f8fff2}
+  .v.fail{border-color:#ef9a9a;background:#fff5f5}
+  .label{font-weight:600;font-family:monospace}
+  .errs{color:#c62828;margin:8px 0;font-family:monospace;white-space:pre-wrap;font-size:13px}
+  .pages{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .p{border:1px solid #ccc;padding:4px;border-radius:4px;font-size:12px;text-align:center}
+  .p img{display:block;width:200px;height:auto;margin-bottom:4px;background:#fff}
+  .p.bad{border-color:#ef5350;background:#ffeaea}
+</style>
+<h1>UI QA — full customer path</h1>
+<div class=sub>PASS ${pass} · FAIL ${results.length - pass} · ${STAMP} · questionnaire → Stripe → webhook → Word Online</div>
+${results.map((r) => {
+  const bad = !r.ok;
+  const pages = r.pages || [];
+  return `
+<div class="v ${bad ? 'fail' : 'pass'}">
+  <div class=label>${r.label} — step ${r.step ?? '?'}, docx ${r.docxSize ?? 0}B, ${pages.length} pages</div>
+  ${(r.errors || []).length ? `<div class=errs>${r.errors.map((e) => `• ${e}`).join('\n')}</div>` : ''}
+  ${r.pageErrors && Object.keys(r.pageErrors).length ? `<div class=errs>${Object.entries(r.pageErrors)
+    .map(([p, es]) => `p${p}: ${es.join(', ')}`).join('\n')}</div>` : ''}
+  <div class=pages>
+    ${pages.map((p) => `
+      <div class="p ${r.pageErrors && r.pageErrors[p.n] ? 'bad' : ''}">
+        <img src="${r.label}/${p.filename}" loading=lazy>
+        <div>p${p.n}</div>
+      </div>`).join('')}
+  </div>
+</div>`.trim();
+}).join('\n')}
+`;
+  writeFileSync(join(OUT, 'report.html'), html);
+}
+
 console.log(`\n${'='.repeat(60)}`);
 console.log(`TOTAL: ${results.length} | PASS ${pass} | FAIL ${results.length - pass}`);
 console.log(`Output: ${OUT}`);
