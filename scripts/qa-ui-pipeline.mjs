@@ -254,9 +254,9 @@ function buildFlatFormData(v) {
       'agreement.corp_majorDecisionThreshold': 'Mayoría',
       'agreement.corp_majorSpendingThreshold': '7500',
       'agreement.corp_officerRemovalVoting': 'Mayoría',
-      'agreement.corp_nonCompete': 'No',
-      'agreement.corp_nonSolicitation': 'Yes',
-      'agreement.corp_confidentiality': 'Yes',
+      'agreement.corp_nonCompete': v.nonCompete || 'No',
+      'agreement.corp_nonSolicitation': v.nonSolicitation || 'Yes',
+      'agreement.corp_confidentiality': v.confidentiality || 'Yes',
       'agreement.corp_taxOwner': `${NAMES[0]} ${LASTS[0]}`,
       'agreement.corp_rofr': 'Yes',
       'agreement.corp_rofrOfferPeriod': 90,
@@ -270,15 +270,75 @@ function buildFlatFormData(v) {
       'agreement.corp_shareholderLoansVoting': 'Mayoría',
     });
     for (let i = 0; i < v.owners; i++) flat[`agreement.corp_capitalPerOwner_${i}`] = '50000';
+  } else {
+    // LLC variant — Operating Agreement fields.
+    Object.assign(flat, {
+      'agreement.llc_companySaleDecision': 'Mayoría',
+      'agreement.llc_bankSigners': 'Dos firmantes',
+      'agreement.llc_majorDecisions': 'Mayoría',
+      'agreement.llc_majorSpendingThreshold': '15000',
+      'agreement.llc_officerRemovalVoting': 'Mayoría',
+      'agreement.llc_nonCompete': v.nonCompete || 'No',
+      'agreement.llc_nonSolicitation': v.nonSolicitation || 'Yes',
+      'agreement.llc_confidentiality': v.confidentiality || 'Yes',
+      'agreement.llc_nonDisparagement': 'Yes',
+      'agreement.llc_taxPartner': `${NAMES[0]} ${LASTS[0]}`,
+      'agreement.llc_minTaxDistribution': 30,
+      'agreement.llc_rofr': 'Yes',
+      'agreement.llc_rofrOfferPeriod': 180,
+      'agreement.llc_incapacityHeirsPolicy': 'No',
+      'agreement.llc_dissolutionDecision': 'Mayoría',
+      'agreement.llc_newMembersAdmission': 'Mayoría',
+      'agreement.llc_newPartnersAdmission': 'Mayoría',
+      'agreement.llc_managingMembers': 'Yes',
+      'agreement.llc_additionalContributions': 'Sí, Pro-Rata',
+      'agreement.llc_memberLoans': 'Yes',
+      'agreement.llc_memberLoansVoting': 'Mayoría',
+      'agreement.llc_transferToRelatives': 'Sí, podrán transferir libremente sus intereses.',
+    });
+    for (let i = 0; i < v.owners; i++) flat[`agreement.llc_capitalContributions_${i}`] = '50000';
   }
   return flat;
 }
 
 // ─── Variants ──────────────────────────────────────────────────────
+//
+// Default: Group D's 16 variants (Corp + LLC × nonCompete/nonSolic/conf
+// triplets). Caller can override with --only=substring or --limit=N.
 
-const VARIANTS = [
-  { label: 'qa1_corp_2own', entityType: 'C-Corp', companyName: 'QA1 Corp', owners: 2 },
-];
+function buildGroupD() {
+  const out = [];
+  const triplets = [
+    ['Yes', 'Yes', 'Yes'], ['Yes', 'Yes', 'No'], ['Yes', 'No', 'Yes'], ['Yes', 'No', 'No'],
+    ['No',  'Yes', 'Yes'], ['No',  'Yes', 'No'], ['No',  'No', 'Yes'], ['No',  'No', 'No'],
+  ];
+  for (const entity of ['C-Corp', 'LLC']) {
+    for (const [nc, ns, cf] of triplets) {
+      const eshort = entity === 'C-Corp' ? 'Corp' : 'LLC';
+      const label = `D_${eshort}_nc${nc[0]}_ns${ns[0]}_cf${cf[0]}`;
+      out.push({
+        label,
+        entityType: entity,
+        companyName: label,
+        owners: 2,
+        nonCompete: nc,
+        nonSolicitation: ns,
+        confidentiality: cf,
+      });
+    }
+  }
+  return out;
+}
+
+const onlyArg = process.argv.find((a) => a.startsWith('--only='));
+const ONLY = onlyArg ? onlyArg.slice('--only='.length) : null;
+const limitArg = process.argv.find((a) => a.startsWith('--limit='));
+const LIMIT = limitArg ? parseInt(limitArg.slice('--limit='.length), 10) : null;
+
+let VARIANTS = buildGroupD();
+if (ONLY) VARIANTS = VARIANTS.filter((v) => v.label.includes(ONLY));
+if (LIMIT) VARIANTS = VARIANTS.slice(0, LIMIT);
+console.log(`→ ${VARIANTS.length} variants selected`);
 
 // ─── Per-variant runner ────────────────────────────────────────────
 
