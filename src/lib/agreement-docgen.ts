@@ -955,24 +955,39 @@ function addExtraCorpShareholders(
   const extraOwners = answers.owners_list.slice(3); // shareholders 4, 5, 6
 
   // Add extra rows to the capital contributions table (Sec 4.2)
-  // Find shareholder_3's contribution and add after it
+  // Clone the rendered shareholder_3 <w:tr> so overflow rows inherit the
+  // template's <w:trPr>/<w:tcPr>/<w:tcBorders>. Bare <w:tc> blocks render
+  // borderless because cells inherit their borders from <w:tcBorders>, not
+  // from the table-level <w:tblBorders>.
   const sh3 = answers.owners_list[2];
-  if (sh3) {
-    const sh3Pct = ((Math.round((sh3.shares_or_percentage / 100) * totalShares) / totalShares) * 100).toFixed(2);
-    const searchPct = `${sh3Pct}%`;
+  if (sh3 && extraOwners.length > 0) {
+    const nameIdx = xml.indexOf(xmlEscape(sh3.full_name));
+    const trOpenA = xml.lastIndexOf("<w:tr>", nameIdx);
+    const trOpenB = xml.lastIndexOf("<w:tr ", nameIdx);
+    const trStart = Math.max(trOpenA, trOpenB);
+    const trCloseStart = xml.indexOf("</w:tr>", nameIdx);
+    const trEnd = trCloseStart + "</w:tr>".length;
+    const templateRow = xml.substring(trStart, trEnd);
 
-    for (const owner of extraOwners) {
+    // Replace the 4 <w:t> text runs in order: name, shares, $contribution, pct%.
+    // Stricter than `<w:t[^>]*>` so we don't accidentally match <w:tc>/<w:tr>/etc.
+    const overflow = extraOwners.map((owner) => {
       const shares = Math.round((owner.shares_or_percentage / 100) * totalShares);
       const pct = ((shares / totalShares) * 100).toFixed(2);
-      // owner.full_name is user-supplied; escape before injecting into XML.
-      const row = `</w:t></w:r></w:p></w:tc></w:tr>` +
-        `<w:tr><w:tc><w:p><w:r><w:t>${xmlEscape(owner.full_name)}</w:t></w:r></w:p></w:tc>` +
-        `<w:tc><w:p><w:r><w:t>${shares.toLocaleString()}</w:t></w:r></w:p></w:tc>` +
-        `<w:tc><w:p><w:r><w:t>$${formatCurrency(owner.capital_contribution)}</w:t></w:r></w:p></w:tc>` +
-        `<w:tc><w:p><w:r><w:t>${pct}%`;
-      // Insert after the last cell of shareholder 3's row
-      xml = xmlTextReplace(xml, searchPct, searchPct + row, false);
-    }
+      const cellTexts = [
+        xmlEscape(owner.full_name),
+        shares.toLocaleString(),
+        `$${formatCurrency(owner.capital_contribution)}`,
+        `${pct}%`,
+      ];
+      let i = 0;
+      return templateRow.replace(
+        /(<w:t(?:\s[^>]*)?>)([\s\S]*?)(<\/w:t>)/g,
+        (_, open: string, txt: string, close: string) =>
+          i < cellTexts.length ? `${open}${cellTexts[i++]}${close}` : `${open}${txt}${close}`,
+      );
+    }).join("");
+    xml = xml.substring(0, trEnd) + overflow + xml.substring(trEnd);
   }
 
   // Add extra signature blocks with formatting from existing signatures
