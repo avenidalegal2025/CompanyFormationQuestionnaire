@@ -2178,10 +2178,28 @@ function normalizeListParagraphs(xml: string): string {
 
     // Locate the run containing the (now bare-form) label and clean its
     // leading garbage (<w:t> </w:t>, stray <w:tab/>) — preserve <w:rPr>.
-    const labelTag = `<w:t xml:space="preserve">${newLabel}</w:t>`;
-    const altLabelTag = `<w:t>${newLabel}</w:t>`;
-    let labelIdx = out.indexOf(labelTag);
-    if (labelIdx < 0) labelIdx = out.indexOf(altLabelTag);
+    // Match four label-text variants — bare or with trailing space, with
+    // or without xml:space attribute. Without the trailing-space match,
+    // labels like "<w:t xml:space=\"preserve\">B. </w:t>" (template ships
+    // §15.1's B. and C. this way) fail the labelIdx lookup, the leading-
+    // tab cleanup is skipped, and B./C. render without the leading tab
+    // while sibling D. (no trailing space) does — visible misalignment.
+    let labelIdx = -1;
+    let labelEnd = -1;
+    const candidates = [
+      `<w:t xml:space="preserve">${newLabel}</w:t>`,
+      `<w:t>${newLabel}</w:t>`,
+      `<w:t xml:space="preserve">${newLabel} </w:t>`,
+      `<w:t>${newLabel} </w:t>`,
+    ];
+    for (const c of candidates) {
+      const i = out.indexOf(c);
+      if (i >= 0) {
+        labelIdx = i;
+        labelEnd = i + c.length;
+        break;
+      }
+    }
     if (labelIdx < 0) return out;
 
     const rOpen = out.lastIndexOf("<w:r>", labelIdx);
@@ -2193,8 +2211,10 @@ function normalizeListParagraphs(xml: string): string {
     const openTag = openMatch ? openMatch[0] : "<w:r>";
     const rPrMatch = run.match(/<w:rPr>[\s\S]*?<\/w:rPr>/);
     const rPr = rPrMatch ? rPrMatch[0] : "";
-    const cleanPrefix = `${openTag}${rPr}<w:tab/>`;
-    out = out.substring(0, rStart) + cleanPrefix + out.substring(labelIdx);
+    // Always rewrite the label <w:t> to the bare-form (no trailing space)
+    // so the post-label structure is uniform.
+    const cleanPrefix = `${openTag}${rPr}<w:tab/><w:t xml:space="preserve">${newLabel}</w:t>`;
+    out = out.substring(0, rStart) + cleanPrefix + out.substring(labelEnd);
     return out;
   });
 }
