@@ -955,6 +955,12 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   xml = stripEmptyParagraphPageBreaks(xml);
   xml = normalizeNewShareholdersHeading(xml);
   xml = standardizeNumberedHeadingShape(xml);
+  xml = mergeTitleOnlyHeadingsWithBody(xml);
+  xml = normalizeAllSectionHeadingPPr(xml);
+  // Re-run keepNext-chain after merge/normalize, since merging
+  // paragraphs creates new empty separator neighborhoods that need
+  // re-evaluation.
+  xml = chainKeepNextThroughEmpties(xml);
   xml = forceKeepNextBeforeTables(xml);
   xml = normalizeSignatureBlockLayout(xml);
   xml = repairXml(xml);
@@ -3048,6 +3054,174 @@ function enablePaginationFlags(xml: string): string {
  * first run text is a clean "N.M…" pattern), so we don't accidentally
  * rewrite body paragraphs that happen to start with a digit.
  */
+// ─── Generic: title-only heading inline-merge with body paragraph ────
+
+/**
+ * When a heading paragraph's text is JUST "N.M Title." (≤60 chars) AND
+ * the next non-empty paragraph is a body paragraph at body indent
+ * (left ≤ 1500 with no list-level outdent) AND that body is NOT
+ * followed by labeled list items at letter/roman indent, merge them
+ * into one inline-titled paragraph (heading + ".  body…").
+ *
+ * Generalizes the §13.1 RoFR / §10.3 Indemnification pattern: heading
+ * standing alone with body on next line is visually inconsistent with
+ * the §10.4 / §10.5 / §13.2 inline-titled shape that the rest of the
+ * doc uses. Instead of one targeted fix per section, this catches the
+ * shape everywhere.
+ *
+ * Idempotent — already-inline-merged paragraphs aren't matched.
+ */
+function mergeTitleOnlyHeadingsWithBody(xml: string): string {
+  const paraRe = /<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g;
+  type MtSpan = {
+    start: number;
+    end: number;
+    full: string;
+    body: string;
+    text: string;
+    left: number;
+    hanging: number;
+    firstLine: number;
+  };
+  const paras: MtSpan[] = [];
+  let mm: RegExpExecArray | null;
+  while ((mm = paraRe.exec(xml))) {
+    const body = mm[1];
+    const text = (body.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+      .map((t) => t.replace(/<[^>]+>/g, ""))
+      .join("")
+      .trim();
+    const ppr = (body.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/) || [])[1] || "";
+    const ind = ppr.match(/<w:ind\b([^/]*)\/>/);
+    let left = 0,
+      hanging = 0,
+      firstLine = 0;
+    if (ind) {
+      const li = ind[1].match(/w:left="(\d+)"/);
+      const hg = ind[1].match(/w:hanging="(\d+)"/);
+      const fl = ind[1].match(/w:firstLine="([\d.]+)"/);
+      if (li) left = parseInt(li[1], 10);
+      if (hg) hanging = parseInt(hg[1], 10);
+      if (fl) firstLine = Math.round(parseFloat(fl[1]));
+    }
+    paras.push({
+      start: mm.index,
+      end: mm.index + mm[0].length,
+      full: mm[0],
+      body,
+      text,
+      left,
+      hanging,
+      firstLine,
+    });
+  }
+
+  const TITLE_ONLY = /^\d+\.\d+\s+[A-Z][\w\s'’,&-]{1,40}\.\s*$/;
+  const merges: Array<{ headingIdx: number; bodyIdx: number; emptyIdxs: number[] }> = [];
+  for (let i = 0; i < paras.length - 1; i++) {
+    const h = paras[i];
+    if (!TITLE_ONLY.test(h.text)) continue;
+    const empties: number[] = [];
+    let j = i + 1;
+    while (j < paras.length && !paras[j].text) {
+      empties.push(j);
+      j++;
+    }
+    if (j >= paras.length) continue;
+    const b = paras[j];
+    // Body must be at BODY indent (NOT letter-list 2160 or roman 2880).
+    const isBodyIndent =
+      (b.left <= 1500 && b.hanging === 0 && b.firstLine === 0) ||
+      (b.left <= 1440 && b.hanging === 1440);
+    if (!isBodyIndent) continue;
+    if (TITLE_ONLY.test(b.text) || /^\d+\.\d+\b/.test(b.text)) continue;
+    // Don't merge if body is followed by labeled list (it's an intro).
+    let hasLabeledFollow = false;
+    for (let k = j + 1; k < Math.min(j + 6, paras.length); k++) {
+      const p = paras[k];
+      if (!p.text) continue;
+      if (/^[A-Z]\.|\([a-z]\)/.test(p.text.trim())) hasLabeledFollow = true;
+      break;
+    }
+    if (hasLabeledFollow) continue;
+    merges.push({ headingIdx: i, bodyIdx: j, emptyIdxs: empties });
+  }
+
+  if (merges.length === 0) return xml;
+
+  // Apply in REVERSE so earlier offsets stay valid.
+  merges.sort((a, b) => b.headingIdx - a.headingIdx);
+  for (const mrg of merges) {
+    const heading = paras[mrg.headingIdx];
+    const body = paras[mrg.bodyIdx];
+
+    // Build a body run; strip underline from the heading's last rPr so
+    // the appended body text isn't styled as a title.
+    const allRPr = heading.body.match(/<w:rPr>[\s\S]*?<\/w:rPr>/g) || [];
+    const headingLastRPr = allRPr[allRPr.length - 1] || "";
+    const plainRPr = headingLastRPr.replace(/<w:u w:val="single"\/>/g, "");
+    const bodyRun =
+      `<w:r>${plainRPr}` +
+      `<w:t xml:space="preserve">  ${xmlEscape(body.text)}</w:t>` +
+      `</w:r>`;
+
+    // Insert body run before the closing </w:p> of the heading.
+    const newHeading = heading.full.replace(/<\/w:p>\s*$/, `${bodyRun}</w:p>`);
+
+    // Remove body paragraph + intervening empties (in REVERSE order so
+    // offsets stay valid within this single merge).
+    const removeIdxs = [mrg.bodyIdx, ...mrg.emptyIdxs].sort((a, b) => b - a);
+    let mutated = xml;
+    for (const idx of removeIdxs) {
+      const p = paras[idx];
+      mutated = mutated.substring(0, p.start) + mutated.substring(p.end);
+    }
+    mutated = mutated.substring(0, heading.start) + newHeading + mutated.substring(heading.end);
+    xml = mutated;
+  }
+  return xml;
+}
+
+// ─── Generic: normalize all numbered-section heading pPr ─────────────
+
+/**
+ * Force every numbered §X.Y heading paragraph in the document to use
+ * the canonical Heading3 pPr. Catches per-section indent/tab quirks
+ * (e.g. §15.11's custom layout vs the rest of §15.x) without targeted
+ * fixes per section.
+ */
+function normalizeAllSectionHeadingPPr(xml: string): string {
+  const CANON_PPR =
+    "<w:pPr>" +
+    "<w:keepNext/>" +
+    '<w:pStyle w:val="Heading3"/>' +
+    "<w:tabs>" +
+    '<w:tab w:val="left" w:leader="none" w:pos="720"/>' +
+    "</w:tabs>" +
+    '<w:ind w:left="1440" w:hanging="1440"/>' +
+    '<w:jc w:val="both"/>' +
+    "<w:rPr>" +
+    '<w:vertAlign w:val="baseline"/>' +
+    "</w:rPr>" +
+    "</w:pPr>";
+  return xml.replace(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g, (full) => {
+    // Skip paragraphs inside tables (capital contributions table cells
+    // hold "20.00%" / "$50,000.00" etc. — same digit pattern as N.M
+    // headings). The paragraph itself is inside a <w:tc>; we can't
+    // detect that from the paragraph alone, so use a heading-shape
+    // signal instead: paragraph text must start with "N.M " followed
+    // by a CAPITAL LETTER (heading title), not just any digits.
+    const allTexts = (full.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+      .map((t) => t.replace(/<[^>]+>/g, ""))
+      .join("");
+    if (!/^\s*\d+\.\d+\s+[A-Z]/.test(allTexts)) return full;
+    if (/<w:pPr>/.test(full)) {
+      return full.replace(/<w:pPr>[\s\S]*?<\/w:pPr>/, CANON_PPR);
+    }
+    return full.replace(/(<w:p\b[^>]*>)/, `$1${CANON_PPR}`);
+  });
+}
+
 function standardizeNumberedHeadingShape(xml: string): string {
   return xml.replace(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g, (full) => {
     // Locate first <w:r> after the pPr.
