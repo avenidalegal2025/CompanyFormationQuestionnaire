@@ -892,6 +892,8 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   xml = addLimitationOnOfficersLettering(xml);
   xml = normalizeListParagraphs(xml);
   xml = enablePaginationFlags(xml);
+  xml = stripEmptyParagraphPageBreaks(xml);
+  xml = normalizeNewShareholdersHeading(xml);
   xml = repairXml(xml);
 
   renderedZip.file("word/document.xml", xml);
@@ -2215,6 +2217,68 @@ function enablePaginationFlags(xml: string): string {
   return xml
     .replace(/<w:keepLines\s+w:val="0"\s*\/>/g, '<w:keepLines w:val="1"/>')
     .replace(/<w:widowControl\s+w:val="0"\s*\/>/g, '<w:widowControl w:val="1"/>');
+}
+
+// ─── Strip page-break-before from empty paragraphs ───────────────────
+
+/**
+ * Google Docs export injects empty paragraphs with `<w:pageBreakBefore
+ * w:val="1"/>` immediately before tables (and sometimes before other
+ * floating content). Result: the previous section's heading + intro
+ * paragraph land alone on one page and the table starts on the next,
+ * leaving a near-blank page (visible bug between §4.2 Initial Capital
+ * Contributions and the capital table).
+ *
+ * Page-break-before on a NON-empty paragraph is intentional template
+ * authoring (e.g. the cover-page title "{{entity_name}}" forcing its
+ * own page); leave those alone. Strip the flag only from paragraphs
+ * with no substantive text.
+ */
+// ─── §4.3 New Shareholders heading tab normalization ─────────────────
+
+/**
+ * §4.3 is the only numbered heading in the Corp template that ships with
+ * a leading <w:tab/> before the "4.3 " number AND a trailing <w:tab/>
+ * after the title's period. Result: "4.3" indents from the left margin,
+ * "New Shareholders" sits with extra space, and the body text starts at
+ * a deeper position than §4.4–§4.6 (which have no tabs at all). Strip
+ * §4.3's tabs so it aligns with its neighbors.
+ */
+function normalizeNewShareholdersHeading(xml: string): string {
+  const anchor = "New Shareholders (beyond the number";
+  const idx = xml.indexOf(anchor);
+  if (idx < 0) return xml;
+  const pStart = xml.lastIndexOf("<w:p ", idx);
+  const pEnd = xml.indexOf("</w:p>", idx) + "</w:p>".length;
+  if (pStart < 0 || pEnd <= pStart) return xml;
+
+  let para = xml.substring(pStart, pEnd);
+  // 1. Drop the leading <w:tab/> in the run that holds "N.M ".
+  para = para.replace(
+    /(<w:r\b[^>]*>(?:<w:rPr>[\s\S]*?<\/w:rPr>)?)<w:tab\/>(<w:t[^>]*>\d+\.\d+\s*<\/w:t>)<w:tab\/>/,
+    "$1$2",
+  );
+  // 2. The body run starts with "<w:t>.</w:t><w:tab/><w:t>New Shareholders (beyond …".
+  //    Replace the dangling tab with two spaces so body flows like §4.4
+  //    ("<w:t>.  Any theft …</w:t>").
+  para = para.replace(
+    /(<w:t[^>]*>\.<\/w:t>)<w:tab\/>(<w:t[^>]*>)New Shareholders \(beyond/,
+    "$1$2  New Shareholders (beyond",
+  );
+
+  return xml.substring(0, pStart) + para + xml.substring(pEnd);
+}
+
+function stripEmptyParagraphPageBreaks(xml: string): string {
+  return xml.replace(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g, (full, body) => {
+    if (!/<w:pageBreakBefore w:val="1"\s*\/>/.test(body)) return full;
+    const text = (body.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+      .map((t: string) => t.replace(/<[^>]+>/g, ""))
+      .join("")
+      .trim();
+    if (text) return full; // intentional break (e.g. cover-page title)
+    return full.replace(/<w:pageBreakBefore w:val="1"\s*\/>/, "");
+  });
 }
 
 // ─── XML Repair ─────────────────────────────────────────────────────
