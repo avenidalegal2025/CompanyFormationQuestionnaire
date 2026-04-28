@@ -890,6 +890,7 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   xml = addTaxReturnsLettering(xml);
   xml = addInvoluntaryTransferLettering(xml);
   xml = addLimitationOnOfficersLettering(xml);
+  xml = addDeliveryToShareholderRomanList(xml);
   xml = normalizeListParagraphs(xml);
   xml = enablePaginationFlags(xml);
   xml = stripEmptyParagraphPageBreaks(xml);
@@ -2073,6 +2074,57 @@ function addTaxReturnsLettering(xml: string): string {
     `$1<w:tab/><w:t xml:space="preserve">A.</w:t><w:tab/>$3`,
   );
   return xml.substring(0, pStart) + rebuilt + xml.substring(pEnd);
+}
+
+// ─── §8.2 Delivery to Shareholder — sub-list under B. ────────────────
+
+/**
+ * §8.2 ships A. (delivery on request) and B. (right to inspect/obtain),
+ * where B. ends with a colon introducing two sub-items that are
+ * unlabeled in the template:
+ *   "Inspect and copy during normal business hours …; and"
+ *   "Obtain from the Secretary, promptly after they are available, …"
+ * These are level-3 sub-items under §8.2(B), so by convention they
+ * should be (i)/(ii) (canonicalized to i./ii.). Prepend a label run
+ * before each paragraph; normalizeListParagraphs handles the rest.
+ */
+function addDeliveryToShareholderRomanList(xml: string): string {
+  const items: Array<{ anchor: string; label: string }> = [
+    {
+      anchor: "Inspect and copy during normal business hours",
+      label: "(i)",
+    },
+    {
+      anchor: "Obtain from the Secretary, promptly after they are available",
+      label: "(ii)",
+    },
+  ];
+
+  for (const { anchor, label } of items) {
+    const idx = xml.indexOf(anchor);
+    if (idx < 0) continue;
+    const pStart = xml.lastIndexOf("<w:p ", idx);
+    const pEnd = xml.indexOf("</w:p>", idx) + "</w:p>".length;
+    if (pStart < 0 || pEnd <= pStart) continue;
+    const para = xml.substring(pStart, pEnd);
+
+    // Idempotent: skip if a label run already exists.
+    const escaped = label.replace(/[()]/g, "\\$&");
+    if (new RegExp(`<w:t[^>]*>${escaped}<\\/w:t>`).test(para)) continue;
+
+    const labelRun =
+      "<w:r>" +
+      '<w:rPr><w:vertAlign w:val="baseline"/><w:rtl w:val="0"/></w:rPr>' +
+      `<w:t xml:space="preserve">${label}</w:t>` +
+      "</w:r>";
+    // Insert label run before the first existing <w:r> in the paragraph.
+    const rebuilt = para.replace(
+      /(<\/w:pPr>)([\s\S]*?)(<w:r\b)/,
+      `$1$2${labelRun}$3`,
+    );
+    xml = xml.substring(0, pStart) + rebuilt + xml.substring(pEnd);
+  }
+  return xml;
 }
 
 // ─── §10.2 Limitation on Officers' Authority lettering (Corp) ────────
