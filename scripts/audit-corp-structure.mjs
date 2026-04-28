@@ -170,25 +170,38 @@ for (const tblM of XML.matchAll(/<w:tbl\b/g)) {
 // L1 — keepNext chain through empty separator paragraphs.
 // Discovered by Haiku visual review: §10.3 Indemnification orphaned at
 // bottom of page because heading→empty-separator→body chain broke at
-// the empty paragraph (which lacked keepNext). Detect: any paragraph
-// with keepNext=1 followed by an EMPTY paragraph that lacks keepNext=1
-// (and is followed by a non-empty paragraph) breaks the visual chain.
+// the empty paragraph (which lacked keepNext).
+//
+// Restrict to ORPHAN-RISK sources only — ARTICLE captions and
+// title-only §X.Y headings. Inline-titled §X.Y ("1.1 Act.  Florida
+// Business…") have heading + body in the same paragraph, so the
+// trailing empty has nothing to orphan-protect, and demanding keepNext
+// here would chain every §1.x → §1.x+1 into one unbreakable block
+// (causes half-blank pages when ARTICLE I = 11 §1.x sections is too
+// tall to fit at a page bottom).
+const ARTICLE_RE = /^ARTICLE\s+[IVXLCDM]+[:.\s]/;
+const INLINE_TITLED_RE = /^\d+\.\d+\s+[A-Z][\w\s'’,&-]+\.\s+\S/;
 for (let pi = 0; pi < paras.length - 1; pi++) {
   const cur = paras[pi];
   if (!/<w:keepNext(?:\s+w:val="1")?\s*\/>/.test(cur.body)) continue;
+  const curText = cur.text.trim();
+  if (INLINE_TITLED_RE.test(curText)) continue;
+  const looksLikeCaption =
+    ARTICLE_RE.test(curText) ||
+    /^\d+\.\d+\s+[A-Z][\w\s'’,&-]*\.?\s*$/.test(curText) ||
+    curText === "";
+  if (!looksLikeCaption) continue;
   let j = pi + 1;
   while (j < paras.length && !paras[j].text.trim()) {
     const empty = paras[j];
     const emptyHasKN = /<w:keepNext(?:\s+w:val="1")?\s*\/>/.test(empty.body);
     if (!emptyHasKN) {
-      // Only flag if there's substantive content after the empty (otherwise
-      // chain doesn't matter — nothing to keep with).
       let hasFollowingContent = false;
       for (let k = j + 1; k < paras.length; k++) {
         if (paras[k].text.trim()) { hasFollowingContent = true; break; }
       }
       if (hasFollowingContent) {
-        const prevText = cur.text.trim().slice(0, 60);
+        const prevText = curText.slice(0, 60);
         push("L1", `empty separator after keepNext paragraph lacks keepNext (breaks orphan-title chain): after "${prevText}"`);
       }
     }

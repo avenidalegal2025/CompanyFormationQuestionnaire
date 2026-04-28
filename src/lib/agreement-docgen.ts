@@ -959,6 +959,7 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   xml = rebuildFracturedNumberedHeadings(xml);
   xml = collapseEmptiesBetweenListItems(xml);
   xml = normalizeAllSectionHeadingPPr(xml);
+  xml = stripBoldFromInlineTitleRuns(xml);
   // Re-run keepNext-chain after merge/normalize, since merging
   // paragraphs creates new empty separator neighborhoods that need
   // re-evaluation.
@@ -3262,6 +3263,43 @@ function rebuildFracturedNumberedHeadings(xml: string): string {
   });
 }
 
+// ─── Generic: strip bold from §X.Y inline-titled heading runs ───────
+
+/**
+ * Templates ship one bold-underlined §X.Y title (§10.9 Non-Disparagement)
+ * while every other §X.Y title is underlined-only. Visually inconsistent.
+ *
+ * Strip <w:b>/<w:bCs> from any UNDERLINED run in a §X.Y heading
+ * paragraph (Heading3 pStyle, ind left=1440 hanging=1440). Body runs
+ * (un-underlined) are unaffected — bold inside body text is intentional.
+ */
+function stripBoldFromInlineTitleRuns(xml: string): string {
+  return xml.replace(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g, (full) => {
+    const ppr = (full.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/) || [])[1] || "";
+    const isHeading3 =
+      /<w:pStyle\s+w:val="Heading3"\/>/.test(ppr) &&
+      /<w:ind[^/]*w:left="1440"[^/]*\/>/.test(ppr);
+    if (!isHeading3) return full;
+    // Only fire on §X.Y heading-shape paragraphs.
+    const allText = (full.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+      .map((t) => t.replace(/<[^>]+>/g, ""))
+      .join("")
+      .trim();
+    if (!/^\d+\.\d+\s+[A-Z]/.test(allText)) return full;
+
+    // Inside any <w:r> whose <w:rPr> contains <w:u w:val="single"/>,
+    // strip <w:b w:val="1"/> and <w:bCs w:val="1"/>.
+    return full.replace(/<w:r\b[\s\S]*?<\/w:r>/g, (run) => {
+      if (!/<w:u\s+w:val="single"\s*\/>/.test(run)) return run;
+      return run
+        .replace(/<w:b\s+w:val="1"\s*\/>/g, "")
+        .replace(/<w:bCs\s+w:val="1"\s*\/>/g, "")
+        .replace(/<w:b\s*\/>/g, "")
+        .replace(/<w:bCs\s*\/>/g, "");
+    });
+  });
+}
+
 // ─── Generic: collapse empties between consecutive list items ────────
 
 /**
@@ -4767,13 +4805,39 @@ function chainKeepNextThroughEmpties(xml: string): string {
   }
 
   // Walk forward, collecting indexes that need keepNext added.
+  //
+  // Restrict propagation to ORPHAN-RISK headings only:
+  //   - ARTICLE-style centered captions ("ARTICLE I: …")
+  //   - Title-only §X.Y headings (text matches "N.M Title." with NO
+  //     body following the period in the same paragraph)
+  //
+  // Inline-titled §X.Y headings ("1.1 Act.  Florida Business…") have
+  // their body in the same paragraph — there's no orphan-title risk,
+  // and chaining keepNext through their trailing empty separator joins
+  // the entire article into one unbreakable block (e.g. ARTICLE I's 11
+  // §1.x sections all chained, leaving §1.1 unable to fit at the bottom
+  // of the previous page → big empty gap and a half-blank page).
+  const ARTICLE_RE = /^ARTICLE\s+[IVXLCDM]+[:.\s]/;
+  const INLINE_TITLED_RE = /^\d+\.\d+\s+[A-Z][\w\s'’,&-]+\.\s+\S/;
   const needKeepNext = new Set<number>();
   for (let i = 0; i < paras.length - 1; i++) {
     const cur = paras[i];
     const hasKN = /<w:keepNext(?:\s+w:val="1")?\s*\/>/.test(cur.full);
     if (!hasKN) continue;
-    // The next paragraph is in a "keep with previous" relationship if cur
-    // has keepNext. If next is empty, propagate.
+    const curText = (cur.body.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+      .map((t) => t.replace(/<[^>]+>/g, ""))
+      .join("")
+      .trim();
+    if (INLINE_TITLED_RE.test(curText)) continue;
+    // Heuristic: source must look like an orphan-risk caption. ARTICLE
+    // captions, title-only headings, or true empty separators with
+    // their own keepNext (already in a chain we should extend).
+    const looksLikeCaption =
+      ARTICLE_RE.test(curText) ||
+      /^\d+\.\d+\s+[A-Z][\w\s'’,&-]*\.?\s*$/.test(curText) ||
+      curText === "";
+    if (!looksLikeCaption) continue;
+    // Walk forward through empty paragraphs and add keepNext.
     let j = i + 1;
     while (j < paras.length) {
       const nxt = paras[j];
