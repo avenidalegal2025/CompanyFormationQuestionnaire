@@ -196,6 +196,66 @@ for (let pi = 0; pi < paras.length - 1; pi++) {
   }
 }
 
+// L1 — sig-block paragraphs with non-"both" justification.
+// Discovered by Haiku on 4+ owner variants: addExtraCorpShareholders
+// inserts paragraphs with <w:jc w:val="center"/> which visually pushes
+// them off-axis from the rest of the sig block (Maria Torres slot
+// rendered ~700 twips to the right of Roberto Mendez slot).
+{
+  const sigStartIdx = paras.findIndex(p => p.text.includes("“SHAREHOLDERS”"));
+  if (sigStartIdx >= 0) {
+    for (let pi = sigStartIdx; pi < paras.length; pi++) {
+      const p = paras[pi];
+      if (!p.text.trim()) continue;
+      const jcM = p.pPrText.match(/<w:jc\s+w:val="([^"]+)"/);
+      if (jcM && jcM[1] !== "both") {
+        push("L4", `sig-block para[${pi}] has <w:jc w:val="${jcM[1]}"/> — should be "both": ${p.text.slice(0,60)}`);
+      }
+    }
+  }
+}
+
+// L1 — leftover "X.XX% Owner" ownership-tag paragraphs.
+// Discovered by Haiku on 4+ owner variants: cleanup didn't strip these.
+for (const p of paras) {
+  if (/^\d+(?:\.\d+)?%\s+Owner\s*$/.test(p.text.trim())) {
+    push("L3", `leftover ownership tag paragraph: ${p.text.trim()}`);
+  }
+}
+
+// L1 — Article heading with no §X.Y subsections inside it.
+// Discovered by Haiku: when rofr=F drag=F tag=F, ARTICLE XIII has no
+// §13.x subsections left but still renders the heading + a stray body
+// paragraph "In the event that Shareholders holding..." with no
+// section number. Detect: walk paragraphs; for each ARTICLE heading,
+// require at least one §N.M Heading3 paragraph before the next
+// ARTICLE heading.
+{
+  let curArtIdx = -1;
+  let curArtRoman = "";
+  let foundSubsection = false;
+  for (let pi = 0; pi < paras.length; pi++) {
+    const t = paras[pi].text.trim();
+    const am = t.match(/^ARTICLE\s+([IVXLCDM]+)\b/i);
+    if (am) {
+      // Closing previous article: did it have any subsections?
+      if (curArtIdx >= 0 && !foundSubsection) {
+        push("L3", `ARTICLE ${curArtRoman} has no §X.Y subsections (heading + orphan body without numbering)`);
+      }
+      curArtIdx = pi;
+      curArtRoman = am[1].toUpperCase();
+      foundSubsection = false;
+      continue;
+    }
+    if (curArtIdx < 0) continue;
+    if (SEC_RE.test(t)) foundSubsection = true;
+  }
+  // Final article check
+  if (curArtIdx >= 0 && !foundSubsection) {
+    push("L3", `ARTICLE ${curArtRoman} has no §X.Y subsections`);
+  }
+}
+
 // L1 — empty signature blocks (caught by Haiku on 1-owner variant).
 // In the sig block, every "By: ___" line should be followed by a
 // "Name:  <actual name>" line. Empty "Name:" with no name = orphan

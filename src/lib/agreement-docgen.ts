@@ -1276,6 +1276,31 @@ function removeCorpConditionalSections(
     xml = removeXmlParagraphsContaining(xml, ["Tag Along"]);
   }
 
+  // When BOTH drag_along AND tag_along are off, the entire §13.X
+  // "Approved Sale" body paragraph also has no purpose. addApprovedSale
+  // -Heading is gated on (drag || tag), so when both are off no title
+  // gets injected — but the body paragraph "In the event that Shareholders
+  // holding at least 50.1% …" remains, leaving an unnumbered orphan body
+  // under ARTICLE XIII. Strip it so the article is clean.
+  if (!answers.drag_along && !answers.tag_along) {
+    xml = removeXmlParagraphsContaining(xml, [
+      "In the event that Shareholders holding at least 50.1%",
+    ]);
+  }
+
+  // If ARTICLE XIII ends up with NO §X.Y subsections (rofr=F drag=F
+  // tag=F), the heading itself is purposeless — remove "ARTICLE XIII:
+  // TRANSFERS AND ASSIGNMENTS" entirely.
+  if (
+    !answers.right_of_first_refusal &&
+    !answers.drag_along &&
+    !answers.tag_along
+  ) {
+    xml = removeXmlParagraphsContaining(xml, [
+      "ARTICLE XIII: TRANSFERS AND ASSIGNMENTS",
+    ]);
+  }
+
   // Non-compete: insert "Covenant Against Competition" at the end of Article 10
   // and let the downstream renumberAndRemapSubsections pass assign the correct
   // section number. Strategy:
@@ -2870,8 +2895,28 @@ function normalizeSignatureBlockLayout(xml: string): string {
       "$1",
     );
 
+    // Force jc=both on every sig-block paragraph. addExtraCorpShareholders
+    // (4+ owners) inserts paragraphs with <w:jc w:val="center"/> which
+    // visually pushes them to the right of the page even though their
+    // <w:ind> matches the rest of the block. Replace any existing <w:jc>
+    // with both to keep alignment uniform.
+    if (/<w:jc\s+w:val="(?!both")[^"]*"\s*\/>/.test(updated)) {
+      updated = updated.replace(
+        /<w:jc\s+w:val="(?!both")[^"]*"\s*\/>/g,
+        '<w:jc w:val="both"/>',
+      );
+    }
+
     return updated;
   });
+
+  // Remove leftover "X.XX% Owner" ownership-tag paragraphs that
+  // addExtraCorpShareholders inserts for 4+ owner blocks. These appear
+  // between Name: and the next "By:" and serve no purpose.
+  middle = middle.replace(
+    /<w:p\b[^>]*>(?:(?!<\/w:p>)[\s\S])*?<w:t[^>]*>\d+(?:\.\d+)?%\s+Owner<\/w:t>(?:(?!<\/w:p>)[\s\S])*?<\/w:p>/g,
+    "",
+  );
 
   return before + middle + after;
 }
