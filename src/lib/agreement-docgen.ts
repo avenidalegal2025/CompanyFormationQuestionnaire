@@ -805,6 +805,17 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   // Interests upon Deadlock." and any structurally similar paragraph.
   xml = normalizeInlineTitlePeriod(xml);
 
+  // Strip leading whitespace-only run from §10.6 "Officers" — the template
+  // ships it with 5 leading spaces in run[0] which keeps renumberAndRemap
+  // -Subsections branch (c) from recognizing it as a Heading3 (since the
+  // first run isn't underlined). After stripping, run[1] (underlined
+  // "Officers") becomes the first run and the section gets numbered.
+  xml = stripLeadingWhitespaceFromOfficersHeading(xml);
+
+  // Add an underlined "Banking" title to the §10.7 paragraph that ships
+  // titleless ("All funds of the Corporation shall be deposited…").
+  xml = addBankingHeading(xml);
+
   // Add an "Approved Sale." Heading3 title to the orphan §13.6 paragraph
   // ("In the event that Shareholders holding at least 50.1% of the Shares
   // desire to sell …"). Template ships it titleless, so renumberAndRemap-
@@ -1513,6 +1524,87 @@ function addApprovedSaleHeading(xml: string): string {
     `$1$2${titleRun}${periodRun}$3`,
   );
 
+  return xml.substring(0, pStart) + rebuilt + xml.substring(pEnd);
+}
+
+// ─── §10.6 Officers + §10.7 Banking heading repair ───────────────────
+
+/**
+ * The template's "Officers" subsection ships with a leading whitespace-only
+ * <w:r> ("     ") before the underlined "Officers" run. branch (c) of
+ * renumberAndRemapSubsections looks at the FIRST <w:r> in the paragraph and
+ * checks for underline — it sees the whitespace run, fails the check, and
+ * the section never gets a §X.Y prefix. Strip the whitespace run so the
+ * underlined title becomes the first run.
+ */
+function stripLeadingWhitespaceFromOfficersHeading(xml: string): string {
+  const anchor = "Each Officer shall be appointed";
+  const idx = xml.indexOf(anchor);
+  if (idx < 0) return xml;
+  const pStart = xml.lastIndexOf("<w:p ", idx);
+  const pEnd = xml.indexOf("</w:p>", idx) + "</w:p>".length;
+  if (pStart < 0 || pEnd <= pStart) return xml;
+  const para = xml.substring(pStart, pEnd);
+
+  // Match the structure: [<w:r>...<w:t>whitespace</w:t></w:r>] before the
+  // underlined "Officers" title run. Drop the whitespace run.
+  const rebuilt = para.replace(
+    /(<\/w:pPr>)<w:r\b[^>]*>(?:<w:rPr>[\s\S]*?<\/w:rPr>)?<w:t[^>]*>\s+<\/w:t><\/w:r>(\s*<w:r\b[^>]*><w:rPr>[\s\S]*?<w:u w:val="single"\/>)/,
+    "$1$2",
+  );
+  if (rebuilt === para) return xml;
+  return xml.substring(0, pStart) + rebuilt + xml.substring(pEnd);
+}
+
+/**
+ * The template's banking subsection ("All funds of the Corporation shall
+ * be deposited …") ships with NO title — just body text. Prepend an
+ * underlined "Banking" title + ".  " separator so it becomes a branch-(c)
+ * heading and renumberAndRemapSubsections assigns it the next §X.Y slot.
+ */
+function addBankingHeading(xml: string): string {
+  const anchor = "All funds of the Corporation shall be deposited";
+  const idx = xml.indexOf(anchor);
+  if (idx < 0) return xml;
+  const pStart = xml.lastIndexOf("<w:p ", idx);
+  const pEnd = xml.indexOf("</w:p>", idx) + "</w:p>".length;
+  if (pStart < 0 || pEnd <= pStart) return xml;
+  const para = xml.substring(pStart, pEnd);
+
+  // Idempotent: if the para already starts with an underlined "Banking" run,
+  // don't re-add it.
+  if (/<w:t[^>]*>Banking<\/w:t>/.test(para.substring(0, 800))) return xml;
+
+  // Replace pPr with a Heading3 pPr (mirrors §13.2 Offer's shape).
+  const newPPr =
+    "<w:pPr>" +
+    "<w:keepNext/>" +
+    '<w:pStyle w:val="Heading3"/>' +
+    "<w:tabs>" +
+    '<w:tab w:val="left" w:leader="none" w:pos="720"/>' +
+    "</w:tabs>" +
+    '<w:ind w:left="1440" w:hanging="1440"/>' +
+    '<w:jc w:val="both"/>' +
+    "<w:rPr>" +
+    '<w:vertAlign w:val="baseline"/>' +
+    "</w:rPr>" +
+    "</w:pPr>";
+  const titleRun =
+    "<w:r>" +
+    '<w:rPr><w:u w:val="single"/><w:vertAlign w:val="baseline"/><w:rtl w:val="0"/></w:rPr>' +
+    '<w:t xml:space="preserve">Banking</w:t>' +
+    "</w:r>";
+  const periodRun =
+    "<w:r>" +
+    '<w:rPr><w:vertAlign w:val="baseline"/><w:rtl w:val="0"/></w:rPr>' +
+    '<w:t xml:space="preserve">.  </w:t>' +
+    "</w:r>";
+
+  let rebuilt = para.replace(/<w:pPr>[\s\S]*?<\/w:pPr>/, newPPr);
+  rebuilt = rebuilt.replace(
+    /(<\/w:pPr>)([\s\S]*?)(<w:r\b)/,
+    `$1$2${titleRun}${periodRun}$3`,
+  );
   return xml.substring(0, pStart) + rebuilt + xml.substring(pEnd);
 }
 
