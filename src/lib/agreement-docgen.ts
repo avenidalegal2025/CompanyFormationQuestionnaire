@@ -1474,17 +1474,29 @@ function addTagAlongLabel(xml: string): string {
   if (pStart < 0 || pEnd <= pStart) return xml;
   const para = xml.substring(pStart, pEnd);
 
-  // Idempotent: bail if already labeled.
-  if (/<w:t[^>]*>\(b\)<\/w:t>/.test(para) || /<w:t[^>]*>B\.<\/w:t>/.test(para)) {
+  // Idempotent: bail if already labeled with either A. or B.
+  if (
+    /<w:t[^>]*>\(a\)<\/w:t>/.test(para) ||
+    /<w:t[^>]*>\(b\)<\/w:t>/.test(para) ||
+    /<w:t[^>]*>A\.<\/w:t>/.test(para) ||
+    /<w:t[^>]*>B\.<\/w:t>/.test(para)
+  ) {
     return xml;
   }
   // Sanity: only act on the actual Tag Along *title* paragraph.
   if (!/<w:t[^>]*>Tag Along [–-] <\/w:t>/.test(para)) return xml;
 
+  // Choose label dynamically: if Drag Along is also present in the doc,
+  // Tag Along is the SECOND letter sub-item under §13.6 ("(b)" → B.).
+  // If Drag Along was removed (drag_along=false but tag_along=true), Tag
+  // Along is the ONLY letter sub-item, so it's "(a)" → A.
+  const hasDragAlong = xml.includes("Drag Along");
+  const label = hasDragAlong ? "(b)" : "(a)";
+
   const labelRun =
     "<w:r>" +
     '<w:rPr><w:color w:val="000000"/><w:u w:val="none"/><w:vertAlign w:val="baseline"/><w:rtl w:val="0"/></w:rPr>' +
-    '<w:t xml:space="preserve">(b)</w:t>' +
+    `<w:t xml:space="preserve">${label}</w:t>` +
     "</w:r>";
 
   // Insert label run before the first <w:r> in the paragraph.
