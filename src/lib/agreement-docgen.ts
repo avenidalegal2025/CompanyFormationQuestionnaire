@@ -1115,29 +1115,50 @@ function addExtraCorpShareholders(
     xml = xml.substring(0, trEnd) + overflow + xml.substring(trEnd);
   }
 
-  // Add extra signature blocks with formatting from existing signatures
+  // Add extra signature blocks with formatting from existing signatures.
+  // The "Owner" anchor's rPr includes <w:b w:val="1"/> (the ownership-
+  // tag is bold in the template), but "By:" and "Name:" labels in
+  // existing slots are NON-bold (only the actual shareholder name is
+  // bold). Strip <w:b>/<w:bCs> from the rPr used for "By:" and "Name:"
+  // so inserted blocks visually match shareholders 1-3.
   const corpSigFmt = extractFormatting(xml, "Owner");
+  const labelRPr = corpSigFmt.rPr
+    .replace(/<w:b w:val="1"\/>/g, "")
+    .replace(/<w:bCs w:val="1"\/>/g, "");
   const lastSh3Name = answers.owners_list[2]?.full_name || "";
   if (lastSh3Name && sh3) {
+    // Empty separator paragraph between sig blocks — matches the visual
+    // gap between original slots 1/2/3 (Roberto/Ana/Carlos all separated
+    // by an empty paragraph in the template). Without this, the first
+    // inserted block (Maria) jams against Carlos's "Name:" line.
+    const sepPara = buildFormattedParagraph("", corpSigFmt.pPr, labelRPr);
     const extraSigs = extraOwners
       .map((owner) => {
         const pct = ((Math.round((owner.shares_or_percentage / 100) * totalShares) / totalShares) * 100).toFixed(2);
         return `</w:t></w:r></w:p>` +
-          buildFormattedParagraph(`By: ______________________`, corpSigFmt.pPr, corpSigFmt.rPr) +
-          buildFormattedParagraph(`Name:   ${owner.full_name}`, corpSigFmt.pPr, corpSigFmt.rPr) +
+          sepPara +
+          buildFormattedParagraph(`By: ______________________`, corpSigFmt.pPr, labelRPr) +
+          buildFormattedParagraph(`Name:   ${owner.full_name}`, corpSigFmt.pPr, labelRPr) +
           buildFormattedParagraph(`Owner`, corpSigFmt.pPr, corpSigFmt.rPr) +
           `<w:p><w:r><w:t xml:space="preserve">`;
       })
       .join("");
 
-    // Insert after shareholder 3's "% Owner" line
+    // Insert after shareholder 3's "% Owner" line. The template ships
+    // TWO "12.5% Owner" placeholders (slots 2 AND 3 both default to
+    // 12.5%) — we must replace the LAST one (slot 3 = sh3) so the
+    // extra sigs land AFTER slot 3, preserving owner ordering. Replacing
+    // the first occurrence pushes shareholder 3 (e.g. Carlos Lopez) to
+    // the end of the sig block, scrambling the legal owner order.
     const sh3Pct = ((Math.round((sh3.shares_or_percentage / 100) * totalShares) / totalShares) * 100).toFixed(2);
-    xml = xmlTextReplace(
-      xml,
-      `12.5% Owner`,
-      `${sh3Pct}% Owner` + extraSigs,
-      false
-    );
+    const lastTagIdx = xml.lastIndexOf("12.5% Owner");
+    if (lastTagIdx >= 0) {
+      xml =
+        xml.substring(0, lastTagIdx) +
+        `${sh3Pct}% Owner` +
+        extraSigs +
+        xml.substring(lastTagIdx + "12.5% Owner".length);
+    }
   }
 
   return xml;
