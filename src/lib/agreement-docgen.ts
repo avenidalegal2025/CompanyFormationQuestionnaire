@@ -819,6 +819,13 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   // "Officers") becomes the first run and the section gets numbered.
   xml = stripLeadingWhitespaceFromOfficersHeading(xml);
 
+  // §14.7's continuation body paragraph ("If the Corporation fails to
+  // notify the Divorcing Shareholder…") ships with a quirky indent
+  // (left=1420 hanging=656) that visually steps it inward from §14.7's
+  // body wrap. Normalize to left=1440 body indent so the paragraph
+  // reads as a clean continuation.
+  xml = normalize147ContinuationIndent(xml);
+
   // Add an underlined "Banking" title to the §10.7 paragraph that ships
   // titleless ("All funds of the Corporation shall be deposited…").
   xml = addBankingHeading(xml);
@@ -1666,6 +1673,39 @@ function promoteTransferorNoticeSection(xml: string): string {
     "</w:r>";
   const newPara = `<w:p>${ppr}${titleRun}${bodyRun}</w:p>`;
   return xml.substring(0, pStart) + newPara + xml.substring(pEnd);
+}
+
+// ─── §14.7 continuation paragraph indent fix ─────────────────────────
+
+/**
+ * §14.7 Payment Upon Withdrawal has TWO body paragraphs:
+ *   (1) "If the Corporation purchases…" — properly indented with the
+ *       Heading3 left=1440/hanging=1440 layout.
+ *   (2) "If the Corporation fails to notify the Divorcing Shareholder…" —
+ *       template ships left=1420 hanging=656 (Google Docs export quirk).
+ *       First line indents to ~0.53" while body wraps at ~0.99", so
+ *       visually the second paragraph "steps in" inconsistently from
+ *       the first.
+ * Fix: replace the second paragraph's indent with left=1440 (no hanging,
+ * no firstLine) so all lines flush at 1" and the paragraph reads as a
+ * clean continuation of §14.7's body.
+ */
+function normalize147ContinuationIndent(xml: string): string {
+  const anchor =
+    "If the Corporation fails to notify the Divorcing Shareholder";
+  const idx = xml.indexOf(anchor);
+  if (idx < 0) return xml;
+  const pStart = xml.lastIndexOf("<w:p ", idx);
+  const pEnd = xml.indexOf("</w:p>", idx) + "</w:p>".length;
+  if (pStart < 0 || pEnd <= pStart) return xml;
+
+  const para = xml.substring(pStart, pEnd);
+  const fixed = para.replace(
+    /<w:ind\s+[^/]*\/>/,
+    '<w:ind w:left="1440"/>',
+  );
+  if (fixed === para) return xml;
+  return xml.substring(0, pStart) + fixed + xml.substring(pEnd);
 }
 
 // ─── §10.6 Officers + §10.7 Banking heading repair ───────────────────
