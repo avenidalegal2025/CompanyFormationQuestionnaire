@@ -944,6 +944,12 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   xml = addLimitationOnOfficersLettering(xml);
   xml = addShareholderAssignmentLettering(xml);
   xml = addDeliveryToShareholderRomanList(xml);
+  // Generic fallback: any paragraph ending with ":" followed by sibling
+  // paragraphs at the standard letter/roman list indent without any
+  // labels gets sequentially labeled. Catches every "introduce-and-list"
+  // pattern at once instead of one targeted function per section.
+  xml = autoLabelColonIntroducedLists(xml);
+  xml = collapseConsecutiveEmptyParagraphs(xml);
   xml = normalizeListParagraphs(xml);
   xml = enablePaginationFlags(xml);
   xml = stripEmptyParagraphPageBreaks(xml);
@@ -2404,6 +2410,186 @@ function addDissolutionLettering(xml: string): string {
  * Both already have the A./B. list-item indent (left=2160, hanging=720) —
  * they're just missing the labels. Inject `A.` and `B.` the same way
  * `addDissolutionLettering` does.
+// ─── Generic colon-introduced list labeler ──────────────────────────
+
+/**
+ * Walks every paragraph in document order. When a paragraph's text ends
+ * with ":" (a list-introducing colon), checks whether the immediately
+ * following sibling paragraphs are at the standard letter-list indent
+ * (left=2160 hanging=720) or roman-list indent (left=2880 hanging=720)
+ * AND all lack labels. If so, prepends sequential A./B./C./... or
+ * i./ii./iii./... to each, matching the level of the indent.
+ *
+ * This is the GENERIC catch-all that replaces a long tail of targeted
+ * lettering functions (§5.3, §7.1, §8.4, §9.1, §10.2, §10.6, §8.2, …).
+ * Stops collecting siblings as soon as it hits:
+ *   - a paragraph at a different indent (e.g. body text or a heading)
+ *   - a paragraph that already has a label
+ *   - a Heading3 paragraph (next section)
+ *
+ * Idempotent: paragraphs already labeled are left alone, so this can
+ * run after the targeted functions without double-labeling.
+ */
+function autoLabelColonIntroducedLists(xml: string): string {
+  type Span = {
+    start: number;
+    end: number;
+    full: string;
+    text: string;
+    left: number;
+    hanging: number;
+    isHeading3: boolean;
+    hasLabel: boolean;
+  };
+  const paraRe = /<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g;
+  const paras: Span[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = paraRe.exec(xml))) {
+    const body = m[1];
+    const text = (body.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+      .map((t) => t.replace(/<[^>]+>/g, ""))
+      .join("")
+      .trim();
+    const ppr = (body.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/) || [])[1] || "";
+    const ind = ppr.match(/<w:ind\b([^/]*)\/>/);
+    let left = 0,
+      hanging = 0;
+    if (ind) {
+      const li = ind[1].match(/w:left="(\d+)"/);
+      const hg = ind[1].match(/w:hanging="(\d+)"/);
+      if (li) left = parseInt(li[1], 10);
+      if (hg) hanging = parseInt(hg[1], 10);
+    }
+    const isHeading3 = /<w:pStyle w:val="Heading3"\/>/.test(ppr);
+    // Has label: bare A./i./(a)/(i) or paren forms in the FIRST <w:t>.
+    const firstT = (body.match(/<w:t[^>]*>([^<]*)<\/w:t>/) || [])[1] || "";
+    const ft = firstT.trim();
+    const hasLabel =
+      /^[A-Z]\./.test(ft) ||
+      /^\(([a-z])\)/.test(ft) ||
+      /^(?:i|ii|iii|iv|v|vi|vii|viii|ix|x)\./.test(ft) ||
+      /^\((?:i|ii|iii|iv|v|vi|vii|viii|ix|x)\)/.test(ft);
+    paras.push({
+      start: m.index,
+      end: m.index + m[0].length,
+      full: m[0],
+      text,
+      left,
+      hanging,
+      isHeading3,
+      hasLabel,
+    });
+  }
+
+  // For each colon-ending paragraph, find following sibling list candidates.
+  type Insertion = { paraIdx: number; label: string };
+  const insertions: Insertion[] = [];
+  for (let i = 0; i < paras.length - 1; i++) {
+    if (!paras[i].text.endsWith(":")) continue;
+    // Look ahead at non-empty paragraphs.
+    const sibs: number[] = [];
+    let level: "letter" | "roman" | null = null;
+    for (let j = i + 1; j < paras.length; j++) {
+      const p = paras[j];
+      if (!p.text) continue; // skip empty separators
+      if (p.isHeading3) break; // next section
+      // Determine list level by indent.
+      let pLevel: "letter" | "roman" | null = null;
+      if (p.left === 2160 && p.hanging === 720) pLevel = "letter";
+      else if (p.left === 2880 && p.hanging === 720) pLevel = "roman";
+      if (!pLevel) break; // not a list candidate (different indent)
+      if (level === null) level = pLevel;
+      else if (level !== pLevel) break; // mixed levels → bail
+      if (p.hasLabel) break; // already labeled — assume the list is fine
+      sibs.push(j);
+    }
+    if (sibs.length === 0) continue;
+    // Inject sequential labels.
+    for (let k = 0; k < sibs.length; k++) {
+      const label =
+        level === "letter"
+          ? `${String.fromCharCode(65 + k)}.`
+          : ["i.", "ii.", "iii.", "iv.", "v.", "vi.", "vii.", "viii.", "ix.", "x."][k];
+      insertions.push({ paraIdx: sibs[k], label });
+    }
+  }
+
+  if (insertions.length === 0) return xml;
+
+  // Apply in REVERSE so earlier offsets stay valid.
+  insertions.sort((a, b) => b.paraIdx - a.paraIdx);
+  for (const ins of insertions) {
+    const p = paras[ins.paraIdx];
+    const rebuilt = p.full.replace(
+      /(<w:r\b[^>]*>[\s\S]*?<\/w:rPr>)(\s*)(<w:t)/,
+      `$1<w:tab/><w:t xml:space="preserve">${ins.label}</w:t><w:tab/>$3`,
+    );
+    if (rebuilt !== p.full) {
+      xml = xml.substring(0, p.start) + rebuilt + xml.substring(p.end);
+    }
+  }
+  return xml;
+}
+
+// ─── Collapse consecutive empty paragraphs ──────────────────────────
+
+/**
+ * After conditional-section removal (rofr=F/drag=F/tag=F etc.) the doc
+ * can end up with runs of 5–8 consecutive empty paragraphs where each
+ * removed section left behind its separator. Visually this produces a
+ * huge blank gap (e.g. between ARTICLE XIII heading and §13.1).
+ *
+ * Collapse any run of >1 consecutive empty <w:p> to a single empty
+ * paragraph — preserves intended single-empty separators between
+ * content paragraphs but kills the cascading gaps.
+ *
+ * Idempotent. Only collapses paragraphs whose <w:t> contents are
+ * empty/whitespace-only.
+ */
+function collapseConsecutiveEmptyParagraphs(xml: string): string {
+  const paraRe = /<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g;
+  type Span = { start: number; end: number; full: string; isEmpty: boolean };
+  const paras: Span[] = [];
+  let m;
+  while ((m = paraRe.exec(xml))) {
+    const text = (m[1].match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+      .map((t) => t.replace(/<[^>]+>/g, ""))
+      .join("")
+      .trim();
+    paras.push({
+      start: m.index,
+      end: m.index + m[0].length,
+      full: m[0],
+      isEmpty: !text,
+    });
+  }
+
+  // Find runs of consecutive empties, length > 1. Mark all but the FIRST
+  // for deletion.
+  const toDelete: number[] = [];
+  for (let i = 0; i < paras.length; ) {
+    if (!paras[i].isEmpty) {
+      i++;
+      continue;
+    }
+    let j = i;
+    while (j < paras.length && paras[j].isEmpty) j++;
+    // [i .. j-1] is a run of empties; keep paras[i], delete i+1 .. j-1.
+    for (let k = i + 1; k < j; k++) toDelete.push(k);
+    i = j;
+  }
+
+  if (toDelete.length === 0) return xml;
+
+  // Apply in REVERSE so earlier offsets stay valid.
+  toDelete.sort((a, b) => b - a);
+  for (const idx of toDelete) {
+    const p = paras[idx];
+    xml = xml.substring(0, p.start) + xml.substring(p.end);
+  }
+  return xml;
+}
+
 // ─── §5.3 Dissolution waterfall lettering (Corp) ────────────────────
 
 /**
