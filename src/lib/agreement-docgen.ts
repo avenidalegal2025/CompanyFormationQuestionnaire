@@ -938,6 +938,7 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   xml = normalizeSectionNumberTabs(xml);
   xml = addDissolutionLettering(xml);
   xml = addReimbursableExpensesLettering(xml);
+  xml = addDissolutionWaterfallLettering(xml);
   xml = addTaxReturnsLettering(xml);
   xml = addInvoluntaryTransferLettering(xml);
   xml = addLimitationOnOfficersLettering(xml);
@@ -2403,6 +2404,38 @@ function addDissolutionLettering(xml: string): string {
  * Both already have the A./B. list-item indent (left=2160, hanging=720) —
  * they're just missing the labels. Inject `A.` and `B.` the same way
  * `addDissolutionLettering` does.
+// ─── §5.3 Dissolution waterfall lettering (Corp) ────────────────────
+
+/**
+ * §5.3 Dissolution lists two unlabeled items in the proceeds-distribution
+ * waterfall ("payment of Corporation debts…" and "creation in a trust
+ * account of a reasonable reserve…"). Both already sit at the standard
+ * letter-list indent (left=2160, hanging=720); they're just missing the
+ * A./B. labels. Same shape as §7.1 Reimbursable Expenses.
+ */
+function addDissolutionWaterfallLettering(xml: string): string {
+  const items: Array<{ anchor: string; letter: string }> = [
+    { anchor: "payment of Corporation debts, including", letter: "A." },
+    { anchor: "creation in a trust account of a reasonable reserve", letter: "B." },
+  ];
+  for (const { anchor, letter } of items) {
+    const idx = xml.indexOf(anchor);
+    if (idx < 0) continue;
+    const pStart = xml.lastIndexOf("<w:p ", idx);
+    const pEnd = xml.indexOf("</w:p>", idx) + "</w:p>".length;
+    if (pStart < 0 || pEnd <= pStart) continue;
+    const para = xml.substring(pStart, pEnd);
+    if (new RegExp(`<w:t[^>]*>${letter.replace(".", "\\.")}<\\/w:t>`).test(para)) continue;
+    const rebuilt = para.replace(
+      /(<w:r\b[^>]*>[\s\S]*?<\/w:rPr>)(\s*)(<w:t)/,
+      `$1<w:tab/><w:t xml:space="preserve">${letter}</w:t><w:tab/>$3`,
+    );
+    xml = xml.substring(0, pStart) + rebuilt + xml.substring(pEnd);
+  }
+  return xml;
+}
+
+/**
  */
 function addReimbursableExpensesLettering(xml: string): string {
   // No trailing period — the template splits "Reimbursable Expenses" and "."
