@@ -3298,9 +3298,9 @@ function closeArticleXIIIGap(xml: string): string {
     t = t.replace(/ ARTXIV /g, "ARTICLE XIV");
     // Section-level §14.N / §15.N (in headings AND any cross-refs).
     // Do 15→14 first via sentinel so we don't shift twice.
-    t = t.replace(/(?<!\d)15\.(\d+)/g, "15.$1");
-    t = t.replace(/(?<!\d)14\.(\d+)/g, (_, n) => `13.${n}`);
-    t = t.replace(/15\.(\d+)/g, (_, n) => `14.${n}`);
+    t = t.replace(/(?<!\d)15\.(\d+)/g, "15.$1");
+    t = t.replace(/(?<!\d)14\.(\d+)/g, (_m: string, n: string) => `13.${n}`);
+    t = t.replace(/15\.(\d+)/g, (_m: string, n: string) => `14.${n}`);
     return full.replace(text, t);
   });
 }
