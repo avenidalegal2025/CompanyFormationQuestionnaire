@@ -957,6 +957,7 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   xml = standardizeNumberedHeadingShape(xml);
   xml = mergeTitleOnlyHeadingsWithBody(xml);
   xml = rebuildFracturedNumberedHeadings(xml);
+  xml = collapseEmptiesBetweenListItems(xml);
   xml = normalizeAllSectionHeadingPPr(xml);
   // Re-run keepNext-chain after merge/normalize, since merging
   // paragraphs creates new empty separator neighborhoods that need
@@ -3259,6 +3260,94 @@ function rebuildFracturedNumberedHeadings(xml: string): string {
 
     return full.substring(0, pPrEnd + 8) + newRuns + trailer;
   });
+}
+
+// ─── Generic: collapse empties between consecutive list items ────────
+
+/**
+ * Templates ship inconsistent letter-list spacing — some sections (e.g.
+ * §9.1) have letter items packed tight, others (§8.1, §10.8) have an
+ * empty paragraph between every letter, and §10.2 is mixed. The
+ * inconsistency is visible as random blank-line gaps between A./B./C.
+ * items in some sections but not others.
+ *
+ * Canonicalize: between two consecutive paragraphs at the SAME letter
+ * indent (left=2160 hanging=720) OR same roman indent (left=2880
+ * hanging=720), if there is exactly one TRULY empty paragraph between
+ * them, drop it. Both surrounding paragraphs must start with a label
+ * (A./B. or i./ii.) so we don't merge unrelated letter-styled body
+ * paragraphs into a list.
+ *
+ * Idempotent — once collapsed, the next run finds no empty between
+ * letters and is a no-op.
+ */
+function collapseEmptiesBetweenListItems(xml: string): string {
+  const paraRe = /<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g;
+  type Span = {
+    start: number;
+    end: number;
+    text: string;
+    left: number;
+    hanging: number;
+  };
+  const paras: Span[] = [];
+  let mm: RegExpExecArray | null;
+  while ((mm = paraRe.exec(xml))) {
+    const body = mm[1];
+    const text = (body.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+      .map((t) => t.replace(/<[^>]+>/g, ""))
+      .join("")
+      .trim();
+    const ppr = (body.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/) || [])[1] || "";
+    const ind = ppr.match(/<w:ind\b([^/]*)\/>/);
+    let left = 0;
+    let hanging = 0;
+    if (ind) {
+      const li = ind[1].match(/w:left="(\d+)"/);
+      const hg = ind[1].match(/w:hanging="(\d+)"/);
+      if (li) left = parseInt(li[1], 10);
+      if (hg) hanging = parseInt(hg[1], 10);
+    }
+    paras.push({
+      start: mm.index,
+      end: mm.index + mm[0].length,
+      text,
+      left,
+      hanging,
+    });
+  }
+
+  // Templates ship with and without the post-period space ("A.x" and
+  // "A. x" both occur). Indent already filters to letter-list level;
+  // require just letter + period at start of text.
+  const LETTER_LABEL = /^[A-Z]\.(?:\s|\S)/;
+  const ROMAN_LABEL = /^(?:i|ii|iii|iv|v|vi|vii|viii|ix|x)\.(?:\s|\S)/i;
+  const isLetterItem = (p: Span) =>
+    p.left === 2160 && p.hanging === 720 && LETTER_LABEL.test(p.text);
+  const isRomanItem = (p: Span) =>
+    p.left === 2880 && p.hanging === 720 && ROMAN_LABEL.test(p.text);
+
+  // Collect indices of empty paragraphs sandwiched between two
+  // same-level list items. Walk in REVERSE so removal-by-slice keeps
+  // earlier offsets valid.
+  const removeIdxs: number[] = [];
+  for (let i = 1; i < paras.length - 1; i++) {
+    const p = paras[i];
+    if (p.text) continue;
+    const prev = paras[i - 1];
+    const next = paras[i + 1];
+    const sameLetter = isLetterItem(prev) && isLetterItem(next);
+    const sameRoman = isRomanItem(prev) && isRomanItem(next);
+    if (sameLetter || sameRoman) removeIdxs.push(i);
+  }
+
+  if (removeIdxs.length === 0) return xml;
+  removeIdxs.sort((a, b) => b - a);
+  for (const idx of removeIdxs) {
+    const p = paras[idx];
+    xml = xml.substring(0, p.start) + xml.substring(p.end);
+  }
+  return xml;
 }
 
 // ─── Generic: normalize all numbered-section heading pPr ─────────────
