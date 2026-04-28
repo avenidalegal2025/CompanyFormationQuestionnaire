@@ -1,5 +1,22 @@
 # Avenida Legal — Company Formation Questionnaire
 
+## Section/Sub-Item Numbering Convention (Corp + LLC)
+
+Three-level hierarchy. Every labeled item must use the level-correct format:
+
+| Level | Format | Example | Indent (twips) |
+|------:|:-------|:--------|:---------------|
+| 1     | `N.M`  | `13.6 Approved Sale.` | left=1440, hanging=1440 (Heading3) |
+| 2     | `A.`   | `A. Drag Along – …`  | left=2160, hanging=720 |
+| 3     | `i.`   | `i. Voting. …`       | left=2880, hanging=720 |
+
+Rules:
+- Letter labels (`A.` `B.` `C.` …) only appear at level 2, immediately under a `N.M` heading.
+- Roman labels (`i.` `ii.` `iii.` …) only appear at level 3, under a level-2 letter.
+- A single labeled item still uses the level-correct format (e.g. §13.5 has one item — it is `A.`, not `i.`, because it sits one level below the heading).
+- Sequences must be contiguous starting from `A.`/`i.` — no `(b)` without an `(a)`, no `ii.` without an `i.`.
+- Templates ship many violations (orphan letters, mislabeled levels, missing `(a)` first item). The docgen post-processing in `src/lib/agreement-docgen.ts` enforces this convention. New transforms should follow the same shape (rewrite paren-form labels, then let `normalizeListParagraphs` canonicalize).
+
 ## Project Overview
 Next.js app for company formation (LLC + C-Corp) in the US. Airtable stores form data, Lambda functions generate legal documents (DOCX), stored on S3, served via client dashboard.
 

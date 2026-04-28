@@ -789,6 +789,54 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   // Conditional section removal
   xml = removeCorpConditionalSections(xml, answers);
 
+  // Promote the orphan "(c) In the event that a Shareholder has elected to
+  // sell its Shares …" paragraph into a Heading3-styled subsection. The
+  // template ships it as a lone (c) with no (a)/(b) — a pre-existing template
+  // defect. Convert to an inline-titled subsection so renumberAndRemapSubsections
+  // (branch c) assigns it the right §13.X number.
+  if (answers.right_of_first_refusal) {
+    xml = promoteCorpOrphanElectionToSell(xml);
+  }
+
+  // Fix inline-title paragraphs whose period sits inside the underlined
+  // title run instead of at the start of the body run — branch (c) of
+  // renumberAndRemapSubsections needs the period in the body for the
+  // section to get a §X.Y number assigned. Affects "Purchase of Shareholder
+  // Interests upon Deadlock." and any structurally similar paragraph.
+  xml = normalizeInlineTitlePeriod(xml);
+
+  // Add an "Approved Sale." Heading3 title to the orphan §13.6 paragraph
+  // ("In the event that Shareholders holding at least 50.1% of the Shares
+  // desire to sell …"). Template ships it titleless, so renumberAndRemap-
+  // Subsections has nothing to detect; this prepends a branch-(c)-shaped
+  // title so the §X.Y number is assigned automatically.
+  if (answers.drag_along || answers.tag_along) {
+    xml = addApprovedSaleHeading(xml);
+  }
+
+  // Drag Along + Tag Along are first-level sub-items under §13.6 Approved
+  // Sale. Template has Drag Along mislabeled as "i." (roman) and Tag Along
+  // unlabeled. First-level sub-items use letter labels (cf. §8.1 A.–E.,
+  // §8.4 A.–C., §10.2 A.–G.); romans are only for the second level (cf.
+  // §4.1 B. → i. Voting / ii. Dividends). Relabel to A./B. with letter indent.
+  if (answers.drag_along) {
+    xml = relabelDragAlong(xml);
+  }
+  if (answers.tag_along) {
+    xml = addTagAlongLabel(xml);
+  }
+
+  // §13.5's lone "(i) If a Bona Fide Offer …" sub-item is at the second
+  // level under the Heading3 — same convention as Drag/Tag Along: use
+  // letters, not romans. (i) → (a), canonicalize handles A.
+  xml = relabelBonaFideOfferItem(xml);
+
+  // §10.6 Non-Disclosure ships with four mislabeled level-2 items as
+  // (i)/(ii)/(iii)/(iv) — by the 1.N → A. → i. convention these should
+  // be (a)/(b)/(c)/(d). Rewrite scoped to §10.6 only (§9.2's romanette
+  // list is at level 3 and stays roman).
+  xml = relabelNonDisclosureSubitems(xml);
+
   // Add Super Majority definition after Majority definition (1.6) for Corp
   // Attorney format: "Super Majority. Shareholders collectively holding greater than
   // SEVENTY FIVE PERCENT (75.00%) of the Percentage Interests of all the Shareholders eligible to vote."
@@ -838,6 +886,10 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   // variations (w:left ranges from 706 to 787) that we flatten here.
   xml = normalizeSectionNumberTabs(xml);
   xml = addDissolutionLettering(xml);
+  xml = addReimbursableExpensesLettering(xml);
+  xml = addTaxReturnsLettering(xml);
+  xml = addInvoluntaryTransferLettering(xml);
+  xml = addLimitationOnOfficersLettering(xml);
   xml = normalizeListParagraphs(xml);
   xml = enablePaginationFlags(xml);
   xml = repairXml(xml);
@@ -1221,6 +1273,305 @@ function removeCorpConditionalSections(
   return xml;
 }
 
+// ─── §13 Orphan-(c) → "Notice of Election to Sell" subsection ────────
+
+/**
+ * The Corp template ships an orphan "(c) In the event that a Shareholder has
+ * elected to sell its Shares …" paragraph in Article XIII with no preceding
+ * (a) or (b). The body describes a *pre-offer* obligation (90-day advanced
+ * notice when a Shareholder decides to sell) — semantically distinct from
+ * §13.2 Offer (offer mechanics) and §13.3 Concurrence or Acceptance
+ * (post-offer response). Promote it to its own Heading3-styled subsection
+ * titled "Notice of Election to Sell" so renumberAndRemapSubsections (branch
+ * c, inline-titled) assigns the next §13.X number automatically.
+ *
+ * Must run AFTER removeCorpConditionalSections (no-op when ROFR=false since
+ * the orphan paragraph has been removed) and BEFORE renumberAndRemapSubsections.
+ */
+function promoteCorpOrphanElectionToSell(xml: string): string {
+  const anchor = "In the event that a Shareholder has elected to sell its Shares";
+  const idx = xml.indexOf(anchor);
+  if (idx < 0) return xml;
+  const pStart = xml.lastIndexOf("<w:p ", idx);
+  const pEnd = xml.indexOf("</w:p>", idx) + "</w:p>".length;
+  if (pStart < 0 || pEnd <= pStart) return xml;
+
+  const para = xml.substring(pStart, pEnd);
+  // Idempotent: bail if the paragraph carries neither the paren-form "(c)"
+  // (pre-canonicalize state) nor the bare-form "C." (post-canonicalize state).
+  // If neither label is present, this paragraph has already been promoted.
+  const hasOrphanLabel =
+    /<w:t[^>]*>\(c\)<\/w:t>/.test(para) || /<w:t[^>]*>C\.<\/w:t>/.test(para);
+  if (!hasOrphanLabel) return xml;
+
+  // Extract the body text — the long <w:t> run starting at the anchor.
+  const bodyMatch = para.match(
+    /<w:t xml:space="preserve">In the event that a Shareholder has elected to sell its Shares([^<]*)<\/w:t>/,
+  );
+  if (!bodyMatch) return xml;
+  const bodyTail = bodyMatch[1].trimEnd(); // strip trailing whitespace
+
+  // Mirror §13.2 Offer's pPr so this paragraph reads as a Heading3 subsection.
+  const ppr =
+    "<w:pPr>" +
+    "<w:keepNext/>" +
+    '<w:pStyle w:val="Heading3"/>' +
+    "<w:tabs>" +
+    '<w:tab w:val="left" w:leader="none" w:pos="720"/>' +
+    "</w:tabs>" +
+    '<w:ind w:left="1440" w:hanging="1440"/>' +
+    '<w:jc w:val="both"/>' +
+    "<w:rPr>" +
+    '<w:vertAlign w:val="baseline"/>' +
+    "</w:rPr>" +
+    "</w:pPr>";
+  const titleRun =
+    "<w:r>" +
+    '<w:rPr><w:u w:val="single"/><w:vertAlign w:val="baseline"/><w:rtl w:val="0"/></w:rPr>' +
+    '<w:t xml:space="preserve">Notice of Election to Sell</w:t>' +
+    "</w:r>";
+  const bodyRun =
+    "<w:r>" +
+    '<w:rPr><w:vertAlign w:val="baseline"/><w:rtl w:val="0"/></w:rPr>' +
+    `<w:t xml:space="preserve">.  In the event that a Shareholder has elected to sell its Shares${bodyTail}</w:t>` +
+    "</w:r>";
+  const newPara = `<w:p>${ppr}${titleRun}${bodyRun}</w:p>`;
+
+  return xml.substring(0, pStart) + newPara + xml.substring(pEnd);
+}
+
+// ─── §13.6 Drag/Tag Along letter-label normalization ─────────────────
+
+/**
+ * Drag Along ships with paren-roman label "(i)". It's a first-level sub-item
+ * under §13.6 Approved Sale — convention at that depth is letters (cf. §8.1
+ * A.–E., §8.4 A.–C., §10.2 A.–G.); romans are reserved for second level (cf.
+ * §4.1 B. → i. Voting / ii. Dividends). Rewrite "(i)" → "(a)" and let
+ * normalizeListParagraphs canonicalize to "A." with the proper letter indent.
+ */
+function relabelDragAlong(xml: string): string {
+  const anchor = "Drag Along ";
+  const idx = xml.indexOf(anchor);
+  if (idx < 0) return xml;
+  const pStart = xml.lastIndexOf("<w:p ", idx);
+  const pEnd = xml.indexOf("</w:p>", idx) + "</w:p>".length;
+  if (pStart < 0 || pEnd <= pStart) return xml;
+  const para = xml.substring(pStart, pEnd);
+
+  // Idempotent: bail if already rewritten.
+  if (!/<w:t[^>]*>\(i\)<\/w:t>/.test(para)) return xml;
+
+  const rebuilt = para.replace(/(<w:t[^>]*>)\(i\)(<\/w:t>)/, "$1(a)$2");
+  return xml.substring(0, pStart) + rebuilt + xml.substring(pEnd);
+}
+
+/**
+ * §13.5's lone "If a Bona Fide Offer …" sub-item ships with paren-roman
+ * label "(i)" inline-glued to the body in a single <w:t>. It's a second-
+ * level item under §13.5, so should be a letter (single A.). Rewrite
+ * "(i)" → "(a)" and let normalizeListParagraphs canonicalize to A. with
+ * the proper letter indent.
+ */
+function relabelBonaFideOfferItem(xml: string): string {
+  // Anchor on the unique inline phrase. Replace the leading "(i)" with "(a)"
+  // in the same <w:t> run.
+  const before = "(i)     If a Bona Fide Offer";
+  const after = "(a)     If a Bona Fide Offer";
+  if (xml.indexOf(before) < 0) return xml;
+  return xml.replace(before, after);
+}
+
+/**
+ * §10.6 Non-Disclosure ships with four sub-items mislabeled as level-3
+ * romans (i)/(ii)/(iii)/(iv). They sit one level below the Heading3, so
+ * by convention (1.N → A. → i.) should be (a)/(b)/(c)/(d). Rewrite
+ * scoped to §10.6 — bounded at "Non-Disclosure" → next Heading3
+ * ("Non-Disparagement" or, if Non-Disparagement was removed, "Covenant
+ * Against Competition" or "ARTICLE XI:").
+ */
+function relabelNonDisclosureSubitems(xml: string): string {
+  const sectionStart = xml.indexOf("Non-Disclosure");
+  if (sectionStart < 0) return xml;
+  let sectionEnd = xml.indexOf("Non-Disparagement", sectionStart);
+  if (sectionEnd < 0) sectionEnd = xml.indexOf("Covenant Against Competition", sectionStart);
+  if (sectionEnd < 0) sectionEnd = xml.indexOf("ARTICLE XI:", sectionStart);
+  if (sectionEnd < 0) return xml;
+
+  const before = xml.substring(0, sectionStart);
+  let middle = xml.substring(sectionStart, sectionEnd);
+  const after = xml.substring(sectionEnd);
+
+  // Each label appears once as a standalone <w:t> — replace one-shot.
+  middle = middle.replace(/<w:t([^>]*)>\(i\)<\/w:t>/, '<w:t$1>(a)</w:t>');
+  middle = middle.replace(/<w:t([^>]*)>\(ii\)<\/w:t>/, '<w:t$1>(b)</w:t>');
+  middle = middle.replace(/<w:t([^>]*)>\(iii\)<\/w:t>/, '<w:t$1>(c)</w:t>');
+  middle = middle.replace(/<w:t([^>]*)>\(iv\)<\/w:t>/, '<w:t$1>(d)</w:t>');
+
+  return before + middle + after;
+}
+
+/**
+ * Tag Along ships with no label. Prepend a "(b)" paren-letter label run
+ * before the italic title; normalizeListParagraphs canonicalizes to "B."
+ * with the proper letter indent.
+ */
+function addTagAlongLabel(xml: string): string {
+  const anchor = "Tag Along";
+  const idx = xml.indexOf(anchor);
+  if (idx < 0) return xml;
+  const pStart = xml.lastIndexOf("<w:p ", idx);
+  const pEnd = xml.indexOf("</w:p>", idx) + "</w:p>".length;
+  if (pStart < 0 || pEnd <= pStart) return xml;
+  const para = xml.substring(pStart, pEnd);
+
+  // Idempotent: bail if already labeled.
+  if (/<w:t[^>]*>\(b\)<\/w:t>/.test(para) || /<w:t[^>]*>B\.<\/w:t>/.test(para)) {
+    return xml;
+  }
+  // Sanity: only act on the actual Tag Along *title* paragraph.
+  if (!/<w:t[^>]*>Tag Along [–-] <\/w:t>/.test(para)) return xml;
+
+  const labelRun =
+    "<w:r>" +
+    '<w:rPr><w:color w:val="000000"/><w:u w:val="none"/><w:vertAlign w:val="baseline"/><w:rtl w:val="0"/></w:rPr>' +
+    '<w:t xml:space="preserve">(b)</w:t>' +
+    "</w:r>";
+
+  // Insert label run before the first <w:r> in the paragraph.
+  let rebuilt = para.replace(/(<\/w:pPr>)([\s\S]*?)(<w:r\b)/, `$1$2${labelRun}$3`);
+  // Mirror Drag Along's "<w:t> Drag Along – </w:t>" leading space so post-tab
+  // rendering ("B.<tab> Tag Along") matches ("A.<tab> Drag Along").
+  rebuilt = rebuilt.replace(
+    /(<w:t xml:space="preserve">)Tag Along ([–-] <\/w:t>)/,
+    "$1 Tag Along $2",
+  );
+  return xml.substring(0, pStart) + rebuilt + xml.substring(pEnd);
+}
+
+// ─── §13.6 "Approved Sale" heading injection ─────────────────────────
+
+/**
+ * The Drag-Along / Tag-Along umbrella paragraph in Article XIII ships
+ * titleless: "In the event that Shareholders holding at least 50.1% of
+ * the Shares desire to sell the entirety of their Shares to a third
+ * party … and such sale has been Approved (the 'Approved Sale') …".
+ * The body itself names the defined term "Approved Sale", so use that
+ * as the section title. Prepend an underlined title run + period so
+ * branch (c) of renumberAndRemapSubsections picks it up.
+ */
+function addApprovedSaleHeading(xml: string): string {
+  // Anchor must live entirely within one <w:t> run. Template ships "In" in a
+  // separate run from "the event that …", so anchor on the second run.
+  const anchor = "the event that Shareholders holding at least 50.1%";
+  const idx = xml.indexOf(anchor);
+  if (idx < 0) return xml;
+  const pStart = xml.lastIndexOf("<w:p ", idx);
+  const pEnd = xml.indexOf("</w:p>", idx) + "</w:p>".length;
+  if (pStart < 0 || pEnd <= pStart) return xml;
+
+  const para = xml.substring(pStart, pEnd);
+  // Idempotent: if the paragraph already starts with an underlined "Approved Sale"
+  // run, skip.
+  if (/<w:t[^>]*>Approved Sale<\/w:t>/.test(para.substring(0, 800))) return xml;
+
+  // Replace the existing pPr with a clean Heading3 pPr (mirrors §13.2 Offer's).
+  const newPPr =
+    "<w:pPr>" +
+    "<w:keepNext/>" +
+    '<w:pStyle w:val="Heading3"/>' +
+    "<w:tabs>" +
+    '<w:tab w:val="left" w:leader="none" w:pos="720"/>' +
+    "</w:tabs>" +
+    '<w:ind w:left="1440" w:hanging="1440"/>' +
+    '<w:jc w:val="both"/>' +
+    "<w:rPr>" +
+    '<w:vertAlign w:val="baseline"/>' +
+    "</w:rPr>" +
+    "</w:pPr>";
+  const titleRun =
+    "<w:r>" +
+    '<w:rPr><w:u w:val="single"/><w:vertAlign w:val="baseline"/><w:rtl w:val="0"/></w:rPr>' +
+    '<w:t xml:space="preserve">Approved Sale</w:t>' +
+    "</w:r>";
+  const periodRun =
+    "<w:r>" +
+    '<w:rPr><w:vertAlign w:val="baseline"/><w:rtl w:val="0"/></w:rPr>' +
+    '<w:t xml:space="preserve">.  </w:t>' +
+    "</w:r>";
+
+  // Replace the existing <w:pPr>…</w:pPr>, then insert the new title + period
+  // runs immediately before the first existing <w:r>.
+  let rebuilt = para.replace(/<w:pPr>[\s\S]*?<\/w:pPr>/, newPPr);
+  rebuilt = rebuilt.replace(
+    /(<\/w:pPr>)([\s\S]*?)(<w:r\b)/,
+    `$1$2${titleRun}${periodRun}$3`,
+  );
+
+  return xml.substring(0, pStart) + rebuilt + xml.substring(pEnd);
+}
+
+// ─── §13 inline-title period normalization ───────────────────────────
+
+/**
+ * The Corp template's "Purchase of Shareholder Interests upon Deadlock."
+ * paragraph has the period glued INSIDE the underlined title run, with the
+ * body run starting at "  In the event …". renumberAndRemapSubsections's
+ * branch (c) detector requires the period to be at the start of the BODY
+ * run (so the title alone is the underlined caption). Move the period.
+ *
+ * Same shape problem will likely recur on other paragraphs; do a generic
+ * pass over every paragraph whose first run is underlined and ends in ".".
+ */
+function normalizeInlineTitlePeriod(xml: string): string {
+  return xml.replace(/<w:p\b[\s\S]*?<\/w:p>/g, (para) => {
+    // Need at least two <w:r> runs.
+    const runs = [...para.matchAll(/<w:r\b[\s\S]*?<\/w:r>/g)];
+    if (runs.length < 2) return para;
+
+    const firstRun = runs[0][0];
+    if (!/<w:u w:val="single"\/>/.test(firstRun)) return para;
+
+    const firstTexts = (firstRun.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+      .map((t) => t.replace(/<[^>]+>/g, ""))
+      .join("");
+    if (!firstTexts.endsWith(".") || firstTexts.length < 4) return para;
+    if (/^\d/.test(firstTexts)) return para; // already has N.M prefix
+
+    // Body run (next run with substantive text) — its first <w:t> should NOT
+    // already start with "." (else the pattern is fine).
+    let bodyRunIdx = -1;
+    for (let i = 1; i < runs.length; i++) {
+      const txt = (runs[i][0].match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+        .map((t) => t.replace(/<[^>]+>/g, ""))
+        .join("");
+      if (txt.trim()) {
+        bodyRunIdx = i;
+        // If body already starts with ".", nothing to fix.
+        if (/^\s*\./.test(txt)) return para;
+        break;
+      }
+    }
+    if (bodyRunIdx < 0) return para;
+
+    // Strip the trailing "." from the LAST <w:t> of the first run.
+    const newFirstRun = firstRun.replace(
+      /(<w:t[^>]*>[^<]*?)\.(<\/w:t>)(?![\s\S]*<w:t)/,
+      "$1$2",
+    );
+    if (newFirstRun === firstRun) return para;
+
+    // Prepend "." to the first <w:t> of the body run.
+    const oldBodyRun = runs[bodyRunIdx][0];
+    const newBodyRun = oldBodyRun.replace(
+      /<w:t([^>]*)>/,
+      `<w:t xml:space="preserve">.</w:t><w:t$1>`,
+    );
+    if (newBodyRun === oldBodyRun) return para;
+
+    return para.replace(firstRun, newFirstRun).replace(oldBodyRun, newBodyRun);
+  });
+}
+
 // ─── Tab Normalization ───────────────────────────────────────────────
 
 /**
@@ -1590,7 +1941,9 @@ function addDissolutionLettering(xml: string): string {
 
   // Anchors on the body text of the three bullets.
   const bullets: Array<{ anchor: string; letter: string }> = [
-    { anchor: "Majority election to dissolve", letter: "A." },
+    // Anchor without the leading voting word — applyVotingReplacements rewrites
+    // "Majority" to "Unanimous"/"Super Majority" before this pass runs.
+    { anchor: "election to dissolve by the Shareholders", letter: "A." },
     { anchor: "sale of all or substantially all of the assets", letter: "B." },
     { anchor: "entry of a judicial decree of dissolution", letter: "C." },
   ];
@@ -1633,6 +1986,214 @@ function addDissolutionLettering(xml: string): string {
     xml = xml.substring(0, pStart) + rebuilt + xml.substring(pEnd);
   }
   return xml;
+}
+
+// ─── §7.1 Reimbursable Expenses lettering (Corp) ─────────────────────
+
+/**
+ * §7.1 ships two unlabeled sub-paragraphs that follow the Heading3:
+ *   "The Corporation shall reimburse the Directors and the Officers …"
+ *   "The Corporation shall pay all expenses of the Corporation, including
+ *    without limitation:"
+ * Both already have the A./B. list-item indent (left=2160, hanging=720) —
+ * they're just missing the labels. Inject `A.` and `B.` the same way
+ * `addDissolutionLettering` does.
+ */
+function addReimbursableExpensesLettering(xml: string): string {
+  // No trailing period — the template splits "Reimbursable Expenses" and "."
+  // into separate <w:t> runs, so the literal "Reimbursable Expenses." doesn't
+  // match. Same trap as the non-compete fix.
+  const sectionStart = xml.indexOf("Reimbursable Expenses");
+  if (sectionStart < 0) return xml;
+  // Bound at the next sub-section so we never reach into 7.2.
+  const sectionEnd = xml.indexOf("Shareholders Not Liable", sectionStart);
+  if (sectionEnd < 0) return xml;
+
+  const bullets: Array<{ anchor: string; letter: string }> = [
+    { anchor: "The Corporation shall reimburse the Directors and the Officers", letter: "A." },
+    { anchor: "The Corporation shall pay all expenses of the Corporation, including without limitation", letter: "B." },
+  ];
+
+  for (const { anchor, letter } of bullets) {
+    const idx = xml.indexOf(anchor, sectionStart);
+    if (idx < 0 || idx > sectionEnd) continue;
+    const pStart = xml.lastIndexOf("<w:p ", idx);
+    const pEnd = xml.indexOf("</w:p>", idx) + "</w:p>".length;
+    if (pStart < 0 || pEnd <= pStart) continue;
+
+    const para = xml.substring(pStart, pEnd);
+    // Skip if already labeled (idempotent).
+    if (new RegExp(`<w:t[^>]*>${letter.replace(".", "\\.")}<\\/w:t>`).test(para)) continue;
+
+    // Prepend "<w:tab/><w:t>A.</w:t><w:tab/>" before the first <w:t> in the
+    // first <w:r>, preserving its <w:rPr>.
+    const rebuilt = para.replace(
+      /(<w:r\b[^>]*>[\s\S]*?<\/w:rPr>)(\s*)(<w:t)/,
+      `$1<w:tab/><w:t xml:space="preserve">${letter}</w:t><w:tab/>$3`,
+    );
+
+    xml = xml.substring(0, pStart) + rebuilt + xml.substring(pEnd);
+  }
+
+  // Split the inner sub-list under B. into i.–v. paragraphs. The template
+  // ships 5 semicolon-separated clauses jammed into a single paragraph;
+  // mirror §4.1 Authorized Shares' Voting/Dividends shape (left=2880,
+  // hanging=720) so each clause is its own roman-labeled bullet.
+  xml = splitReimbursableExpensesSubList(xml);
+
+  return xml;
+}
+
+// ─── §8.4 Tax Returns lettering (Corp) ───────────────────────────────
+
+/**
+ * §8.4 ships three sub-paragraphs after the Heading3, but only the second
+ * and third carry "(b)/(c)" prefixes — the first ("The Corporation's tax
+ * or fiscal year shall terminate …") has no label. After the bare-form
+ * canonicalizer rewrites "(b)/(c)" → "B./C.", that leaves the document
+ * with B. and C. but no A. Inject A. on the unlabeled lead paragraph.
+ */
+function addTaxReturnsLettering(xml: string): string {
+  const anchor = "The Corporation’s tax or fiscal year shall terminate";
+  const idx = xml.indexOf(anchor);
+  if (idx < 0) return xml;
+  const pStart = xml.lastIndexOf("<w:p ", idx);
+  const pEnd = xml.indexOf("</w:p>", idx) + "</w:p>".length;
+  if (pStart < 0 || pEnd <= pStart) return xml;
+
+  const para = xml.substring(pStart, pEnd);
+  // Idempotent: skip if already labeled.
+  if (/<w:t[^>]*>A\.<\/w:t>/.test(para)) return xml;
+
+  const rebuilt = para.replace(
+    /(<w:r\b[^>]*>[\s\S]*?<\/w:rPr>)(\s*)(<w:t)/,
+    `$1<w:tab/><w:t xml:space="preserve">A.</w:t><w:tab/>$3`,
+  );
+  return xml.substring(0, pStart) + rebuilt + xml.substring(pEnd);
+}
+
+// ─── §10.2 Limitation on Officers' Authority lettering (Corp) ────────
+
+/**
+ * §10.2 ships seven unlabeled list items after a Heading3 + colon-ending
+ * intro ("Officers shall not have authority to:"). All seven already have
+ * the A./B. list-item indent (left=2160, hanging=720). Same A.–G. shape
+ * as §8.1 Records' A.–E. list. Inject A. through G. on each item.
+ */
+function addLimitationOnOfficersLettering(xml: string): string {
+  const items: Array<{ anchor: string; letter: string }> = [
+    { anchor: "perform any act in contravention", letter: "A." },
+    { anchor: "perform any act that would make it impossible", letter: "B." },
+    { anchor: "amend this Agreement", letter: "C." },
+    { anchor: "perform any act which, pursuant to this Agreement", letter: "D." },
+    { anchor: "acquire, hold, refinance, alienate", letter: "E." },
+    { anchor: "borrow money on behalf of the Corporation", letter: "F." },
+    { anchor: "prepay in whole or in part, refinance, increase", letter: "G." },
+  ];
+
+  for (const { anchor, letter } of items) {
+    const idx = xml.indexOf(anchor);
+    if (idx < 0) continue;
+    const pStart = xml.lastIndexOf("<w:p ", idx);
+    const pEnd = xml.indexOf("</w:p>", idx) + "</w:p>".length;
+    if (pStart < 0 || pEnd <= pStart) continue;
+
+    const para = xml.substring(pStart, pEnd);
+    if (new RegExp(`<w:t[^>]*>${letter.replace(".", "\\.")}<\\/w:t>`).test(para)) continue;
+
+    const rebuilt = para.replace(
+      /(<w:r\b[^>]*>[\s\S]*?<\/w:rPr>)(\s*)(<w:t)/,
+      `$1<w:tab/><w:t xml:space="preserve">${letter}</w:t><w:tab/>$3`,
+    );
+    xml = xml.substring(0, pStart) + rebuilt + xml.substring(pEnd);
+  }
+  return xml;
+}
+
+// ─── §9.2 Involuntary Transfer lettering (Corp) ──────────────────────
+
+/**
+ * §9.2 has the same shape as §8.4: a Heading3, an unlabeled lead-in
+ * paragraph, then a (b) sub-paragraph (which canonicalizes to B.). The
+ * roman list (i)–(iv) sits between them as a sub-list of the lead-in.
+ * Inject A. on the lead-in.
+ */
+function addInvoluntaryTransferLettering(xml: string): string {
+  const anchor =
+    "Subject to the terms and conditions of Section 13 below, persons may become an";
+  const idx = xml.indexOf(anchor);
+  if (idx < 0) return xml;
+  const pStart = xml.lastIndexOf("<w:p ", idx);
+  const pEnd = xml.indexOf("</w:p>", idx) + "</w:p>".length;
+  if (pStart < 0 || pEnd <= pStart) return xml;
+
+  const para = xml.substring(pStart, pEnd);
+  if (/<w:t[^>]*>A\.<\/w:t>/.test(para)) return xml;
+
+  const rebuilt = para.replace(
+    /(<w:r\b[^>]*>[\s\S]*?<\/w:rPr>)(\s*)(<w:t)/,
+    `$1<w:tab/><w:t xml:space="preserve">A.</w:t><w:tab/>$3`,
+  );
+  return xml.substring(0, pStart) + rebuilt + xml.substring(pEnd);
+}
+
+function splitReimbursableExpensesSubList(xml: string): string {
+  const anchor = "any expenses incurred in borrowing money";
+  const idx = xml.indexOf(anchor);
+  if (idx < 0) return xml;
+  const pStart = xml.lastIndexOf("<w:p ", idx);
+  const pEnd = xml.indexOf("</w:p>", idx) + "</w:p>".length;
+  if (pStart < 0 || pEnd <= pStart) return xml;
+  const para = xml.substring(pStart, pEnd);
+
+  // Idempotent: if already split, the anchor paragraph won't contain the full
+  // semicolon-joined string anymore.
+  if (!para.includes("repaying loans;")) return xml;
+
+  const tMatch = para.match(/<w:t[^>]*>([^<]*)<\/w:t>/);
+  if (!tMatch) return xml;
+  const fullText = tMatch[1];
+
+  const rawParts = fullText.split(";").map((p) => p.trim()).filter(Boolean);
+  if (rawParts.length !== 5) return xml; // sanity
+  // Strip "and " glue from the final clause.
+  rawParts[rawParts.length - 1] = rawParts[rawParts.length - 1].replace(/^and\s+/i, "");
+  // Items 1-4 keep ";". Last item keeps whatever terminal punctuation it
+  // shipped with (the source already ends in "."); only append "." if missing.
+  const items = rawParts.map((p, i) => {
+    if (i < rawParts.length - 1) return `${p};`;
+    return /[.!?;]$/.test(p) ? p : `${p}.`;
+  });
+
+  const ROMAN = ["i.", "ii.", "iii.", "iv.", "v."];
+  const ppr =
+    "<w:pPr>" +
+    '<w:keepLines w:val="1"/>' +
+    '<w:widowControl w:val="1"/>' +
+    '<w:spacing w:after="115" w:before="0" w:line="240" w:lineRule="auto"/>' +
+    '<w:ind w:left="2880" w:hanging="720"/>' +
+    '<w:jc w:val="both"/>' +
+    "<w:rPr>" +
+    '<w:rFonts w:ascii="Times New Roman" w:cs="Times New Roman" w:eastAsia="Times New Roman" w:hAnsi="Times New Roman"/>' +
+    '<w:sz w:val="24"/><w:szCs w:val="24"/>' +
+    '<w:vertAlign w:val="baseline"/>' +
+    "</w:rPr>" +
+    "</w:pPr>";
+  const rPr =
+    "<w:rPr>" +
+    '<w:rFonts w:ascii="Times New Roman" w:cs="Times New Roman" w:eastAsia="Times New Roman" w:hAnsi="Times New Roman"/>' +
+    '<w:sz w:val="24"/><w:szCs w:val="24"/>' +
+    '<w:vertAlign w:val="baseline"/><w:rtl w:val="0"/>' +
+    "</w:rPr>";
+
+  const newParas = items
+    .map(
+      (body, i) =>
+        `<w:p>${ppr}<w:r>${rPr}<w:tab/><w:t xml:space="preserve">${ROMAN[i]}</w:t><w:tab/><w:t xml:space="preserve">${xmlEscape(body)}</w:t></w:r></w:p>`,
+    )
+    .join("");
+
+  return xml.substring(0, pStart) + newParas + xml.substring(pEnd);
 }
 
 // ─── Pagination flags ───────────────────────────────────────────────
@@ -2319,25 +2880,54 @@ function fixCapitalTableWidth(xml: string): string {
     if (fixed !== row) tbl = tbl.replace(row, fixed);
   });
 
-  // 6. Also add <w:keepNext/> to the paragraph IMMEDIATELY preceding the
-  //    table so the "4.2 Initial Capital Contributions..." intro stays
-  //    glued to the table instead of being orphaned on the previous page.
+  // 6. Force the §4.2 intro paragraph (immediately preceding the table) to
+  //    start on a fresh page via <w:pageBreakBefore/> + <w:keepNext/>.
+  //    cantSplit + keepNext per row keeps individual rows whole and chained,
+  //    but Word's keep-with-next chain breaks under content pressure when
+  //    the chain doesn't fit on the current page — observed in 6-owner
+  //    Corp where the table got torn between row 1 (Roberto) and row 2.
+  //    pageBreakBefore guarantees the §4.2 block always has a full fresh
+  //    page to render onto. The trade-off is a small amount of empty space
+  //    at the bottom of the previous page; the upside is the table never
+  //    splits.
   let before = xml.substring(0, tblStart);
   const precedingPClose = before.lastIndexOf("</w:p>");
   if (precedingPClose >= 0) {
     const precedingPStart = paragraphStartBefore(before, precedingPClose);
     if (precedingPStart >= 0) {
       const precedingP = before.substring(precedingPStart, precedingPClose + "</w:p>".length);
-      if (!/<w:keepNext\s*\/>/.test(precedingP)) {
-        let fixedP: string;
-        if (/<w:pPr>/.test(precedingP)) {
-          fixedP = precedingP.replace(/<w:pPr>/, "<w:pPr><w:keepNext/>");
+      let fixedP = precedingP;
+      // Add <w:pageBreakBefore/> if not already there
+      if (!/<w:pageBreakBefore\b[^/]*\/>/.test(fixedP)) {
+        if (/<w:pPr>/.test(fixedP)) {
+          fixedP = fixedP.replace(
+            /<w:pPr>/,
+            '<w:pPr><w:pageBreakBefore w:val="1"/>',
+          );
         } else {
-          fixedP = precedingP.replace(
+          fixedP = fixedP.replace(
             /(<w:p\b[^>]*>)/,
-            "$1<w:pPr><w:keepNext/></w:pPr>",
+            '$1<w:pPr><w:pageBreakBefore w:val="1"/></w:pPr>',
           );
         }
+      } else {
+        // pageBreakBefore exists — flip val=0 to val=1 if disabled
+        fixedP = fixedP.replace(
+          /<w:pageBreakBefore\s+w:val="0"\s*\/>/,
+          '<w:pageBreakBefore w:val="1"/>',
+        );
+      }
+      // Add <w:keepNext/> alongside
+      if (!/<w:keepNext\s*\/>/.test(fixedP) && !/<w:keepNext\s+w:val="1"\s*\/>/.test(fixedP)) {
+        fixedP = fixedP.replace(
+          /<w:keepNext\s+w:val="0"\s*\/>/,
+          '<w:keepNext w:val="1"/>',
+        );
+        if (!/<w:keepNext\b/.test(fixedP)) {
+          fixedP = fixedP.replace(/<w:pPr>/, '<w:pPr><w:keepNext/>');
+        }
+      }
+      if (fixedP !== precedingP) {
         before = before.substring(0, precedingPStart) + fixedP + before.substring(precedingPClose + "</w:p>".length);
       }
     }
@@ -2528,15 +3118,27 @@ function addKeepNextToHeadings(xml: string): string {
 
     if (!isHeading) return fullMatch;
 
-    // Already has keepNext?
-    if (fullMatch.includes("w:keepNext")) return fullMatch;
+    // Templates exported from Google Docs ship every body paragraph with an
+    // EXPLICIT `<w:keepNext w:val="0"/>` (disabled). If we early-out on
+    // "has keepNext", the heading keeps val=0 → Word allows a page break
+    // immediately after it (orphan heading at bottom of page). Instead:
+    //   - existing val="0" → replace with bare <w:keepNext/> (val=1 implicit)
+    //   - existing val="1" or bare <w:keepNext/> → already correct, no-op
+    //   - no keepNext at all → insert one
+    if (/<w:keepNext\s+w:val="0"\s*\/>/.test(fullMatch)) {
+      return fullMatch.replace(
+        /<w:keepNext\s+w:val="0"\s*\/>/,
+        "<w:keepNext/>",
+      );
+    }
+    if (/<w:keepNext(?:\s+w:val="1")?\s*\/>/.test(fullMatch)) {
+      return fullMatch; // already enabled
+    }
 
-    // Add keepNext to pPr (or create pPr if missing)
+    // No keepNext present: insert one.
     if (fullMatch.includes("<w:pPr>")) {
-      // Insert keepNext inside existing pPr (after the opening tag)
       return fullMatch.replace("<w:pPr>", "<w:pPr><w:keepNext/>");
     } else {
-      // Create pPr with keepNext
       return fullMatch.replace("<w:p>", "<w:p><w:pPr><w:keepNext/></w:pPr>");
     }
   });
