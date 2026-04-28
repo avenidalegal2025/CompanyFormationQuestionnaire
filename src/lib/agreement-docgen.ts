@@ -4361,11 +4361,14 @@ function fixCapitalTableWidth(xml: string): string {
 
   // 3. Replace tblGrid with proportional 4-col grid summing to 9000.
   //    Keep the <w:tblGridChange> sibling (tracks history) intact.
+  //    Col 4 ("Percentage Ownership Interest" = 29 chars bold) needs
+  //    ~3000 twips to fit the header on one line; col 3 ("Capital
+  //    Contribution" = 19 chars) fits comfortably in 2300.
   const newGridCols =
-    '<w:gridCol w:w="2700"/>' + // Name
-    '<w:gridCol w:w="1800"/>' + // Shares
-    '<w:gridCol w:w="2250"/>' + // Capital
-    '<w:gridCol w:w="2250"/>';  // Percentage
+    '<w:gridCol w:w="2200"/>' + // Name
+    '<w:gridCol w:w="1700"/>' + // Shares (header "Number of / Shares Owned" wraps to 2 lines)
+    '<w:gridCol w:w="2300"/>' + // Capital
+    '<w:gridCol w:w="2800"/>';  // Percentage (header fits "Percentage Ownership / Interest" on 2 lines)
   tbl = tbl.replace(
     /(<w:tblGrid>)(?:<w:gridCol[^/]*\/>)+(<w:tblGridChange[\s\S]*?<\/w:tblGridChange>)?/,
     `$1${newGridCols}$2`,
@@ -4375,7 +4378,7 @@ function fixCapitalTableWidth(xml: string): string {
   //    Corp template has some cells with tcW and some without; normalize
   //    by ensuring each row's cells get the right tcW in order.
   tbl = tbl.replace(/<w:tr\b[\s\S]*?<\/w:tr>/g, (row) => {
-    const widths = [2700, 1800, 2250, 2250];
+    const widths = [2200, 1700, 2300, 2800];
     let colIdx = 0;
     return row.replace(/<w:tc\b[\s\S]*?<\/w:tc>/g, (cell) => {
       const w = widths[colIdx++] ?? 2250;
@@ -4591,22 +4594,11 @@ function renderOfficersList(
   const pEnd = xml.indexOf("</w:p>", idx) + "</w:p>".length;
   if (pStart < 0 || pEnd <= pStart) return xml;
 
-  // pPr: indent at 720 (0.5"), single tab stop at 3000 (≈2.1") so names
-  // align at the indent and titles align in a clean second column.
-  // keepNext keeps the officer block from breaking across pages mid-list.
-  const ppr =
-    "<w:pPr>" +
-    "<w:keepNext/>" +
-    "<w:tabs>" +
-    '<w:tab w:val="left" w:leader="none" w:pos="3000"/>' +
-    "</w:tabs>" +
-    '<w:ind w:left="720"/>' +
-    '<w:jc w:val="both"/>' +
-    "<w:rPr>" +
-    '<w:b w:val="1"/><w:bCs w:val="1"/>' +
-    '<w:vertAlign w:val="baseline"/>' +
-    "</w:rPr>" +
-    "</w:pPr>";
+  // Render as a 2-col borderless table (col1 right-aligned names, col2
+  // left-aligned titles) centered horizontally on the page. This keeps
+  // names + titles aligned across rows AND centers the whole block —
+  // jc=center on individual paragraphs would center each line
+  // independently, breaking column alignment as Name lengths vary.
   const rPr =
     "<w:rPr>" +
     '<w:b w:val="1"/><w:bCs w:val="1"/>' +
@@ -4614,24 +4606,58 @@ function renderOfficersList(
     '<w:rtl w:val="0"/>' +
     "</w:rPr>";
 
-  const newParas = officers
-    .map((o, i) => {
-      const name = xmlEscape(o.name);
-      const title = xmlEscape(o.title || "");
-      // Last officer of the block doesn't need keepNext — it's the last
-      // line of the list. Keep it bold and same shape for consistency.
-      const isLast = i === officers.length - 1;
-      const localPPr = isLast ? ppr.replace("<w:keepNext/>", "") : ppr;
-      return (
-        `<w:p>${localPPr}<w:r>${rPr}` +
-        `<w:t xml:space="preserve">${name}</w:t><w:tab/>` +
-        `<w:t xml:space="preserve">${title}</w:t>` +
-        `</w:r></w:p>`
-      );
-    })
-    .join("");
+  const buildCell = (text: string, jcVal: "right" | "left", colW: number) =>
+    `<w:tc>` +
+    `<w:tcPr>` +
+    `<w:tcW w:w="${colW}" w:type="dxa"/>` +
+    `<w:tcBorders>` +
+    `<w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/>` +
+    `</w:tcBorders>` +
+    `</w:tcPr>` +
+    `<w:p>` +
+    `<w:pPr>` +
+    `<w:jc w:val="${jcVal}"/>` +
+    `<w:rPr><w:vertAlign w:val="baseline"/></w:rPr>` +
+    `</w:pPr>` +
+    `<w:r>${rPr}<w:t xml:space="preserve">${text}</w:t></w:r>` +
+    `</w:p>` +
+    `</w:tc>`;
 
-  return xml.substring(0, pStart) + newParas + xml.substring(pEnd);
+  const COL1_W = 2200; // ~1.53"
+  const COL2_W = 2200; // ~1.53"
+  const TABLE_W = COL1_W + COL2_W;
+
+  const rows = officers
+    .map(
+      (o) =>
+        `<w:tr>${buildCell(xmlEscape(o.name), "right", COL1_W)}` +
+        `<w:r>` + // not used; placeholder removed below
+        `</w:r>` +
+        `${buildCell("  " + xmlEscape(o.title || ""), "left", COL2_W)}` +
+        `</w:tr>`,
+    )
+    .join("")
+    .replace(/<w:r>\s*<\/w:r>/g, ""); // strip placeholder
+
+  const table =
+    `<w:tbl>` +
+    `<w:tblPr>` +
+    `<w:tblW w:w="${TABLE_W}" w:type="dxa"/>` +
+    `<w:jc w:val="center"/>` +
+    `<w:tblLayout w:type="fixed"/>` +
+    `<w:tblLook w:val="0000"/>` +
+    `</w:tblPr>` +
+    `<w:tblGrid>` +
+    `<w:gridCol w:w="${COL1_W}"/>` +
+    `<w:gridCol w:w="${COL2_W}"/>` +
+    `</w:tblGrid>` +
+    rows +
+    `</w:tbl>` +
+    // Trailing empty paragraph so the next section header doesn't
+    // collide with the table layout.
+    `<w:p><w:pPr><w:jc w:val="both"/></w:pPr></w:p>`;
+
+  return xml.substring(0, pStart) + table + xml.substring(pEnd);
 }
 
 function injectResponsibilitiesSection(
