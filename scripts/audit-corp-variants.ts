@@ -24,9 +24,13 @@ import { tmpdir } from 'node:os';
 const QUICK = process.argv.includes('--quick');
 const VERBOSE = process.argv.includes('--verbose');
 const SAVE = process.argv.includes('--save'); // save every DOCX to disk
+// On WSL, USERPROFILE is undefined; the visual-review pipeline defaults
+// to ~/Downloads/corp-variants which on WSL maps to /mnt/c/Users/neotr/...
 const SAVE_DIR = process.env.USERPROFILE
   ? `${process.env.USERPROFILE}\\Downloads\\corp-variants`
-  : '/tmp/corp-variants';
+  : process.env.HOME && process.env.HOME.startsWith('/home/')
+    ? '/mnt/c/Users/neotr/Downloads/corp-variants'
+    : '/tmp/corp-variants';
 
 // ─── Matrix axes ─────────────────────────────────────────────────────
 const NAMES = ['Roberto Mendez', 'Ana Garcia', 'Carlos Lopez', 'Maria Torres', 'Pedro Ramirez', 'Sofia Flores'];

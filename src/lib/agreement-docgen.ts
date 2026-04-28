@@ -3838,12 +3838,21 @@ function normalizeSignatureBlockLayout(xml: string): string {
     // Force jc=both on every sig-block paragraph. addExtraCorpShareholders
     // (4+ owners) inserts paragraphs with <w:jc w:val="center"/> which
     // visually pushes them to the right of the page even though their
-    // <w:ind> matches the rest of the block. Replace any existing <w:jc>
-    // with both to keep alignment uniform.
-    if (/<w:jc\s+w:val="(?!both")[^"]*"\s*\/>/.test(updated)) {
+    // <w:ind> matches the rest of the block. AND inserted paragraphs
+    // for owners 4-6 sometimes have NO <w:jc> at all, leaving them at
+    // the inherited document default — also misaligned vs other rows.
+    // Force jc=both: replace any non-both value, OR insert if missing.
+    if (/<w:jc\s+w:val="[^"]*"\s*\/>/.test(updated)) {
       updated = updated.replace(
-        /<w:jc\s+w:val="(?!both")[^"]*"\s*\/>/g,
+        /<w:jc\s+w:val="[^"]*"\s*\/>/g,
         '<w:jc w:val="both"/>',
+      );
+    } else if (/<w:pPr>/.test(updated)) {
+      // Insert <w:jc> right after <w:pPr> opening so it sits with the
+      // ind/tabs/etc. that already exist.
+      updated = updated.replace(
+        /<w:pPr>/,
+        '<w:pPr><w:jc w:val="both"/>',
       );
     }
 
