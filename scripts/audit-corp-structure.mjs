@@ -223,6 +223,31 @@ for (const p of paras) {
   }
 }
 
+// L1 — missing empty separator between two consecutive §X.Y headings.
+// Discovered after manual review of the §1.6→§1.7 transition: the
+// rest of Article I uses an empty paragraph between every two
+// numbered headings, but insertSuperMajorityCorp inserted §1.7
+// directly after §1.6 with no separator. Result: visibly tighter
+// vertical spacing between those two definitions vs. all the others.
+// Detect: walk consecutive paragraphs; if both are §X.Y headings,
+// flag.
+{
+  for (let pi = 0; pi < paras.length - 1; pi++) {
+    const cur = paras[pi];
+    const nxt = paras[pi + 1];
+    if (!cur.text.trim() || !nxt.text.trim()) continue;
+    const curM = cur.text.trim().match(SEC_RE);
+    const nxtM = nxt.text.trim().match(SEC_RE);
+    if (!curM || !nxtM) continue;
+    // Same article? Same major number.
+    if (curM[1] !== nxtM[1]) continue;
+    push(
+      "L1",
+      `no empty separator between §${curM[1]}.${curM[2]} and §${nxtM[1]}.${nxtM[2]} (visual spacing inconsistent)`,
+    );
+  }
+}
+
 // L1 — Article heading with no §X.Y subsections inside it.
 // Discovered by Haiku: when rofr=F drag=F tag=F, ARTICLE XIII has no
 // §13.x subsections left but still renders the heading + a stray body

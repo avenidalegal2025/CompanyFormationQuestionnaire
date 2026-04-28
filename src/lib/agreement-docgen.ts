@@ -917,6 +917,12 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   // "Article N.M" cross-reference in the body text accordingly.
   xml = renumberAndRemapSubsections(xml);
 
+  // Ensure every pair of consecutive §X.Y headings has an empty
+  // separator paragraph between them. The template ships several
+  // pairs adjacent (notably §1.1/§1.2). Run AFTER renumber so all
+  // sections have their final §X.Y prefix.
+  xml = ensureSeparatorsBetweenHeadings(xml);
+
   // Add keepNext to all section headings to prevent page breaks between heading and body
   xml = addKeepNextToHeadings(xml);
   xml = chainKeepNextThroughEmpties(xml);
@@ -2051,7 +2057,63 @@ function insertSuperMajorityCorp(xml: string, supText: string): string {
     `<w:t xml:space="preserve">Shareholders collectively holding greater than ${supText} of the Percentage Interests of all the Shareholders eligible to vote.</w:t>` +
     `</w:r></w:p>`;
 
-  return xml.substring(0, pEnd) + newPara + xml.substring(pEnd);
+  // Insert an empty separator paragraph BEFORE §1.7 so the visual spacing
+  // between §1.6 Majority and §1.7 Super Majority matches every other
+  // intra-Article-I section break (§1.5→§1.6, §1.7→§1.8, etc., all of
+  // which ship with an empty separator paragraph between them).
+  const sepPara = `<w:p>${pPr}</w:p>`;
+  return xml.substring(0, pEnd) + sepPara + newPara + xml.substring(pEnd);
+}
+
+/**
+ * Ensure every pair of consecutive numbered §X.Y heading paragraphs in
+ * the same Article has an empty separator paragraph between them. The
+ * Corp template ships with §1.1 / §1.2 directly adjacent (and in some
+ * variants other pairs too), breaking the visual rhythm where every
+ * other section pair has a separator. Walk the document; for each pair
+ * of adjacent non-empty Heading3 paragraphs in the same article (same
+ * major number), insert an empty paragraph cloned from the previous
+ * one's pPr.
+ */
+function ensureSeparatorsBetweenHeadings(xml: string): string {
+  const paraRe = /<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g;
+  type Span = { start: number; end: number; full: string; text: string };
+  const paras: Span[] = [];
+  let m;
+  while ((m = paraRe.exec(xml))) {
+    const text = (m[1].match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+      .map((t) => t.replace(/<[^>]+>/g, ""))
+      .join("")
+      .trim();
+    paras.push({ start: m.index, end: m.index + m[0].length, full: m[0], text });
+  }
+
+  // Match "N.M" at start of paragraph text. At this pipeline stage some
+  // paragraphs still have number+title concatenated with no space (Shape B
+  // before standardizeNumberedHeadingShape splits it), so we don't require
+  // whitespace after the number — just digits.dot.digits at start.
+  const SEC = /^(\d+)\.(\d+)(?=\D|$)/;
+  const insertions: Array<{ at: number; html: string }> = [];
+  for (let i = 0; i < paras.length - 1; i++) {
+    const cur = paras[i];
+    const nxt = paras[i + 1];
+    if (!cur.text || !nxt.text) continue;
+    const a = cur.text.match(SEC);
+    const b = nxt.text.match(SEC);
+    if (!a || !b) continue;
+    if (a[1] !== b[1]) continue; // different article
+    // Adjacent §X.Y headings with no empty between — insert separator.
+    const pPrMatch = cur.full.match(/<w:pPr>[\s\S]*?<\/w:pPr>/);
+    const pPr = pPrMatch ? pPrMatch[0] : "<w:pPr/>";
+    insertions.push({ at: cur.end, html: `<w:p>${pPr}</w:p>` });
+  }
+  if (insertions.length === 0) return xml;
+  // Apply in REVERSE so earlier offsets stay valid.
+  insertions.sort((a, b) => b.at - a.at);
+  for (const ins of insertions) {
+    xml = xml.substring(0, ins.at) + ins.html + xml.substring(ins.at);
+  }
+  return xml;
 }
 
 // ─── Corp Article I Cascade Renumber ─────────────────────────────────
