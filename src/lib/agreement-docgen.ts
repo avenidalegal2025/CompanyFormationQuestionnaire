@@ -832,6 +832,24 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
     xml = addApprovedSaleHeading(xml);
   }
 
+  // §13.1 ships as a bare title "Right of First Refusal." with NO body —
+  // the user complains that an empty §13.1 alongside §13.2 with body looks
+  // wrong. Add a one-sentence introduction and rewrite the run structure
+  // so it standardizes correctly (template's run[0] is a stray <w:tab/>
+  // that confuses standardizeNumberedHeadingShape).
+  if (answers.right_of_first_refusal) {
+    xml = addRofrIntroBody(xml);
+  }
+
+  // The "The Transferor shall deliver a notice of the proposed transfer …"
+  // paragraph that sits between §13.2 Offer and §13.3 Concurrence is body
+  // text with no number/letter — the user wants it labeled. Promote it to
+  // its own §13.X subsection titled "Notice of Proposed Transfer". After
+  // renumber, it lands as §13.3 and existing §13.3-§13.6 shift up.
+  if (answers.right_of_first_refusal) {
+    xml = promoteTransferorNoticeSection(xml);
+  }
+
   // Drag Along + Tag Along are first-level sub-items under §13.6 Approved
   // Sale. Template has Drag Along mislabeled as "i." (roman) and Tag Along
   // unlabeled. First-level sub-items use letter labels (cf. §8.1 A.–E.,
@@ -1532,6 +1550,122 @@ function addApprovedSaleHeading(xml: string): string {
   );
 
   return xml.substring(0, pStart) + rebuilt + xml.substring(pEnd);
+}
+
+// ─── §13.1 Right of First Refusal — add intro body ───────────────────
+
+/**
+ * §13.1 ships as a bare Heading3 with no body — just "Right of First Refusal."
+ * Visually broken when §13.2-§13.6 below all have substantive content.
+ * Plus the template's run structure (stray <w:tab/> in run[0], underlined
+ * "13.1 Right of First Refusal." in run[1]) trips up standardizeNumbered-
+ * HeadingShape because its first <w:t> check finds no text in run[0].
+ *
+ * Replace the entire paragraph with a clean branch-(c) shape:
+ *   underlined "Right of First Refusal" + ".  [intro sentence]"
+ * renumberAndRemapSubsections then prepends "13.1 " as a non-underlined
+ * leading run.
+ */
+function addRofrIntroBody(xml: string): string {
+  const anchor = "Right of First Refusal";
+  const idx = xml.indexOf(anchor);
+  if (idx < 0) return xml;
+  const pStart = xml.lastIndexOf("<w:p ", idx);
+  const pEnd = xml.indexOf("</w:p>", idx) + "</w:p>".length;
+  if (pStart < 0 || pEnd <= pStart) return xml;
+
+  const para = xml.substring(pStart, pEnd);
+  const text = (para.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+    .map((t) => t.replace(/<[^>]+>/g, ""))
+    .join("");
+  // Idempotent: if the paragraph already carries body text (>50 chars
+  // beyond the title+period), assume already fixed.
+  if (text.length > 50) return xml;
+
+  const ppr =
+    "<w:pPr>" +
+    "<w:keepNext/>" +
+    '<w:pStyle w:val="Heading3"/>' +
+    "<w:tabs>" +
+    '<w:tab w:val="left" w:leader="none" w:pos="720"/>' +
+    "</w:tabs>" +
+    '<w:ind w:left="1440" w:hanging="1440"/>' +
+    '<w:jc w:val="both"/>' +
+    "<w:rPr>" +
+    '<w:vertAlign w:val="baseline"/>' +
+    "</w:rPr>" +
+    "</w:pPr>";
+  const titleRun =
+    "<w:r>" +
+    '<w:rPr><w:u w:val="single"/><w:vertAlign w:val="baseline"/><w:rtl w:val="0"/></w:rPr>' +
+    '<w:t xml:space="preserve">Right of First Refusal</w:t>' +
+    "</w:r>";
+  const bodyText =
+    "Before any Shareholder may transfer all or any portion of his Shares, the Shares must first be offered to the other Shareholders pursuant to the procedures set forth below.";
+  const bodyRun =
+    "<w:r>" +
+    '<w:rPr><w:vertAlign w:val="baseline"/><w:rtl w:val="0"/></w:rPr>' +
+    `<w:t xml:space="preserve">.  ${bodyText}</w:t>` +
+    "</w:r>";
+  const newPara = `<w:p>${ppr}${titleRun}${bodyRun}</w:p>`;
+  return xml.substring(0, pStart) + newPara + xml.substring(pEnd);
+}
+
+// ─── §13.3 Notice of Proposed Transfer (promoted from body para) ─────
+
+/**
+ * The "The Transferor shall deliver a notice of the proposed transfer …"
+ * paragraph sits between §13.2 Offer and §13.3 Concurrence as unlabeled
+ * body text. The user wants it to be its own subsection. Promote to
+ * Heading3 inline-titled shape so renumber assigns §13.3.
+ */
+function promoteTransferorNoticeSection(xml: string): string {
+  const anchor = "The Transferor shall deliver a notice of the proposed transfer";
+  const idx = xml.indexOf(anchor);
+  if (idx < 0) return xml;
+  const pStart = xml.lastIndexOf("<w:p ", idx);
+  const pEnd = xml.indexOf("</w:p>", idx) + "</w:p>".length;
+  if (pStart < 0 || pEnd <= pStart) return xml;
+
+  const para = xml.substring(pStart, pEnd);
+  // Idempotent: if a "Notice of Proposed Transfer" title already exists in
+  // this paragraph, skip.
+  if (/<w:t[^>]*>Notice of Proposed Transfer<\/w:t>/.test(para)) return xml;
+
+  // Extract body text — the long body run that includes "The Transferor …".
+  // The template ships this paragraph with weird leading whitespace + tabs.
+  // Concatenate all <w:t> contents and strip leading whitespace.
+  const allText = (para.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+    .map((t) => t.replace(/<[^>]+>/g, ""))
+    .join("")
+    .replace(/^\s+/, "");
+  if (!allText) return xml;
+
+  const ppr =
+    "<w:pPr>" +
+    "<w:keepNext/>" +
+    '<w:pStyle w:val="Heading3"/>' +
+    "<w:tabs>" +
+    '<w:tab w:val="left" w:leader="none" w:pos="720"/>' +
+    "</w:tabs>" +
+    '<w:ind w:left="1440" w:hanging="1440"/>' +
+    '<w:jc w:val="both"/>' +
+    "<w:rPr>" +
+    '<w:vertAlign w:val="baseline"/>' +
+    "</w:rPr>" +
+    "</w:pPr>";
+  const titleRun =
+    "<w:r>" +
+    '<w:rPr><w:u w:val="single"/><w:vertAlign w:val="baseline"/><w:rtl w:val="0"/></w:rPr>' +
+    '<w:t xml:space="preserve">Notice of Proposed Transfer</w:t>' +
+    "</w:r>";
+  const bodyRun =
+    "<w:r>" +
+    '<w:rPr><w:vertAlign w:val="baseline"/><w:rtl w:val="0"/></w:rPr>' +
+    `<w:t xml:space="preserve">.  ${allText}</w:t>` +
+    "</w:r>";
+  const newPara = `<w:p>${ppr}${titleRun}${bodyRun}</w:p>`;
+  return xml.substring(0, pStart) + newPara + xml.substring(pEnd);
 }
 
 // ─── §10.6 Officers + §10.7 Banking heading repair ───────────────────
