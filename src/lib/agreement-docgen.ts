@@ -762,6 +762,13 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
     }
   }
 
+  // ── §10.6 Officers list — replace single hardcoded line ──
+  // Template ships one paragraph: "{{shareholder_1_name}}\t\t\t\tPresident
+  // and Chief Executive Officer" (3 tabs causing erratic spacing). Replace
+  // with one paragraph per officer using a single tab stop at 3000 twips so
+  // names align at left and titles align in a clean second column.
+  xml = renderOfficersList(xml, answers);
+
   // ── Specific Responsibilities section (from Step 6 of the questionnaire) ──
   // Each owner can have an optional title + responsibilities paragraph.
   // Inject a new section after the Officers sentence if any owner has either.
@@ -3431,6 +3438,74 @@ function forceTimesNewRomanFont(zip: PizZip): void {
  *
  * No-op if no owner has either a title or a description filled in.
  */
+/**
+ * Replace the §10.6 Officers list (template ships ONE paragraph with
+ * `{{shareholder_1_name}}` + 3 hardcoded tabs + "President and Chief
+ * Executive Officer") with one paragraph per officer the user supplied.
+ * Each line: bold name, tab to position 3000 (≈2.1"), bold title.
+ *
+ * Anchor on the literal "President and Chief Executive Officer" since
+ * that string is the unique invariant in the template — not present
+ * elsewhere in the rendered doc.
+ */
+function renderOfficersList(
+  xml: string,
+  answers: QuestionnaireAnswers,
+): string {
+  if (!answers.officers || answers.officers.length === 0) return xml;
+  const officers = answers.officers.filter((o) => o && o.name);
+  if (officers.length === 0) return xml;
+
+  const anchor = "President and Chief Executive Officer";
+  const idx = xml.indexOf(anchor);
+  if (idx < 0) return xml;
+  const pStart = xml.lastIndexOf("<w:p ", idx);
+  const pEnd = xml.indexOf("</w:p>", idx) + "</w:p>".length;
+  if (pStart < 0 || pEnd <= pStart) return xml;
+
+  // pPr: indent at 720 (0.5"), single tab stop at 3000 (≈2.1") so names
+  // align at the indent and titles align in a clean second column.
+  // keepNext keeps the officer block from breaking across pages mid-list.
+  const ppr =
+    "<w:pPr>" +
+    "<w:keepNext/>" +
+    "<w:tabs>" +
+    '<w:tab w:val="left" w:leader="none" w:pos="3000"/>' +
+    "</w:tabs>" +
+    '<w:ind w:left="720"/>' +
+    '<w:jc w:val="both"/>' +
+    "<w:rPr>" +
+    '<w:b w:val="1"/><w:bCs w:val="1"/>' +
+    '<w:vertAlign w:val="baseline"/>' +
+    "</w:rPr>" +
+    "</w:pPr>";
+  const rPr =
+    "<w:rPr>" +
+    '<w:b w:val="1"/><w:bCs w:val="1"/>' +
+    '<w:vertAlign w:val="baseline"/>' +
+    '<w:rtl w:val="0"/>' +
+    "</w:rPr>";
+
+  const newParas = officers
+    .map((o, i) => {
+      const name = xmlEscape(o.name);
+      const title = xmlEscape(o.title || "");
+      // Last officer of the block doesn't need keepNext — it's the last
+      // line of the list. Keep it bold and same shape for consistency.
+      const isLast = i === officers.length - 1;
+      const localPPr = isLast ? ppr.replace("<w:keepNext/>", "") : ppr;
+      return (
+        `<w:p>${localPPr}<w:r>${rPr}` +
+        `<w:t xml:space="preserve">${name}</w:t><w:tab/>` +
+        `<w:t xml:space="preserve">${title}</w:t>` +
+        `</w:r></w:p>`
+      );
+    })
+    .join("");
+
+  return xml.substring(0, pStart) + newParas + xml.substring(pEnd);
+}
+
 function injectResponsibilitiesSection(
   xml: string,
   owners: Owner[],
