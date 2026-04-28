@@ -17,6 +17,17 @@ Rules:
 - Sequences must be contiguous starting from `A.`/`i.` — no `(b)` without an `(a)`, no `ii.` without an `i.`.
 - Templates ship many violations (orphan letters, mislabeled levels, missing `(a)` first item). The docgen post-processing in `src/lib/agreement-docgen.ts` enforces this convention. New transforms should follow the same shape (rewrite paren-form labels, then let `normalizeListParagraphs` canonicalize).
 
+## Orphan-title / page-break rule
+
+A title (Article heading, §N.M section heading, or any visually-titled paragraph) **must never** be the last line on a page with its body content on the next page. The user's rule, verbatim: *"no titles with a page break right under, at least one line before the break"*.
+
+Mechanism — every title paragraph carries `<w:keepNext/>` (val=1 implicit), which tells Word to keep this paragraph on the same page as the next one:
+- `addKeepNextToHeadings` flips the template's `<w:keepNext w:val="0"/>` (Google Docs export default) to `<w:keepNext/>` on every Heading2/Heading3-styled paragraph and every `ARTICLE N:` caption.
+- `forceKeepNextBeforeTables` adds `<w:keepNext/>` to the paragraph immediately before any `<w:tbl>` so heading → intro → empty separator → table all chain together.
+- For the §4.2 Initial Capital Contributions table specifically, `pageBreakBefore=1` is set on the §4.2 *heading paragraph* (NOT on the empty paragraph between heading and table — that's what previously orphaned the heading). The table block always starts on a fresh page.
+
+Audit — `/tmp/audit_hierarchy.py` checks every title-style paragraph and pre-table paragraph for `keepNext=1`. CI/regen should fail if any title lacks it.
+
 ## Project Overview
 Next.js app for company formation (LLC + C-Corp) in the US. Airtable stores form data, Lambda functions generate legal documents (DOCX), stored on S3, served via client dashboard.
 

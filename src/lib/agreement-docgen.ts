@@ -897,6 +897,7 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   xml = stripEmptyParagraphPageBreaks(xml);
   xml = normalizeNewShareholdersHeading(xml);
   xml = standardizeNumberedHeadingShape(xml);
+  xml = forceKeepNextBeforeTables(xml);
   xml = repairXml(xml);
 
   renderedZip.file("word/document.xml", xml);
@@ -2491,6 +2492,52 @@ function normalizeNewShareholdersHeading(xml: string): string {
   return xml.substring(0, pStart) + para + xml.substring(pEnd);
 }
 
+// ─── Keep titles glued to their bodies (no orphan headings) ──────────
+
+/**
+ * Word will break a page immediately after a paragraph that lacks
+ * keepNext, even if the next thing on the page is a table or a body
+ * paragraph that "obviously" belongs to the heading. To prevent any
+ * heading or pre-table paragraph from orphaning at the bottom of a
+ * page (a recurring complaint — "no titles with a page break right
+ * under, at least one line before the break"), force keepNext=1 on
+ * the paragraph immediately preceding every <w:tbl>. The chain
+ * heading → intro → empty → table only stays glued if every link
+ * carries keepNext.
+ */
+function forceKeepNextBeforeTables(xml: string): string {
+  // Collect all <w:tbl> offsets first (so subsequent splices don't shift
+  // the regex iterator), then process in REVERSE so earlier splices don't
+  // invalidate later offsets.
+  const offsets: number[] = [];
+  const tblRe = /<w:tbl\b/g;
+  let m: RegExpExecArray | null;
+  while ((m = tblRe.exec(xml))) offsets.push(m.index);
+
+  for (let i = offsets.length - 1; i >= 0; i--) {
+    const tblOffset = offsets[i];
+    const pClose = xml.lastIndexOf("</w:p>", tblOffset);
+    if (pClose < 0) continue;
+    const pStart = paragraphStartBefore(xml, pClose);
+    if (pStart < 0) continue;
+    const para = xml.substring(pStart, pClose + "</w:p>".length);
+    if (/<w:keepNext(?:\s+w:val="1")?\s*\/>/.test(para)) continue;
+
+    let fixed = para;
+    if (/<w:keepNext\s+w:val="0"\s*\/>/.test(fixed)) {
+      fixed = fixed.replace(/<w:keepNext\s+w:val="0"\s*\/>/, "<w:keepNext/>");
+    } else if (/<w:pPr>/.test(fixed)) {
+      fixed = fixed.replace(/<w:pPr>/, "<w:pPr><w:keepNext/>");
+    } else {
+      fixed = fixed.replace(/(<w:p\b[^>]*>)/, "$1<w:pPr><w:keepNext/></w:pPr>");
+    }
+    if (fixed !== para) {
+      xml = xml.substring(0, pStart) + fixed + xml.substring(pClose + "</w:p>".length);
+    }
+  }
+  return xml;
+}
+
 function stripEmptyParagraphPageBreaks(xml: string): string {
   return xml.replace(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g, (full, body) => {
     if (!/<w:pageBreakBefore w:val="1"\s*\/>/.test(body)) return full;
@@ -3166,21 +3213,28 @@ function fixCapitalTableWidth(xml: string): string {
     if (fixed !== row) tbl = tbl.replace(row, fixed);
   });
 
-  // 6. Force the §4.2 intro paragraph (immediately preceding the table) to
-  //    start on a fresh page via <w:pageBreakBefore/> + <w:keepNext/>.
+  // 6. Force the §4.2 HEADING paragraph (NOT the empty intermediate
+  //    paragraph between heading and table) to start on a fresh page via
+  //    <w:pageBreakBefore/> + <w:keepNext/>. Putting pageBreakBefore on
+  //    the empty paragraph orphans the §4.2 heading + intro on the
+  //    previous page; putting it on the heading itself keeps the entire
+  //    §4.2 block (heading + intro + table) flowing together onto the
+  //    fresh page.
+  //
   //    cantSplit + keepNext per row keeps individual rows whole and chained,
   //    but Word's keep-with-next chain breaks under content pressure when
   //    the chain doesn't fit on the current page — observed in 6-owner
   //    Corp where the table got torn between row 1 (Roberto) and row 2.
-  //    pageBreakBefore guarantees the §4.2 block always has a full fresh
-  //    page to render onto. The trade-off is a small amount of empty space
-  //    at the bottom of the previous page; the upside is the table never
-  //    splits.
+  //    pageBreakBefore on the heading guarantees the §4.2 block always
+  //    has a full fresh page to render onto.
   let before = xml.substring(0, tblStart);
-  const precedingPClose = before.lastIndexOf("</w:p>");
-  if (precedingPClose >= 0) {
-    const precedingPStart = paragraphStartBefore(before, precedingPClose);
-    if (precedingPStart >= 0) {
+  // Find the §4.2 heading paragraph (anchor "Initial Capital Contributions").
+  const headingAnchor = "Initial Capital Contributions";
+  const headingIdx = before.lastIndexOf(headingAnchor);
+  if (headingIdx >= 0) {
+    const precedingPStart = paragraphStartBefore(before, headingIdx);
+    const precedingPClose = before.indexOf("</w:p>", headingIdx);
+    if (precedingPStart >= 0 && precedingPClose >= 0) {
       const precedingP = before.substring(precedingPStart, precedingPClose + "</w:p>".length);
       let fixedP = precedingP;
       // Add <w:pageBreakBefore/> if not already there
