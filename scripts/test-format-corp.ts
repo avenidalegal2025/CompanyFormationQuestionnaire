@@ -102,6 +102,24 @@ async function main() {
   console.log('Sig Roberto alone:', sigText.includes('Roberto Uno') && !sigText.includes('Roberto Uno, Diana') ? 'PASS' : 'FAIL');
   console.log('Sig Diana:', sigText.includes('Diana Dos') ? 'PASS' : 'FAIL');
   console.log('Sig Pablo:', sigText.includes('Pablo Tres') ? 'PASS' : 'FAIL');
+
+  // 6. Comprehensive structural audit (Layers 1-4 from
+  //    docs/AGREEMENT_QA_STRATEGY.md). FAILS the build if any layer
+  //    detects an issue — this is the gate that catches everything
+  //    we used to find by eye.
+  const docXmlPath = '/tmp/corp_rendered.xml';
+  fs.writeFileSync(docXmlPath, xml);
+  const { execSync } = await import('node:child_process');
+  try {
+    const out = execSync(`node scripts/audit-corp-structure.mjs ${docXmlPath}`, {
+      stdio: 'pipe',
+    }).toString();
+    console.log('Structural audit:', out.split('\n')[0]);
+  } catch (e: any) {
+    console.error('Structural audit FAILED:');
+    console.error(e.stdout?.toString() || e.message);
+    process.exit(1);
+  }
 }
 
 main().catch(e => { console.error(e); process.exit(1); });
