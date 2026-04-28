@@ -23,6 +23,10 @@ import { tmpdir } from 'node:os';
 
 const QUICK = process.argv.includes('--quick');
 const VERBOSE = process.argv.includes('--verbose');
+const SAVE = process.argv.includes('--save'); // save every DOCX to disk
+const SAVE_DIR = process.env.USERPROFILE
+  ? `${process.env.USERPROFILE}\\Downloads\\corp-variants`
+  : '/tmp/corp-variants';
 
 // ─── Matrix axes ─────────────────────────────────────────────────────
 const NAMES = ['Roberto Mendez', 'Ana Garcia', 'Carlos Lopez', 'Maria Torres', 'Pedro Ramirez', 'Sofia Flores'];
@@ -138,6 +142,12 @@ for (const ownerCount of OWNER_COUNTS) {
         // Write XML to temp + run audit
         const xmlPath = join(TMP_DIR, `${label}.xml`);
         writeFileSync(xmlPath, xml);
+
+        // Optionally save the full DOCX for human review.
+        if (SAVE) {
+          mkdirSync(SAVE_DIR, { recursive: true });
+          writeFileSync(join(SAVE_DIR, `${label}.docx`), result.buffer);
+        }
 
         try {
           execFileSync('node', ['scripts/audit-corp-structure.mjs', xmlPath], {

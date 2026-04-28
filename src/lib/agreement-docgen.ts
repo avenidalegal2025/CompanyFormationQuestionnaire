@@ -235,6 +235,7 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
 
   // Add keepNext to all section headings to prevent page breaks between heading and body
   xml = addKeepNextToHeadings(xml);
+  xml = chainKeepNextThroughEmpties(xml);
   xml = normalizeSubItemTabs(xml);
   xml = enablePaginationFlags(xml);
   xml = repairXml(xml);
@@ -918,6 +919,7 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
 
   // Add keepNext to all section headings to prevent page breaks between heading and body
   xml = addKeepNextToHeadings(xml);
+  xml = chainKeepNextThroughEmpties(xml);
   xml = normalizeSubItemTabs(xml);
   // § 9.2 romanette list fix (v2 #11/#12) must run AFTER normalizeSubItemTabs:
   // that pass resets <w:ind> on all romanette paragraphs to the standard
@@ -978,45 +980,49 @@ function cleanupEmptyCorpShareholders(xml: string, ownerCount: number): string {
   // The empty row renders as: [empty] | [empty] | $ | %
   // In the assembled text this shows as "$%" between two shareholder rows
 
-  // Remove the 3rd signature block: "By: ___" + "Name: [empty]" + "12.5% Owner"
+  // Remove empty signature blocks: "By: ___" + "Name: [empty]" + (optional)
+  // "12.5% Owner" tag. Template has 3 hardcoded sig slots; for 1-owner we
+  // remove TWO empty slots (2nd + 3rd), for 2-owner we remove ONE (3rd).
+  // Iterate until no more empty Name: paragraphs remain in the sig block.
   if (ownerCount < 3) {
-    // Remove "12.5% Owner" paragraph
+    // Remove any "12.5% Owner" paragraph (only present when 3-slot template
+    // ships ownership-percentage tags).
     xml = removeXmlParagraphsContaining(xml, ["12.5% Owner"]);
 
-    // Find and remove the "By: ______" and "Name:   " paragraphs for the empty 3rd slot.
-    // These are the LAST occurrence of "By: ______" and the empty "Name:" before "CORPORATION"
-    // Use lastIndexOf to find the CORPORATION in the signature block (not in article headings)
-    const corpIdx = xml.lastIndexOf('"CORPORATION"') >= 0
-      ? xml.lastIndexOf('"CORPORATION"')
-      : xml.lastIndexOf("CORPORATION");
-    if (corpIdx >= 0) {
-      // Work backwards from "CORPORATION" to find the empty signature block
+    // Loop the removal until there are no more empty "Name:" sig-block lines.
+    // Each iteration finds the LAST "By: ______" before "CORPORATION" whose
+    // following "Name:" paragraph is empty, and removes both. Cap at 5
+    // iterations as a safety net.
+    for (let pass = 0; pass < 5; pass++) {
+      const corpIdx =
+        xml.lastIndexOf('"CORPORATION"') >= 0
+          ? xml.lastIndexOf('"CORPORATION"')
+          : xml.lastIndexOf("CORPORATION");
+      if (corpIdx < 0) break;
+
       const beforeCorp = xml.substring(0, corpIdx);
-
-      // Find last "By:" paragraph before CORPORATION that has no name after it
-      // The pattern is: By: ___ </w:p> <w:p> Name: </w:p> (empty name)
-      // Remove the last By: + Name: pair before CORPORATION
       const lastByIdx = beforeCorp.lastIndexOf("By: ______");
-      if (lastByIdx >= 0) {
-        const byPStart = paragraphStartBefore(xml, lastByIdx);
-        const byPEnd = xml.indexOf("</w:p>", lastByIdx);
-        const nameStart = byPEnd >= 0 ? paragraphStartAtOrAfter(xml, byPEnd + 6) : -1;
-        const namePEnd = nameStart >= 0 ? xml.indexOf("</w:p>", nameStart) : -1;
-        if (byPStart < 0 || byPEnd < 0 || nameStart < 0 || namePEnd < 0) {
-          // Bail out — can't locate both paragraphs cleanly.
-          return xml;
-        }
+      if (lastByIdx < 0) break;
 
-        // Check if this Name paragraph is empty (just "Name:" with whitespace)
-        const namePara = xml.substring(nameStart, namePEnd + 6);
-        const nameTexts = (namePara.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
-          .map((t: string) => t.replace(/<[^>]+>/g, "")).join("").trim();
+      const byPStart = paragraphStartBefore(xml, lastByIdx);
+      const byPEnd = xml.indexOf("</w:p>", lastByIdx);
+      const nameStart = byPEnd >= 0 ? paragraphStartAtOrAfter(xml, byPEnd + 6) : -1;
+      const namePEnd = nameStart >= 0 ? xml.indexOf("</w:p>", nameStart) : -1;
+      if (byPStart < 0 || byPEnd < 0 || nameStart < 0 || namePEnd < 0) break;
 
-        if (nameTexts.startsWith("Name:") && nameTexts.replace("Name:", "").trim() === "") {
-          // Remove both paragraphs (By: + empty Name:)
-          xml = xml.substring(0, byPStart) + xml.substring(namePEnd + 6);
-        }
+      const namePara = xml.substring(nameStart, namePEnd + 6);
+      const nameTexts = (namePara.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+        .map((t: string) => t.replace(/<[^>]+>/g, ""))
+        .join("")
+        .trim();
+
+      // If this Name: line has actual content, the empty-block chain ends.
+      if (!(nameTexts.startsWith("Name:") && nameTexts.replace("Name:", "").trim() === "")) {
+        break;
       }
+
+      // Remove both paragraphs (By: + empty Name:) and continue scanning.
+      xml = xml.substring(0, byPStart) + xml.substring(namePEnd + 6);
     }
   }
 
@@ -3979,6 +3985,74 @@ function addKeepNextToHeadings(xml: string): string {
       return fullMatch.replace("<w:p>", "<w:p><w:pPr><w:keepNext/></w:pPr>");
     }
   });
+}
+
+/**
+ * Propagate keepNext through empty separator paragraphs that immediately
+ * follow a paragraph with keepNext. Without this, the chain
+ *   heading (keepNext) → empty separator → body
+ * breaks because the empty separator has no keepNext, so Word can split
+ * between empty and body — the heading lands at the bottom of the page
+ * with the body on the next page (the §10.3 Indemnification orphan that
+ * Haiku visual-review surfaced).
+ *
+ * Algorithm: parse paragraphs in document order. For each paragraph with
+ * keepNext=1, look ahead at the next paragraph. If it's empty (no
+ * substantive text content), force keepNext=1 on it too. Continue
+ * forward until we hit a non-empty paragraph (which already has its own
+ * keepNext rules, or doesn't need one).
+ */
+function chainKeepNextThroughEmpties(xml: string): string {
+  // Find all paragraph spans.
+  const paraRe = /<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g;
+  type Span = { start: number; end: number; body: string; full: string };
+  const paras: Span[] = [];
+  let m;
+  while ((m = paraRe.exec(xml))) {
+    paras.push({ start: m.index, end: m.index + m[0].length, body: m[1], full: m[0] });
+  }
+
+  // Walk forward, collecting indexes that need keepNext added.
+  const needKeepNext = new Set<number>();
+  for (let i = 0; i < paras.length - 1; i++) {
+    const cur = paras[i];
+    const hasKN = /<w:keepNext(?:\s+w:val="1")?\s*\/>/.test(cur.full);
+    if (!hasKN) continue;
+    // The next paragraph is in a "keep with previous" relationship if cur
+    // has keepNext. If next is empty, propagate.
+    let j = i + 1;
+    while (j < paras.length) {
+      const nxt = paras[j];
+      const text = (nxt.body.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+        .map((t) => t.replace(/<[^>]+>/g, ""))
+        .join("")
+        .trim();
+      if (text) break; // non-empty: it has its own keepNext logic
+      const nxtHasKN = /<w:keepNext(?:\s+w:val="1")?\s*\/>/.test(nxt.full);
+      if (!nxtHasKN) needKeepNext.add(j);
+      j++;
+    }
+  }
+
+  if (needKeepNext.size === 0) return xml;
+
+  // Apply the changes in REVERSE so earlier offsets stay valid.
+  const sorted = [...needKeepNext].sort((a, b) => b - a);
+  for (const idx of sorted) {
+    const p = paras[idx];
+    let fixed = p.full;
+    if (/<w:keepNext\s+w:val="0"\s*\/>/.test(fixed)) {
+      fixed = fixed.replace(/<w:keepNext\s+w:val="0"\s*\/>/, "<w:keepNext/>");
+    } else if (/<w:pPr>/.test(fixed)) {
+      fixed = fixed.replace("<w:pPr>", "<w:pPr><w:keepNext/>");
+    } else {
+      fixed = fixed.replace(/(<w:p\b[^>]*>)/, "$1<w:pPr><w:keepNext/></w:pPr>");
+    }
+    if (fixed !== p.full) {
+      xml = xml.substring(0, p.start) + fixed + xml.substring(p.end);
+    }
+  }
+  return xml;
 }
 
 // ─── Formatted Paragraph Builder ─────────────────────────────────────

@@ -167,6 +167,58 @@ for (const tblM of XML.matchAll(/<w:tbl\b/g)) {
   }
 }
 
+// L1 — keepNext chain through empty separator paragraphs.
+// Discovered by Haiku visual review: §10.3 Indemnification orphaned at
+// bottom of page because heading→empty-separator→body chain broke at
+// the empty paragraph (which lacked keepNext). Detect: any paragraph
+// with keepNext=1 followed by an EMPTY paragraph that lacks keepNext=1
+// (and is followed by a non-empty paragraph) breaks the visual chain.
+for (let pi = 0; pi < paras.length - 1; pi++) {
+  const cur = paras[pi];
+  if (!/<w:keepNext(?:\s+w:val="1")?\s*\/>/.test(cur.body)) continue;
+  let j = pi + 1;
+  while (j < paras.length && !paras[j].text.trim()) {
+    const empty = paras[j];
+    const emptyHasKN = /<w:keepNext(?:\s+w:val="1")?\s*\/>/.test(empty.body);
+    if (!emptyHasKN) {
+      // Only flag if there's substantive content after the empty (otherwise
+      // chain doesn't matter — nothing to keep with).
+      let hasFollowingContent = false;
+      for (let k = j + 1; k < paras.length; k++) {
+        if (paras[k].text.trim()) { hasFollowingContent = true; break; }
+      }
+      if (hasFollowingContent) {
+        const prevText = cur.text.trim().slice(0, 60);
+        push("L1", `empty separator after keepNext paragraph lacks keepNext (breaks orphan-title chain): after "${prevText}"`);
+      }
+    }
+    j++;
+  }
+}
+
+// L1 — empty signature blocks (caught by Haiku on 1-owner variant).
+// In the sig block, every "By: ___" line should be followed by a
+// "Name:  <actual name>" line. Empty "Name:" with no name = orphan
+// shareholder slot the cleanup function missed.
+const sigStartIdxAudit = paras.findIndex(p => p.text.includes("“SHAREHOLDERS”"));
+if (sigStartIdxAudit >= 0) {
+  for (let pi = sigStartIdxAudit; pi < paras.length; pi++) {
+    const p = paras[pi];
+    if (!/^By:\s*_+/.test(p.text.trim())) continue;
+    // Find the next non-empty paragraph
+    let j = pi + 1;
+    while (j < paras.length && !paras[j].text.trim()) j++;
+    if (j >= paras.length) break;
+    const next = paras[j].text.trim();
+    if (next.startsWith("Name:")) {
+      const nameValue = next.replace(/^Name:\s*/, "").trim();
+      if (!nameValue) {
+        push("L1", `empty signature block: "By: ___" followed by blank "Name:" (cleanup missed an owner slot)`);
+      }
+    }
+  }
+}
+
 // ─── L2: run / formatting smells on numbered headings ────────────────
 for (const p of paras) {
   const t = p.text.trim();
