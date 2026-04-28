@@ -2430,17 +2430,19 @@ function addDissolutionLettering(xml: string): string {
  * Idempotent: paragraphs already labeled are left alone, so this can
  * run after the targeted functions without double-labeling.
  */
+type Span = {
+  start: number;
+  end: number;
+  full: string;
+  text: string;
+  left: number;
+  hanging: number;
+  firstLine: number;
+  isHeading3: boolean;
+  hasLabel: boolean;
+};
+
 function autoLabelColonIntroducedLists(xml: string): string {
-  type Span = {
-    start: number;
-    end: number;
-    full: string;
-    text: string;
-    left: number;
-    hanging: number;
-    isHeading3: boolean;
-    hasLabel: boolean;
-  };
   const paraRe = /<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g;
   const paras: Span[] = [];
   let m: RegExpExecArray | null;
@@ -2453,12 +2455,15 @@ function autoLabelColonIntroducedLists(xml: string): string {
     const ppr = (body.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/) || [])[1] || "";
     const ind = ppr.match(/<w:ind\b([^/]*)\/>/);
     let left = 0,
-      hanging = 0;
+      hanging = 0,
+      firstLine = 0;
     if (ind) {
       const li = ind[1].match(/w:left="(\d+)"/);
       const hg = ind[1].match(/w:hanging="(\d+)"/);
+      const fl = ind[1].match(/w:firstLine="([\d.]+)"/);
       if (li) left = parseInt(li[1], 10);
       if (hg) hanging = parseInt(hg[1], 10);
+      if (fl) firstLine = Math.round(parseFloat(fl[1]));
     }
     const isHeading3 = /<w:pStyle w:val="Heading3"\/>/.test(ppr);
     // Has label: bare A./i./(a)/(i) or paren forms in the FIRST <w:t>.
@@ -2476,41 +2481,88 @@ function autoLabelColonIntroducedLists(xml: string): string {
       text,
       left,
       hanging,
+      firstLine,
       isHeading3,
       hasLabel,
     });
   }
 
-  // For each colon-ending paragraph, find following sibling list candidates.
+  // Identify "list-introducer" paragraphs: either ends with ":" OR is a
+  // Heading3 paragraph whose text is JUST "N.M Title." with no inline
+  // body (the §14.5 Successor's Interest pattern — heading alone, then
+  // body paragraphs at letter-indent below). For each, look ahead for
+  // unlabeled level-2/3 sibling list candidates.
+  // Title-only heading: paragraph text is JUST "N.M Title." (number +
+  // short title + terminal period, ≤ 60 chars total). Don't require the
+  // <w:pStyle Heading3/> tag — many template sections have heading-shaped
+  // text without the explicit pStyle, and we want to catch them all.
+  const isTitleOnlyHeading = (p: Span) =>
+    /^\d+\.\d+\s+[A-Z][\w\s'’,&-]{1,40}\.\s*$/.test(p.text);
+  const isLetterIndent = (p: Span) =>
+    (p.left === 2160 && p.hanging === 720) ||
+    (p.left === 2160 && p.hanging === 0 && p.firstLine === 0);
+  const isRomanIndent = (p: Span) =>
+    (p.left === 2880 && p.hanging === 720) ||
+    (p.left === 2880 && p.hanging === 0 && p.firstLine === 0);
+
+  // Ordinal-word labels ("First,", "Second,", "Third,", "Fourth,",…) are
+  // intentional alternative labeling; don't overwrite them.
+  const ordinalWordLabel = /^(First|Second|Third|Fourth|Fifth|Sixth|Seventh|Eighth|Ninth|Tenth)\b/i;
+
   type Insertion = { paraIdx: number; label: string };
   const insertions: Insertion[] = [];
   for (let i = 0; i < paras.length - 1; i++) {
-    if (!paras[i].text.endsWith(":")) continue;
-    // Look ahead at non-empty paragraphs.
-    const sibs: number[] = [];
+    const introducer = paras[i];
+    const isIntro = introducer.text.endsWith(":") || isTitleOnlyHeading(introducer);
+    if (!isIntro) continue;
+    // Collect ALL candidate siblings first (regardless of labeling). Then
+    // decide: if ANY of them is already labeled — letter, paren-letter,
+    // roman, paren-roman, or ordinal word — the list is already labeled
+    // somehow and we should NOT inject sequential labels (which would
+    // duplicate or mix labels). Only label when the entire candidate
+    // range is uniformly unlabeled.
+    // First pass: scan forward up to the next Heading3 (or end of paras)
+    // looking at ALL paragraphs (regardless of indent) — if ANY of them
+    // is already labeled (letter/roman/paren-form/ordinal-word), the
+    // section already has labels (possibly at a custom indent like
+    // §3.2 Dissolution's left=1427) and we must NOT inject sequential
+    // labels. This guards against double-labeling when a targeted
+    // function used a non-canonical indent.
+    let sawAlreadyLabeled = false;
+    for (let j = i + 1; j < paras.length; j++) {
+      const p = paras[j];
+      if (!p.text) continue;
+      if (p.isHeading3) break;
+      if (p.hasLabel || ordinalWordLabel.test(p.text)) {
+        sawAlreadyLabeled = true;
+        break;
+      }
+    }
+    if (sawAlreadyLabeled) continue;
+
+    // Second pass: collect contiguous unlabeled siblings at letter/roman
+    // indent immediately after the introducer.
+    const candidates: number[] = [];
     let level: "letter" | "roman" | null = null;
     for (let j = i + 1; j < paras.length; j++) {
       const p = paras[j];
-      if (!p.text) continue; // skip empty separators
-      if (p.isHeading3) break; // next section
-      // Determine list level by indent.
+      if (!p.text) continue;
+      if (p.isHeading3) break;
       let pLevel: "letter" | "roman" | null = null;
-      if (p.left === 2160 && p.hanging === 720) pLevel = "letter";
-      else if (p.left === 2880 && p.hanging === 720) pLevel = "roman";
-      if (!pLevel) break; // not a list candidate (different indent)
+      if (isLetterIndent(p)) pLevel = "letter";
+      else if (isRomanIndent(p)) pLevel = "roman";
+      if (!pLevel) break;
       if (level === null) level = pLevel;
-      else if (level !== pLevel) break; // mixed levels → bail
-      if (p.hasLabel) break; // already labeled — assume the list is fine
-      sibs.push(j);
+      else if (level !== pLevel) break;
+      candidates.push(j);
     }
-    if (sibs.length === 0) continue;
-    // Inject sequential labels.
-    for (let k = 0; k < sibs.length; k++) {
+    if (candidates.length === 0) continue;
+    for (let k = 0; k < candidates.length; k++) {
       const label =
         level === "letter"
           ? `${String.fromCharCode(65 + k)}.`
           : ["i.", "ii.", "iii.", "iv.", "v.", "vi.", "vii.", "viii.", "ix.", "x."][k];
-      insertions.push({ paraIdx: sibs[k], label });
+      insertions.push({ paraIdx: candidates[k], label });
     }
   }
 
