@@ -958,14 +958,22 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   xml = mergeTitleOnlyHeadingsWithBody(xml);
   xml = rebuildFracturedNumberedHeadings(xml);
   xml = collapseEmptiesBetweenListItems(xml);
+  xml = removeKeepLinesFromListItems(xml);
   xml = normalizeAllSectionHeadingPPr(xml);
   xml = stripBoldFromInlineTitleRuns(xml);
+  xml = fixArticle14CrossReferences(xml);
+  xml = closeArticleXIIIGap(xml);
   // Re-run keepNext-chain after merge/normalize, since merging
   // paragraphs creates new empty separator neighborhoods that need
   // re-evaluation.
   xml = chainKeepNextThroughEmpties(xml);
   xml = forceKeepNextBeforeTables(xml);
   xml = normalizeSignatureBlockLayout(xml);
+  // Sig spacing must run AFTER normalizeSignatureBlockLayout, which
+  // is what makes every sig-block paragraph carry explicit ind=5040
+  // (templates leave it inherited and our paragraph-walk can't tell
+  // them apart from other paragraphs without the explicit marker).
+  xml = expandSignatureBlockSpacing(xml);
   xml = repairXml(xml);
 
   renderedZip.file("word/document.xml", xml);
@@ -3263,6 +3271,191 @@ function rebuildFracturedNumberedHeadings(xml: string): string {
   });
 }
 
+// ─── Close ARTICLE XIII numbering gap when stripped ─────────────────
+
+/**
+ * When all 3 transfer covenants (rofr, drag, tag) are off, ARTICLE XIII
+ * "TRANSFERS AND ASSIGNMENTS" gets stripped entirely, leaving the
+ * document jumping from ARTICLE XII to ARTICLE XIV. Renumber subsequent
+ * articles to close the gap:
+ *   ARTICLE XIV → ARTICLE XIII
+ *   ARTICLE XV  → ARTICLE XIV
+ *   §14.x → §13.x  (in headings and any cross-references)
+ *   §15.x → §14.x
+ *
+ * Self-detecting: only fires if ARTICLE XIII heading is absent.
+ */
+function closeArticleXIIIGap(xml: string): string {
+  if (xml.includes("ARTICLE XIII:")) return xml;
+  if (!xml.includes("ARTICLE XIV:") || !xml.includes("ARTICLE XV:")) return xml;
+
+  // Operate on text content of <w:t> runs to avoid mangling XML structure.
+  return xml.replace(/<w:t[^>]*>([^<]*)<\/w:t>/g, (full, text) => {
+    let t = text;
+    // Article-level (do XV first so we don't double-shift)
+    t = t.replace(/ARTICLE XV\b/g, " ARTXIV ");
+    t = t.replace(/ARTICLE XIV\b/g, "ARTICLE XIII");
+    t = t.replace(/ ARTXIV /g, "ARTICLE XIV");
+    // Section-level §14.N / §15.N (in headings AND any cross-refs).
+    // Do 15→14 first via sentinel so we don't shift twice.
+    t = t.replace(/(?<!\d)15\.(\d+)/g, "15.$1");
+    t = t.replace(/(?<!\d)14\.(\d+)/g, (_, n) => `13.${n}`);
+    t = t.replace(/15\.(\d+)/g, (_, n) => `14.${n}`);
+    return full.replace(text, t);
+  });
+}
+
+// ─── Add breathing room between signature blocks ────────────────────
+
+/**
+ * Templates ship the signature block with a single empty paragraph
+ * between each shareholder's "Name: X" line and the next "By: ___"
+ * line, leaving signatures cramped — readers asked for "more space
+ * for signatures when there's room" since the sig block sits at the
+ * top of an otherwise empty page.
+ *
+ * Insert TWO additional empty paragraphs (3-blank-line gap total)
+ * between each consecutive shareholder block, between the last
+ * shareholder and "CORPORATION", and between "CORPORATION" header
+ * blocks.
+ */
+function expandSignatureBlockSpacing(xml: string): string {
+  // Anchor on the curly-quoted "SHAREHOLDERS" sig header (distinct
+  // from "SHAREHOLDERS' AGREEMENT" on the cover page) and walk back to
+  // the START of that paragraph, so block-paragraph regex operates on
+  // a clean <w:p>...</w:p> sequence (not mid-paragraph).
+  const headerIdx = xml.indexOf("“SHAREHOLDERS”");
+  if (headerIdx < 0) return xml;
+  const sigStart = xml.lastIndexOf("<w:p ", headerIdx);
+  if (sigStart < 0) return xml;
+  const sigEnd = xml.indexOf("</w:body>", sigStart);
+  if (sigEnd < 0) return xml;
+  const head = xml.substring(0, sigStart);
+  const tail = xml.substring(sigEnd);
+  let block = xml.substring(sigStart, sigEnd);
+
+  const paraRe = /<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g;
+  type Span = { start: number; end: number; full: string; text: string; isSig: boolean };
+  const paras: Span[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = paraRe.exec(block))) {
+    const body = m[1];
+    const text = (body.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+      .map((t) => t.replace(/<[^>]+>/g, ""))
+      .join("")
+      .trim();
+    const ppr = (body.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/) || [])[1] || "";
+    const isSigIndent = /<w:ind\b[^/]*w:left="5040"/.test(ppr);
+    paras.push({
+      start: m.index,
+      end: m.index + m[0].length,
+      full: m[0],
+      text,
+      isSig: isSigIndent,
+    });
+  }
+
+  // Build the empty sig-indented paragraph as a clone of the existing
+  // empty separators in the sig block.
+  const sigEmpty =
+    '<w:p><w:pPr><w:ind w:left="5040"/><w:jc w:val="both"/>' +
+    '<w:rPr><w:vertAlign w:val="baseline"/></w:rPr></w:pPr></w:p>';
+
+  // Insert 2 additional empty paragraphs after each "Name: X" line
+  // (or "Title: X" line for the final corp block) when followed by
+  // another sig-block paragraph. Walk forward and collect insert
+  // points.
+  type Insert = { atIdx: number; text: string };
+  const inserts: Insert[] = [];
+  for (let i = 0; i < paras.length - 1; i++) {
+    const p = paras[i];
+    if (!p.isSig) continue;
+    const isNameLine = /^Name:\s/.test(p.text);
+    if (!isNameLine) continue;
+    // Find the next non-empty sig paragraph.
+    let target = i + 1;
+    while (target < paras.length && !paras[target].text) target++;
+    if (target >= paras.length) continue;
+    const nextText = paras[target].text;
+    // Only expand spacing when the next signer block starts: another
+    // "By:" line OR a section header like "CORPORATION". Skip
+    // "Title:" (immediately follows the corp signer's "Name:" — they
+    // belong together as one block) and skip anything else.
+    const isNextNewBlock =
+      /^By:/.test(nextText) ||
+      /CORPORATION|SHAREHOLDERS/.test(nextText);
+    if (!isNextNewBlock) continue;
+    inserts.push({ atIdx: paras[target].start, text: sigEmpty + sigEmpty });
+  }
+
+  if (inserts.length === 0) return xml;
+  // Apply in REVERSE so earlier offsets stay valid.
+  inserts.sort((a, b) => b.atIdx - a.atIdx);
+  for (const ins of inserts) {
+    block = block.substring(0, ins.atIdx) + ins.text + block.substring(ins.atIdx);
+  }
+
+  return head + block + tail;
+}
+
+// ─── Repoint broken §14.1(b)/(d) cross-references to live targets ───
+
+/**
+ * Template's ARTICLE XIV ships with cross-references to §14.1(b) and
+ * §14.1(d), but §14.1 has no sub-items (a)/(b)/(c)/(d) — the
+ * referenced content is in §14.3 (definition of "incapacitated") and
+ * §14.5 (option-to-purchase clauses) respectively. The broken
+ * references confuse readers ("but there's no 14.1(d)" — user note).
+ *
+ * Repoint:
+ *   "Section 14.1(b)" → "Section 14.3"
+ *   "Section 14.1(d)" / "14.1(d)" / "14.1 (d)" → "Section 14.5"
+ */
+function fixArticle14CrossReferences(xml: string): string {
+  // Process the textual content of <w:t> runs in-place to avoid
+  // touching other XML structure.
+  return xml.replace(/<w:t[^>]*>([^<]*)<\/w:t>/g, (full, text) => {
+    let t = text;
+    t = t.replace(/Section\s+14\.1\(b\)/g, "Section 14.3");
+    t = t.replace(/Section\s+14\.1\s*\(d\)/g, "Section 14.5");
+    t = t.replace(/(?<!Section\s)14\.1\s*\(d\)/g, "Section 14.5");
+    return full.replace(text, t);
+  });
+}
+
+// ─── Generic: strip keepLines from letter/roman list items ──────────
+
+/**
+ * Templates ship list-item paragraphs (A./B./C./i./ii.) with
+ * <w:keepLines w:val="1"/> set, which prevents the paragraph from
+ * breaking internally across pages. For LONG items like §10.8 A.
+ * Confidential Information (a 10-line definition), this means the
+ * entire 10-line item must fit at the bottom of the current page —
+ * if only 5 lines fit, the whole item moves to the next page leaving
+ * a half-blank page above it.
+ *
+ * Strip keepLines from letter (left=2160 hanging=720) and roman
+ * (left=2880 hanging=720) list items. Word's natural widowControl
+ * still prevents single-line orphans/widows.
+ */
+function removeKeepLinesFromListItems(xml: string): string {
+  return xml.replace(/<w:p\b[\s\S]*?<\/w:p>/g, (full) => {
+    const ppr = (full.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/) || [])[1] || "";
+    const ind = ppr.match(/<w:ind\b([^/]*)\/>/);
+    if (!ind) return full;
+    const li = ind[1].match(/w:left="(\d+)"/);
+    const hg = ind[1].match(/w:hanging="(\d+)"/);
+    if (!li || !hg) return full;
+    const left = parseInt(li[1], 10);
+    const hanging = parseInt(hg[1], 10);
+    const isListItem =
+      (left === 2160 && hanging === 720) ||
+      (left === 2880 && hanging === 720);
+    if (!isListItem) return full;
+    return full.replace(/<w:keepLines\s+w:val="1"\s*\/>/g, "");
+  });
+}
+
 // ─── Generic: strip bold from §X.Y inline-titled heading runs ───────
 
 /**
@@ -4401,6 +4594,25 @@ function fixCapitalTableWidth(xml: string): string {
         `$1<w:tcPr><w:tcW w:w="${w}" w:type="dxa"/></w:tcPr>`,
       );
     });
+  });
+
+  // 4b. Normalize EVERY paragraph in EVERY cell to force visible centering.
+  //     Some cell paragraphs ship with non-zero <w:ind> inherited from
+  //     pStyle, which left-leans centered text by ~0.1-0.2" — visible
+  //     asymmetry on names like "Roberto Mendez". Force jc=center + zero
+  //     ind on every cell paragraph.
+  tbl = tbl.replace(/<w:p\b[\s\S]*?<\/w:p>/g, (para) => {
+    const canonPPr =
+      "<w:pPr>" +
+      "<w:keepNext/>" +
+      '<w:ind w:left="0" w:right="0" w:firstLine="0"/>' +
+      '<w:jc w:val="center"/>' +
+      '<w:rPr><w:vertAlign w:val="baseline"/></w:rPr>' +
+      "</w:pPr>";
+    if (/<w:pPr>/.test(para)) {
+      return para.replace(/<w:pPr>[\s\S]*?<\/w:pPr>/, canonPPr);
+    }
+    return para.replace(/(<w:p\b[^>]*>)/, `$1${canonPPr}`);
   });
 
   // 5. Keep the whole table on one page (never split across a page break).
