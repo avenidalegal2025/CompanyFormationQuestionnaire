@@ -2302,10 +2302,25 @@ function standardizeNumberedHeadingShape(xml: string): string {
 
     let rebuilt = full;
     if (inlineTitle !== undefined) {
-      // Shape B: split the run into "N.M " (no underline) + "Title" (underline).
+      // Shape B: split the run into "N.M " (no underline) + "Title"
+      // (underline). If the inline content contains a period (because the
+      // entire body sits in the same run, e.g. the non-compete inserter's
+      // §10.8 paragraph), split at the FIRST ". " so only the actual
+      // title text gets underlined and the body becomes a third run.
+      let titleOnly = inlineTitle;
+      let bodyAfter: string | null = null;
+      const dotMatch = inlineTitle.match(/^([^.]+?)(\.[\s\S]*)$/);
+      if (dotMatch) {
+        titleOnly = dotMatch[1];
+        bodyAfter = dotMatch[2];
+      }
+      const bodyRun = bodyAfter
+        ? `<w:r>${rPrNoUnderline}<w:t xml:space="preserve">${bodyAfter}</w:t></w:r>`
+        : "";
       const newRuns =
         `<w:r>${rPrNoUnderline}<w:t xml:space="preserve">${num} </w:t></w:r>` +
-        `<w:r>${rPrWithUnderline}<w:t>${inlineTitle}</w:t></w:r>`;
+        `<w:r>${rPrWithUnderline}<w:t>${titleOnly}</w:t></w:r>` +
+        bodyRun;
       rebuilt = rebuilt.replace(firstRun, newRuns);
     } else {
       // Shape A or C: number alone in this run. Force the run to
@@ -2316,17 +2331,34 @@ function standardizeNumberedHeadingShape(xml: string): string {
       rebuilt = rebuilt.replace(firstRun, newFirstRun);
     }
 
-    // Standardize the period→body transition. Two patterns ship in the
-    // template:
+    // Standardize the period→body transition. Three patterns ship:
     //   (a) "<w:t>.</w:t><w:tab/><w:t>Body…</w:t>" — period+tab+body in
-    //       separate runs (Article 2/3, many others)
-    //   (b) "<w:t>.<w:tab/>Body…</w:t>" inside a single <w:t> (rare)
-    // Replace both with "<w:t xml:space="preserve">.  </w:t>" + the body
-    // <w:t> unchanged, so all numbered headings render with the same
-    // period+two-spaces gap before the body text (§4.4 ships this way).
+    //       separate runs (Article 2/3, many others). Replace with
+    //       "<w:t xml:space=\"preserve\">.  </w:t>".
+    //   (b) Period glued to the END of the underlined title run
+    //       (<w:t>Salary and Bonus.</w:t>), with the next run being
+    //       a body run that starts with <w:tab/>. Strip "." from title,
+    //       drop the leading <w:tab/> from body, prepend ".  " to body.
+    //   (c) Period in its own <w:t>, no tab between (rare).
     rebuilt = rebuilt.replace(
       /<w:t(?:\s+[^>]*)?>\.<\/w:t><w:tab\/>/,
       `<w:t xml:space="preserve">.  </w:t>`,
+    );
+
+    // Pattern (b): underlined title run's <w:t> ends with "." (e.g. §6.1
+    // "Salary and Bonus.", §10.8 "Covenant Against Competition.", §15.7
+    // "Notices."). Strip the period from the underlined run and prepend
+    // ".  " to the next (body) run, replacing any leading whitespace+tab
+    // with the canonical "  " gap.
+    rebuilt = rebuilt.replace(
+      /(<w:r\b[^>]*><w:rPr>[\s\S]*?<w:u w:val="single"\/>[\s\S]*?<\/w:rPr><w:t[^>]*>[^<]*?)\.(<\/w:t><\/w:r>)\s*(<w:r\b[^>]*>(?:<w:rPr>[\s\S]*?<\/w:rPr>)?)<w:t[^>]*>\s*<\/w:t><w:tab\/><w:t([^>]*)>/,
+      `$1$2$3<w:t xml:space="preserve">.  </w:t><w:t$4>`,
+    );
+    // Variant: title period-strip + body run that doesn't have the
+    // "<w:t>spaces</w:t><w:tab/>" pattern (just a single body <w:t>).
+    rebuilt = rebuilt.replace(
+      /(<w:r\b[^>]*><w:rPr>[\s\S]*?<w:u w:val="single"\/>[\s\S]*?<\/w:rPr><w:t[^>]*>[^<]*?)\.(<\/w:t><\/w:r>)\s*(<w:r\b[^>]*>(?:<w:rPr>[\s\S]*?<\/w:rPr>)?)<w:t([^>]*)>(?!\.)/,
+      `$1$2$3<w:t xml:space="preserve">.  </w:t><w:t$4>`,
     );
 
     return rebuilt;
