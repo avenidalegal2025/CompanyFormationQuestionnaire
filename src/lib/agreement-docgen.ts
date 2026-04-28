@@ -236,6 +236,7 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
   // Add keepNext to all section headings to prevent page breaks between heading and body
   xml = addKeepNextToHeadings(xml);
   xml = normalizeSubItemTabs(xml);
+  xml = enablePaginationFlags(xml);
   xml = repairXml(xml);
 
   renderedZip.file("word/document.xml", xml);
@@ -836,6 +837,8 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   // regardless of number width. The template has baked-in per-paragraph
   // variations (w:left ranges from 706 to 787) that we flatten here.
   xml = normalizeSectionNumberTabs(xml);
+  xml = addDissolutionLettering(xml);
+  xml = enablePaginationFlags(xml);
   xml = repairXml(xml);
 
   renderedZip.file("word/document.xml", xml);
@@ -1415,6 +1418,93 @@ function cascadeRenumberCorpArticleI(xml: string, fromN: number): string {
     }
   }
   return xml;
+}
+
+// ─── §3.2 Dissolution lettering (Corp) ───────────────────────────────
+
+/**
+ * The Corp template's §3.2 Dissolution renders three "Event of Dissolution"
+ * triggers as unlettered bullets with broken Google Docs export tabs
+ * (e.g. `w:left="2165" w:hanging="13"` and 3 stray tab stops at 720/2889/7177).
+ * The user wants them as a lettered A./B./C. list matching the §4.1
+ * Authorized Shares pattern (which the template renders correctly).
+ *
+ * Rewrite each bullet's <w:pPr> + leading run to mirror §4.1 A./B.:
+ *   <w:pPr><w:ind w:left="1427" w:firstLine="0"/><w:jc w:val="both"/>...</w:pPr>
+ *   <w:r>...<w:tab/><w:t>A.</w:t><w:tab/><w:t>{body}</w:t></w:r>
+ */
+function addDissolutionLettering(xml: string): string {
+  const sectionStart = xml.indexOf("3.2 Dissolution");
+  if (sectionStart < 0) return xml;
+  const sectionEnd = xml.indexOf("Following an Event of Dissolution", sectionStart);
+  if (sectionEnd < 0) return xml;
+
+  // Anchors on the body text of the three bullets.
+  const bullets: Array<{ anchor: string; letter: string }> = [
+    { anchor: "Majority election to dissolve", letter: "A." },
+    { anchor: "sale of all or substantially all of the assets", letter: "B." },
+    { anchor: "entry of a judicial decree of dissolution", letter: "C." },
+  ];
+
+  // Replacement <w:pPr> mirroring §4.1 A./B. (left=1427, firstLine=0, justified).
+  // Preserve keepLines/widowControl=1 so the bullet stays whole across pages.
+  const cleanPPr =
+    '<w:pPr>' +
+    '<w:keepLines w:val="1"/>' +
+    '<w:widowControl w:val="1"/>' +
+    '<w:spacing w:after="115" w:before="0" w:line="240" w:lineRule="auto"/>' +
+    '<w:ind w:left="1427" w:firstLine="0"/>' +
+    '<w:jc w:val="both"/>' +
+    '<w:rPr>' +
+    '<w:rFonts w:ascii="Times New Roman" w:cs="Times New Roman" w:eastAsia="Times New Roman" w:hAnsi="Times New Roman"/>' +
+    '<w:sz w:val="24"/><w:szCs w:val="24"/>' +
+    '<w:vertAlign w:val="baseline"/>' +
+    '</w:rPr>' +
+    '</w:pPr>';
+
+  for (const { anchor, letter } of bullets) {
+    const idx = xml.indexOf(anchor, sectionStart);
+    if (idx < 0 || idx > sectionEnd) continue;
+    const pStart = xml.lastIndexOf("<w:p ", idx);
+    const pEnd = xml.indexOf("</w:p>", idx) + "</w:p>".length;
+    if (pStart < 0 || pEnd <= pStart) continue;
+
+    const para = xml.substring(pStart, pEnd);
+
+    // Strip the existing <w:pPr> (Google Docs export's broken tabs/indent).
+    let rebuilt = para.replace(/<w:pPr>[\s\S]*?<\/w:pPr>/, cleanPPr);
+
+    // Prepend "<w:tab/><w:t>A.</w:t><w:tab/>" before the FIRST <w:t> in the
+    // FIRST <w:r>. Detect by finding "<w:t" inside the first run.
+    rebuilt = rebuilt.replace(
+      /(<w:r\b[^>]*>[\s\S]*?<\/w:rPr>)(\s*)(<w:t)/,
+      `$1<w:tab/><w:t xml:space="preserve">${letter}</w:t><w:tab/>$3`,
+    );
+
+    xml = xml.substring(0, pStart) + rebuilt + xml.substring(pEnd);
+  }
+  return xml;
+}
+
+// ─── Pagination flags ───────────────────────────────────────────────
+
+/**
+ * Both Corp and LLC templates exported from Google Docs ship with
+ * `<w:keepLines w:val="0"/>` and `<w:widowControl w:val="0"/>` on every
+ * body paragraph (86 occurrences in Corp, 6 in LLC). With these flags
+ * disabled, Word freely splits multi-line bullets and short paragraphs
+ * mid-sentence across page breaks — visible bug in §3.2 Dissolution
+ * where the second bullet got torn in half.
+ *
+ * Flip both to "1" so each paragraph stays intact and Word's normal
+ * widow/orphan control applies. Do NOT touch keepNext: forcing it on
+ * globally would glue every paragraph to the next and produce huge
+ * unbreakable blocks.
+ */
+function enablePaginationFlags(xml: string): string {
+  return xml
+    .replace(/<w:keepLines\s+w:val="0"\s*\/>/g, '<w:keepLines w:val="1"/>')
+    .replace(/<w:widowControl\s+w:val="0"\s*\/>/g, '<w:widowControl w:val="1"/>');
 }
 
 // ─── XML Repair ─────────────────────────────────────────────────────
