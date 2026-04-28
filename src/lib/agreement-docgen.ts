@@ -894,6 +894,7 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   xml = enablePaginationFlags(xml);
   xml = stripEmptyParagraphPageBreaks(xml);
   xml = normalizeNewShareholdersHeading(xml);
+  xml = standardizeNumberedHeadingShape(xml);
   xml = repairXml(xml);
 
   renderedZip.file("word/document.xml", xml);
@@ -2234,6 +2235,104 @@ function enablePaginationFlags(xml: string): string {
  * own page); leave those alone. Strip the flag only from paragraphs
  * with no substantive text.
  */
+// ─── Numbered-heading shape standardization ──────────────────────────
+
+/**
+ * Standardize EVERY numbered-section heading (§N.M) in the document to
+ * one shape:
+ *
+ *   <w:r>(rPr no underline)<w:t xml:space="preserve">N.M </w:t></w:r>
+ *   <w:r>(rPr WITH underline)<w:t>Title</w:t></w:r>
+ *   <w:r>(rPr no underline)<w:t>.  body…</w:t></w:r>
+ *
+ * The Corp template ships THREE inconsistent shapes:
+ *   A. number alone in run[0], optional <w:tab/> after — no underline on
+ *      number; title underlined in run[1]. (≈25 sections; §1.1–§1.11
+ *      etc.) Trailing tab is the variation we strip.
+ *   B. "N.M Title" in a SINGLE underlined run — both number AND title
+ *      get underlined. (≈30 sections; §2.1, §3.1, §4.1, §13.2…) Split
+ *      the run so only the title carries the underline.
+ *   C. number alone, no underline, no tab — already correct shape.
+ *
+ * Strategy: detect by the first <w:r>'s first <w:t> content.
+ *   firstT === "N.M" or "N.M "          → shape A or C; strip trailing
+ *                                          <w:tab/> from this run if any.
+ *   firstT === "N.M Title…"             → shape B; split the run:
+ *                                          number run (rPr - underline) +
+ *                                          title run (rPr + underline).
+ *
+ * Operates only on Heading3-styled paragraphs (or any paragraph whose
+ * first run text is a clean "N.M…" pattern), so we don't accidentally
+ * rewrite body paragraphs that happen to start with a digit.
+ */
+function standardizeNumberedHeadingShape(xml: string): string {
+  return xml.replace(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g, (full) => {
+    // Locate first <w:r> after the pPr.
+    const pPrEnd = full.indexOf("</w:pPr>");
+    const afterPPr = pPrEnd >= 0 ? full.substring(pPrEnd + 8) : full;
+    const firstRunMatch = afterPPr.match(/<w:r\b[\s\S]*?<\/w:r>/);
+    if (!firstRunMatch) return full;
+    const firstRun = firstRunMatch[0];
+
+    // Pull the first <w:t> content.
+    const tMatch = firstRun.match(/<w:t[^>]*>([^<]*)<\/w:t>/);
+    if (!tMatch) return full;
+    const firstT = tMatch[1];
+
+    // Match "N.M" optionally followed by a space then a title.
+    // Whole text must be N.M-ish, not body text that happens to mention numbers.
+    const m = firstT.match(/^(\d+\.\d+)(?:\s+(.+?))?\s*$/);
+    if (!m) return full;
+    const num = m[1];
+    const inlineTitle = m[2]; // undefined if Shape A/C
+
+    // Extract the run's <w:rPr> (formatting). Build with-underline + no-underline variants.
+    const rPrMatch = firstRun.match(/<w:rPr>[\s\S]*?<\/w:rPr>/);
+    const rPr = rPrMatch ? rPrMatch[0] : "";
+    const rPrNoUnderline = rPr.replace(/<w:u w:val="single"\/>/g, "");
+    let rPrWithUnderline = rPrNoUnderline;
+    if (rPrWithUnderline.includes("</w:rPr>")) {
+      rPrWithUnderline = rPrWithUnderline.replace(
+        "</w:rPr>",
+        '<w:u w:val="single"/></w:rPr>',
+      );
+    } else {
+      rPrWithUnderline = '<w:rPr><w:u w:val="single"/></w:rPr>';
+    }
+
+    let rebuilt = full;
+    if (inlineTitle !== undefined) {
+      // Shape B: split the run into "N.M " (no underline) + "Title" (underline).
+      const newRuns =
+        `<w:r>${rPrNoUnderline}<w:t xml:space="preserve">${num} </w:t></w:r>` +
+        `<w:r>${rPrWithUnderline}<w:t>${inlineTitle}</w:t></w:r>`;
+      rebuilt = rebuilt.replace(firstRun, newRuns);
+    } else {
+      // Shape A or C: number alone in this run. Force the run to
+      // <w:r>{rPrNoUnderline}<w:t xml:space="preserve">N.M </w:t></w:r> —
+      // guaranteed single trailing space, no tabs, no underline on number.
+      const newFirstRun =
+        `<w:r>${rPrNoUnderline}<w:t xml:space="preserve">${num} </w:t></w:r>`;
+      rebuilt = rebuilt.replace(firstRun, newFirstRun);
+    }
+
+    // Standardize the period→body transition. Two patterns ship in the
+    // template:
+    //   (a) "<w:t>.</w:t><w:tab/><w:t>Body…</w:t>" — period+tab+body in
+    //       separate runs (Article 2/3, many others)
+    //   (b) "<w:t>.<w:tab/>Body…</w:t>" inside a single <w:t> (rare)
+    // Replace both with "<w:t xml:space="preserve">.  </w:t>" + the body
+    // <w:t> unchanged, so all numbered headings render with the same
+    // period+two-spaces gap before the body text (§4.4 ships this way).
+    rebuilt = rebuilt.replace(
+      /<w:t(?:\s+[^>]*)?>\.<\/w:t><w:tab\/>/,
+      `<w:t xml:space="preserve">.  </w:t>`,
+    );
+
+    return rebuilt;
+  });
+}
+
 // ─── §4.3 New Shareholders heading tab normalization ─────────────────
 
 /**
