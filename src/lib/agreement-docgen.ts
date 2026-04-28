@@ -838,6 +838,7 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   // variations (w:left ranges from 706 to 787) that we flatten here.
   xml = normalizeSectionNumberTabs(xml);
   xml = addDissolutionLettering(xml);
+  xml = normalizeListParagraphs(xml);
   xml = enablePaginationFlags(xml);
   xml = repairXml(xml);
 
@@ -1418,6 +1419,96 @@ function cascadeRenumberCorpArticleI(xml: string, fromN: number): string {
     }
   }
   return xml;
+}
+
+// ─── Normalize letter/roman list paragraphs ─────────────────────────
+
+/**
+ * The Corp template's lettered (A./B./C./D.) and roman-numeral (i./ii./iii.)
+ * list items inherit messy indents from the Google Docs export — each
+ * paragraph has slightly different `<w:ind>` values (left=1406 vs 1427 vs
+ * 1440, sometimes with firstLine=720, sometimes hanging=184), and the
+ * leading run is padded with stray `<w:t> </w:t>` spaces and duplicated
+ * `<w:tab/>` elements. Visual result: A. and B. don't align in the same
+ * column, and i./ii. wrap text returns to the page margin instead of
+ * staying under the body.
+ *
+ * For each paragraph whose first non-whitespace text run is a single
+ * `[A-F].` (letter list) or `i./ii./iii./.../x.` (roman list):
+ *   1. Replace `<w:pPr>` with a clean hanging-indent (letter: left=2160
+ *      hanging=720; roman: left=2880 hanging=720). This puts the label
+ *      at a fixed column and wraps body text under the body, not at the
+ *      margin.
+ *   2. In the run that contains the label, strip everything BEFORE the
+ *      label `<w:t>` and replace with a single `<w:tab/>`. Preserve the
+ *      run's `<w:rPr>` (bold etc.) and the trailing `<w:tab/>` that
+ *      separates label from body.
+ *
+ * Intentionally surgical: only touches paragraphs whose label `<w:t>` is
+ * exactly one of the expected forms. Doesn't merge runs or touch
+ * underlined "Voting"/"Dividends" labels in subsequent runs.
+ */
+function normalizeListParagraphs(xml: string): string {
+  const LETTER_PPR =
+    '<w:pPr>' +
+    '<w:keepLines w:val="1"/>' +
+    '<w:widowControl w:val="1"/>' +
+    '<w:spacing w:after="115" w:before="0" w:line="240" w:lineRule="auto"/>' +
+    '<w:ind w:left="2160" w:hanging="720"/>' +
+    '<w:jc w:val="both"/>' +
+    '<w:rPr>' +
+    '<w:rFonts w:ascii="Times New Roman" w:cs="Times New Roman" w:eastAsia="Times New Roman" w:hAnsi="Times New Roman"/>' +
+    '<w:sz w:val="24"/><w:szCs w:val="24"/><w:vertAlign w:val="baseline"/>' +
+    '</w:rPr>' +
+    '</w:pPr>';
+  const ROMAN_PPR = LETTER_PPR.replace(
+    'w:left="2160" w:hanging="720"',
+    'w:left="2880" w:hanging="720"',
+  );
+
+  const labelOk = (s: string) => /^([A-F]\.|(?:i|ii|iii|iv|v|vi|vii|viii|ix|x)\.)$/.test(s);
+
+  return xml.replace(/<w:p\b[\s\S]*?<\/w:p>/g, (para) => {
+    // Concatenate all <w:t> contents to find the FIRST non-whitespace one.
+    const tMatches = [...para.matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g)];
+    const firstSubstantive = tMatches.find((m) => m[1].trim().length > 0);
+    if (!firstSubstantive) return para;
+    const label = firstSubstantive[1].trim();
+    if (!labelOk(label)) return para;
+    const isRoman = /^(?:i|ii|iii|iv|v|vi|vii|viii|ix|x)\.$/.test(label);
+
+    // Replace <w:pPr>.
+    let out = para.replace(/<w:pPr>[\s\S]*?<\/w:pPr>/, isRoman ? ROMAN_PPR : LETTER_PPR);
+
+    // Locate the <w:r>...</w:r> run that contains the label, walking from
+    // the label's <w:t> position outward (string ops — regex with nested
+    // <w:r> tags is fragile).
+    const labelTag = `<w:t xml:space="preserve">${label}</w:t>`;
+    const altLabelTag = `<w:t>${label}</w:t>`;
+    let labelIdx = out.indexOf(labelTag);
+    if (labelIdx < 0) labelIdx = out.indexOf(altLabelTag);
+    if (labelIdx < 0) return out;
+
+    const rOpen = out.lastIndexOf("<w:r>", labelIdx);
+    const rOpenAttr = out.lastIndexOf("<w:r ", labelIdx);
+    const rStart = Math.max(rOpen, rOpenAttr);
+    if (rStart < 0) return out;
+    const run = out.substring(rStart, labelIdx); // run-open through start of label <w:t>
+
+    // Preserve the run-open tag (rsid attrs) and the <w:rPr> if any.
+    const openMatch = run.match(/<w:r\b[^>]*>/);
+    const openTag = openMatch ? openMatch[0] : "<w:r>";
+    const rPrMatch = run.match(/<w:rPr>[\s\S]*?<\/w:rPr>/);
+    const rPr = rPrMatch ? rPrMatch[0] : "";
+
+    // Replace everything from <w:r> open through (but not including) the
+    // label's <w:t> with a clean `<w:r>...<w:rPr/>...<w:tab/>` prefix.
+    // Everything from the label <w:t> onward (label, trailing <w:tab/>,
+    // body text in the same run, the run's </w:r>) stays intact.
+    const cleanPrefix = `${openTag}${rPr}<w:tab/>`;
+    out = out.substring(0, rStart) + cleanPrefix + out.substring(labelIdx);
+    return out;
+  });
 }
 
 // ─── §3.2 Dissolution lettering (Corp) ───────────────────────────────
