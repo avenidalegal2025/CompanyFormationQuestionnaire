@@ -70,3 +70,21 @@ The session's 20+ manual fixes all map to specific Layer 1–4 detectors:
 
 ## How we know it works
 A passing audit on a representative variant + the 250-variant matrix passing + visual snapshots stable = no manual review needed for that release. Any new template revision triggers a re-baseline of Layers 2–4 and visual snapshots.
+
+## Haiku reliability caveats (2026-04-28 batch)
+
+Full 144-Corp-variant Haiku visual review surfaced **116 findings**. Verification at higher DPI confirmed:
+
+**Reliable Haiku detections** (real bugs — fixed + Layer detectors added):
+- Orphan §X.Y heading via empty separator (chain breaking)
+- Empty signature blocks (cleanup miss on owner-count edge cases)
+- Sig-block paragraphs with `<w:jc w:val="center"/>` (visible misalignment, 4+ owners)
+- Leftover ownership-tag paragraphs (`X.XX% Owner`)
+- Article-level heading with no §X.Y subsections (orphan ARTICLE XIII when rofr/drag/tag all off)
+- Combined `Name:X Title:Y` paragraphs
+
+**Unreliable Haiku detections** (false positives — do NOT chase):
+- *"Underline extends under section number digits"* — at 100, 180, AND 240 DPI Haiku consistently misreads underline boundaries on inline-titled paragraphs. The XML structure is verifiably correct (`run[0] "N.M " un-underlined + run[1] "Title" underlined + run[2] ". body" un-underlined`) but Haiku reports the underline as extending under the digits. Model artifact, not a real doc bug. Trust the XML (Layer 2 catches the real shape if it ever regresses).
+- *"Orphan ARTICLE I heading"* — first article often lands at the bottom of cover/recitals page with one body line beneath. Compliant with "at least one line under heading" rule. Haiku flags it anyway.
+
+**Bottom line**: Haiku is a strong backstop for layout/structural issues but unreliable for fine-grained typographic judgments (underline pixel boundaries). When the XML structure is verifiably correct, treat the Haiku finding as noise.
