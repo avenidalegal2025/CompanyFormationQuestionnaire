@@ -941,6 +941,7 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   xml = normalizeNewShareholdersHeading(xml);
   xml = standardizeNumberedHeadingShape(xml);
   xml = forceKeepNextBeforeTables(xml);
+  xml = normalizeSignatureBlockLayout(xml);
   xml = repairXml(xml);
 
   renderedZip.file("word/document.xml", xml);
@@ -2783,6 +2784,129 @@ function normalizeNewShareholdersHeading(xml: string): string {
   );
 
   return xml.substring(0, pStart) + para + xml.substring(pEnd);
+}
+
+// ─── Signature-block layout normalization ────────────────────────────
+
+/**
+ * Normalize the signature block layout so every line ("SHAREHOLDERS",
+ * "By:", "Name:", "CORPORATION", "Corp Name a State corporation",
+ * "Title:") starts at the same left column.
+ *
+ * Template inconsistencies the user spotted:
+ *   - First shareholder block ("Roberto") uses 7 leading <w:tab/> runs
+ *     (default 0.5" stops → ~3.5"/5040 twips).
+ *   - Second/third shareholder blocks use <w:ind w:left="4254"
+ *     w:firstLine="708.999…"/> (~3.45"/4963 twips). Slightly off the
+ *     first block.
+ *   - The "Corp Name a State corporation" line uses
+ *     <w:ind w:left="5040" w:hanging="2880"/> which OUTDENTS the first
+ *     line by 2880 twips (1.4" off — most visible misalignment).
+ *   - "Name: <name>Title: <title>" appears as ONE paragraph with leading
+ *     tabs and a long mid-tab block instead of two separate lines.
+ *
+ * Fix: walk every paragraph from the sig-block header (curly-quoted
+ * "SHAREHOLDERS") to the end of the body, replace any <w:ind .../> with
+ * <w:ind w:left="5040"/> (no firstLine, no hanging — flush at 3.5"
+ * uniformly) AND strip leading <w:tab/> runs.
+ */
+function normalizeSignatureBlockLayout(xml: string): string {
+  // Anchor on the curly-quoted "SHAREHOLDERS" (sig block) — distinct from
+  // "SHAREHOLDERS' AGREEMENT" on the cover page.
+  const start = xml.indexOf("“SHAREHOLDERS”");
+  if (start < 0) return xml;
+  const sigStart = xml.lastIndexOf("<w:p ", start);
+  if (sigStart < 0) return xml;
+  const bodyEnd = xml.lastIndexOf("</w:body>");
+  if (bodyEnd < 0) return xml;
+
+  const before = xml.substring(0, sigStart);
+  let middle = xml.substring(sigStart, bodyEnd);
+  const after = xml.substring(bodyEnd);
+
+  // Pre-step: split the combined "Name: <name>Title: <title>" paragraph
+  // into TWO paragraphs (Name on one line, Title on the next). The
+  // template glues them together with intermediate tabs.
+  middle = splitCombinedNameTitleParagraph(middle);
+
+  // Per-paragraph: replace <w:ind> with canonical, strip leading tabs.
+  const CANON_IND = '<w:ind w:left="5040"/>';
+  middle = middle.replace(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g, (full) => {
+    let updated = full;
+
+    // Replace any existing <w:ind ... /> with the canonical.
+    if (/<w:ind\b[^/]*\/>/.test(updated)) {
+      updated = updated.replace(/<w:ind\b[^/]*\/>/, CANON_IND);
+    } else if (/<w:pPr>/.test(updated)) {
+      updated = updated.replace("<w:pPr>", `<w:pPr>${CANON_IND}`);
+    } else {
+      updated = updated.replace(/(<w:p\b[^>]*>)/, `$1<w:pPr>${CANON_IND}</w:pPr>`);
+    }
+
+    // Strip a contiguous run of leading <w:tab/> elements at the start
+    // of the FIRST <w:r> (after the optional <w:rPr>). These are how the
+    // template positioned text horizontally; with the canonical <w:ind>
+    // doing the job, they're redundant and would push text further right.
+    updated = updated.replace(
+      /(<w:r\b[^>]*>(?:<w:rPr>[\s\S]*?<\/w:rPr>)?)((?:\s*<w:tab\/>)+)/,
+      "$1",
+    );
+
+    return updated;
+  });
+
+  return before + middle + after;
+}
+
+/**
+ * Helper: split "Name: <name>Title: <title>" combined paragraph into two
+ * separate paragraphs ("Name: …" and "Title: …"). Triggered by the
+ * literal "Name:" + many tabs + "Title:" structure the template ships
+ * for the corporation signature line.
+ */
+function splitCombinedNameTitleParagraph(xml: string): string {
+  // Iterate paragraph-by-paragraph (no cross-paragraph regex spans).
+  return xml.replace(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g, (full, body) => {
+    // Must contain BOTH "Name:" and "Title:" as separate <w:t> contents
+    // within this single paragraph.
+    if (!/<w:t[^>]*>\s*Name:[^<]*<\/w:t>/.test(body)) return full;
+    if (!/<w:t[^>]*>\s*Title:[^<]*<\/w:t>/.test(body)) return full;
+
+    const rPrMatch = body.match(/<w:rPr>[\s\S]*?<\/w:rPr>/);
+    const rPr = rPrMatch ? rPrMatch[0] : "";
+
+    // Extract the name text — the <w:t> contents AFTER "Name:" and BEFORE
+    // the <w:t> containing "Title:".
+    const split = body.split(/<w:t[^>]*>\s*Title:/);
+    if (split.length < 2) return full;
+    const beforeTitle = split[0];
+    // Last <w:t> in beforeTitle that isn't "Name:" carries the name itself.
+    const tBefore = [...beforeTitle.matchAll(/<w:t[^>]*>([^<]*)<\/w:t>/g)].map(
+      (m) => m[1],
+    );
+    const nameIdx = tBefore.findIndex((t) => /^\s*Name:/.test(t));
+    const nameText =
+      nameIdx >= 0 && nameIdx + 1 < tBefore.length
+        ? tBefore[nameIdx + 1].trim()
+        : "";
+
+    // Extract the title text — "Title: <text>" appears in split[1] up to
+    // the next "</w:t>".
+    const titleClose = split[1].indexOf("</w:t>");
+    const titleText = titleClose >= 0 ? split[1].substring(0, titleClose).trim() : "";
+
+    const ppr =
+      '<w:pPr><w:ind w:left="5040"/><w:rPr><w:vertAlign w:val="baseline"/></w:rPr></w:pPr>';
+    const nameRun =
+      `<w:r>${rPr}` +
+      `<w:t xml:space="preserve">Name:  ${xmlEscape(nameText)}</w:t>` +
+      `</w:r>`;
+    const titleRun =
+      `<w:r>${rPr}` +
+      `<w:t xml:space="preserve">Title: ${xmlEscape(titleText)}</w:t>` +
+      `</w:r>`;
+    return `<w:p>${ppr}${nameRun}</w:p><w:p>${ppr}${titleRun}</w:p>`;
+  });
 }
 
 // ─── Keep titles glued to their bodies (no orphan headings) ──────────
