@@ -890,6 +890,7 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   xml = addTaxReturnsLettering(xml);
   xml = addInvoluntaryTransferLettering(xml);
   xml = addLimitationOnOfficersLettering(xml);
+  xml = addShareholderAssignmentLettering(xml);
   xml = addDeliveryToShareholderRomanList(xml);
   xml = normalizeListParagraphs(xml);
   xml = enablePaginationFlags(xml);
@@ -2074,6 +2075,44 @@ function addTaxReturnsLettering(xml: string): string {
     `$1<w:tab/><w:t xml:space="preserve">A.</w:t><w:tab/>$3`,
   );
   return xml.substring(0, pStart) + rebuilt + xml.substring(pEnd);
+}
+
+// ─── §9.1 Shareholder Assignment Prohibited — A.–E. list ─────────────
+
+/**
+ * §9.1 ships 5 unlabeled sub-paragraphs after the heading describing the
+ * conditions for permitted assignment ("Shares are first offered…",
+ * "Proposed Transferee delivers…", "The transfer complies…",
+ * "Notwithstanding…", "The sale or assignment of the entire
+ * Corporation…"). All level-2 sub-items under §9.1, so by the
+ * 1.N → A. → i. convention they should be A.–E.
+ */
+function addShareholderAssignmentLettering(xml: string): string {
+  const items: Array<{ anchor: string; letter: string }> = [
+    { anchor: "The Shares are first offered to the current Shareholders", letter: "A." },
+    { anchor: "delivers to the Corporation a written acknowledgement", letter: "B." },
+    { anchor: "The transfer complies with the Securities Act", letter: "C." },
+    { anchor: "Notwithstanding the generality of the foregoing, or any provision to the contrary", letter: "D." },
+    { anchor: "The sale or assignment of the entire Corporation", letter: "E." },
+  ];
+
+  for (const { anchor, letter } of items) {
+    const idx = xml.indexOf(anchor);
+    if (idx < 0) continue;
+    const pStart = xml.lastIndexOf("<w:p ", idx);
+    const pEnd = xml.indexOf("</w:p>", idx) + "</w:p>".length;
+    if (pStart < 0 || pEnd <= pStart) continue;
+
+    const para = xml.substring(pStart, pEnd);
+    if (new RegExp(`<w:t[^>]*>${letter.replace(".", "\\.")}<\\/w:t>`).test(para)) continue;
+
+    const rebuilt = para.replace(
+      /(<w:r\b[^>]*>[\s\S]*?<\/w:rPr>)(\s*)(<w:t)/,
+      `$1<w:tab/><w:t xml:space="preserve">${letter}</w:t><w:tab/>$3`,
+    );
+    xml = xml.substring(0, pStart) + rebuilt + xml.substring(pEnd);
+  }
+  return xml;
 }
 
 // ─── §8.2 Delivery to Shareholder — sub-list under B. ────────────────
