@@ -1466,25 +1466,90 @@ function normalizeListParagraphs(xml: string): string {
     'w:left="2880" w:hanging="720"',
   );
 
-  const labelOk = (s: string) => /^([A-F]\.|(?:i|ii|iii|iv|v|vi|vii|viii|ix|x)\.)$/.test(s);
+  // Two-level hierarchy:
+  //   Letter:  A./B./.../Z. — column 1440, body 2160
+  //   Roman:   i./ii./.../x. — column 2160, body 2880
+  // Paren-form labels (a)/(b)/(i)/(ii) get rewritten to bare form (A./B./i./ii.)
+  // so the doc uses one consistent label style. Single-char paren disambig:
+  //   (i)/(v)/(x) → romans (i./v./x.)
+  //   any other (a)/(b).../(z) → letter (uppercased + period)
+  const ROMAN_PAREN = '(?:i|ii|iii|iv|v|vi|vii|viii|ix|x)';
+  const LETTER_RE = new RegExp(`^([A-Z]\\.|\\([a-hjklmnopqrstuwyz]\\))$`);
+  const ROMAN_RE = new RegExp(`^(?:(?:i|ii|iii|iv|v|vi|vii|viii|ix|x)\\.|\\(${ROMAN_PAREN}\\))$`);
+  const LETTER_PREFIX_RE = new RegExp(`^\\s*([A-Z]\\.|\\([a-hjklmnopqrstuwyz]\\))(\\s+|$)([\\s\\S]*)$`);
+  const ROMAN_PREFIX_RE = new RegExp(`^\\s*((?:i|ii|iii|iv|v|vi|vii|viii|ix|x)\\.|\\(${ROMAN_PAREN}\\))(\\s+|$)([\\s\\S]*)$`);
+
+  // Rewrite paren-form labels to bare form.
+  const canonicalize = (raw: string): string => {
+    if (/^\([a-z]\)$/.test(raw)) {
+      const ch = raw.charAt(1);
+      // (i)/(v)/(x) treated as romans by ROMAN_RE; this is letter path so
+      // they shouldn't reach here, but be safe.
+      if ('ivx'.includes(ch)) return ch + '.';
+      return ch.toUpperCase() + '.';
+    }
+    if (/^\([a-z]+\)$/.test(raw)) return raw.slice(1, -1) + '.';
+    return raw;
+  };
 
   return xml.replace(/<w:p\b[\s\S]*?<\/w:p>/g, (para) => {
-    // Concatenate all <w:t> contents to find the FIRST non-whitespace one.
     const tMatches = [...para.matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g)];
     const firstSubstantive = tMatches.find((m) => m[1].trim().length > 0);
     if (!firstSubstantive) return para;
-    const label = firstSubstantive[1].trim();
-    if (!labelOk(label)) return para;
-    const isRoman = /^(?:i|ii|iii|iv|v|vi|vii|viii|ix|x)\.$/.test(label);
 
-    // Replace <w:pPr>.
-    let out = para.replace(/<w:pPr>[\s\S]*?<\/w:pPr>/, isRoman ? ROMAN_PPR : LETTER_PPR);
+    // Case A: first <w:t> content is JUST the label (label and body are in
+    //         separate runs). Detect by trimmed equality.
+    // Case B: first <w:t> content is label + spaces + body inline.
+    //         Detect by prefix regex; split the <w:t> in two.
+    const trimmed = firstSubstantive[1].trim();
+    let isLetter = LETTER_RE.test(trimmed);
+    let isRoman = ROMAN_RE.test(trimmed);
+    let rawLabel = trimmed;
+    let combined = false;
 
-    // Locate the <w:r>...</w:r> run that contains the label, walking from
-    // the label's <w:t> position outward (string ops — regex with nested
-    // <w:r> tags is fragile).
-    const labelTag = `<w:t xml:space="preserve">${label}</w:t>`;
-    const altLabelTag = `<w:t>${label}</w:t>`;
+    if (!isLetter && !isRoman) {
+      const letterMatch = firstSubstantive[1].match(LETTER_PREFIX_RE);
+      const romanMatch = firstSubstantive[1].match(ROMAN_PREFIX_RE);
+      const m = letterMatch || romanMatch;
+      if (!m) return para;
+      rawLabel = m[1];
+      const body = m[3];
+      if (!body.trim()) return para;
+      isLetter = !!letterMatch;
+      isRoman = !!romanMatch;
+      combined = true;
+    }
+    if (!isLetter && !isRoman) return para;
+
+    const newLabel = canonicalize(rawLabel);
+
+    let out = para;
+    if (combined) {
+      // Case B: split the original <w:t> into label + body, with the new
+      // bare-form label.
+      const oldFull = firstSubstantive[0];
+      const m = firstSubstantive[1].match(isLetter ? LETTER_PREFIX_RE : ROMAN_PREFIX_RE)!;
+      const body = m[3];
+      const newContent =
+        `<w:t xml:space="preserve">${newLabel}</w:t><w:tab/><w:t xml:space="preserve">${body}</w:t>`;
+      out = out.replace(oldFull, newContent);
+    } else if (newLabel !== rawLabel) {
+      // Case A with paren-form label: rewrite the label <w:t> to bare form.
+      // Allow leading/trailing whitespace inside the <w:t> (template often
+      // ships "(a) " with a trailing space).
+      out = out.replace(
+        new RegExp(`(<w:t(?:\\s[^>]*)?>)\\s*${rawLabel.replace(/[()]/g, '\\$&')}\\s*(</w:t>)`),
+        `$1${newLabel}$2`,
+      );
+    }
+
+    // Replace <w:pPr> with the level-appropriate clean indent.
+    out = out.replace(/<w:pPr>[\s\S]*?<\/w:pPr>/, isRoman ? ROMAN_PPR : LETTER_PPR);
+
+    // Locate the run containing the (now bare-form) label and clean its
+    // leading garbage (<w:t> </w:t>, stray <w:tab/>) — preserve <w:rPr>.
+    const labelTag = `<w:t xml:space="preserve">${newLabel}</w:t>`;
+    const altLabelTag = `<w:t>${newLabel}</w:t>`;
     let labelIdx = out.indexOf(labelTag);
     if (labelIdx < 0) labelIdx = out.indexOf(altLabelTag);
     if (labelIdx < 0) return out;
@@ -1493,18 +1558,11 @@ function normalizeListParagraphs(xml: string): string {
     const rOpenAttr = out.lastIndexOf("<w:r ", labelIdx);
     const rStart = Math.max(rOpen, rOpenAttr);
     if (rStart < 0) return out;
-    const run = out.substring(rStart, labelIdx); // run-open through start of label <w:t>
-
-    // Preserve the run-open tag (rsid attrs) and the <w:rPr> if any.
+    const run = out.substring(rStart, labelIdx);
     const openMatch = run.match(/<w:r\b[^>]*>/);
     const openTag = openMatch ? openMatch[0] : "<w:r>";
     const rPrMatch = run.match(/<w:rPr>[\s\S]*?<\/w:rPr>/);
     const rPr = rPrMatch ? rPrMatch[0] : "";
-
-    // Replace everything from <w:r> open through (but not including) the
-    // label's <w:t> with a clean `<w:r>...<w:rPr/>...<w:tab/>` prefix.
-    // Everything from the label <w:t> onward (label, trailing <w:tab/>,
-    // body text in the same run, the run's </w:r>) stays intact.
     const cleanPrefix = `${openTag}${rPr}<w:tab/>`;
     out = out.substring(0, rStart) + cleanPrefix + out.substring(labelIdx);
     return out;
