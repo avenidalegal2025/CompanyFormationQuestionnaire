@@ -956,6 +956,7 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   xml = normalizeNewShareholdersHeading(xml);
   xml = standardizeNumberedHeadingShape(xml);
   xml = mergeTitleOnlyHeadingsWithBody(xml);
+  xml = rebuildFracturedNumberedHeadings(xml);
   xml = normalizeAllSectionHeadingPPr(xml);
   // Re-run keepNext-chain after merge/normalize, since merging
   // paragraphs creates new empty separator neighborhoods that need
@@ -3182,6 +3183,84 @@ function mergeTitleOnlyHeadingsWithBody(xml: string): string {
   return xml;
 }
 
+// ─── Generic: rebuild fractured numbered-heading run sequences ───────
+
+/**
+ * Some templates ship a single numbered heading whose runs are split
+ * across many tiny pieces — leading whitespace run, number-only run,
+ * <w:tab/> run, underlined-title run, period run, <w:tab/> run, body
+ * run (e.g. §15.11 WAIVER OF JURY TRIAL in the 6-owner Corp template).
+ *
+ * Standardize-shape can't fix this because it inspects only the FIRST
+ * run, which is empty here. Detect the shape (by reconstructing the
+ * logical heading text, treating <w:tab/> as space) and rebuild the
+ * runs in canonical Shape B: "N.M " un-underlined + "TITLE" underlined
+ * + ".  body…" un-underlined.
+ *
+ * Generic — works on any §X.Y heading whose run shape doesn't already
+ * follow Shape B. Idempotent.
+ */
+function rebuildFracturedNumberedHeadings(xml: string): string {
+  return xml.replace(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g, (full) => {
+    const pPrEnd = full.indexOf("</w:pPr>");
+    if (pPrEnd < 0) return full;
+    const afterPPr = full.substring(pPrEnd + 8);
+    const closeP = afterPPr.lastIndexOf("</w:p>");
+    if (closeP < 0) return full;
+    const runsBlock = afterPPr.substring(0, closeP);
+    const trailer = afterPPr.substring(closeP);
+
+    // Logical heading text with <w:tab/> as space.
+    const text = runsBlock
+      .replace(/<w:tab\/>/g, " ")
+      .replace(/<w:br\/>/g, " ")
+      .replace(/<[^>]+>/g, "")
+      .replace(/&amp;/g, "&")
+      .replace(/&[a-z]+;/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    // Heading-shape signal: starts "N.M Capitalized…", and contains a
+    // period followed by uppercase body text (so it's not just a
+    // bare-title heading like §13.1 — those are handled elsewhere).
+    const m = text.match(/^(\d+\.\d+)\s+([A-Z][\w\s'’,&-]{1,80}?)\.\s+([A-Z].*)$/);
+    if (!m) return full;
+    const [, num, title, body] = m;
+
+    // Already-canonical Shape B sentinel: first run is "<w:t>N.M </w:t>"
+    // (with trailing space) and second run is underlined title. Skip if
+    // we already match.
+    const firstRunMatch = runsBlock.match(/<w:r\b[\s\S]*?<\/w:r>/);
+    if (firstRunMatch) {
+      const firstT = (firstRunMatch[0].match(/<w:t[^>]*>([^<]*)<\/w:t>/) || [])[1] || "";
+      if (firstT === `${num} ` || firstT === `${num} `) {
+        // Likely already standardized; bail to avoid re-write churn.
+        return full;
+      }
+    }
+
+    // Pull the first non-empty <w:rPr> as the formatting basis. Strip
+    // bold/underline so we can re-apply per-run.
+    const allRPrs = runsBlock.match(/<w:rPr>[\s\S]*?<\/w:rPr>/g) || [];
+    const baseRPr =
+      (allRPrs.find((r) => !/^<w:rPr>\s*<\/w:rPr>$/.test(r)) || "")
+        .replace(/<w:b w:val="1"\/>/g, "")
+        .replace(/<w:bCs w:val="1"\/>/g, "")
+        .replace(/<w:u w:val="single"\/>/g, "");
+    const noUnderlineRPr = baseRPr;
+    const underlineRPr = baseRPr.includes("</w:rPr>")
+      ? baseRPr.replace("</w:rPr>", '<w:b w:val="1"/><w:bCs w:val="1"/><w:u w:val="single"/></w:rPr>')
+      : '<w:rPr><w:b w:val="1"/><w:bCs w:val="1"/><w:u w:val="single"/></w:rPr>';
+
+    const newRuns =
+      `<w:r>${noUnderlineRPr}<w:t xml:space="preserve">${num} </w:t></w:r>` +
+      `<w:r>${underlineRPr}<w:t>${xmlEscape(title)}</w:t></w:r>` +
+      `<w:r>${noUnderlineRPr}<w:t xml:space="preserve">.  ${xmlEscape(body)}</w:t></w:r>`;
+
+    return full.substring(0, pPrEnd + 8) + newRuns + trailer;
+  });
+}
+
 // ─── Generic: normalize all numbered-section heading pPr ─────────────
 
 /**
@@ -3211,10 +3290,23 @@ function normalizeAllSectionHeadingPPr(xml: string): string {
     // detect that from the paragraph alone, so use a heading-shape
     // signal instead: paragraph text must start with "N.M " followed
     // by a CAPITAL LETTER (heading title), not just any digits.
-    const allTexts = (full.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
-      .map((t) => t.replace(/<[^>]+>/g, ""))
-      .join("");
-    if (!/^\s*\d+\.\d+\s+[A-Z]/.test(allTexts)) return full;
+    //
+    // Some templates split "N.M" + tab + "TITLE" across separate runs
+    // with a <w:tab/> between them; <w:t>-only concatenation reads as
+    // "N.MTITLE" with no whitespace. Build a logical heading text by
+    // stripping ALL tags (so <w:t> contents survive) and treating
+    // <w:tab/> and <w:br/> as a single space — same as Word renders
+    // them.
+    const pPrEnd = full.indexOf("</w:pPr>");
+    const afterPPr = pPrEnd >= 0 ? full.substring(pPrEnd + 8) : full;
+    const allTexts = afterPPr
+      .replace(/<w:tab\/>/g, " ")
+      .replace(/<w:br\/>/g, " ")
+      .replace(/<[^>]+>/g, "")
+      .replace(/&[a-z]+;/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!/^\d+\.\d+\s+[A-Z]/.test(allTexts)) return full;
     if (/<w:pPr>/.test(full)) {
       return full.replace(/<w:pPr>[\s\S]*?<\/w:pPr>/, CANON_PPR);
     }
