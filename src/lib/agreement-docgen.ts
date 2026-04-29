@@ -1354,6 +1354,20 @@ function removeCorpConditionalSections(
   xml: string,
   answers: QuestionnaireAnswers
 ): string {
+  // §4.4 forfeiture references "paragraph 13.2 below" but §13.2 is the
+  // Offer/RoFR offer step, not the right target. The intent is to say
+  // forfeiture doesn't trigger the §13.6 deadlock purchase mechanism.
+  // Repoint the reference (the entire sentence is stripped below when
+  // RoFR is OFF since §13.x is gone in that case).
+  if (answers.right_of_first_refusal) {
+    xml = xmlTextReplace(
+      xml,
+      "The application of this clause shall not trigger paragraph 13.2 below.",
+      "The application of this clause shall not trigger paragraph 13.6 below.",
+      true,
+    );
+  }
+
   // ROFR = No → Remove Right of First Refusal section (Article XIII)
   if (!answers.right_of_first_refusal) {
     xml = removeXmlParagraphsContaining(xml, [
