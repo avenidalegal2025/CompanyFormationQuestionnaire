@@ -1368,6 +1368,12 @@ function removeCorpConditionalSections(
     );
   }
 
+  // §9.2.iii references "9.1(iv)" but §9.1 uses letter labels A./B./C./D./E.
+  // — there is no roman 9.1(iv). The intent is to point at §9.1.D (the
+  // "Notwithstanding the generality of the foregoing…" item that
+  // describes spousal/dissolution transfers). Repoint the reference.
+  xml = xmlTextReplace(xml, "9.1(iv)", "9.1.D", true);
+
   // ROFR = No → Remove Right of First Refusal section (Article XIII)
   if (!answers.right_of_first_refusal) {
     xml = removeXmlParagraphsContaining(xml, [
