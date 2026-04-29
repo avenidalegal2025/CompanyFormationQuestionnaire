@@ -983,6 +983,29 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   xml = autoLabelColonIntroducedLists(xml);
   xml = collapseConsecutiveEmptyParagraphs(xml);
   xml = normalizeListParagraphs(xml);
+  // §9.1 re-letter (B→A,C→B,D→C,E→D) + §9.2 cross-ref text fixups
+  // when RoFR is off. Depends on canonical letter-list indents and
+  // labels from normalizeListParagraphs.
+  if (!answers.right_of_first_refusal) {
+    xml = relabel91LettersAfterRoFRStrip(xml);
+    // §9.2.A "Subject to the terms and conditions of Section 13 below,"
+    // — repoint to "this Agreement" since §13 RoFR is gone.
+    xml = xmlTextReplace(
+      xml,
+      "Subject to the terms and conditions of Section 13 below,",
+      "Subject to the terms and conditions of this Agreement,",
+      true,
+    );
+    // §9.2.B: "Subject to Sections 13 and 14 below" → "Subject to
+    // Section 13 below" (after closeArticleXIIIGap, original §14 is
+    // §13; original §13 RoFR is gone).
+    xml = xmlTextReplace(
+      xml,
+      "Subject to Sections 13 and 14 below",
+      "Subject to Section 13 below",
+      true,
+    );
+  }
   xml = enablePaginationFlags(xml);
   xml = stripEmptyParagraphPageBreaks(xml);
   xml = normalizeNewShareholdersHeading(xml);
@@ -1364,6 +1387,60 @@ function applyCorpBankAccountText(
   return xml;
 }
 
+/**
+ * After §9.1.A is stripped (when RoFR is off), shift letter labels of
+ * the remaining §9.1 items down: B→A, C→B, D→C, E→D. Operates on the
+ * leading <w:t> content of letter-list paragraphs (left=2160 hanging=720)
+ * within the §9.1 section (between the §9.1 heading and §9.2).
+ */
+function relabel91LettersAfterRoFRStrip(xml: string): string {
+  // Find §9.1 section span using stable anchor "Shareholder Assignment
+  // Prohibited" then bound by next "9.2" or "Involuntary Transfer".
+  const startIdx = xml.indexOf("Shareholder Assignment Prohibited");
+  if (startIdx < 0) return xml;
+  const endIdx2 = xml.indexOf("Involuntary Transfer", startIdx);
+  if (endIdx2 < 0) return xml;
+  const endIdx = endIdx2;
+
+  const before = xml.substring(0, startIdx);
+  let middle = xml.substring(startIdx, endIdx);
+  const after = xml.substring(endIdx);
+
+  // Walk paragraphs in §9.1 span, find letter-list items (left=2160
+  // hanging=720) starting with B./C./D./E., and shift the prefix.
+  const SHIFT: Record<string, string> = { B: "A", C: "B", D: "C", E: "D" };
+  middle = middle.replace(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g, (full) => {
+    const ind = (full.match(/<w:ind\b([^/]*)\/>/) || [])[1] || "";
+    if (!/w:left="2160"/.test(ind) || !/w:hanging="720"/.test(ind)) return full;
+    // Joined text content
+    const txt = (full.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+      .map((t) => t.replace(/<[^>]+>/g, ""))
+      .join("")
+      .trim();
+    const m = txt.match(/^([B-E])\./);
+    if (!m) return full;
+    const oldLabel = m[1];
+    const newLabel = SHIFT[oldLabel];
+    if (!newLabel) return full;
+    // Replace the FIRST occurrence of "X." in any <w:t> content.
+    let replaced = false;
+    return full.replace(/<w:t[^>]*>([^<]*)<\/w:t>/g, (mt, content) => {
+      if (replaced) return mt;
+      const newContent = content.replace(
+        new RegExp(`^${oldLabel}\\.`),
+        `${newLabel}.`,
+      );
+      if (newContent !== content) {
+        replaced = true;
+        return mt.replace(content, newContent);
+      }
+      return mt;
+    });
+  });
+
+  return before + middle + after;
+}
+
 // ─── Corp Conditional Section Removal ────────────────────────────────
 
 function removeCorpConditionalSections(
@@ -1405,6 +1482,31 @@ function removeCorpConditionalSections(
       "Purchase of Shareholder Interests upon Deadlock",
       "Bona Fide Offer",
     ]);
+
+    // §9.1.A "The Shares are first offered to the current Shareholders
+    // per Section 13 below" describes a process that doesn't exist when
+    // RoFR is off. Strip the entire item; subsequent letter items
+    // renumber B→A, C→B, D→C, E→D.
+    xml = removeXmlParagraphsContaining(xml, [
+      "The Shares are first offered to the current Shareholders per Section 13",
+    ]);
+
+    // Re-lettering §9.1 happens later (after normalizeListParagraphs
+    // canonicalizes letter-list indents to 2160/720). See call site
+    // for relabel91LettersAfterRoFRStrip in the post-render pipeline.
+
+    // §9.2.A.iii previously referenced "9.1D" (the spousal/dissolution
+    // exception). After the re-letter, that item is now §9.1.C —
+    // update the reference. Done unconditionally even on RoFR=on for
+    // consistency: with RoFR off, item D shifts to C; with RoFR on
+    // it's still D, but my upstream replace turned 9.1(iv) → 9.1D so
+    // we keep the D form. Conditional below.
+    xml = xmlTextReplace(xml, "9.1D", "9.1C", true);
+
+    // §9.2.A and §9.2.B "Subject to Section 13" / "Sections 13 and 14"
+    // text replacements happen AFTER normalizeListParagraphs has
+    // assigned the "A./B." labels — see the post-render call site for
+    // fixSection9CrossRefsAfterRoFRStrip.
 
     // The Corp template has an inline body ref "The application of this
     // clause shall not trigger paragraph 13.2 below." inside Section 4.4.
