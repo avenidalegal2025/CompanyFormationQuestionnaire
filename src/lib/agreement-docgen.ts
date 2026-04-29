@@ -4675,13 +4675,14 @@ function removeSignaturePageBelowHeading(xml: string): string {
   }
   if (headingStart < 0) return xml;
 
-  // Add <w:keepNext/> to the paragraph IMMEDIATELY PRECEDING the heading
-  // so Word pulls the heading up with the last content paragraph instead
-  // of orphaning it onto a blank new page.
+  // Add <w:keepNext/> to the LAST CONTENT paragraph (currently the one
+  // immediately preceding the heading) so the heading + content stay
+  // chained — prevents orphaning the heading on a blank page.
   const beforeHeading = xml.substring(0, headingStart);
   const precedingPClose = beforeHeading.lastIndexOf("</w:p>");
+  let precedingPStart = -1;
   if (precedingPClose >= 0) {
-    const precedingPStart = paragraphStartBefore(beforeHeading, precedingPClose);
+    precedingPStart = paragraphStartBefore(beforeHeading, precedingPClose);
     if (precedingPStart >= 0) {
       const precedingP = beforeHeading.substring(
         precedingPStart,
@@ -4697,14 +4698,30 @@ function removeSignaturePageBelowHeading(xml: string): string {
             "$1<w:pPr><w:keepNext/></w:pPr>",
           );
         }
-        return (
+        const delta = fixedP.length - precedingP.length;
+        xml =
           xml.substring(0, precedingPStart) +
           fixedP +
-          xml.substring(precedingPClose + "</w:p>".length)
-        );
+          xml.substring(precedingPClose + "</w:p>".length);
+        headingStart += delta;
+        headingEnd += delta;
       }
     }
   }
+
+  // Insert 2 empty paragraphs BEFORE the heading so there's visible
+  // breathing room between the last content paragraph (e.g. §15.11
+  // WAIVER OF JURY TRIAL) and "[SIGNATURE PAGE BELOW]". The keepNext
+  // chain through these empties keeps the heading from orphaning.
+  const emptyPara =
+    '<w:p><w:pPr><w:keepNext/><w:jc w:val="both"/>' +
+    '<w:rPr><w:vertAlign w:val="baseline"/></w:rPr></w:pPr></w:p>';
+  xml =
+    xml.substring(0, headingStart) +
+    emptyPara +
+    emptyPara +
+    xml.substring(headingStart);
+
   return xml;
 }
 
