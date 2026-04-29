@@ -167,11 +167,20 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
   const managedTypePlural =
     answers.management_type === "member" ? "Members" : "Managers";
 
-  // Build template data matching the LLC template variables
+  // Append "LLC" suffix if entity_name lacks any standard LLC suffix.
+  const LLC_SUFFIX_RE = /,?\s*(LLC|L\.L\.C\.|Limited Liability Company)$/i;
+  const llcNameWithSuffix = LLC_SUFFIX_RE.test(answers.entity_name)
+    ? answers.entity_name
+    : `${answers.entity_name}, LLC`;
+
+  // Build template data matching the LLC template variables.
+  // Date_of_formation_LLC stays as the corp's formation date (used in
+  // the recital "is duly formed under the laws of …"), but the
+  // agreement effective date should be TODAY (when shareholders sign).
   const data: Record<string, string> = {
-    llc_name_text: answers.entity_name,
+    llc_name_text: llcNameWithSuffix,
     full_state: answers.state_of_formation,
-    Date_of_formation_LLC: formatDate(answers.date_of_formation),
+    Date_of_formation_LLC: formatDate(new Date().toISOString()),
     full_llc_address: answers.principal_address,
     full_county: answers.county,
     Managed_type_plural: managedTypePlural,
@@ -668,10 +677,22 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
     nullGetter: () => "",
   });
 
+  // Append "Inc." suffix if entity_name lacks any standard corp suffix.
+  // Florida law requires corps to have "Corporation"/"Corp."/"Inc."/"Co."
+  // in their name; if the user-entered name doesn't, default to ", Inc.".
+  const SUFFIX_RE = /,?\s*(Inc\.?|Incorporated|Corp\.?|Corporation|Co\.?|Company|Ltd\.?|Limited)$/i;
+  const entityNameWithSuffix = SUFFIX_RE.test(answers.entity_name)
+    ? answers.entity_name
+    : `${answers.entity_name}, Inc.`;
+  // Agreement effective date is the date the agreement is GENERATED
+  // (i.e. today), NOT the corp's formation date. Formation date can
+  // be days/weeks earlier; the agreement is dated when shareholders sign.
+  const effectiveIso = new Date().toISOString();
+
   doc.render({
-    corp_name: answers.entity_name.toUpperCase(),
-    corp_name_short: answers.entity_name.replace(/\s+(Inc\.|LLC|Corp\.?)$/i, "").toUpperCase(),
-    effective_date: formatDateForCorpTemplate(answers.date_of_formation),
+    corp_name: entityNameWithSuffix.toUpperCase(),
+    corp_name_short: entityNameWithSuffix.replace(SUFFIX_RE, "").toUpperCase(),
+    effective_date: formatDateForCorpTemplate(effectiveIso),
     principal_address: answers.principal_address,
     county: answers.county,
     state: answers.state_of_formation,
