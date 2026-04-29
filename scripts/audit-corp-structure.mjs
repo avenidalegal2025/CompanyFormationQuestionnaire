@@ -217,6 +217,95 @@ for (let pi = 0; pi < paras.length - 1; pi++) {
   }
 }
 
+// L1 — Cross-reference validator.
+// For every "Section N.M" / "paragraph N.M" / "Article ROMAN" / bare
+// "N.M(letter)" reference in body text, check the target exists.
+// Catches dangling refs left behind by conditional section removal,
+// renumbering, or template drift — without requiring per-section
+// hand-curated rules.
+{
+  // 1. Build set of existing targets.
+  const existingSections = new Set();         // "1.1", "9.2", ...
+  const existingArticles = new Set();         // "I", "XIII", ...
+  // Letter sub-items per section: "9.1" → Set{"A","B","C","D"}
+  const sectionLetters = new Map();
+  let curSec = null;
+  for (const p of paras) {
+    const t = p.text.trim();
+    if (!t) continue;
+    const artM = t.match(/^ARTICLE\s+([IVXLCDM]+)\s*[:.]/i);
+    if (artM) { existingArticles.add(artM[1].toUpperCase()); curSec = null; continue; }
+    const secM = t.match(/^(\d+)\.(\d+)(?=\s|$|\D)/);
+    if (secM && /<w:pStyle w:val="Heading3"\/>/.test(p.body)) {
+      const num = `${secM[1]}.${secM[2]}`;
+      existingSections.add(num);
+      curSec = num;
+      if (!sectionLetters.has(num)) sectionLetters.set(num, new Set());
+      continue;
+    }
+    if (curSec) {
+      const lm = t.match(/^([A-Z])\.(?:\s|[^.])/);
+      if (lm && p.left === 2160 && p.hanging === 720) {
+        sectionLetters.get(curSec).add(lm[1]);
+      }
+    }
+  }
+
+  // 2. Scan body text for cross-references.
+  for (const p of paras) {
+    const t = p.text.trim();
+    if (!t) continue;
+    // Skip the heading paragraph itself (its own "N.M Title" isn't a
+    // cross-reference).
+    const isOwnHeading = /^(?:\d+\.\d+|ARTICLE\s+[IVXLCDM]+)/i.test(t);
+    // Patterns to search:
+    //   "Section N.M" / "Paragraph N.M" / "paragraph N.M" / "Sec. N.M"
+    //   "Section N.M.X" / "Paragraph N.M.X"
+    //   "9.1D" / "9.1.D" (no "Section" prefix, in body)
+    //   "Article ROMAN"
+    const refMatchers = [
+      // "Section N.M" with optional letter sub-ref
+      { re: /\b(?:Section|Sec\.?|Paragraph|paragraph)\s+(\d+)\.(\d+)(?:\.([A-Z])|\(([A-Z])\)|([A-Z])\b)?(?=[\s.,;)]|$)/g,
+        kind: "sec" },
+      // bare "N.M" reference inside parentheses or after "above"/"below"
+      // but NOT a heading start (already filtered above)
+      { re: /(?:above|below|herein|hereto|hereunder)[\s,]+(?:see\s+)?(\d+)\.(\d+)(?:\.([A-Z])|\(([A-Z])\)|([A-Z])\b)?/gi,
+        kind: "sec" },
+      // "Article XIII" / "Article XIV"
+      { re: /\bArticle\s+([IVXLCDM]+)\b/g,
+        kind: "art" },
+    ];
+    for (const { re, kind } of refMatchers) {
+      let m2;
+      while ((m2 = re.exec(t)) !== null) {
+        if (kind === "art") {
+          const art = m2[1].toUpperCase();
+          if (!existingArticles.has(art)) {
+            push("L1", `cross-ref to non-existent ARTICLE ${art}: ${t.slice(0, 80)!==undefined?t.slice(0, 80):t}`);
+          }
+          continue;
+        }
+        const numKey = `${m2[1]}.${m2[2]}`;
+        const letter = m2[3] || m2[4] || m2[5] || null;
+        if (!existingSections.has(numKey)) {
+          // Skip self-references where the heading itself uses N.M
+          // syntax (e.g. paragraph titled "9.1.A. ..." matching its own
+          // "9.1" — handled by isOwnHeading above; safety net here).
+          if (isOwnHeading && t.startsWith(numKey)) continue;
+          push("L1", `cross-ref to non-existent §${numKey}: in "${t.slice(0, 80)}"`);
+          continue;
+        }
+        if (letter) {
+          const letters = sectionLetters.get(numKey) || new Set();
+          if (!letters.has(letter)) {
+            push("L1", `cross-ref to non-existent §${numKey}.${letter}: in "${t.slice(0, 80)}"`);
+          }
+        }
+      }
+    }
+  }
+}
+
 // L1 — sig-block paragraphs with non-"both" justification.
 // Discovered by Haiku on 4+ owner variants: addExtraCorpShareholders
 // inserts paragraphs with <w:jc w:val="center"/> which visually pushes

@@ -1020,6 +1020,12 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   xml = stripBoldFromInlineTitleRuns(xml);
   xml = fixArticle14CrossReferences(xml);
   xml = closeArticleXIIIGap(xml);
+  // Generic remediation pass: any cross-reference ("Section N.M" /
+  // "Subject to Section N below," / "per Section N below.") to a
+  // section that doesn't exist gets stripped (sentence-end) or its
+  // prefix dropped (sentence-start). Catches future drift without
+  // requiring per-section rules. Runs AFTER renumbering passes.
+  xml = repairDanglingCrossReferences(xml);
   // Re-run keepNext-chain after merge/normalize, since merging
   // paragraphs creates new empty separator neighborhoods that need
   // re-evaluation.
@@ -3612,6 +3618,89 @@ function expandSignatureBlockSpacing(xml: string): string {
   }
 
   return head + block + tail;
+}
+
+// ─── Generic dangling-cross-reference remediation ───────────────────
+
+/**
+ * Conditional content removal (covenant flags) leaves cross-references
+ * to stripped sections dangling. Instead of one-off rules per stripped
+ * section, this generic pass:
+ *
+ *   1. Builds a set of section numbers that EXIST in the doc.
+ *   2. Scans every <w:t> body run for "Section N.M" / "paragraph N.M"
+ *      / "N.M(X)" cross-references.
+ *   3. If the target doesn't exist:
+ *        a. SENTENCE-END strip: ref followed by `.` ending the sentence
+ *           → strip from the start of the previous sentence boundary
+ *           through the period.
+ *        b. PREFIX strip: ref preceded by sentence start (or a period+
+ *           space) and followed by `,` → strip from the start through
+ *           the comma+space.
+ *      Otherwise leaves the ref alone (specific-rule rewriting still
+ *      handled elsewhere — e.g. closeArticleXIIIGap renumbering, or
+ *      §4.4 13.2→13.6 repoint).
+ *
+ * Self-healing: any future template change or covenant combination
+ * that produces a dangling ref will be caught + repaired automatically.
+ */
+function repairDanglingCrossReferences(xml: string): string {
+  // Build set of existing section numbers.
+  const existing = new Set<string>();
+  const headRe = /<w:p\b[^>]*<w:pStyle\s+w:val="Heading3"\/>[\s\S]*?<\/w:p>/g;
+  let hm: RegExpExecArray | null;
+  while ((hm = headRe.exec(xml))) {
+    const para = hm[0];
+    const text = (para.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+      .map((t) => t.replace(/<[^>]+>/g, ""))
+      .join("")
+      .trim();
+    const m = text.match(/^(\d+)\.(\d+)(?=\s|\b|\.)/);
+    if (m) existing.add(`${m[1]}.${m[2]}`);
+  }
+  if (existing.size === 0) return xml;
+
+  // Walk every <w:t>; look for "Section N.M" / "paragraph N.M" /
+  // "Sections N and M" referencing non-existent numbers.
+  return xml.replace(/<w:t([^>]*)>([^<]*)<\/w:t>/g, (full, attrs, content) => {
+    let updated = content;
+
+    // SENTENCE-END strip: "<lead-in> per Section 13 below." (whole
+    // sentence ends after the ref). The lead-in is everything from the
+    // previous sentence boundary (period+space, semicolon+space, or
+    // start of run) up through the trailing period.
+    updated = updated.replace(
+      /(?:^|(?<=[.;]\s))[^.;]*?\b(?:per|under|in accordance with|pursuant to|subject to)\s+(?:Sections?|Paragraphs?)\s+(\d+)\.(\d+)\b[^.;]*\./gi,
+      (m, n, mm) => {
+        const key = `${n}.${mm}`;
+        if (existing.has(key)) return m;
+        return ""; // strip the entire sentence
+      },
+    );
+
+    // PREFIX strip: "Subject to Section 13 below, <rest>" — strip the
+    // prefix up through the comma when target is gone.
+    updated = updated.replace(
+      /(?:^|(?<=[.;]\s))(Subject to|Pursuant to|In accordance with|Notwithstanding)\s+(?:Sections?|Paragraphs?)\s+(\d+)\.?(\d*)?\b[^,.]*?,\s*/gi,
+      (m, _verb, n, mm) => {
+        // "Sections 13 and 14" pattern (no "." in the number) — N is
+        // the only digit captured, mm is empty. We treat "13" as
+        // article-only ref.
+        const key = mm ? `${n}.${mm}` : `${n}.0`;
+        const articleOnlyKey = `${n}.1`; // any §N.x existing implies article exists
+        const articleHas = [...existing].some((e) => e.startsWith(`${n}.`));
+        if (mm) {
+          if (existing.has(key)) return m;
+        } else if (articleHas) {
+          return m;
+        }
+        return ""; // strip prefix
+      },
+    );
+
+    if (updated === content) return full;
+    return `<w:t${attrs}>${updated}</w:t>`;
+  });
 }
 
 // ─── Repoint broken §14.1(b)/(d) cross-references to live targets ───
