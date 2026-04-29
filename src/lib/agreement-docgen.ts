@@ -1334,7 +1334,7 @@ function applyCorpVotingReplacements(
       // and SECOND <w:t> is exactly "Majority" (template ships with
       // tab between number and title — joined text can vary).
       const tMatches = full.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [];
-      if (tMatches.length >= 2) {
+      if (tMatches.length >= 2 && tMatches[0] && tMatches[1]) {
         const t1 = tMatches[0].replace(/<[^>]+>/g, "").trim();
         const t2 = tMatches[1].replace(/<[^>]+>/g, "").trim();
         if (t1 === "1.6" && t2 === "Majority") return full;
@@ -3671,7 +3671,7 @@ function repairDanglingCrossReferences(xml: string): string {
     // start of run) up through the trailing period.
     updated = updated.replace(
       /(?:^|(?<=[.;]\s))[^.;]*?\b(?:per|under|in accordance with|pursuant to|subject to)\s+(?:Sections?|Paragraphs?)\s+(\d+)\.(\d+)\b[^.;]*\./gi,
-      (m, n, mm) => {
+      (m: string, n: string, mm: string) => {
         const key = `${n}.${mm}`;
         if (existing.has(key)) return m;
         return ""; // strip the entire sentence
@@ -3682,12 +3682,11 @@ function repairDanglingCrossReferences(xml: string): string {
     // prefix up through the comma when target is gone.
     updated = updated.replace(
       /(?:^|(?<=[.;]\s))(Subject to|Pursuant to|In accordance with|Notwithstanding)\s+(?:Sections?|Paragraphs?)\s+(\d+)\.?(\d*)?\b[^,.]*?,\s*/gi,
-      (m, _verb, n, mm) => {
+      (m: string, _verb: string, n: string, mm: string) => {
         // "Sections 13 and 14" pattern (no "." in the number) — N is
         // the only digit captured, mm is empty. We treat "13" as
         // article-only ref.
         const key = mm ? `${n}.${mm}` : `${n}.0`;
-        const articleOnlyKey = `${n}.1`; // any §N.x existing implies article exists
         const articleHas = [...existing].some((e) => e.startsWith(`${n}.`));
         if (mm) {
           if (existing.has(key)) return m;
