@@ -3829,9 +3829,20 @@ function alignHeadingWrapWithBody(xml: string): string {
 }
 
 function normalizeAllSectionHeadingPPr(xml: string): string {
-  const CANON_PPR =
+  // keepLines=0 always; keepNext only for title-only §X.Y headings:
+  // - keepLines=0 lets long paragraphs break internally across pages
+  //   (overrides Heading3 pStyle's default "keep lines together").
+  // - keepNext on inline-titled headings is unnecessary because title
+  //   and body live in the SAME paragraph (no orphan-title risk).
+  //   Forcing keepNext on those chains the paragraph to its trailing
+  //   empty separator + next content, leaving half-blank pages above.
+  // - keepNext on title-only headings (§8.4, §9.2, §14.5) IS needed
+  //   to prevent the heading orphaning at the bottom of a page with
+  //   its body (next paragraph) on the next page.
+  const buildCanonPPr = (withKeepNext: boolean) =>
     "<w:pPr>" +
-    "<w:keepNext/>" +
+    (withKeepNext ? "<w:keepNext/>" : "") +
+    '<w:keepLines w:val="0"/>' +
     '<w:pStyle w:val="Heading3"/>' +
     "<w:tabs>" +
     '<w:tab w:val="left" w:leader="none" w:pos="720"/>' +
@@ -3866,10 +3877,15 @@ function normalizeAllSectionHeadingPPr(xml: string): string {
       .replace(/\s+/g, " ")
       .trim();
     if (!/^\d+\.\d+\s+[A-Z]/.test(allTexts)) return full;
+    // Inline-titled = "N.M Title… body…" (period followed by more text);
+    // title-only = "N.M Title." (paragraph ends at the period). Only
+    // title-only headings need keepNext for orphan-title prevention.
+    const isInlineTitled = /^\d+\.\d+\s+[A-Z][^.]*\.\s*\S/.test(allTexts);
+    const ppr = buildCanonPPr(/* withKeepNext */ !isInlineTitled);
     if (/<w:pPr>/.test(full)) {
-      return full.replace(/<w:pPr>[\s\S]*?<\/w:pPr>/, CANON_PPR);
+      return full.replace(/<w:pPr>[\s\S]*?<\/w:pPr>/, ppr);
     }
-    return full.replace(/(<w:p\b[^>]*>)/, `$1${CANON_PPR}`);
+    return full.replace(/(<w:p\b[^>]*>)/, `$1${ppr}`);
   });
 }
 

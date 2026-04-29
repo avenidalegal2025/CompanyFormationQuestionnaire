@@ -105,11 +105,19 @@ for (const p of paras) {
   const secM = t.match(SEC_RE);
   if (secM) {
     curLetter = null; lastLetter = null; lastRoman = null;
-    // L1: pre-table heading must have keepNext (covered below)
     // L1: orphan-title — Heading-style paragraph must have keepNext
+    // ONLY if title-only (body on next paragraph). Inline-titled
+    // §X.Y headings have heading + body in the same paragraph, so no
+    // orphan-title risk; keepNext on those would chain the entire
+    // paragraph block to the next, leaving half-blank pages above
+    // when the block doesn't fit.
+    // Inline-titled = "N.M Title… body…" — period after some title
+    // text, then more text on the same paragraph.
+    const isInlineTitled = /^\d+\.\d+\s+[A-Z][^.]*\.\s*\S/.test(t);
     const isShortTitled = t.length < 50;
     const hasH3 = /<w:pStyle w:val="Heading3"\/>/.test(p.body);
-    if ((isShortTitled || hasH3) && !/<w:keepNext(?:\s+w:val="1")?\s*\/>/.test(p.body)) {
+    if ((isShortTitled || hasH3) && !isInlineTitled &&
+        !/<w:keepNext(?:\s+w:val="1")?\s*\/>/.test(p.body)) {
       push("L1", `§${secM[1]}.${secM[2]} title without keepNext: ${t.slice(0,60)!==undefined?t.slice(0,60):t}`);
     }
     continue;
