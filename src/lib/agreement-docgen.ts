@@ -960,6 +960,7 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   xml = collapseEmptiesBetweenListItems(xml);
   xml = removeKeepLinesFromListItems(xml);
   xml = normalizeAllSectionHeadingPPr(xml);
+  xml = alignHeadingWrapWithBody(xml);
   xml = stripBoldFromInlineTitleRuns(xml);
   xml = fixArticle14CrossReferences(xml);
   xml = closeArticleXIIIGap(xml);
@@ -3589,6 +3590,60 @@ function collapseEmptiesBetweenListItems(xml: string): string {
  * (e.g. §15.11's custom layout vs the rest of §15.x) without targeted
  * fixes per section.
  */
+// ─── Align wrap-line with first body word in §X.Y headings ──────────
+
+/**
+ * For every §X.Y inline-titled heading, compute the column where the
+ * first body word starts (after "N.M Title.  " prefix) and set the
+ * paragraph's hanging indent to that column. Result: line 1 starts at
+ * col 0, wraps to that column, where body words also live → wrap
+ * aligns with first body word.
+ *
+ * 12pt Times New Roman char width approximation:
+ *   digit/space/punct ≈ 110 twips
+ *   lower-case letter ≈ 125 twips
+ *   upper-case letter ≈ 155 twips
+ * Title text counts as a single weighted average since it varies.
+ *
+ * Caps hanging at 3600 twips (2.5") so very long titles don't push
+ * wrap-line off-page; in those edge cases the long title spans the
+ * full first line and body falls below at col 2.5" — still readable.
+ */
+function alignHeadingWrapWithBody(xml: string): string {
+  return xml.replace(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g, (full) => {
+    const ppr = (full.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/) || [])[1] || "";
+    const isHeading3 =
+      /<w:pStyle\s+w:val="Heading3"\/>/.test(ppr) &&
+      /<w:ind[^/]*w:left="1440"[^/]*\/>/.test(ppr);
+    if (!isHeading3) return full;
+
+    const allText = (full.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+      .map((t) => t.replace(/<[^>]+>/g, ""))
+      .join("");
+    // Match: "N.M TitleText.  body…" — extract N.M + title.
+    const m = allText.match(/^(\d+\.\d+)\s+([A-Z][\w\s'’,&-]+?)\.\s+\S/);
+    if (!m) return full;
+    const numPrefix = m[1];
+    const titleText = m[2];
+
+    // Approximate twips for "N.M Title.  " prefix.
+    const widthOf = (ch: string) => {
+      if (/\d|[\s.,]/.test(ch)) return 110;
+      if (/[A-Z]/.test(ch)) return 155;
+      return 125;
+    };
+    const prefix = `${numPrefix} ${titleText}.  `;
+    let twips = 0;
+    for (const c of prefix) twips += widthOf(c);
+    // Cap at 3600 (2.5") so wrap-indent stays readable.
+    const hangIndent = Math.min(Math.max(twips, 1440), 3600);
+
+    const newInd =
+      `<w:ind w:left="${hangIndent}" w:hanging="${hangIndent}"/>`;
+    return full.replace(/<w:ind\b[^/]*\/>/, newInd);
+  });
+}
+
 function normalizeAllSectionHeadingPPr(xml: string): string {
   const CANON_PPR =
     "<w:pPr>" +
