@@ -529,7 +529,12 @@ function applyLLCBankAccountText(
   xml: string,
   answers: QuestionnaireAnswers
 ): string {
-  if (answers.bank_signees === "two") {
+  // Force "any one" if only a single Member/Manager — "any two" is
+  // impossible with one signer.
+  const signerCount =
+    (answers.directors_managers || []).filter((d) => d && d.name).length ||
+    (answers.owners_list || []).filter((o) => o && o.full_name).length;
+  if (answers.bank_signees === "two" && signerCount >= 2) {
     xml = xmlTextReplace(
       xml,
       "the signature of any Member or Manager of the Company",
@@ -666,7 +671,13 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
     shareholderData[`shareholder_${idx}_pct`] = actualPct;
   });
 
-  const bankSigneesText = answers.bank_signees === "two" ? "two" : "one";
+  // Force "one" if there's only one officer — "two of the Officers"
+  // is impossible with a single officer.
+  const officerCountForBank = (answers.officers || []).filter(
+    (o) => o && o.name,
+  ).length;
+  const bankSigneesText =
+    answers.bank_signees === "two" && officerCountForBank >= 2 ? "two" : "one";
   const majorityPct = answers.majority_threshold || 50;
   const majorityText = `${numberToWords(majorityPct).toUpperCase()} PERCENT (${majorityPct.toFixed(2)}%)`;
 
@@ -1333,7 +1344,12 @@ function applyCorpBankAccountText(
   xml: string,
   answers: QuestionnaireAnswers
 ): string {
-  if (answers.bank_signees === "two") {
+  // Only apply "two officers" wording if there are actually ≥2 officers.
+  // Single-officer corps can never have "signature of two of the
+  // Officers" — that's impossible. Force "one" in that case.
+  const officerCount = (answers.officers || []).filter((o) => o && o.name)
+    .length;
+  if (answers.bank_signees === "two" && officerCount >= 2) {
     xml = xmlTextReplace(
       xml,
       "upon the signature of one of the Officers",
