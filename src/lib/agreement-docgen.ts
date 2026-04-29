@@ -959,6 +959,7 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   xml = rebuildFracturedNumberedHeadings(xml);
   xml = collapseEmptiesBetweenListItems(xml);
   xml = removeKeepLinesFromListItems(xml);
+  xml = relabelOrdinalWordListItems(xml);
   xml = normalizeAllSectionHeadingPPr(xml);
   xml = alignHeadingWrapWithBody(xml);
   xml = stripBoldFromInlineTitleRuns(xml);
@@ -3590,6 +3591,52 @@ function collapseEmptiesBetweenListItems(xml: string): string {
  * (e.g. §15.11's custom layout vs the rest of §15.x) without targeted
  * fixes per section.
  */
+// ─── Replace ordinal-word labels (First,/Second,/Third,) with A./B. ─
+
+/**
+ * Some sections (e.g. §5.1 Allocation of Net Income) ship list items
+ * labeled with ordinal words ("First, to the payment..."). Convert
+ * to canonical letter labels "A. ..."/"B. ..."/"C. ..."/etc. when the
+ * paragraphs are at letter-list indent (left=2160 hanging=720) and
+ * a contiguous sequence of ordinals is found.
+ */
+function relabelOrdinalWordListItems(xml: string): string {
+  const ORDINAL_RE = /^(First|Second|Third|Fourth|Fifth|Sixth|Seventh|Eighth|Ninth|Tenth),\s+/;
+  const ORDINAL_TO_LETTER = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
+  const ORDINAL_INDEX: Record<string, number> = {
+    First: 0, Second: 1, Third: 2, Fourth: 3, Fifth: 4,
+    Sixth: 5, Seventh: 6, Eighth: 7, Ninth: 8, Tenth: 9,
+  };
+
+  // Walk paragraphs; identify runs of letter-list-indent paragraphs
+  // starting with ordinal words; replace prefix in each.
+  return xml.replace(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g, (full) => {
+    const ppr = (full.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/) || [])[1] || "";
+    const ind = ppr.match(/<w:ind\b([^/]*)\/>/);
+    if (!ind) return full;
+    const li = ind[1].match(/w:left="(\d+)"/);
+    const hg = ind[1].match(/w:hanging="(\d+)"/);
+    if (!li || !hg) return full;
+    if (parseInt(li[1], 10) !== 2160 || parseInt(hg[1], 10) !== 720) return full;
+
+    // Get first <w:t> content; check if it starts with an ordinal word.
+    const firstT = full.match(/<w:t[^>]*>([^<]*)<\/w:t>/);
+    if (!firstT) return full;
+    const m = firstT[1].match(ORDINAL_RE);
+    if (!m) return full;
+    const ordinal = m[1];
+    const letterIdx = ORDINAL_INDEX[ordinal];
+    if (letterIdx === undefined) return full;
+    const letter = ORDINAL_TO_LETTER[letterIdx];
+
+    // Replace the ordinal prefix in the FIRST <w:t> with "A. ".
+    return full.replace(
+      /(<w:t[^>]*>)(First|Second|Third|Fourth|Fifth|Sixth|Seventh|Eighth|Ninth|Tenth),\s*/,
+      `$1${letter}. `,
+    );
+  });
+}
+
 // ─── Align wrap-line with first body word in §X.Y headings ──────────
 
 /**
