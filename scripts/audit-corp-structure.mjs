@@ -352,18 +352,9 @@ for (const p of paras) {
   if (/\.$/.test(titleText)) {
     push("L2", `§${secM[1]}.${secM[2]}: title ends with "." — period belongs to body run, not title`);
   }
-  const bodyRun = runs[numIdx + 2];
-  if (bodyRun) {
-    const bt = text(bodyRun);
-    if (tabs(bodyRun) > 0 && !/^\.\s*$/.test(bt.split('<w:tab/>')[0] || '')) {
-      // Allow trailing tab at end of body, but no leading-or-mid <w:tab/> as
-      // separator.
-      // Check: is there a <w:tab/> between period and body text?
-      if (/<w:t[^>]*>\.<\/w:t><w:tab\/>/.test(bodyRun)) {
-        push("L2", `§${secM[1]}.${secM[2]}: body run has period+<w:tab/>+body shape (should be ".  body" inline)`);
-      }
-    }
-  }
+  // Period+<w:tab/>+body shape is now CANONICAL (see alignHeadingWrap
+  // WithBody): body always starts at the wrap column via tab so wrap
+  // line aligns with first body word. No further check needed.
 }
 
 // ─── L3: section completeness ─────────────────────────────────────────

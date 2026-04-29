@@ -3244,7 +3244,7 @@ function rebuildFracturedNumberedHeadings(xml: string): string {
     const firstRunMatch = runsBlock.match(/<w:r\b[\s\S]*?<\/w:r>/);
     if (firstRunMatch) {
       const firstT = (firstRunMatch[0].match(/<w:t[^>]*>([^<]*)<\/w:t>/) || [])[1] || "";
-      if (firstT === `${num} ` || firstT === `${num} `) {
+      if (firstT === `${num} ` || firstT === `${num} `) {
         // Likely already standardized; bail to avoid re-write churn.
         return full;
       }
@@ -3626,21 +3626,50 @@ function alignHeadingWrapWithBody(xml: string): string {
     const numPrefix = m[1];
     const titleText = m[2];
 
-    // Approximate twips for "N.M Title.  " prefix.
+    // Approximate twips for "N.M Title. " prefix. Times New Roman 12pt.
     const widthOf = (ch: string) => {
-      if (/\d|[\s.,]/.test(ch)) return 110;
-      if (/[A-Z]/.test(ch)) return 155;
-      return 125;
+      if (/\s/.test(ch)) return 70;
+      if (/[.,;:]/.test(ch)) return 70;
+      if (/\d/.test(ch)) return 130;
+      if (/[A-Z]/.test(ch)) return 165;
+      if (/[ijl]/.test(ch)) return 80;
+      if (/[mw]/.test(ch)) return 195;
+      return 130;
     };
-    const prefix = `${numPrefix} ${titleText}.  `;
+    const prefix = `${numPrefix} ${titleText}. `;
     let twips = 0;
     for (const c of prefix) twips += widthOf(c);
-    // Cap at 3600 (2.5") so wrap-indent stays readable.
+    // Buffer for visible space after period; cap at 3600 (2.5").
+    twips += 200;
     const hangIndent = Math.min(Math.max(twips, 1440), 3600);
 
-    const newInd =
-      `<w:ind w:left="${hangIndent}" w:hanging="${hangIndent}"/>`;
-    return full.replace(/<w:ind\b[^/]*\/>/, newInd);
+    let updated = full;
+    // Set ind: line 1 at col 0, wrap at hangIndent.
+    updated = updated.replace(
+      /<w:ind\b[^/]*\/>/,
+      `<w:ind w:left="${hangIndent}" w:hanging="${hangIndent}"/>`,
+    );
+    // Replace pPr's left tab stop with one at hangIndent so the tab
+    // we insert below lands exactly at the wrap column.
+    updated = updated.replace(
+      /<w:tab w:val="left"[^/]*\/>/g,
+      `<w:tab w:val="left" w:leader="none" w:pos="${hangIndent}"/>`,
+    );
+    // jc=both stretches the first line and pushes body word past the
+    // wrap column. Switch to jc=left on §X.Y headings so body word
+    // lands exactly at the tab stop = hanging indent column.
+    updated = updated.replace(
+      /<w:jc\s+w:val="both"\s*\/>/g,
+      '<w:jc w:val="left"/>',
+    );
+    // Insert <w:tab/> after the period (replacing the spaces).
+    // Pattern: first <w:t> whose content starts with ". " followed by
+    // body text. Split into ".</w:t><w:tab/><w:t>body</w:t>".
+    updated = updated.replace(
+      /(<w:t[^>]*>)\.\s+([^<])/,
+      `$1.</w:t><w:tab/><w:t xml:space="preserve">$2`,
+    );
+    return updated;
   });
 }
 
@@ -4870,11 +4899,11 @@ function renderOfficersList(
   const pEnd = xml.indexOf("</w:p>", idx) + "</w:p>".length;
   if (pStart < 0 || pEnd <= pStart) return xml;
 
-  // Render as a 2-col borderless table (col1 right-aligned names, col2
-  // left-aligned titles) centered horizontally on the page. This keeps
-  // names + titles aligned across rows AND centers the whole block —
-  // jc=center on individual paragraphs would center each line
-  // independently, breaking column alignment as Name lengths vary.
+  // Render as a 2-col borderless table (BOTH columns left-aligned)
+  // centered horizontally on the page. Names line up at column 1 left
+  // edge, titles line up at column 2 left edge — first letter of every
+  // name aligns vertically, first letter of every title aligns
+  // vertically. The table itself is centered on the page.
   const rPr =
     "<w:rPr>" +
     '<w:b w:val="1"/><w:bCs w:val="1"/>' +
@@ -4906,14 +4935,11 @@ function renderOfficersList(
   const rows = officers
     .map(
       (o) =>
-        `<w:tr>${buildCell(xmlEscape(o.name), "right", COL1_W)}` +
-        `<w:r>` + // not used; placeholder removed below
-        `</w:r>` +
-        `${buildCell("  " + xmlEscape(o.title || ""), "left", COL2_W)}` +
+        `<w:tr>${buildCell(xmlEscape(o.name), "left", COL1_W)}` +
+        `${buildCell(xmlEscape(o.title || ""), "left", COL2_W)}` +
         `</w:tr>`,
     )
-    .join("")
-    .replace(/<w:r>\s*<\/w:r>/g, ""); // strip placeholder
+    .join("");
 
   const table =
     `<w:tbl>` +
