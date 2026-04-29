@@ -101,7 +101,7 @@ function buildAnswers(
     drag_along: cov.drag,
     tag_along: cov.tag,
     include_noncompete: cov.nc,
-    noncompete_duration: 3,
+    noncompete_duration: 2,
     noncompete_scope: 'Miami-Dade County',
     include_nonsolicitation: cov.ns,
     include_confidentiality: cov.conf,
