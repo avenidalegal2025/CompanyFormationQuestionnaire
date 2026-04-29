@@ -1263,6 +1263,57 @@ function applyCorpVotingReplacements(
     xml = xmlTextReplace(xml, r.find, r.replace);
   }
 
+  // Comprehensive sweep — replace remaining "Majority" → "Super Majority"
+  // (or "Unanimous") for every voting reference the targeted list above
+  // didn't catch. The hand-curated list covers ~7 specific phrases but
+  // ~19 other "Majority" references existed in the template (§3.2, §4.5,
+  // §10.5, §11.4-§11.7, §13.x, §15.6, etc.). Doing per-phrase entries is
+  // brittle and the template has too many. Sweep instead, with two
+  // protections:
+  //   1. §1.6 Majority definition paragraph is left intact (the term
+  //      stays defined for any narrative reference).
+  //   2. The idiom "Majority Shareholders" (controlling owners, not a
+  //      vote threshold) is left intact via negative lookahead.
+  //   3. Already-replaced "Super Majority" is left intact via negative
+  //      lookbehind.
+  //
+  // Triggered only when the dominant voting profile (major_decisions_
+  // voting) is non-majority — otherwise no replacement needed.
+  if (answers.major_decisions_voting !== "majority") {
+    const replacement = votingText(answers.major_decisions_voting);
+    xml = xml.replace(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g, (full) => {
+      // Protect §1.6 Majority definition paragraph (also catches any
+      // template variant where the "Majority" word has padding/quotes).
+      const text = (full.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+        .map((t) => t.replace(/<[^>]+>/g, ""))
+        .join("")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (/^1\.6\s+Majority\b/.test(text)) return full;
+      // Also protect: paragraphs whose FIRST <w:t> is exactly "1.6"
+      // and SECOND <w:t> is exactly "Majority" (template ships with
+      // tab between number and title — joined text can vary).
+      const tMatches = full.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [];
+      if (tMatches.length >= 2) {
+        const t1 = tMatches[0].replace(/<[^>]+>/g, "").trim();
+        const t2 = tMatches[1].replace(/<[^>]+>/g, "").trim();
+        if (t1 === "1.6" && t2 === "Majority") return full;
+      }
+      // Sweep <w:t> contents with protections.
+      return full.replace(
+        /<w:t([^>]*)>([^<]*)<\/w:t>/g,
+        (m, attrs, content) => {
+          const updated = content.replace(
+            /(?<!Super )\bMajority\b(?! Shareholders\b)/g,
+            replacement,
+          );
+          if (updated === content) return m;
+          return `<w:t${attrs}>${updated}</w:t>`;
+        },
+      );
+    });
+  }
+
   // NOTE: spending threshold rendering is handled by the direct docxtemplater
   // placeholder `${{major_spending_threshold}}` (see generateCorp's render
   // payload). No post-processing needed here.
