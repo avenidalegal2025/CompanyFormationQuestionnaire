@@ -82,8 +82,21 @@ while ((m = paraRe.exec(XML))) {
 const issues = [];
 const push = (layer, msg) => issues.push({ layer, msg });
 
+// ─── Entity detection ───────────────────────────────────────────────
+// LLC and Corp templates ship with different indent conventions for
+// letter-list items: Corp normalizes to 2160/720; LLC ships with mixed
+// (720/0, 0/0, 680/0, 2160/0). LLC docgen doesn't canonicalize — those
+// indents render fine in Word/LibreOffice, just don't match Corp's
+// canonical. Detect entity and skip indent-specific rules for LLC.
+const HAS_OPERATING = XML.includes("OPERATING AGREEMENT");
+const HAS_SHAREHOLDERS = XML.includes("SHAREHOLDERS' AGREEMENT") || XML.includes("SHAREHOLDERS’ AGREEMENT");
+const ENTITY = HAS_OPERATING ? "LLC" : (HAS_SHAREHOLDERS ? "CORP" : "UNKNOWN");
+
 // ─── Patterns ────────────────────────────────────────────────────────
-const SEC_RE = /^(\d+)\.(\d+)(?:\s|$)/;
+// LLC ships sections without whitespace between number and title
+// (e.g. "11.4Notwithstanding"); Corp uses "11.4 Notwithstanding".
+// Match either: number + dot + digit + (whitespace | letter | end).
+const SEC_RE = /^(\d+)\.(\d+)(?=\s|[A-Z]|$)/;
 // Letter/roman labels: the post-canonicalize XML uses <w:tab/> between label
 // and body so concatenated text reads "A.body" with no whitespace. Match
 // label as "X." optionally followed by space, then any non-period char.
@@ -127,7 +140,10 @@ for (const p of paras) {
   const letM = t.match(LETTER_RE);
   if (letM) {
     const letter = letM[1].toLowerCase();
-    if (p.left !== 2160 || p.hanging !== 720) {
+    // Indent check is Corp-only — LLC template ships with mixed
+    // letter-list indents (720/0, 0/0, 680/0, 2160/0) that render fine
+    // but don't match Corp's canonical 2160/720.
+    if (ENTITY === "CORP" && (p.left !== 2160 || p.hanging !== 720)) {
       push("L1", `letter ${letM[1]}. has non-canonical indent (left=${p.left} hanging=${p.hanging}, expected 2160/720): ${t.slice(0,60)}`);
     }
     if (lastLetter === null) {
@@ -143,7 +159,8 @@ for (const p of paras) {
   // Roman label
   const romM = t.match(ROMAN_RE);
   if (romM && ROMAN_VALS.has(romM[1])) {
-    if (p.left !== 2880 || p.hanging !== 720) {
+    // Indent check is Corp-only (same rationale as letter labels above).
+    if (ENTITY === "CORP" && (p.left !== 2880 || p.hanging !== 720)) {
       push("L1", `roman ${romM[1]}. has non-canonical indent (left=${p.left} hanging=${p.hanging}, expected 2880/720): ${t.slice(0,60)}`);
     }
     if (curLetter === null) {

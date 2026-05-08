@@ -1,0 +1,196 @@
+/**
+ * Audit every LLC Operating Agreement variant locally.
+ *
+ * Mirror of audit-corp-variants.ts for the LLC entity type. Generates
+ * each combination via generateDocument() (no HTTP, no Vercel),
+ * extracts document.xml, and runs audit-corp-structure.mjs on each.
+ * The auditor auto-detects LLC vs Corp by document title and skips
+ * Corp-only rules (e.g. canonical letter-list indents — LLC ships
+ * mixed indents that render fine but don't match Corp's 2160/720).
+ *
+ * Default matrix: 6 owner counts × 3 voting profiles × 8 covenant
+ * combinations = 144 LLC variants.
+ *
+ * Usage:
+ *   npx tsx scripts/audit-llc-variants.ts            # full matrix
+ *   npx tsx scripts/audit-llc-variants.ts --quick    # 12-variant smoke
+ *   npx tsx scripts/audit-llc-variants.ts --verbose  # per-variant detail
+ *   npx tsx scripts/audit-llc-variants.ts --save     # write DOCX to disk
+ */
+import { generateDocument } from '../src/lib/agreement-docgen.js';
+import PizZip from 'pizzip';
+import { execFileSync } from 'node:child_process';
+import { writeFileSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+
+const QUICK = process.argv.includes('--quick');
+const VERBOSE = process.argv.includes('--verbose');
+const SAVE = process.argv.includes('--save');
+const SAVE_DIR = process.env.USERPROFILE
+  ? `${process.env.USERPROFILE}\\Downloads\\llc-variants`
+  : process.env.HOME && process.env.HOME.startsWith('/home/')
+    ? '/mnt/c/Users/neotr/Downloads/llc-variants'
+    : '/tmp/llc-variants';
+
+// ─── Matrix axes ─────────────────────────────────────────────────────
+const NAMES = ['Roberto Mendez', 'Ana Garcia', 'Carlos Lopez', 'Maria Torres', 'Pedro Ramirez', 'Sofia Flores'];
+const OWNER_COUNTS = QUICK ? [2, 3] : [1, 2, 3, 4, 5, 6];
+const VOTING_PROFILES = QUICK ? ['majority'] : ['majority', 'unanimous', 'supermajority'];
+const COVENANT_MATRIX = QUICK
+  ? [{ rofr: true, drag: true, tag: true, nc: true, ns: true, conf: true }]
+  : [
+      { rofr: true,  drag: true,  tag: true,  nc: true,  ns: true,  conf: true  },
+      { rofr: false, drag: false, tag: false, nc: false, ns: false, conf: false },
+      { rofr: true,  drag: false, tag: false, nc: true,  ns: false, conf: false },
+      { rofr: true,  drag: true,  tag: false, nc: false, ns: true,  conf: false },
+      { rofr: true,  drag: false, tag: true,  nc: false, ns: false, conf: true  },
+      { rofr: false, drag: true,  tag: true,  nc: true,  ns: true,  conf: false },
+      { rofr: false, drag: true,  tag: false, nc: true,  ns: false, conf: true  },
+      { rofr: false, drag: false, tag: true,  nc: false, ns: true,  conf: true  },
+    ];
+
+// ─── Build LLC QuestionnaireAnswers for each variant ─────────────────
+function buildAnswers(
+  ownerCount: number,
+  voting: string,
+  cov: { rofr: boolean; drag: boolean; tag: boolean; nc: boolean; ns: boolean; conf: boolean },
+) {
+  const owners = Array.from({ length: ownerCount }, (_, i) => ({
+    full_name: NAMES[i],
+    shares_or_percentage: i === ownerCount - 1
+      ? 100 - Math.floor(100 / ownerCount) * (ownerCount - 1)
+      : Math.floor(100 / ownerCount),
+    capital_contribution: 50000,
+  }));
+  // For LLC, directors_managers list is the Managers (or Members if member-managed).
+  // Default to manager-managed with first 2 owners as Managers.
+  const managers = owners.slice(0, Math.min(2, ownerCount)).map((o) => ({ name: o.full_name }));
+  return {
+    entity_type: 'LLC' as const,
+    entity_name: `LLC ${ownerCount}o ${voting}`,
+    state_of_formation: 'Florida',
+    date_of_formation: '2026-04-08T00:00:00Z',
+    principal_address: '100 Test St, Miami, FL 33131',
+    county: 'Miami-Dade',
+    owners_list: owners,
+    total_authorized_shares: 10000,
+    par_value: 0.01,
+    management_type: 'manager',
+    directors_managers: managers,
+    officers: [],
+    tax_matters_partner: NAMES[0],
+    additional_capital_voting: voting,
+    shareholder_loans_voting: voting,
+    distribution_frequency: 'semi_annual',
+    majority_threshold: 50.01,
+    supermajority_threshold: 75,
+    sale_of_company_voting: voting === 'majority' ? 'majority' : 'supermajority',
+    major_decisions_voting: voting,
+    major_spending_threshold: 7500,
+    bank_signees: 'two',
+    new_member_admission_voting: voting,
+    dissolution_voting: voting,
+    officer_removal_voting: voting,
+    family_transfer: 'unanimous',
+    right_of_first_refusal: cov.rofr,
+    rofr_offer_period: 90,
+    death_incapacity_forced_sale: true,
+    drag_along: cov.drag,
+    tag_along: cov.tag,
+    include_noncompete: cov.nc,
+    noncompete_duration: 2,
+    noncompete_scope: 'Miami-Dade County',
+    include_nonsolicitation: cov.ns,
+    include_confidentiality: cov.conf,
+  };
+}
+
+// ─── Main loop ───────────────────────────────────────────────────────
+const TMP_DIR = join(tmpdir(), 'audit-llc-variants');
+mkdirSync(TMP_DIR, { recursive: true });
+
+interface VariantResult {
+  label: string;
+  status: 'PASS' | 'FAIL' | 'ERROR';
+  issues?: string[];
+  error?: string;
+}
+
+async function main() {
+  const results: VariantResult[] = [];
+  const startTime = Date.now();
+  let total = 0;
+  for (const ownerCount of OWNER_COUNTS) {
+    for (const voting of VOTING_PROFILES) {
+      for (const cov of COVENANT_MATRIX) {
+        total++;
+        const flags = [
+          cov.rofr ? 'R' : '-',
+          cov.drag ? 'D' : '-',
+          cov.tag ? 'T' : '-',
+          cov.nc ? 'N' : '-',
+          cov.ns ? 'S' : '-',
+          cov.conf ? 'C' : '-',
+        ].join('');
+        const label = `llc-${ownerCount}o-${voting.padEnd(13, '.')}-${flags}`;
+        try {
+          const answers = buildAnswers(ownerCount, voting, cov);
+          const result = await generateDocument(answers as any);
+          const zip = new PizZip(result.buffer);
+          const xml = zip.file('word/document.xml')!.asText();
+          const xmlPath = join(TMP_DIR, `${label}.xml`);
+          writeFileSync(xmlPath, xml);
+          if (SAVE) {
+            mkdirSync(SAVE_DIR, { recursive: true });
+            writeFileSync(join(SAVE_DIR, `${label}.docx`), result.buffer);
+          }
+          try {
+            execFileSync('node', ['scripts/audit-corp-structure.mjs', xmlPath], { stdio: 'pipe' });
+            results.push({ label, status: 'PASS' });
+            process.stdout.write('.');
+          } catch (auditErr: any) {
+            const out = (auditErr.stdout?.toString() || '').trim();
+            const issues = out
+              .split('\n')
+              .filter((l: string) => l.trim().startsWith('-'))
+              .map((l: string) => l.trim().replace(/^-\s*/, ''));
+            results.push({ label, status: 'FAIL', issues });
+            process.stdout.write('F');
+          }
+        } catch (e: any) {
+          results.push({ label, status: 'ERROR', error: e.message });
+          process.stdout.write('E');
+        }
+      }
+    }
+  }
+
+  const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+  const passed = results.filter((r) => r.status === 'PASS').length;
+  const failed = results.filter((r) => r.status === 'FAIL').length;
+  const errored = results.filter((r) => r.status === 'ERROR').length;
+
+  console.log(`\n\n${'='.repeat(64)}`);
+  console.log(`TOTAL: ${total}  PASS: ${passed}  FAIL: ${failed}  ERROR: ${errored}  (${elapsed}s)`);
+
+  if (VERBOSE || failed > 0 || errored > 0) {
+    console.log('');
+    for (const r of results) {
+      if (r.status === 'PASS' && !VERBOSE) continue;
+      const tag = r.status === 'PASS' ? '✓' : r.status === 'FAIL' ? '✗' : '!';
+      console.log(`  ${tag} ${r.label}  ${r.status}`);
+      if (r.issues) for (const i of r.issues.slice(0, 3)) console.log(`        - ${i}`);
+      if (r.issues && r.issues.length > 3) console.log(`        ... +${r.issues.length - 3} more`);
+      if (r.error) console.log(`        ${r.error}`);
+    }
+  }
+
+  if (failed > 0 || errored > 0) {
+    console.log(`\nSTATUS: ${failed} FAIL${failed === 1 ? '' : 'S'}${errored ? ` + ${errored} ERROR${errored === 1 ? '' : 'S'}` : ''}`);
+    process.exit(1);
+  }
+  console.log('\nSTATUS: ALL VARIANTS CLEAN');
+}
+
+main().catch((e) => { console.error(e); process.exit(1); });
