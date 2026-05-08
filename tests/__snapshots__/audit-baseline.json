@@ -1,0 +1,4906 @@
+{
+  "timestamp": "2026-05-08T08:02:47.572Z",
+  "elapsed_sec": 132.6,
+  "total": 288,
+  "pass": 288,
+  "fail": 0,
+  "error": 0,
+  "variants": [
+    {
+      "label": "corp-1o-majority.....-RDTNSC",
+      "entity": "CORP",
+      "owners": 1,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 801
+    },
+    {
+      "label": "corp-1o-majority.....-------",
+      "entity": "CORP",
+      "owners": 1,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 539
+    },
+    {
+      "label": "corp-1o-majority.....-R--N--",
+      "entity": "CORP",
+      "owners": 1,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 491
+    },
+    {
+      "label": "corp-1o-majority.....-RD--S-",
+      "entity": "CORP",
+      "owners": 1,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 500
+    },
+    {
+      "label": "corp-1o-majority.....-R-T--C",
+      "entity": "CORP",
+      "owners": 1,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 448
+    },
+    {
+      "label": "corp-1o-majority.....--DTNS-",
+      "entity": "CORP",
+      "owners": 1,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 588
+    },
+    {
+      "label": "corp-1o-majority.....--D-N-C",
+      "entity": "CORP",
+      "owners": 1,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 450
+    },
+    {
+      "label": "corp-1o-majority.....---T-SC",
+      "entity": "CORP",
+      "owners": 1,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 553
+    },
+    {
+      "label": "corp-1o-unanimous....-RDTNSC",
+      "entity": "CORP",
+      "owners": 1,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 640
+    },
+    {
+      "label": "corp-1o-unanimous....-------",
+      "entity": "CORP",
+      "owners": 1,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 299
+    },
+    {
+      "label": "corp-1o-unanimous....-R--N--",
+      "entity": "CORP",
+      "owners": 1,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 624
+    },
+    {
+      "label": "corp-1o-unanimous....-RD--S-",
+      "entity": "CORP",
+      "owners": 1,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 494
+    },
+    {
+      "label": "corp-1o-unanimous....-R-T--C",
+      "entity": "CORP",
+      "owners": 1,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 479
+    },
+    {
+      "label": "corp-1o-unanimous....--DTNS-",
+      "entity": "CORP",
+      "owners": 1,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 475
+    },
+    {
+      "label": "corp-1o-unanimous....--D-N-C",
+      "entity": "CORP",
+      "owners": 1,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 482
+    },
+    {
+      "label": "corp-1o-unanimous....---T-SC",
+      "entity": "CORP",
+      "owners": 1,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 554
+    },
+    {
+      "label": "corp-1o-supermajority-RDTNSC",
+      "entity": "CORP",
+      "owners": 1,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 495
+    },
+    {
+      "label": "corp-1o-supermajority-------",
+      "entity": "CORP",
+      "owners": 1,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 698
+    },
+    {
+      "label": "corp-1o-supermajority-R--N--",
+      "entity": "CORP",
+      "owners": 1,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 1286
+    },
+    {
+      "label": "corp-1o-supermajority-RD--S-",
+      "entity": "CORP",
+      "owners": 1,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 397
+    },
+    {
+      "label": "corp-1o-supermajority-R-T--C",
+      "entity": "CORP",
+      "owners": 1,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 298
+    },
+    {
+      "label": "corp-1o-supermajority--DTNS-",
+      "entity": "CORP",
+      "owners": 1,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 448
+    },
+    {
+      "label": "corp-1o-supermajority--D-N-C",
+      "entity": "CORP",
+      "owners": 1,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 453
+    },
+    {
+      "label": "corp-1o-supermajority---T-SC",
+      "entity": "CORP",
+      "owners": 1,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 525
+    },
+    {
+      "label": "corp-2o-majority.....-RDTNSC",
+      "entity": "CORP",
+      "owners": 2,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 497
+    },
+    {
+      "label": "corp-2o-majority.....-------",
+      "entity": "CORP",
+      "owners": 2,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 460
+    },
+    {
+      "label": "corp-2o-majority.....-R--N--",
+      "entity": "CORP",
+      "owners": 2,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 482
+    },
+    {
+      "label": "corp-2o-majority.....-RD--S-",
+      "entity": "CORP",
+      "owners": 2,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 533
+    },
+    {
+      "label": "corp-2o-majority.....-R-T--C",
+      "entity": "CORP",
+      "owners": 2,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 528
+    },
+    {
+      "label": "corp-2o-majority.....--DTNS-",
+      "entity": "CORP",
+      "owners": 2,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 437
+    },
+    {
+      "label": "corp-2o-majority.....--D-N-C",
+      "entity": "CORP",
+      "owners": 2,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 476
+    },
+    {
+      "label": "corp-2o-majority.....---T-SC",
+      "entity": "CORP",
+      "owners": 2,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 421
+    },
+    {
+      "label": "corp-2o-unanimous....-RDTNSC",
+      "entity": "CORP",
+      "owners": 2,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 536
+    },
+    {
+      "label": "corp-2o-unanimous....-------",
+      "entity": "CORP",
+      "owners": 2,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 481
+    },
+    {
+      "label": "corp-2o-unanimous....-R--N--",
+      "entity": "CORP",
+      "owners": 2,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 467
+    },
+    {
+      "label": "corp-2o-unanimous....-RD--S-",
+      "entity": "CORP",
+      "owners": 2,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 545
+    },
+    {
+      "label": "corp-2o-unanimous....-R-T--C",
+      "entity": "CORP",
+      "owners": 2,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 498
+    },
+    {
+      "label": "corp-2o-unanimous....--DTNS-",
+      "entity": "CORP",
+      "owners": 2,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 569
+    },
+    {
+      "label": "corp-2o-unanimous....--D-N-C",
+      "entity": "CORP",
+      "owners": 2,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 551
+    },
+    {
+      "label": "corp-2o-unanimous....---T-SC",
+      "entity": "CORP",
+      "owners": 2,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 465
+    },
+    {
+      "label": "corp-2o-supermajority-RDTNSC",
+      "entity": "CORP",
+      "owners": 2,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 507
+    },
+    {
+      "label": "corp-2o-supermajority-------",
+      "entity": "CORP",
+      "owners": 2,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 464
+    },
+    {
+      "label": "corp-2o-supermajority-R--N--",
+      "entity": "CORP",
+      "owners": 2,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 463
+    },
+    {
+      "label": "corp-2o-supermajority-RD--S-",
+      "entity": "CORP",
+      "owners": 2,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 468
+    },
+    {
+      "label": "corp-2o-supermajority-R-T--C",
+      "entity": "CORP",
+      "owners": 2,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 470
+    },
+    {
+      "label": "corp-2o-supermajority--DTNS-",
+      "entity": "CORP",
+      "owners": 2,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 542
+    },
+    {
+      "label": "corp-2o-supermajority--D-N-C",
+      "entity": "CORP",
+      "owners": 2,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 484
+    },
+    {
+      "label": "corp-2o-supermajority---T-SC",
+      "entity": "CORP",
+      "owners": 2,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 503
+    },
+    {
+      "label": "corp-3o-majority.....-RDTNSC",
+      "entity": "CORP",
+      "owners": 3,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 607
+    },
+    {
+      "label": "corp-3o-majority.....-------",
+      "entity": "CORP",
+      "owners": 3,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 470
+    },
+    {
+      "label": "corp-3o-majority.....-R--N--",
+      "entity": "CORP",
+      "owners": 3,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 499
+    },
+    {
+      "label": "corp-3o-majority.....-RD--S-",
+      "entity": "CORP",
+      "owners": 3,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 549
+    },
+    {
+      "label": "corp-3o-majority.....-R-T--C",
+      "entity": "CORP",
+      "owners": 3,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 465
+    },
+    {
+      "label": "corp-3o-majority.....--DTNS-",
+      "entity": "CORP",
+      "owners": 3,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 453
+    },
+    {
+      "label": "corp-3o-majority.....--D-N-C",
+      "entity": "CORP",
+      "owners": 3,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 483
+    },
+    {
+      "label": "corp-3o-majority.....---T-SC",
+      "entity": "CORP",
+      "owners": 3,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 438
+    },
+    {
+      "label": "corp-3o-unanimous....-RDTNSC",
+      "entity": "CORP",
+      "owners": 3,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 510
+    },
+    {
+      "label": "corp-3o-unanimous....-------",
+      "entity": "CORP",
+      "owners": 3,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 450
+    },
+    {
+      "label": "corp-3o-unanimous....-R--N--",
+      "entity": "CORP",
+      "owners": 3,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 467
+    },
+    {
+      "label": "corp-3o-unanimous....-RD--S-",
+      "entity": "CORP",
+      "owners": 3,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 574
+    },
+    {
+      "label": "corp-3o-unanimous....-R-T--C",
+      "entity": "CORP",
+      "owners": 3,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 485
+    },
+    {
+      "label": "corp-3o-unanimous....--DTNS-",
+      "entity": "CORP",
+      "owners": 3,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 440
+    },
+    {
+      "label": "corp-3o-unanimous....--D-N-C",
+      "entity": "CORP",
+      "owners": 3,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 524
+    },
+    {
+      "label": "corp-3o-unanimous....---T-SC",
+      "entity": "CORP",
+      "owners": 3,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 489
+    },
+    {
+      "label": "corp-3o-supermajority-RDTNSC",
+      "entity": "CORP",
+      "owners": 3,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 512
+    },
+    {
+      "label": "corp-3o-supermajority-------",
+      "entity": "CORP",
+      "owners": 3,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 548
+    },
+    {
+      "label": "corp-3o-supermajority-R--N--",
+      "entity": "CORP",
+      "owners": 3,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 506
+    },
+    {
+      "label": "corp-3o-supermajority-RD--S-",
+      "entity": "CORP",
+      "owners": 3,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 542
+    },
+    {
+      "label": "corp-3o-supermajority-R-T--C",
+      "entity": "CORP",
+      "owners": 3,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 2546
+    },
+    {
+      "label": "corp-3o-supermajority--DTNS-",
+      "entity": "CORP",
+      "owners": 3,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 591
+    },
+    {
+      "label": "corp-3o-supermajority--D-N-C",
+      "entity": "CORP",
+      "owners": 3,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 638
+    },
+    {
+      "label": "corp-3o-supermajority---T-SC",
+      "entity": "CORP",
+      "owners": 3,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 456
+    },
+    {
+      "label": "corp-4o-majority.....-RDTNSC",
+      "entity": "CORP",
+      "owners": 4,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 2258
+    },
+    {
+      "label": "corp-4o-majority.....-------",
+      "entity": "CORP",
+      "owners": 4,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 833
+    },
+    {
+      "label": "corp-4o-majority.....-R--N--",
+      "entity": "CORP",
+      "owners": 4,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 1473
+    },
+    {
+      "label": "corp-4o-majority.....-RD--S-",
+      "entity": "CORP",
+      "owners": 4,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 1012
+    },
+    {
+      "label": "corp-4o-majority.....-R-T--C",
+      "entity": "CORP",
+      "owners": 4,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 686
+    },
+    {
+      "label": "corp-4o-majority.....--DTNS-",
+      "entity": "CORP",
+      "owners": 4,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 652
+    },
+    {
+      "label": "corp-4o-majority.....--D-N-C",
+      "entity": "CORP",
+      "owners": 4,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 523
+    },
+    {
+      "label": "corp-4o-majority.....---T-SC",
+      "entity": "CORP",
+      "owners": 4,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 656
+    },
+    {
+      "label": "corp-4o-unanimous....-RDTNSC",
+      "entity": "CORP",
+      "owners": 4,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 642
+    },
+    {
+      "label": "corp-4o-unanimous....-------",
+      "entity": "CORP",
+      "owners": 4,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 613
+    },
+    {
+      "label": "corp-4o-unanimous....-R--N--",
+      "entity": "CORP",
+      "owners": 4,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 546
+    },
+    {
+      "label": "corp-4o-unanimous....-RD--S-",
+      "entity": "CORP",
+      "owners": 4,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 645
+    },
+    {
+      "label": "corp-4o-unanimous....-R-T--C",
+      "entity": "CORP",
+      "owners": 4,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 649
+    },
+    {
+      "label": "corp-4o-unanimous....--DTNS-",
+      "entity": "CORP",
+      "owners": 4,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 617
+    },
+    {
+      "label": "corp-4o-unanimous....--D-N-C",
+      "entity": "CORP",
+      "owners": 4,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 632
+    },
+    {
+      "label": "corp-4o-unanimous....---T-SC",
+      "entity": "CORP",
+      "owners": 4,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 714
+    },
+    {
+      "label": "corp-4o-supermajority-RDTNSC",
+      "entity": "CORP",
+      "owners": 4,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 721
+    },
+    {
+      "label": "corp-4o-supermajority-------",
+      "entity": "CORP",
+      "owners": 4,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 586
+    },
+    {
+      "label": "corp-4o-supermajority-R--N--",
+      "entity": "CORP",
+      "owners": 4,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 465
+    },
+    {
+      "label": "corp-4o-supermajority-RD--S-",
+      "entity": "CORP",
+      "owners": 4,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 702
+    },
+    {
+      "label": "corp-4o-supermajority-R-T--C",
+      "entity": "CORP",
+      "owners": 4,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 474
+    },
+    {
+      "label": "corp-4o-supermajority--DTNS-",
+      "entity": "CORP",
+      "owners": 4,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 709
+    },
+    {
+      "label": "corp-4o-supermajority--D-N-C",
+      "entity": "CORP",
+      "owners": 4,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 544
+    },
+    {
+      "label": "corp-4o-supermajority---T-SC",
+      "entity": "CORP",
+      "owners": 4,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 493
+    },
+    {
+      "label": "corp-5o-majority.....-RDTNSC",
+      "entity": "CORP",
+      "owners": 5,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 410
+    },
+    {
+      "label": "corp-5o-majority.....-------",
+      "entity": "CORP",
+      "owners": 5,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 520
+    },
+    {
+      "label": "corp-5o-majority.....-R--N--",
+      "entity": "CORP",
+      "owners": 5,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 497
+    },
+    {
+      "label": "corp-5o-majority.....-RD--S-",
+      "entity": "CORP",
+      "owners": 5,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 468
+    },
+    {
+      "label": "corp-5o-majority.....-R-T--C",
+      "entity": "CORP",
+      "owners": 5,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 599
+    },
+    {
+      "label": "corp-5o-majority.....--DTNS-",
+      "entity": "CORP",
+      "owners": 5,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 547
+    },
+    {
+      "label": "corp-5o-majority.....--D-N-C",
+      "entity": "CORP",
+      "owners": 5,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 566
+    },
+    {
+      "label": "corp-5o-majority.....---T-SC",
+      "entity": "CORP",
+      "owners": 5,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 676
+    },
+    {
+      "label": "corp-5o-unanimous....-RDTNSC",
+      "entity": "CORP",
+      "owners": 5,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 418
+    },
+    {
+      "label": "corp-5o-unanimous....-------",
+      "entity": "CORP",
+      "owners": 5,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 593
+    },
+    {
+      "label": "corp-5o-unanimous....-R--N--",
+      "entity": "CORP",
+      "owners": 5,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 475
+    },
+    {
+      "label": "corp-5o-unanimous....-RD--S-",
+      "entity": "CORP",
+      "owners": 5,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 513
+    },
+    {
+      "label": "corp-5o-unanimous....-R-T--C",
+      "entity": "CORP",
+      "owners": 5,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 475
+    },
+    {
+      "label": "corp-5o-unanimous....--DTNS-",
+      "entity": "CORP",
+      "owners": 5,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 513
+    },
+    {
+      "label": "corp-5o-unanimous....--D-N-C",
+      "entity": "CORP",
+      "owners": 5,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 555
+    },
+    {
+      "label": "corp-5o-unanimous....---T-SC",
+      "entity": "CORP",
+      "owners": 5,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 544
+    },
+    {
+      "label": "corp-5o-supermajority-RDTNSC",
+      "entity": "CORP",
+      "owners": 5,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 623
+    },
+    {
+      "label": "corp-5o-supermajority-------",
+      "entity": "CORP",
+      "owners": 5,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 605
+    },
+    {
+      "label": "corp-5o-supermajority-R--N--",
+      "entity": "CORP",
+      "owners": 5,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 396
+    },
+    {
+      "label": "corp-5o-supermajority-RD--S-",
+      "entity": "CORP",
+      "owners": 5,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 623
+    },
+    {
+      "label": "corp-5o-supermajority-R-T--C",
+      "entity": "CORP",
+      "owners": 5,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 424
+    },
+    {
+      "label": "corp-5o-supermajority--DTNS-",
+      "entity": "CORP",
+      "owners": 5,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 571
+    },
+    {
+      "label": "corp-5o-supermajority--D-N-C",
+      "entity": "CORP",
+      "owners": 5,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 558
+    },
+    {
+      "label": "corp-5o-supermajority---T-SC",
+      "entity": "CORP",
+      "owners": 5,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 624
+    },
+    {
+      "label": "corp-6o-majority.....-RDTNSC",
+      "entity": "CORP",
+      "owners": 6,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 627
+    },
+    {
+      "label": "corp-6o-majority.....-------",
+      "entity": "CORP",
+      "owners": 6,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 522
+    },
+    {
+      "label": "corp-6o-majority.....-R--N--",
+      "entity": "CORP",
+      "owners": 6,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 749
+    },
+    {
+      "label": "corp-6o-majority.....-RD--S-",
+      "entity": "CORP",
+      "owners": 6,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 655
+    },
+    {
+      "label": "corp-6o-majority.....-R-T--C",
+      "entity": "CORP",
+      "owners": 6,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 603
+    },
+    {
+      "label": "corp-6o-majority.....--DTNS-",
+      "entity": "CORP",
+      "owners": 6,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 677
+    },
+    {
+      "label": "corp-6o-majority.....--D-N-C",
+      "entity": "CORP",
+      "owners": 6,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 605
+    },
+    {
+      "label": "corp-6o-majority.....---T-SC",
+      "entity": "CORP",
+      "owners": 6,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 684
+    },
+    {
+      "label": "corp-6o-unanimous....-RDTNSC",
+      "entity": "CORP",
+      "owners": 6,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 698
+    },
+    {
+      "label": "corp-6o-unanimous....-------",
+      "entity": "CORP",
+      "owners": 6,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 614
+    },
+    {
+      "label": "corp-6o-unanimous....-R--N--",
+      "entity": "CORP",
+      "owners": 6,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 572
+    },
+    {
+      "label": "corp-6o-unanimous....-RD--S-",
+      "entity": "CORP",
+      "owners": 6,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 621
+    },
+    {
+      "label": "corp-6o-unanimous....-R-T--C",
+      "entity": "CORP",
+      "owners": 6,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 651
+    },
+    {
+      "label": "corp-6o-unanimous....--DTNS-",
+      "entity": "CORP",
+      "owners": 6,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 595
+    },
+    {
+      "label": "corp-6o-unanimous....--D-N-C",
+      "entity": "CORP",
+      "owners": 6,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 645
+    },
+    {
+      "label": "corp-6o-unanimous....---T-SC",
+      "entity": "CORP",
+      "owners": 6,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 688
+    },
+    {
+      "label": "corp-6o-supermajority-RDTNSC",
+      "entity": "CORP",
+      "owners": 6,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 544
+    },
+    {
+      "label": "corp-6o-supermajority-------",
+      "entity": "CORP",
+      "owners": 6,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 659
+    },
+    {
+      "label": "corp-6o-supermajority-R--N--",
+      "entity": "CORP",
+      "owners": 6,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 533
+    },
+    {
+      "label": "corp-6o-supermajority-RD--S-",
+      "entity": "CORP",
+      "owners": 6,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 565
+    },
+    {
+      "label": "corp-6o-supermajority-R-T--C",
+      "entity": "CORP",
+      "owners": 6,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 493
+    },
+    {
+      "label": "corp-6o-supermajority--DTNS-",
+      "entity": "CORP",
+      "owners": 6,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 554
+    },
+    {
+      "label": "corp-6o-supermajority--D-N-C",
+      "entity": "CORP",
+      "owners": 6,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 557
+    },
+    {
+      "label": "corp-6o-supermajority---T-SC",
+      "entity": "CORP",
+      "owners": 6,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 636
+    },
+    {
+      "label": "llc-1o-majority.....-RDTNSC",
+      "entity": "LLC",
+      "owners": 1,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 330
+    },
+    {
+      "label": "llc-1o-majority.....-------",
+      "entity": "LLC",
+      "owners": 1,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 344
+    },
+    {
+      "label": "llc-1o-majority.....-R--N--",
+      "entity": "LLC",
+      "owners": 1,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 296
+    },
+    {
+      "label": "llc-1o-majority.....-RD--S-",
+      "entity": "LLC",
+      "owners": 1,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 448
+    },
+    {
+      "label": "llc-1o-majority.....-R-T--C",
+      "entity": "LLC",
+      "owners": 1,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 189
+    },
+    {
+      "label": "llc-1o-majority.....--DTNS-",
+      "entity": "LLC",
+      "owners": 1,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 270
+    },
+    {
+      "label": "llc-1o-majority.....--D-N-C",
+      "entity": "LLC",
+      "owners": 1,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 444
+    },
+    {
+      "label": "llc-1o-majority.....---T-SC",
+      "entity": "LLC",
+      "owners": 1,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 367
+    },
+    {
+      "label": "llc-1o-unanimous....-RDTNSC",
+      "entity": "LLC",
+      "owners": 1,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 306
+    },
+    {
+      "label": "llc-1o-unanimous....-------",
+      "entity": "LLC",
+      "owners": 1,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 381
+    },
+    {
+      "label": "llc-1o-unanimous....-R--N--",
+      "entity": "LLC",
+      "owners": 1,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 360
+    },
+    {
+      "label": "llc-1o-unanimous....-RD--S-",
+      "entity": "LLC",
+      "owners": 1,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 327
+    },
+    {
+      "label": "llc-1o-unanimous....-R-T--C",
+      "entity": "LLC",
+      "owners": 1,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 279
+    },
+    {
+      "label": "llc-1o-unanimous....--DTNS-",
+      "entity": "LLC",
+      "owners": 1,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 332
+    },
+    {
+      "label": "llc-1o-unanimous....--D-N-C",
+      "entity": "LLC",
+      "owners": 1,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 286
+    },
+    {
+      "label": "llc-1o-unanimous....---T-SC",
+      "entity": "LLC",
+      "owners": 1,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 402
+    },
+    {
+      "label": "llc-1o-supermajority-RDTNSC",
+      "entity": "LLC",
+      "owners": 1,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 273
+    },
+    {
+      "label": "llc-1o-supermajority-------",
+      "entity": "LLC",
+      "owners": 1,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 311
+    },
+    {
+      "label": "llc-1o-supermajority-R--N--",
+      "entity": "LLC",
+      "owners": 1,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 290
+    },
+    {
+      "label": "llc-1o-supermajority-RD--S-",
+      "entity": "LLC",
+      "owners": 1,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 311
+    },
+    {
+      "label": "llc-1o-supermajority-R-T--C",
+      "entity": "LLC",
+      "owners": 1,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 298
+    },
+    {
+      "label": "llc-1o-supermajority--DTNS-",
+      "entity": "LLC",
+      "owners": 1,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 388
+    },
+    {
+      "label": "llc-1o-supermajority--D-N-C",
+      "entity": "LLC",
+      "owners": 1,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 248
+    },
+    {
+      "label": "llc-1o-supermajority---T-SC",
+      "entity": "LLC",
+      "owners": 1,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 146
+    },
+    {
+      "label": "llc-2o-majority.....-RDTNSC",
+      "entity": "LLC",
+      "owners": 2,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 401
+    },
+    {
+      "label": "llc-2o-majority.....-------",
+      "entity": "LLC",
+      "owners": 2,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 341
+    },
+    {
+      "label": "llc-2o-majority.....-R--N--",
+      "entity": "LLC",
+      "owners": 2,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 281
+    },
+    {
+      "label": "llc-2o-majority.....-RD--S-",
+      "entity": "LLC",
+      "owners": 2,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 306
+    },
+    {
+      "label": "llc-2o-majority.....-R-T--C",
+      "entity": "LLC",
+      "owners": 2,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 306
+    },
+    {
+      "label": "llc-2o-majority.....--DTNS-",
+      "entity": "LLC",
+      "owners": 2,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 307
+    },
+    {
+      "label": "llc-2o-majority.....--D-N-C",
+      "entity": "LLC",
+      "owners": 2,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 347
+    },
+    {
+      "label": "llc-2o-majority.....---T-SC",
+      "entity": "LLC",
+      "owners": 2,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 273
+    },
+    {
+      "label": "llc-2o-unanimous....-RDTNSC",
+      "entity": "LLC",
+      "owners": 2,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 316
+    },
+    {
+      "label": "llc-2o-unanimous....-------",
+      "entity": "LLC",
+      "owners": 2,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 376
+    },
+    {
+      "label": "llc-2o-unanimous....-R--N--",
+      "entity": "LLC",
+      "owners": 2,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 272
+    },
+    {
+      "label": "llc-2o-unanimous....-RD--S-",
+      "entity": "LLC",
+      "owners": 2,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 323
+    },
+    {
+      "label": "llc-2o-unanimous....-R-T--C",
+      "entity": "LLC",
+      "owners": 2,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 362
+    },
+    {
+      "label": "llc-2o-unanimous....--DTNS-",
+      "entity": "LLC",
+      "owners": 2,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 378
+    },
+    {
+      "label": "llc-2o-unanimous....--D-N-C",
+      "entity": "LLC",
+      "owners": 2,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 430
+    },
+    {
+      "label": "llc-2o-unanimous....---T-SC",
+      "entity": "LLC",
+      "owners": 2,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 180
+    },
+    {
+      "label": "llc-2o-supermajority-RDTNSC",
+      "entity": "LLC",
+      "owners": 2,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 361
+    },
+    {
+      "label": "llc-2o-supermajority-------",
+      "entity": "LLC",
+      "owners": 2,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 415
+    },
+    {
+      "label": "llc-2o-supermajority-R--N--",
+      "entity": "LLC",
+      "owners": 2,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 315
+    },
+    {
+      "label": "llc-2o-supermajority-RD--S-",
+      "entity": "LLC",
+      "owners": 2,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 301
+    },
+    {
+      "label": "llc-2o-supermajority-R-T--C",
+      "entity": "LLC",
+      "owners": 2,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 293
+    },
+    {
+      "label": "llc-2o-supermajority--DTNS-",
+      "entity": "LLC",
+      "owners": 2,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 301
+    },
+    {
+      "label": "llc-2o-supermajority--D-N-C",
+      "entity": "LLC",
+      "owners": 2,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 329
+    },
+    {
+      "label": "llc-2o-supermajority---T-SC",
+      "entity": "LLC",
+      "owners": 2,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 265
+    },
+    {
+      "label": "llc-3o-majority.....-RDTNSC",
+      "entity": "LLC",
+      "owners": 3,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 268
+    },
+    {
+      "label": "llc-3o-majority.....-------",
+      "entity": "LLC",
+      "owners": 3,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 292
+    },
+    {
+      "label": "llc-3o-majority.....-R--N--",
+      "entity": "LLC",
+      "owners": 3,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 222
+    },
+    {
+      "label": "llc-3o-majority.....-RD--S-",
+      "entity": "LLC",
+      "owners": 3,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 289
+    },
+    {
+      "label": "llc-3o-majority.....-R-T--C",
+      "entity": "LLC",
+      "owners": 3,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 346
+    },
+    {
+      "label": "llc-3o-majority.....--DTNS-",
+      "entity": "LLC",
+      "owners": 3,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 363
+    },
+    {
+      "label": "llc-3o-majority.....--D-N-C",
+      "entity": "LLC",
+      "owners": 3,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 349
+    },
+    {
+      "label": "llc-3o-majority.....---T-SC",
+      "entity": "LLC",
+      "owners": 3,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 226
+    },
+    {
+      "label": "llc-3o-unanimous....-RDTNSC",
+      "entity": "LLC",
+      "owners": 3,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 572
+    },
+    {
+      "label": "llc-3o-unanimous....-------",
+      "entity": "LLC",
+      "owners": 3,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 236
+    },
+    {
+      "label": "llc-3o-unanimous....-R--N--",
+      "entity": "LLC",
+      "owners": 3,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 293
+    },
+    {
+      "label": "llc-3o-unanimous....-RD--S-",
+      "entity": "LLC",
+      "owners": 3,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 326
+    },
+    {
+      "label": "llc-3o-unanimous....-R-T--C",
+      "entity": "LLC",
+      "owners": 3,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 352
+    },
+    {
+      "label": "llc-3o-unanimous....--DTNS-",
+      "entity": "LLC",
+      "owners": 3,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 338
+    },
+    {
+      "label": "llc-3o-unanimous....--D-N-C",
+      "entity": "LLC",
+      "owners": 3,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 350
+    },
+    {
+      "label": "llc-3o-unanimous....---T-SC",
+      "entity": "LLC",
+      "owners": 3,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 288
+    },
+    {
+      "label": "llc-3o-supermajority-RDTNSC",
+      "entity": "LLC",
+      "owners": 3,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 365
+    },
+    {
+      "label": "llc-3o-supermajority-------",
+      "entity": "LLC",
+      "owners": 3,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 292
+    },
+    {
+      "label": "llc-3o-supermajority-R--N--",
+      "entity": "LLC",
+      "owners": 3,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 301
+    },
+    {
+      "label": "llc-3o-supermajority-RD--S-",
+      "entity": "LLC",
+      "owners": 3,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 331
+    },
+    {
+      "label": "llc-3o-supermajority-R-T--C",
+      "entity": "LLC",
+      "owners": 3,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 310
+    },
+    {
+      "label": "llc-3o-supermajority--DTNS-",
+      "entity": "LLC",
+      "owners": 3,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 380
+    },
+    {
+      "label": "llc-3o-supermajority--D-N-C",
+      "entity": "LLC",
+      "owners": 3,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 170
+    },
+    {
+      "label": "llc-3o-supermajority---T-SC",
+      "entity": "LLC",
+      "owners": 3,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 362
+    },
+    {
+      "label": "llc-4o-majority.....-RDTNSC",
+      "entity": "LLC",
+      "owners": 4,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 381
+    },
+    {
+      "label": "llc-4o-majority.....-------",
+      "entity": "LLC",
+      "owners": 4,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 290
+    },
+    {
+      "label": "llc-4o-majority.....-R--N--",
+      "entity": "LLC",
+      "owners": 4,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 358
+    },
+    {
+      "label": "llc-4o-majority.....-RD--S-",
+      "entity": "LLC",
+      "owners": 4,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 281
+    },
+    {
+      "label": "llc-4o-majority.....-R-T--C",
+      "entity": "LLC",
+      "owners": 4,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 372
+    },
+    {
+      "label": "llc-4o-majority.....--DTNS-",
+      "entity": "LLC",
+      "owners": 4,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 278
+    },
+    {
+      "label": "llc-4o-majority.....--D-N-C",
+      "entity": "LLC",
+      "owners": 4,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 388
+    },
+    {
+      "label": "llc-4o-majority.....---T-SC",
+      "entity": "LLC",
+      "owners": 4,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 297
+    },
+    {
+      "label": "llc-4o-unanimous....-RDTNSC",
+      "entity": "LLC",
+      "owners": 4,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 399
+    },
+    {
+      "label": "llc-4o-unanimous....-------",
+      "entity": "LLC",
+      "owners": 4,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 297
+    },
+    {
+      "label": "llc-4o-unanimous....-R--N--",
+      "entity": "LLC",
+      "owners": 4,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 332
+    },
+    {
+      "label": "llc-4o-unanimous....-RD--S-",
+      "entity": "LLC",
+      "owners": 4,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 352
+    },
+    {
+      "label": "llc-4o-unanimous....-R-T--C",
+      "entity": "LLC",
+      "owners": 4,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 389
+    },
+    {
+      "label": "llc-4o-unanimous....--DTNS-",
+      "entity": "LLC",
+      "owners": 4,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 434
+    },
+    {
+      "label": "llc-4o-unanimous....--D-N-C",
+      "entity": "LLC",
+      "owners": 4,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 430
+    },
+    {
+      "label": "llc-4o-unanimous....---T-SC",
+      "entity": "LLC",
+      "owners": 4,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 220
+    },
+    {
+      "label": "llc-4o-supermajority-RDTNSC",
+      "entity": "LLC",
+      "owners": 4,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 428
+    },
+    {
+      "label": "llc-4o-supermajority-------",
+      "entity": "LLC",
+      "owners": 4,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 393
+    },
+    {
+      "label": "llc-4o-supermajority-R--N--",
+      "entity": "LLC",
+      "owners": 4,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 324
+    },
+    {
+      "label": "llc-4o-supermajority-RD--S-",
+      "entity": "LLC",
+      "owners": 4,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 295
+    },
+    {
+      "label": "llc-4o-supermajority-R-T--C",
+      "entity": "LLC",
+      "owners": 4,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 373
+    },
+    {
+      "label": "llc-4o-supermajority--DTNS-",
+      "entity": "LLC",
+      "owners": 4,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 356
+    },
+    {
+      "label": "llc-4o-supermajority--D-N-C",
+      "entity": "LLC",
+      "owners": 4,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 356
+    },
+    {
+      "label": "llc-4o-supermajority---T-SC",
+      "entity": "LLC",
+      "owners": 4,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 294
+    },
+    {
+      "label": "llc-5o-majority.....-RDTNSC",
+      "entity": "LLC",
+      "owners": 5,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 310
+    },
+    {
+      "label": "llc-5o-majority.....-------",
+      "entity": "LLC",
+      "owners": 5,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 324
+    },
+    {
+      "label": "llc-5o-majority.....-R--N--",
+      "entity": "LLC",
+      "owners": 5,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 271
+    },
+    {
+      "label": "llc-5o-majority.....-RD--S-",
+      "entity": "LLC",
+      "owners": 5,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 319
+    },
+    {
+      "label": "llc-5o-majority.....-R-T--C",
+      "entity": "LLC",
+      "owners": 5,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 391
+    },
+    {
+      "label": "llc-5o-majority.....--DTNS-",
+      "entity": "LLC",
+      "owners": 5,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 384
+    },
+    {
+      "label": "llc-5o-majority.....--D-N-C",
+      "entity": "LLC",
+      "owners": 5,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 351
+    },
+    {
+      "label": "llc-5o-majority.....---T-SC",
+      "entity": "LLC",
+      "owners": 5,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 261
+    },
+    {
+      "label": "llc-5o-unanimous....-RDTNSC",
+      "entity": "LLC",
+      "owners": 5,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 471
+    },
+    {
+      "label": "llc-5o-unanimous....-------",
+      "entity": "LLC",
+      "owners": 5,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 321
+    },
+    {
+      "label": "llc-5o-unanimous....-R--N--",
+      "entity": "LLC",
+      "owners": 5,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 310
+    },
+    {
+      "label": "llc-5o-unanimous....-RD--S-",
+      "entity": "LLC",
+      "owners": 5,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 316
+    },
+    {
+      "label": "llc-5o-unanimous....-R-T--C",
+      "entity": "LLC",
+      "owners": 5,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 387
+    },
+    {
+      "label": "llc-5o-unanimous....--DTNS-",
+      "entity": "LLC",
+      "owners": 5,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 334
+    },
+    {
+      "label": "llc-5o-unanimous....--D-N-C",
+      "entity": "LLC",
+      "owners": 5,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 331
+    },
+    {
+      "label": "llc-5o-unanimous....---T-SC",
+      "entity": "LLC",
+      "owners": 5,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 355
+    },
+    {
+      "label": "llc-5o-supermajority-RDTNSC",
+      "entity": "LLC",
+      "owners": 5,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 303
+    },
+    {
+      "label": "llc-5o-supermajority-------",
+      "entity": "LLC",
+      "owners": 5,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 374
+    },
+    {
+      "label": "llc-5o-supermajority-R--N--",
+      "entity": "LLC",
+      "owners": 5,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 379
+    },
+    {
+      "label": "llc-5o-supermajority-RD--S-",
+      "entity": "LLC",
+      "owners": 5,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 329
+    },
+    {
+      "label": "llc-5o-supermajority-R-T--C",
+      "entity": "LLC",
+      "owners": 5,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 300
+    },
+    {
+      "label": "llc-5o-supermajority--DTNS-",
+      "entity": "LLC",
+      "owners": 5,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 351
+    },
+    {
+      "label": "llc-5o-supermajority--D-N-C",
+      "entity": "LLC",
+      "owners": 5,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 431
+    },
+    {
+      "label": "llc-5o-supermajority---T-SC",
+      "entity": "LLC",
+      "owners": 5,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 294
+    },
+    {
+      "label": "llc-6o-majority.....-RDTNSC",
+      "entity": "LLC",
+      "owners": 6,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 420
+    },
+    {
+      "label": "llc-6o-majority.....-------",
+      "entity": "LLC",
+      "owners": 6,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 365
+    },
+    {
+      "label": "llc-6o-majority.....-R--N--",
+      "entity": "LLC",
+      "owners": 6,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 213
+    },
+    {
+      "label": "llc-6o-majority.....-RD--S-",
+      "entity": "LLC",
+      "owners": 6,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 345
+    },
+    {
+      "label": "llc-6o-majority.....-R-T--C",
+      "entity": "LLC",
+      "owners": 6,
+      "voting": "majority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 450
+    },
+    {
+      "label": "llc-6o-majority.....--DTNS-",
+      "entity": "LLC",
+      "owners": 6,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 331
+    },
+    {
+      "label": "llc-6o-majority.....--D-N-C",
+      "entity": "LLC",
+      "owners": 6,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 432
+    },
+    {
+      "label": "llc-6o-majority.....---T-SC",
+      "entity": "LLC",
+      "owners": 6,
+      "voting": "majority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 353
+    },
+    {
+      "label": "llc-6o-unanimous....-RDTNSC",
+      "entity": "LLC",
+      "owners": 6,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 383
+    },
+    {
+      "label": "llc-6o-unanimous....-------",
+      "entity": "LLC",
+      "owners": 6,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 369
+    },
+    {
+      "label": "llc-6o-unanimous....-R--N--",
+      "entity": "LLC",
+      "owners": 6,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 339
+    },
+    {
+      "label": "llc-6o-unanimous....-RD--S-",
+      "entity": "LLC",
+      "owners": 6,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 350
+    },
+    {
+      "label": "llc-6o-unanimous....-R-T--C",
+      "entity": "LLC",
+      "owners": 6,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 396
+    },
+    {
+      "label": "llc-6o-unanimous....--DTNS-",
+      "entity": "LLC",
+      "owners": 6,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 314
+    },
+    {
+      "label": "llc-6o-unanimous....--D-N-C",
+      "entity": "LLC",
+      "owners": 6,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 351
+    },
+    {
+      "label": "llc-6o-unanimous....---T-SC",
+      "entity": "LLC",
+      "owners": 6,
+      "voting": "unanimous",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 366
+    },
+    {
+      "label": "llc-6o-supermajority-RDTNSC",
+      "entity": "LLC",
+      "owners": 6,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 390
+    },
+    {
+      "label": "llc-6o-supermajority-------",
+      "entity": "LLC",
+      "owners": 6,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": false,
+        "nc": false,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 370
+    },
+    {
+      "label": "llc-6o-supermajority-R--N--",
+      "entity": "LLC",
+      "owners": 6,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 211
+    },
+    {
+      "label": "llc-6o-supermajority-RD--S-",
+      "entity": "LLC",
+      "owners": 6,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": true,
+        "tag": false,
+        "nc": false,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 391
+    },
+    {
+      "label": "llc-6o-supermajority-R-T--C",
+      "entity": "LLC",
+      "owners": 6,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": true,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 404
+    },
+    {
+      "label": "llc-6o-supermajority--DTNS-",
+      "entity": "LLC",
+      "owners": 6,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": true,
+        "nc": true,
+        "ns": true,
+        "conf": false
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 283
+    },
+    {
+      "label": "llc-6o-supermajority--D-N-C",
+      "entity": "LLC",
+      "owners": 6,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": true,
+        "tag": false,
+        "nc": true,
+        "ns": false,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 350
+    },
+    {
+      "label": "llc-6o-supermajority---T-SC",
+      "entity": "LLC",
+      "owners": 6,
+      "voting": "supermajority",
+      "covenants": {
+        "rofr": false,
+        "drag": false,
+        "tag": true,
+        "nc": false,
+        "ns": true,
+        "conf": true
+      },
+      "status": "PASS",
+      "issues": [],
+      "elapsed_ms": 320
+    }
+  ]
+}

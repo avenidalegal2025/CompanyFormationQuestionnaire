@@ -1,0 +1,49 @@
+name: Variant Audit
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/lib/agreement-docgen.ts'
+      - 'src/lib/agreement-mapper.ts'
+      - 'templates/**'
+      - 'scripts/audit-corp-structure.mjs'
+      - 'scripts/audit-all-variants.ts'
+      - 'scripts/lib/agreement-variants.mjs'
+  push:
+    branches: [main]
+    paths:
+      - 'src/lib/agreement-docgen.ts'
+      - 'src/lib/agreement-mapper.ts'
+      - 'templates/**'
+  workflow_dispatch:
+
+jobs:
+  audit:
+    name: Mechanical Audit (288 variants)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Run 288-variant audit
+        run: npx tsx scripts/audit-all-variants.ts --out=audit-all-results.json
+
+      - name: Drift check vs baseline
+        run: npx tsx scripts/audit-drift-check.ts --baseline=tests/__snapshots__/audit-baseline.json --current=audit-all-results.json
+
+      - name: Upload audit JSON
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-all-results
+          path: audit-all-results.json
+          retention-days: 30
