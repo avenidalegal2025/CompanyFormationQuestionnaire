@@ -650,10 +650,11 @@ function removeLLCConditionalSections(
     const nsDuration = answers.noncompete_duration || 2;
     const nsDurWord = numberToWords(nsDuration).toUpperCase();
 
-    // Find ND's current number (template = 11.12; bumped to 11.13 by NC insert).
-    const ndNumMatch = xml.match(/>(11\.\d+)<\/w:t>[\s\S]{0,200}?Non-Disparagement/);
-    const ndNum = ndNumMatch ? ndNumMatch[1] : "11.12";
-    const nsNum = ndNum === "11.13" ? "11.14" : "11.13";
+    // Direct presence check: NC inserts a "Covenant Against Competition"
+    // clause AND bumps ND's number from 11.12 → 11.13. So if NC text is
+    // in the doc, ND is at 11.13 and NS goes at 11.14. Otherwise ND is
+    // at 11.12 and NS goes at 11.13.
+    const nsNum = xml.includes("Covenant Against Competition") ? "11.14" : "11.13";
 
     const nonSolicitationText =
       `${nsNum} Non-Solicitation. ` +
