@@ -427,4 +427,73 @@ function buildGroupF() {
 }
 
 
-export { NAMES, buildGroupM, buildGroupA, buildGroupB, buildGroupC, buildGroupD, buildGroupE, buildGroupF, baseFormData, withResponsibilities, assertMatrixBase, assertResponsibilities, assertThresholds };
+// Group P — pairwise sample across all axes for full UI verification.
+// Uses scripts/lib/pairwise.mjs to generate the minimum set of cases
+// such that every PAIR of axis values is exercised at least once.
+// Produces ~26 variants for 14 axes vs full cartesian of thousands —
+// catches interaction bugs that single-axis sampling (Group D-F) miss.
+import { pairwise } from './pairwise.mjs';
+function buildGroupP() {
+  const axes = {
+    entity: ['C-Corp', 'LLC'],
+    ownerCount: [1, 2, 3, 4, 5, 6],
+    voting: ['majority', 'mixed', 'unanimous'],
+    rofr: [true, false],
+    dragTag: [true, false],
+    nonCompete: ['Yes', 'No'],
+    nonSolicitation: ['Yes', 'No'],
+    confidentiality: ['Yes', 'No'],
+    distributionFrequency: ['Trimestral', 'Semestral', 'Anual', 'Discreción de la Junta'],
+    loans: [true, false],
+    transferToRelatives: ['unanimous', 'majority', 'free'],
+    incapacityHeirs: [true, false],
+    divorceBuyout: [true, false],
+    moreCapital: ['Pro-Rata', 'No'],
+  };
+  const cases = pairwise(axes);
+  const out = [];
+  for (let i = 0; i < cases.length; i++) {
+    const c = cases[i];
+    const flags = `${c.rofr?'R':'-'}${c.dragTag?'D':'-'}${c.nonCompete[0]}${c.nonSolicitation[0]}${c.confidentiality[0]}`;
+    const label = `P${String(i+1).padStart(2,'0')}_${c.entity === 'C-Corp' ? 'Corp' : 'LLC'}_${c.ownerCount}o_${c.voting[0]}_${flags}`;
+    const v = baseFormData({
+      entity: c.entity, ownerCount: c.ownerCount, voting: c.voting,
+      rofr: c.rofr, dragTag: c.dragTag, nonCompete: c.nonCompete,
+      nonSolicitation: c.nonSolicitation, confidentiality: c.confidentiality,
+      distributionFrequency: c.distributionFrequency, loans: c.loans,
+      transferToRelatives: c.transferToRelatives,
+      incapacityHeirs: c.incapacityHeirs, divorceBuyout: c.divorceBuyout,
+      moreCapital: c.moreCapital, label,
+    });
+    v.run = (text) => {
+      const errs = assertMatrixBase(text, v.meta);
+      // Per-toggle presence/absence assertions (same shape as Group D)
+      if (c.nonCompete === 'Yes' && !text.includes('Covenant Against Competition')) {
+        errs.push('non-compete=Yes but "Covenant Against Competition" missing');
+      }
+      if (c.nonCompete === 'No' && text.includes('Covenant Against Competition')) {
+        errs.push('non-compete=No but "Covenant Against Competition" present');
+      }
+      const hasNS = /\bNon-Solicitation\b/.test(text) && text.includes('NS Restrictive Period');
+      if (c.nonSolicitation === 'Yes' && !hasNS) {
+        errs.push('non-solicitation=Yes but standalone Non-Solicitation clause missing');
+      }
+      if (c.nonSolicitation === 'No' && hasNS) {
+        errs.push('non-solicitation=No but Non-Solicitation clause present');
+      }
+      const hasCF = text.includes('"Confidential Information" means all private (non-public)') ||
+                    text.includes('“Confidential Information” means all private (non-public)');
+      if (c.confidentiality === 'Yes' && !hasCF) {
+        errs.push('confidentiality=Yes but Non-Disclosure clause missing');
+      }
+      if (c.confidentiality === 'No' && hasCF) {
+        errs.push('confidentiality=No but Confidential Information clause still present');
+      }
+      return errs;
+    };
+    out.push(v);
+  }
+  return out;
+}
+
+export { NAMES, buildGroupM, buildGroupA, buildGroupB, buildGroupC, buildGroupD, buildGroupE, buildGroupF, buildGroupP, baseFormData, withResponsibilities, assertMatrixBase, assertResponsibilities, assertThresholds };

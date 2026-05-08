@@ -334,11 +334,21 @@ const onlyArg = process.argv.find((a) => a.startsWith('--only='));
 const ONLY = onlyArg ? onlyArg.slice('--only='.length) : null;
 const limitArg = process.argv.find((a) => a.startsWith('--limit='));
 const LIMIT = limitArg ? parseInt(limitArg.slice('--limit='.length), 10) : null;
+const matrixArg = process.argv.find((a) => a.startsWith('--matrix='));
+const MATRIX = matrixArg ? matrixArg.slice('--matrix='.length) : 'd';
 
-let VARIANTS = buildGroupD();
+let VARIANTS;
+if (MATRIX === 'pairwise' || MATRIX === 'p') {
+  // Pairwise sample across 14 axes — every pair of axis values exercised
+  // at least once. ~26 cases for full coverage; runs in ~2.5 hours via UI.
+  const { buildGroupP } = await import('./lib/agreement-variants.mjs');
+  VARIANTS = buildGroupP();
+} else {
+  VARIANTS = buildGroupD();
+}
 if (ONLY) VARIANTS = VARIANTS.filter((v) => v.label.includes(ONLY));
 if (LIMIT) VARIANTS = VARIANTS.slice(0, LIMIT);
-console.log(`→ ${VARIANTS.length} variants selected`);
+console.log(`→ ${VARIANTS.length} variants selected (matrix=${MATRIX})`);
 
 // ─── Per-variant runner ────────────────────────────────────────────
 
