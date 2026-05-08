@@ -58,9 +58,37 @@ if (!existsSync(AUDIT_PATH)) {
 
 const audit: AuditReport = JSON.parse(readFileSync(AUDIT_PATH, 'utf8'));
 const uiResults: Record<string, { status: string; issues: string[] }> = {};
+const uiSample: Array<{ label: string; status: string; issues: string[]; docxSize?: number; pageCount?: number; docxPath?: string }> = [];
 if (UI_PATH && existsSync(UI_PATH)) {
   const ui = JSON.parse(readFileSync(UI_PATH, 'utf8'));
-  for (const v of ui.variants || []) uiResults[v.label] = { status: v.status, issues: v.issues || [] };
+  // Accept either {variants:[{label, status, issues}]} or qa-ui-pipeline flat shape [{label, ok, errors, pageErrors}]
+  const rows: any[] = Array.isArray(ui) ? ui : (ui.variants || []);
+  for (const v of rows) {
+    let status: string;
+    let issues: string[];
+    if ('status' in v) {
+      status = v.status;
+      issues = v.issues || [];
+    } else {
+      const docErrors: string[] = v.errors || [];
+      const pageErrors: Record<string, string[]> = v.pageErrors || {};
+      const pageIssues: string[] = [];
+      for (const [pn, errs] of Object.entries(pageErrors)) {
+        for (const e of errs as string[]) pageIssues.push(`p${pn}: ${e}`);
+      }
+      issues = [...docErrors, ...pageIssues];
+      status = v.ok && issues.length === 0 ? 'PASS' : 'FAIL';
+    }
+    uiResults[v.label] = { status, issues };
+    uiSample.push({
+      label: v.label,
+      status,
+      issues,
+      docxSize: v.docxSize,
+      pageCount: v.pageCount,
+      docxPath: v.docxPath,
+    });
+  }
 }
 
 mkdirSync(OUT_DIR, { recursive: true });
@@ -93,6 +121,21 @@ for (const v of audit.variants) {
 }
 const csvPath = join(OUT_DIR, 'variant-matrix.csv');
 writeFileSync(csvPath, csvRows.join('\n'));
+
+// ─── UI sample CSV (orthogonal pairwise sample, separate from 288-matrix) ───
+let uiCsvPath = '';
+if (uiSample.length) {
+  const uiHeader = ['Label', 'UI Status', 'Issues', 'DOCX Size (bytes)', 'Page Count', 'DOCX Path'];
+  const uiCsv = [uiHeader.map(csvEscape).join(',')];
+  for (const u of uiSample) {
+    uiCsv.push([
+      u.label, u.status, u.issues.join(' | '),
+      u.docxSize ?? '', u.pageCount ?? '', u.docxPath ?? '',
+    ].map(csvEscape).join(','));
+  }
+  uiCsvPath = join(OUT_DIR, 'ui-sample.csv');
+  writeFileSync(uiCsvPath, uiCsv.join('\n'));
+}
 
 // ─── HTML ────────────────────────────────────────────────────────────
 const cellStatus = (s: string) =>
@@ -216,6 +259,33 @@ Audit ran in ${audit.elapsed_sec}s on ${audit.timestamp}.</p>
   <tbody>${rowsHtml}</tbody>
 </table>
 
+${uiSample.length ? `
+<h2 style="margin-top:32px;font-size:18px;">UI Sample — pairwise (${uiSample.length} runs)</h2>
+<p class="sub">Orthogonal 2-way covering sample exercised end-to-end through the production UI (Auth0 → Stripe → Lambda → Word Online). Not a strict subset of the 288-variant audit matrix — pairwise samples 14 axes, including some not in the audit matrix.</p>
+<table id="ui-sample">
+  <thead><tr>
+    <th>Status</th>
+    <th>Label</th>
+    <th>DOCX size</th>
+    <th>Pages</th>
+    <th>Issues</th>
+  </tr></thead>
+  <tbody>${uiSample.map((u) => {
+    const statusBadge = `<span class="badge ${cellStatus(u.status)}">ui ${u.status}</span>`;
+    const issuesHtml = u.issues.length
+      ? `<details><summary>${u.issues.length} issue${u.issues.length === 1 ? '' : 's'}</summary><ul>${u.issues.map((i) => `<li>${htmlEscape(i)}</li>`).join('')}</ul></details>`
+      : '<span class="muted">—</span>';
+    return `
+  <tr>
+    <td>${statusBadge}</td>
+    <td><code>${htmlEscape(u.label)}</code></td>
+    <td class="muted">${u.docxSize ? Math.round(u.docxSize / 1024) + ' KB' : '—'}</td>
+    <td class="muted">${u.pageCount ?? '—'}</td>
+    <td>${issuesHtml}</td>
+  </tr>`;
+  }).join('')}</tbody>
+</table>` : ''}
+
 <p class="footer">
 Generated from <code>scripts/lib/agreement-variants.mjs</code> matrix and audit results.<br/>
 Companion CSV: <code>variant-matrix.csv</code> (open in Excel for native filter/sort).<br/>
@@ -271,5 +341,6 @@ const htmlPath = join(OUT_DIR, 'variant-matrix.html');
 writeFileSync(htmlPath, html);
 
 console.log(`✓ CSV:  ${csvPath}`);
+if (uiCsvPath) console.log(`✓ UI CSV: ${uiCsvPath}`);
 console.log(`✓ HTML: ${htmlPath}`);
-console.log(`  ${audit.total} variants, ${audit.pass} PASS, ${audit.fail + audit.error} FAIL${UI_PATH ? `, ${summary.ui_runs} UI runs` : ''}`);
+console.log(`  ${audit.total} variants, ${audit.pass} PASS, ${audit.fail + audit.error} FAIL${UI_PATH ? `, ${summary.ui_runs} UI runs (${summary.ui_pass} PASS / ${summary.ui_fail} FAIL)` : ''}`);

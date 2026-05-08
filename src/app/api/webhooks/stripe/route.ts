@@ -4,12 +4,16 @@ import { headers } from 'next/headers';
 import { saveDomainRegistration, type DomainRegistration, saveBusinessPhone, saveGoogleWorkspace, type GoogleWorkspaceRecord, saveUserCompanyDocuments, type DocumentRecord, saveVaultMetadata, type VaultMetadata, getFormData, addUserCompanyDocument } from '@/lib/dynamo';
 import { formatCompanyDocumentTitle, formatCompanyFileName } from '@/lib/document-names';
 import { createVaultStructure, copyTemplateToVault, getFormDataSnapshot } from '@/lib/s3-vault';
-import { createFormationRecord, mapQuestionnaireToAirtable, findFormationByStripeId } from '@/lib/airtable';
+import { createFormationRecord, updateFormationRecord, mapQuestionnaireToAirtable, findFormationByStripeId } from '@/lib/airtable';
 import { generate2848PDF, generate8821PDF } from '@/lib/pdf-filler';
 import { mapFormToDocgenAnswers } from '@/lib/agreement-mapper';
 import { generateDocument } from '@/lib/agreement-docgen';
 import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { sendEmailWithMultipleAttachments, sendHtmlEmail } from '@/lib/ses-email';
+
+// Vercel Pro default is 300s but be explicit — heavy 6-owner Corp flows
+// touch ~6 Lambdas + 4 S3 template copies sequentially.
+export const maxDuration = 300;
 
 // Send notification email for new company formations
 async function sendNewCompanyNotification(
@@ -323,6 +327,29 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
     }
   } catch (idempLookupError) {
     console.error('⚠️ Failed to check Airtable for existing Stripe Payment ID (continuing anyway):', idempLookupError);
+  }
+
+  // Step 0: Create minimal Airtable stub IMMEDIATELY so the company is visible
+  // in the user's dashboard within seconds. Without this, 6-owner Corp flows
+  // (4 sequential template copies + multiple Lambda calls) push first dashboard
+  // visibility past 240s — the qa-ui sweep saw 3/3 Corp 6-owner runs FAIL on
+  // this exact timeout while LLC and ≤5-owner Corp succeeded. Step 6 below
+  // upgrades this stub to a full record via updateFormationRecord.
+  try {
+    console.log('📊 Creating minimal Airtable stub for instant dashboard visibility...');
+    airtableRecordId = await createFormationRecord({
+      'Company Name': companyName,
+      'Customer Email': userId,
+      'Entity Type': entityType as any,
+      'Stripe Payment ID': session.id,
+      'Formation State': state,
+      'Formation Status': 'Pending',
+      'Payment Date': new Date().toISOString().slice(0, 10),
+    } as any);
+    console.log(`✅ Airtable stub created: ${airtableRecordId} — company visible in dashboard now`);
+  } catch (stubError: any) {
+    console.error('⚠️ Failed to create Airtable stub (will retry as full record at Step 6):', stubError.message);
+    airtableRecordId = null;
   }
 
   // Create S3 vault and copy template documents
@@ -667,8 +694,15 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
       
       console.log('📸 Filing Images URL:', airtableRecord['Filing Images'] || 'EMPTY');
       
-      airtableRecordId = await createFormationRecord(airtableRecord);
-      console.log(`✅ Airtable record created successfully: ${airtableRecordId}`);
+      if (airtableRecordId) {
+        // Stub already created in Step 0 — upgrade to full record.
+        await updateFormationRecord(airtableRecordId, airtableRecord);
+        console.log(`✅ Airtable record upgraded from stub: ${airtableRecordId}`);
+      } else {
+        // Stub creation failed earlier — create the full record now.
+        airtableRecordId = await createFormationRecord(airtableRecord);
+        console.log(`✅ Airtable record created successfully: ${airtableRecordId}`);
+      }
       console.log(`✅ Company "${airtableRecord['Company Name']}" is now visible in the dashboard`);
       
       // Step 7: Save all document metadata to DynamoDB (AFTER Airtable record is created)
