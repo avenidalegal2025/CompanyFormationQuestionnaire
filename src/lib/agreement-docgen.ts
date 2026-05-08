@@ -5375,6 +5375,29 @@ function forceTimesNewRomanFont(zip: PizZip): void {
       (m, face) => (preserve.has(face) ? m : 'typeface="Times New Roman"'),
     );
 
+    // styles.xml: ensure <w:rPrDefault> declares an explicit <w:rFonts>.
+    // Without this, renderers (modern Word, Word Online, Google Docs viewer,
+    // some WPS configurations) fall back to their own default — Calibri or
+    // Aptos — even though every individual run in document.xml has TNR. The
+    // Arial→TNR rewrite above only touches existing rFonts; if the template's
+    // rPrDefault never had one, nothing got rewritten and the doc renders
+    // sans-serif.
+    if (part === "word/styles.xml") {
+      const rFontsTag =
+        '<w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" ' +
+        'w:cs="Times New Roman" w:eastAsia="Times New Roman"/>';
+      content = content.replace(
+        /<w:rPrDefault>(\s*)<w:rPr>/,
+        (_m, ws) => `<w:rPrDefault>${ws}<w:rPr>${rFontsTag}`,
+      );
+      // If rPrDefault is self-closed or rPr already has rFonts, leave alone.
+      // Also handle: rPrDefault with self-closing rPr (rare but possible).
+      content = content.replace(
+        /<w:rPrDefault>(\s*)<w:rPr\/>/,
+        (_m, ws) => `<w:rPrDefault>${ws}<w:rPr>${rFontsTag}</w:rPr>`,
+      );
+    }
+
     zip.file(part, content);
   }
 }

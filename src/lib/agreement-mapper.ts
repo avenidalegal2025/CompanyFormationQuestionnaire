@@ -161,13 +161,28 @@ function buildOfficers(data: FormData): QuestionnaireAnswers["officers"] {
 
   if (allOwners) {
     const ownerCount = data.ownersCount || 1;
+    // Position-based defaults applied only if the questionnaire didn't capture
+    // an explicit role per owner. Without this, the officers table renders
+    // names with an empty 2nd column → looks like a single-column list.
+    const POSITION_DEFAULTS = [
+      "President",
+      "Vice-President",
+      "Secretary",
+      "Treasurer",
+      "Director",
+      "Director",
+    ];
     for (let i = 0; i < ownerCount; i++) {
       const o = data.owners?.[i];
       const name =
         o?.fullName ||
         [o?.firstName, o?.lastName].filter(Boolean).join(" ") ||
         "";
-      if (name) list.push({ name, title: "" });
+      const role =
+        data.admin?.[`shareholderOfficer${i + 1}Role`] ||
+        POSITION_DEFAULTS[i] ||
+        "";
+      if (name) list.push({ name, title: role });
     }
   } else {
     for (let i = 1; i <= count; i++) {
