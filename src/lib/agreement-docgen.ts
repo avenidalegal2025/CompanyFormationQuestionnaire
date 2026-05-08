@@ -641,14 +641,22 @@ function removeLLCConditionalSections(
   // Independent from Non-Compete — even if NC is also on, NS gives an
   // additional, narrower restraint that survives if NC is struck. The
   // form has separate toggles, so each must produce its own clause.
-  // Anchor: insert immediately AFTER Non-Disparagement (§11.13 if NC was
-  // also inserted, §11.12 otherwise) so this clause becomes §11.14 / §11.13
-  // and renumberAndRemapSubsections handles the final numbering.
+  //
+  // LLC has no renumberAndRemapSubsections pass (unlike Corp), so we
+  // need to hardcode the §11.X prefix. Detect Non-Disparagement's
+  // current number (11.12 if no NC, 11.13 if NC inserted-and-renumbered)
+  // and place NS at ND.num + 1.
   if (answers.include_nonsolicitation) {
     const nsDuration = answers.noncompete_duration || 2;
     const nsDurWord = numberToWords(nsDuration).toUpperCase();
+
+    // Find ND's current number (template = 11.12; bumped to 11.13 by NC insert).
+    const ndNumMatch = xml.match(/>(11\.\d+)<\/w:t>[\s\S]{0,200}?Non-Disparagement/);
+    const ndNum = ndNumMatch ? ndNumMatch[1] : "11.12";
+    const nsNum = ndNum === "11.13" ? "11.14" : "11.13";
+
     const nonSolicitationText =
-      `Non-Solicitation. ` +
+      `${nsNum} Non-Solicitation. ` +
       `During the term of this Agreement and for ${nsDurWord} (${nsDuration}) years following termination as a Member, Manager and/or employee of the Company (the "NS Restrictive Period"), no Member (nor any member, partner, owner, officer, director or manager of such Member) shall, directly or indirectly, individually or on behalf of any Person other than the Company or any affiliate or subsidiary of the Company: ` +
       `(i) solicit, induce, encourage, or otherwise attempt to influence any employee, contractor, or consultant of the Company to leave or terminate their employment or engagement with the Company; ` +
       `(ii) solicit, divert, or attempt to divert any Customer, supplier, vendor, or business partner of the Company to cease doing business with the Company or to do business with any competing Person; or ` +
@@ -658,7 +666,6 @@ function removeLLCConditionalSections(
     const nsLlcFmt = extractFormatting(xml, "Non-Disparagement");
     const ndIdx = xml.indexOf("Non-Disparagement");
     if (ndIdx >= 0) {
-      // Find the END of the Non-Disparagement paragraph; insert AFTER.
       const ndPEnd = xml.indexOf("</w:p>", ndIdx);
       if (ndPEnd >= 0) {
         const insertAt = ndPEnd + "</w:p>".length;
