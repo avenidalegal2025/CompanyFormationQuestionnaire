@@ -553,7 +553,67 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
         ownersCount: formData.owners?.length,
         managersCount: formData.admin?.managersCount,
       });
-      
+
+      // Step 4.5: Generate the customized Operating/Shareholder Agreement EARLY
+      // (no Airtable round-trip needed — generateDocument runs purely off
+      // formData.agreement). For 6-owner Corp, the original Step 8 agreement
+      // gen sat behind 5+ Lambda regen calls and pushed customized-DOCX
+      // visibility past 240s. Generating here means /api/documents returns a
+      // customized DOCX within seconds. Step 8 below regenerates again (no-op
+      // overwrite with the same content) — left in place for safety.
+      if (hasAgreement && formData?.agreement) {
+        try {
+          console.log(`📄 EARLY: generating filled ${entityType === 'LLC' ? 'Operating' : 'Shareholder'} Agreement…`);
+          const answers = await mapFormToDocgenAnswers(formData);
+          const { buffer } = await generateDocument(answers);
+
+          const agreementFileName = formatCompanyFileName(
+            companyName,
+            entityType === 'LLC' ? 'Operating Agreement' : 'Shareholder Agreement',
+            'docx'
+          );
+          const agreementS3Key = `${vaultPath}/agreements/${agreementFileName}`;
+
+          await s3Client.send(new PutObjectCommand({
+            Bucket: S3_BUCKET,
+            Key: agreementS3Key,
+            Body: buffer,
+            ContentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          }));
+
+          const agreementDocId = entityType === 'LLC' ? 'operating-agreement' : 'shareholder-agreement';
+          const existingIdx = documents.findIndex(d => d.id === agreementDocId);
+          const agreementDoc: DocumentRecord = {
+            id: agreementDocId,
+            name: formatCompanyDocumentTitle(
+              companyName,
+              entityType === 'LLC' ? 'Operating Agreement' : 'Shareholder Agreement'
+            ),
+            type: 'agreement',
+            s3Key: agreementS3Key,
+            status: 'generated',
+            createdAt: new Date().toISOString(),
+          };
+          if (existingIdx >= 0) {
+            documents[existingIdx] = agreementDoc;
+          } else {
+            documents.push(agreementDoc);
+          }
+          console.log(`✅ EARLY: ${entityType === 'LLC' ? 'Operating' : 'Shareholder'} Agreement uploaded to ${agreementS3Key}`);
+
+          if (airtableRecordId) {
+            try {
+              await saveUserCompanyDocuments(userId, airtableRecordId, documents);
+              console.log(`✅ EARLY: DynamoDB updated with customized agreement (companyId=${airtableRecordId})`);
+            } catch (saveError: any) {
+              console.error('⚠️ Failed to save customized agreement to DynamoDB (continuing):', saveError.message);
+            }
+          }
+        } catch (earlyAgreementError: any) {
+          console.error('⚠️ Failed early agreement generation (Step 8 will retry):', earlyAgreementError.message);
+        }
+      }
+
       // Step 5: Generate tax forms (2848, 8821) - NOTE: SS-4 is generated from Airtable in Step 8
       try {
         console.log('📄 Generating tax forms (2848, 8821)...');
