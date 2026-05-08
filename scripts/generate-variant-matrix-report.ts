@@ -48,6 +48,8 @@ const DOWNLOADS = isWSL ? '/mnt/c/Users/neotr/Downloads' : (process.env.USERPROF
 
 const AUDIT_PATH = arg('--audit', join(DOWNLOADS, 'audit-all', 'audit-all-results.json'))!;
 const UI_PATH = arg('--ui', undefined);
+const VISUAL_PATH = arg('--visual', undefined);     // visual-review-variants.mjs output (audit-label keyed)
+const VISUAL_UI_PATH = arg('--visual-ui', undefined); // visual-review-ui-pngs.mjs output (UI-label keyed)
 const OUT_DIR = arg('--out', join(DOWNLOADS, 'variant-matrix', new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)))!;
 
 if (!existsSync(AUDIT_PATH)) {
@@ -91,6 +93,34 @@ if (UI_PATH && existsSync(UI_PATH)) {
   }
 }
 
+// ─── Visual review (audit-label keyed) ──────────────────────────────────
+const visualResults: Record<string, { status: string; issues: number; pages: number }> = {};
+if (VISUAL_PATH && existsSync(VISUAL_PATH)) {
+  const vr = JSON.parse(readFileSync(VISUAL_PATH, 'utf8'));
+  for (const v of vr.variants || []) {
+    if (v.error) continue; // RENDER ERROR — skip; audit row gets no visual coverage
+    visualResults[v.label] = {
+      status: (v.issues?.length ? 'ISSUES' : 'CLEAN'),
+      issues: v.issues?.length || 0,
+      pages: v.pages || 0,
+    };
+  }
+}
+
+// ─── Visual review for UI sample (UI-label keyed) ─────────────────────
+const visualUIResults: Record<string, { status: string; issues: number; pages: number }> = {};
+if (VISUAL_UI_PATH && existsSync(VISUAL_UI_PATH)) {
+  const vr = JSON.parse(readFileSync(VISUAL_UI_PATH, 'utf8'));
+  for (const v of vr.variants || []) {
+    if (v.error) continue;
+    visualUIResults[v.label] = {
+      status: (v.issues?.length ? 'ISSUES' : 'CLEAN'),
+      issues: v.issues?.length || 0,
+      pages: v.pages || 0,
+    };
+  }
+}
+
 mkdirSync(OUT_DIR, { recursive: true });
 
 // ─── CSV ─────────────────────────────────────────────────────────────
@@ -105,17 +135,20 @@ const csvHeader = [
   'RoFR', 'Drag', 'Tag', 'NonCompete', 'NonSolicitation', 'Confidentiality',
   'Audit Status', 'Audit Issues', 'Audit Elapsed (ms)',
   'UI Status', 'UI Issues',
+  'Visual Status', 'Visual Issues', 'Visual Pages',
   'DOCX Path',
 ];
 const csvRows = [csvHeader.map(csvEscape).join(',')];
 for (const v of audit.variants) {
   const ui = uiResults[v.label];
+  const visual = visualResults[v.label];
   csvRows.push([
     v.label, v.entity, v.owners, v.voting,
     v.covenants.rofr, v.covenants.drag, v.covenants.tag,
     v.covenants.nc, v.covenants.ns, v.covenants.conf,
     v.status, v.issues.join(' | '), v.elapsed_ms,
     ui?.status || '', (ui?.issues || []).join(' | '),
+    visual?.status || '', visual?.issues ?? '', visual?.pages ?? '',
     v.docx_path || '',
   ].map(csvEscape).join(','));
 }
@@ -152,13 +185,23 @@ const summary = {
   ui_runs: Object.keys(uiResults).length,
   ui_pass: Object.values(uiResults).filter((u) => u.status === 'PASS').length,
   ui_fail: Object.values(uiResults).filter((u) => u.status !== 'PASS').length,
+  visual_runs: Object.keys(visualResults).length,
+  visual_clean: Object.values(visualResults).filter((v) => v.status === 'CLEAN').length,
+  visual_issues: Object.values(visualResults).filter((v) => v.status === 'ISSUES').length,
+  visual_ui_runs: Object.keys(visualUIResults).length,
+  visual_ui_clean: Object.values(visualUIResults).filter((v) => v.status === 'CLEAN').length,
+  visual_ui_issues: Object.values(visualUIResults).filter((v) => v.status === 'ISSUES').length,
 };
 
 const rowsHtml = audit.variants.map((v) => {
   const ui = uiResults[v.label];
+  const visual = visualResults[v.label];
   const statusBadges =
     `<span class="badge ${cellStatus(v.status)}">audit ${v.status}</span>` +
-    (ui ? `<span class="badge ${cellStatus(ui.status)}">ui ${ui.status}</span>` : '<span class="badge skip">ui —</span>');
+    (ui ? `<span class="badge ${cellStatus(ui.status)}">ui ${ui.status}</span>` : '<span class="badge skip">ui —</span>') +
+    (visual
+      ? `<span class="badge ${visual.status === 'CLEAN' ? 'pass' : 'fail'}">visual ${visual.status === 'CLEAN' ? 'CLEAN' : visual.issues + ' issue' + (visual.issues === 1 ? '' : 's')}</span>`
+      : '<span class="badge skip">visual —</span>');
   const allIssues = [...v.issues, ...(ui?.issues || [])];
   const issuesHtml = allIssues.length
     ? `<details><summary>${allIssues.length} issue${allIssues.length === 1 ? '' : 's'}</summary><ul>${allIssues.map((i) => `<li>${htmlEscape(i)}</li>`).join('')}</ul></details>`
@@ -227,6 +270,9 @@ Audit ran in ${audit.elapsed_sec}s on ${audit.timestamp}.</p>
   <div class="stat ${summary.ui_runs ? 'gray' : ''}"><strong>${summary.ui_runs}</strong>UI runs</div>
   <div class="stat ${summary.ui_runs ? 'green' : 'gray'}"><strong>${summary.ui_pass}</strong>UI PASS</div>
   <div class="stat ${summary.ui_fail ? 'red' : 'gray'}"><strong>${summary.ui_fail}</strong>UI FAIL</div>
+  <div class="stat ${summary.visual_runs ? 'gray' : ''}"><strong>${summary.visual_runs}</strong>Visual runs</div>
+  <div class="stat ${summary.visual_runs ? 'green' : 'gray'}"><strong>${summary.visual_clean}</strong>Visual CLEAN</div>
+  <div class="stat ${summary.visual_issues ? 'red' : 'gray'}"><strong>${summary.visual_issues}</strong>Visual w/ issues</div>
 </div>
 
 <div class="filter">
@@ -272,12 +318,16 @@ ${uiSample.length ? `
   </tr></thead>
   <tbody>${uiSample.map((u) => {
     const statusBadge = `<span class="badge ${cellStatus(u.status)}">ui ${u.status}</span>`;
+    const visualUI = visualUIResults[u.label];
+    const visualBadge = visualUI
+      ? `<span class="badge ${visualUI.status === 'CLEAN' ? 'pass' : 'fail'}">visual ${visualUI.status === 'CLEAN' ? 'CLEAN' : visualUI.issues + ' issue' + (visualUI.issues === 1 ? '' : 's')}</span>`
+      : '<span class="badge skip">visual —</span>';
     const issuesHtml = u.issues.length
       ? `<details><summary>${u.issues.length} issue${u.issues.length === 1 ? '' : 's'}</summary><ul>${u.issues.map((i) => `<li>${htmlEscape(i)}</li>`).join('')}</ul></details>`
       : '<span class="muted">—</span>';
     return `
   <tr>
-    <td>${statusBadge}</td>
+    <td>${statusBadge}${visualBadge}</td>
     <td><code>${htmlEscape(u.label)}</code></td>
     <td class="muted">${u.docxSize ? Math.round(u.docxSize / 1024) + ' KB' : '—'}</td>
     <td class="muted">${u.pageCount ?? '—'}</td>
@@ -343,4 +393,4 @@ writeFileSync(htmlPath, html);
 console.log(`✓ CSV:  ${csvPath}`);
 if (uiCsvPath) console.log(`✓ UI CSV: ${uiCsvPath}`);
 console.log(`✓ HTML: ${htmlPath}`);
-console.log(`  ${audit.total} variants, ${audit.pass} PASS, ${audit.fail + audit.error} FAIL${UI_PATH ? `, ${summary.ui_runs} UI runs (${summary.ui_pass} PASS / ${summary.ui_fail} FAIL)` : ''}`);
+console.log(`  ${audit.total} variants, ${audit.pass} PASS, ${audit.fail + audit.error} FAIL${UI_PATH ? `, ${summary.ui_runs} UI runs (${summary.ui_pass} PASS / ${summary.ui_fail} FAIL)` : ''}${VISUAL_PATH ? `, ${summary.visual_runs} visual (${summary.visual_clean} CLEAN / ${summary.visual_issues} w/ issues)` : ''}${VISUAL_UI_PATH ? `, ${summary.visual_ui_runs} visual-UI (${summary.visual_ui_clean} CLEAN / ${summary.visual_ui_issues} w/ issues)` : ''}`);
