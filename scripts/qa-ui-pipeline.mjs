@@ -340,9 +340,42 @@ const MATRIX = matrixArg ? matrixArg.slice('--matrix='.length) : 'd';
 let VARIANTS;
 if (MATRIX === 'pairwise' || MATRIX === 'p') {
   // Pairwise sample across 14 axes — every pair of axis values exercised
-  // at least once. ~26 cases for full coverage; runs in ~2.5 hours via UI.
-  const { buildGroupP } = await import('./lib/agreement-variants.mjs');
-  VARIANTS = buildGroupP();
+  // at least once. ~26 cases for full coverage; runs in ~2.5h via UI.
+  // Inlined here to emit the flat shape qa-ui-pipeline expects (matches
+  // buildGroupD's flat shape, distinct from agreement-variants.mjs's
+  // nested baseFormData() shape).
+  const { pairwise } = await import('./lib/pairwise.mjs');
+  const cases = pairwise({
+    entityType: ['C-Corp', 'LLC'],
+    owners: [1, 2, 3, 4, 5, 6],
+    voting: ['majority', 'mixed', 'unanimous'],
+    rofr: [true, false],
+    dragTag: [true, false],
+    nonCompete: ['Yes', 'No'],
+    nonSolicitation: ['Yes', 'No'],
+    confidentiality: ['Yes', 'No'],
+    distributionFrequency: ['Trimestral', 'Semestral', 'Anual', 'Discreción de la Junta'],
+    loans: [true, false],
+    transferToRelatives: ['unanimous', 'majority', 'free'],
+    incapacityHeirs: [true, false],
+    divorceBuyout: [true, false],
+    moreCapital: ['Pro-Rata', 'No'],
+  });
+  VARIANTS = cases.map((c, i) => {
+    const flags = `${c.rofr?'R':'-'}${c.dragTag?'D':'-'}${c.nonCompete[0]}${c.nonSolicitation[0]}${c.confidentiality[0]}`;
+    const ent = c.entityType === 'C-Corp' ? 'Corp' : 'LLC';
+    return {
+      label: `P${String(i+1).padStart(2,'0')}_${ent}_${c.owners}o_${c.voting[0]}_${flags}`,
+      entityType: c.entityType,
+      companyName: `P${String(i+1).padStart(2,'0')} ${ent}`,
+      owners: c.owners,
+      rofr: c.rofr,
+      dragTag: c.dragTag,
+      nonCompete: c.nonCompete,
+      nonSolicitation: c.nonSolicitation,
+      confidentiality: c.confidentiality,
+    };
+  });
 } else {
   VARIANTS = buildGroupD();
 }
