@@ -626,12 +626,16 @@ function removeLLCConditionalSections(
         // Replace this specific "11.12" with "11.13"
         xml = beforeND.substring(0, lastT) + ">11.13<" + beforeND.substring(lastT + 7) + xml.substring(ndIdx);
 
-        // Now insert the non-compete paragraph BEFORE the paragraph containing 11.13/Non-Disparagement
+        // Now insert the non-compete paragraph BEFORE the paragraph
+        // containing 11.13/Non-Disparagement, with an empty separator
+        // AFTER it so §11.12 NC and §11.13 ND aren't flush against
+        // each other (matches the inter-section visual spacing).
         const p13Idx = xml.indexOf("11.13");
         const pStart = paragraphStartBefore(xml, p13Idx);
         if (pStart >= 0) {
           const ncParagraph = buildFormattedParagraph(nonCompeteText, llcFmt.pPr, llcFmt.rPr);
-          xml = xml.substring(0, pStart) + ncParagraph + xml.substring(pStart);
+          const emptySep = '<w:p><w:pPr><w:rPr><w:vertAlign w:val="baseline"/></w:rPr></w:pPr></w:p>';
+          xml = xml.substring(0, pStart) + ncParagraph + emptySep + xml.substring(pStart);
         }
       }
     }
@@ -670,23 +674,30 @@ function removeLLCConditionalSections(
       const ndPEnd = xml.indexOf("</w:p>", ndIdx);
       if (ndPEnd >= 0) {
         const insertAt = ndPEnd + "</w:p>".length;
+        // Empty separator paragraph BEFORE the NS clause so visual
+        // spacing matches every other inter-section gap. Without this
+        // §11.13 ND and §11.14 NS render flush against each other.
+        const emptySep = '<w:p><w:pPr><w:rPr><w:vertAlign w:val="baseline"/></w:rPr></w:pPr></w:p>';
         const nsParagraph = buildFormattedParagraph(
           nonSolicitationText,
           nsLlcFmt.pPr,
           nsLlcFmt.rPr,
         );
-        xml = xml.substring(0, insertAt) + nsParagraph + xml.substring(insertAt);
+        xml = xml.substring(0, insertAt) + emptySep + nsParagraph + xml.substring(insertAt);
       }
     }
   }
 
   // Confidentiality: STRIP when include_confidentiality=No (LLC).
-  // The LLC template ships §11.x Non-Disclosure permanently with FIVE
+  // The LLC template ships §11.10 Non-disclosure heading + FIVE
   // sub-items (A. body, B. CI def, C. Return of CI, D. severability,
   // E. acknowledgment). When customer turns OFF confidentiality, remove
-  // them all so no orphaned letter items remain.
+  // them all + the heading so no orphaned heading remains.
   if (answers.include_confidentiality === false) {
     xml = removeXmlParagraphsContaining(xml, [
+      // §11.10 heading paragraph
+      "11.10Non-disclosure",
+      "11.10 Non-disclosure",
       // A. — heading + body
       "Non-Disclosure.  Except with the prior written approval of the Company",
       "Non-Disclosure.Except with the prior written approval of the Company",
@@ -703,6 +714,12 @@ function removeLLCConditionalSections(
   }
 
   // Non-disparagement removal is not needed (always included per template)
+
+  // Force keepNext on every paragraph immediately before a <w:tbl> so
+  // table headers don't get orphaned at page bottom. LLC has 3 tables
+  // (Capital Contributions, MPI, Officers list); template doesn't ship
+  // pre-table keepNext.
+  xml = forceKeepNextBeforeTables(xml);
 
   return xml;
 }
@@ -5863,7 +5880,11 @@ function removeXmlParagraphsContaining(
   textPatterns: string[]
 ): string {
   const pRegex = /<w:p[ >][\s\S]*?<\/w:p>/g;
-  const tRegex = /<w:t[^>]*>([\s\S]*?)<\/w:t>/g;
+  // Match <w:t> opening that's either bare ("<w:t>") or has attributes
+  // ("<w:t xml:space=...>") — must be followed by space or '>' so we
+  // don't accidentally match <w:tab/> (which would let the capture
+  // group [\s\S]*? span across runs to the next real </w:t>).
+  const tRegex = /<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>/g;
 
   return xml.replace(pRegex, (paragraph) => {
     let fullText = "";

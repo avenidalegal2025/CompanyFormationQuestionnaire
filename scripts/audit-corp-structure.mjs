@@ -126,10 +126,13 @@ for (const p of paras) {
     // when the block doesn't fit.
     // Inline-titled = "N.M Title… body…" — period after some title
     // text, then more text on the same paragraph.
-    const isInlineTitled = /^\d+\.\d+\s+[A-Z][^.]*\.\s*\S/.test(t);
-    const isShortTitled = t.length < 50;
-    const hasH3 = /<w:pStyle w:val="Heading3"\/>/.test(p.body);
-    if ((isShortTitled || hasH3) && !isInlineTitled &&
+    // Title-only = short heading + period (body lives on next paragraph),
+    // orphan-prone. Inline-titled = title + body in SAME paragraph,
+    // no orphan risk. Heuristic: text < 80 chars AND ends with "." AND
+    // no body text after that period → title-only. Anything longer is
+    // body-bearing.
+    const titleOnlyShape = /^\d+\.\d+\s*[A-Z][\w\s'’,&\-/]+\.\s*$/.test(t) && t.length < 80;
+    if (titleOnlyShape &&
         !/<w:keepNext(?:\s+w:val="1")?\s*\/>/.test(p.body)) {
       push("L1", `§${secM[1]}.${secM[2]} title without keepNext: ${t.slice(0,60)!==undefined?t.slice(0,60):t}`);
     }
@@ -253,7 +256,12 @@ for (let pi = 0; pi < paras.length - 1; pi++) {
     const artM = t.match(/^ARTICLE\s+([IVXLCDM]+)\s*[:.]/i);
     if (artM) { existingArticles.add(artM[1].toUpperCase()); curSec = null; continue; }
     const secM = t.match(/^(\d+)\.(\d+)(?=\s|$|\D)/);
-    if (secM && /<w:pStyle w:val="Heading3"\/>/.test(p.body)) {
+    // Accept any paragraph that opens with "N.M Title" as a section
+    // heading. Corp uses pStyle=Heading3; LLC ships sections without a
+    // pStyle (or a different one) but the leading "N.M" pattern is
+    // unambiguous if followed by a capital letter (title text), not by
+    // body lowercase / digits.
+    if (secM && /^\d+\.\d+\s*[A-Z]/.test(t)) {
       const num = `${secM[1]}.${secM[2]}`;
       existingSections.add(num);
       curSec = num;
@@ -432,6 +440,10 @@ if (sigStartIdxAudit >= 0) {
 }
 
 // ─── L2: run / formatting smells on numbered headings ────────────────
+// Corp-only — LLC ships sections without Heading3 + with different run
+// shape (number + title in one underlined run); LLC formatting is
+// template-defined and renders fine, just doesn't match Corp's shape.
+if (ENTITY === "CORP") {
 for (const p of paras) {
   const t = p.text.trim();
   const secM = t.match(SEC_RE);
@@ -470,6 +482,7 @@ for (const p of paras) {
   // WithBody): body always starts at the wrap column via tab so wrap
   // line aligns with first body word. No further check needed.
 }
+} // end Corp-only L2
 
 // ─── L3: section completeness ─────────────────────────────────────────
 // 3a. No empty Heading3 (heading paragraph with only "N.M Title." and nothing else)
