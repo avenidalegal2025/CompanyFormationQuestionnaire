@@ -336,16 +336,39 @@ function buildGroupD() {
       });
       v.run = (text) => {
         const errs = assertMatrixBase(text, v.meta);
-        // Core covenant-presence checks: if the user ticked the toggle, the
-        // corresponding section MUST be in the document. Without this, silent
-        // "injection did nothing" bugs (like the one that just shipped) are
-        // invisible — numbering remains sequential because nothing was
-        // inserted, but the clause the customer paid for is missing.
+        // Per-toggle presence/absence checks. If the user ticked any
+        // covenant toggle, the corresponding clause MUST be in the doc.
+        // Without these, silent "toggle does nothing" bugs ship invisibly —
+        // numbering stays contiguous because nothing was inserted/stripped,
+        // but the customer's paid-for clause is missing or unwanted.
+        // Non-Compete:
         if (nc === 'Yes' && !text.includes('Covenant Against Competition')) {
           errs.push('non-compete=Yes but "Covenant Against Competition" missing');
         }
         if (nc === 'No' && text.includes('Covenant Against Competition')) {
           errs.push('non-compete=No but "Covenant Against Competition" present');
+        }
+        // Non-Solicitation: a dedicated clause (NOT just the (i)/(iii)
+        // sub-items inside Non-Compete which always include solicitation
+        // language). Detect by "Non-Solicitation" + the unique "NS
+        // Restrictive Period" defined-term that only the standalone NS
+        // clause introduces. Heading rendering may produce
+        // "Non-Solicitation . " (space-before-period from standardize-
+        // shape) so don't anchor on the period.
+        const hasNS = /\bNon-Solicitation\b/.test(text) && text.includes('NS Restrictive Period');
+        if (ns === 'Yes' && !hasNS) {
+          errs.push('non-solicitation=Yes but standalone Non-Solicitation clause missing');
+        }
+        if (ns === 'No' && hasNS) {
+          errs.push('non-solicitation=No but Non-Solicitation clause present');
+        }
+        // Confidentiality: template ships permanently. Toggle off = strip.
+        const hasCF = text.includes('"Confidential Information" means all private (non-public)');
+        if (cf === 'Yes' && !hasCF) {
+          errs.push('confidentiality=Yes but Non-Disclosure / Confidential Information clause missing');
+        }
+        if (cf === 'No' && hasCF) {
+          errs.push('confidentiality=No but Confidential Information clause still present');
         }
         return errs;
       };

@@ -637,6 +637,63 @@ function removeLLCConditionalSections(
     }
   }
 
+  // Non-Solicitation: Insert when include_nonsolicitation=Yes (LLC).
+  // Independent from Non-Compete — even if NC is also on, NS gives an
+  // additional, narrower restraint that survives if NC is struck. The
+  // form has separate toggles, so each must produce its own clause.
+  // Anchor: insert immediately AFTER Non-Disparagement (§11.13 if NC was
+  // also inserted, §11.12 otherwise) so this clause becomes §11.14 / §11.13
+  // and renumberAndRemapSubsections handles the final numbering.
+  if (answers.include_nonsolicitation) {
+    const nsDuration = answers.noncompete_duration || 2;
+    const nsDurWord = numberToWords(nsDuration).toUpperCase();
+    const nonSolicitationText =
+      `Non-Solicitation. ` +
+      `During the term of this Agreement and for ${nsDurWord} (${nsDuration}) years following termination as a Member, Manager and/or employee of the Company (the "NS Restrictive Period"), no Member (nor any member, partner, owner, officer, director or manager of such Member) shall, directly or indirectly, individually or on behalf of any Person other than the Company or any affiliate or subsidiary of the Company: ` +
+      `(i) solicit, induce, encourage, or otherwise attempt to influence any employee, contractor, or consultant of the Company to leave or terminate their employment or engagement with the Company; ` +
+      `(ii) solicit, divert, or attempt to divert any Customer, supplier, vendor, or business partner of the Company to cease doing business with the Company or to do business with any competing Person; or ` +
+      `(iii) interfere with, disrupt, or attempt to disrupt the relationship, contractual or otherwise, between the Company and any of its Customers, suppliers, vendors, employees, contractors, consultants, or business partners. ` +
+      `The Member's obligations under this paragraph shall survive any expiration or termination of this Agreement. As used herein, the term "Customer" means all Persons that have conducted business with the Company during the ${nsDurWord.toLowerCase()} (${nsDuration}) year period immediately prior to any termination or expiration of this Agreement.`;
+
+    const nsLlcFmt = extractFormatting(xml, "Non-Disparagement");
+    const ndIdx = xml.indexOf("Non-Disparagement");
+    if (ndIdx >= 0) {
+      // Find the END of the Non-Disparagement paragraph; insert AFTER.
+      const ndPEnd = xml.indexOf("</w:p>", ndIdx);
+      if (ndPEnd >= 0) {
+        const insertAt = ndPEnd + "</w:p>".length;
+        const nsParagraph = buildFormattedParagraph(
+          nonSolicitationText,
+          nsLlcFmt.pPr,
+          nsLlcFmt.rPr,
+        );
+        xml = xml.substring(0, insertAt) + nsParagraph + xml.substring(insertAt);
+      }
+    }
+  }
+
+  // Confidentiality: STRIP when include_confidentiality=No (LLC).
+  // The LLC template ships §11.x Non-Disclosure permanently with FIVE
+  // sub-items (A. body, B. CI def, C. Return of CI, D. severability,
+  // E. acknowledgment). When customer turns OFF confidentiality, remove
+  // them all so no orphaned letter items remain.
+  if (answers.include_confidentiality === false) {
+    xml = removeXmlParagraphsContaining(xml, [
+      // A. — heading + body
+      "Non-Disclosure.  Except with the prior written approval of the Company",
+      "Non-Disclosure.Except with the prior written approval of the Company",
+      // B. — definition
+      '"Confidential Information" means all private (non-public) information',
+      "“Confidential Information” means all private (non-public) information",
+      // C. — return clause
+      "Return of Confidential Information. Within two (2) business days of a Member",
+      // D. — severability of confidentiality restrictions
+      "In the event any one or more of the provisions of this Agreement shall for any reason be held invalid, illegal or unenforceable",
+      // E. — acknowledgment of restrictions on activities
+      "Each Member hereby acknowledges that the restrictions on its activities",
+    ]);
+  }
+
   // Non-disparagement removal is not needed (always included per template)
 
   return xml;
@@ -1622,6 +1679,65 @@ function removeCorpConditionalSections(
         xml = xml.substring(0, insertPoint) + ncParagraph + xml.substring(insertPoint);
       }
     }
+  }
+
+  // Non-Solicitation: Insert when include_nonsolicitation=Yes (Corp).
+  // Independent from Non-Compete. Same Restrictive Period as NC (reuses
+  // noncompete_duration since the schema has no separate field).
+  // Anchor: insert immediately AFTER the last existing 10.N paragraph
+  // (so it lands at the end of Article X — same neighborhood as the
+  // injected Non-Compete clause). renumberAndRemapSubsections then
+  // assigns the right §10.N number.
+  if (answers.include_nonsolicitation) {
+    const nsDuration = answers.noncompete_duration || 2;
+    const nsDurWord = numberToWords(nsDuration).toUpperCase();
+    const nonSolicitationText =
+      `Non-Solicitation. ` +
+      `During the term of this Agreement and for ${nsDurWord} (${nsDuration}) years following termination as a Shareholder, Officer and/or employee of the Corporation (the "NS Restrictive Period"), no Shareholder shall, directly or indirectly, individually or on behalf of any Person other than the Corporation or any affiliate or subsidiary of the Corporation: ` +
+      `(i) solicit, induce, encourage, or otherwise attempt to influence any employee, contractor, or consultant of the Corporation to leave or terminate their employment or engagement with the Corporation; ` +
+      `(ii) solicit, divert, or attempt to divert any Customer, supplier, vendor, or business partner of the Corporation to cease doing business with the Corporation or to do business with any competing Person; or ` +
+      `(iii) interfere with, disrupt, or attempt to disrupt the relationship, contractual or otherwise, between the Corporation and any of its Customers, suppliers, vendors, employees, contractors, consultants, or business partners. ` +
+      `The Shareholder's obligations under this paragraph shall survive any expiration or termination of this Agreement. As used herein, the term "Customer" means all Persons that have conducted business with the Corporation during the ${nsDurWord.toLowerCase()} (${nsDuration}) year period immediately prior to any termination or expiration of this Agreement.`;
+
+    let nsAnchor = -1;
+    for (let sub = 15; sub >= 1; sub--) {
+      const candidate = xml.lastIndexOf(`>10.${sub}<`);
+      if (candidate >= 0) { nsAnchor = candidate; break; }
+    }
+    if (nsAnchor >= 0) {
+      const pEnd = xml.indexOf("</w:p>", nsAnchor);
+      if (pEnd >= 0) {
+        const corpFmt = extractFormatting(xml, ">10.1<");
+        const corpPPr = corpFmt.pPr || '<w:pPr><w:pStyle w:val="Heading3"/><w:jc w:val="both"/><w:rPr><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:pPr>';
+        const corpRPr = corpFmt.rPr || '<w:rPr><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr>';
+        const insertPoint = pEnd + "</w:p>".length;
+        const nsParagraph = buildFormattedParagraph(nonSolicitationText, corpPPr, corpRPr);
+        xml = xml.substring(0, insertPoint) + nsParagraph + xml.substring(insertPoint);
+      }
+    }
+  }
+
+  // Confidentiality: STRIP when include_confidentiality=No (Corp).
+  // Template ships §10.8 Non-Disclosure permanently with the heading +
+  // four sub-items (A. Confidential Information definition, B. Return of
+  // CI, C. severability of the restrictions, D. acknowledgment of
+  // restrictions). When customer turns OFF confidentiality, remove the
+  // entire section so no orphaned letter items remain.
+  if (answers.include_confidentiality === false) {
+    xml = removeXmlParagraphsContaining(xml, [
+      // Heading paragraph
+      "Non-Disclosure.  Except with the prior written approval of the Corporation",
+      "Non-Disclosure.Except with the prior written approval of the Corporation",
+      // A. — definition
+      '"Confidential Information" means all private (non-public) information',
+      "“Confidential Information” means all private (non-public) information",
+      // B. — return clause
+      "Return of Confidential Information. Within two (2) business days of a Shareholder",
+      // C. — severability of confidentiality restrictions
+      "In the event any one or more of the provisions of this Agreement shall for any reason be held invalid, illegal or unenforceable",
+      // D. — acknowledgment of restrictions on activities
+      "Each Shareholder hereby acknowledges that the restrictions on its activities",
+    ]);
   }
 
   return xml;
