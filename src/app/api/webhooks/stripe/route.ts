@@ -501,7 +501,21 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
         // Don't fail the entire process - continue without the agreement template
       }
     }
-    
+
+    // Step 3.5: Save template-stage docs to DynamoDB NOW so /api/documents
+    // surfaces them within seconds. Without this, the agreement doc only
+    // appears after Step 7 which sits behind 2 tax-form Lambdas + Airtable
+    // update — for 6-owner Corp that pushed first-doc-visibility >240s.
+    // Step 7 below overwrites with the final list (with regen URLs).
+    if (airtableRecordId) {
+      try {
+        await saveUserCompanyDocuments(userId, airtableRecordId, documents);
+        console.log(`✅ Template docs saved to DynamoDB early (${documents.length} docs, companyId=${airtableRecordId})`);
+      } catch (earlyDocsError: any) {
+        console.error('⚠️ Failed to save early template docs (continuing — Step 7 will retry):', earlyDocsError.message);
+      }
+    }
+
     // Step 4: Get form data from DynamoDB (needed for PDF generation and Airtable sync)
     const formDataUserId = session.metadata?.userId || session.customer_details?.email || (session.customer_email as string) || '';
     console.log('🔍 Looking up formData for userId:', formDataUserId);
