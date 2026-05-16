@@ -161,16 +161,16 @@ function buildOfficers(data: FormData): QuestionnaireAnswers["officers"] {
 
   if (allOwners) {
     const ownerCount = data.ownersCount || 1;
-    // Position-based defaults applied only if the questionnaire didn't capture
-    // an explicit role per owner. Without this, the officers table renders
-    // names with an empty 2nd column → looks like a single-column list.
+    // Position-based defaults apply only to the first 4 owners, who map cleanly
+    // to the four standard Florida corporate officer roles. Beyond position 4
+    // there is no canonical default; an explicit role MUST come from the form.
+    // Previously positions 5/6 silently defaulted to "Director", which is a
+    // board role, not an officer title — Antonio flagged this 2026-05-15.
     const POSITION_DEFAULTS = [
       "President",
       "Vice-President",
       "Secretary",
       "Treasurer",
-      "Director",
-      "Director",
     ];
     for (let i = 0; i < ownerCount; i++) {
       const o = data.owners?.[i];
@@ -178,11 +178,18 @@ function buildOfficers(data: FormData): QuestionnaireAnswers["officers"] {
         o?.fullName ||
         [o?.firstName, o?.lastName].filter(Boolean).join(" ") ||
         "";
-      const role =
-        data.admin?.[`shareholderOfficer${i + 1}Role`] ||
-        POSITION_DEFAULTS[i] ||
-        "";
-      if (name) list.push({ name, title: role });
+      if (!name) continue;
+      const explicit = data.admin?.[`shareholderOfficer${i + 1}Role`];
+      const role = explicit || POSITION_DEFAULTS[i] || "";
+      if (!role) {
+        throw new Error(
+          `Officer role required for owner ${i + 1} (${name}). ` +
+            `Set admin.shareholderOfficer${i + 1}Role in the form ` +
+            `(valid: President, Vice-President, Secretary, Treasurer, ` +
+            `Assistant Vice-President, Assistant Secretary, Assistant Treasurer).`
+        );
+      }
+      list.push({ name, title: role });
     }
   } else {
     for (let i = 1; i <= count; i++) {

@@ -121,7 +121,25 @@ function baseFormData({
       ownersCount: ownerCount,
       owners: Object.fromEntries(owners.map((o, i) => [String(i), o])),
       admin: isCorp
-        ? { directorsAllOwners: 'Yes', officersAllOwners: 'Yes' }
+        ? {
+            directorsAllOwners: 'Yes',
+            officersAllOwners: 'Yes',
+            // Explicit officer roles for every owner. Positions 1-4 mirror
+            // the mapper's POSITION_DEFAULTS; 5/6 use Assistant titles since
+            // "Director" is not a valid Officer title (Antonio 2026-05-15).
+            ...Object.fromEntries(
+              [
+                'President',
+                'Vice-President',
+                'Secretary',
+                'Treasurer',
+                'Assistant Vice-President',
+                'Assistant Secretary',
+              ]
+                .slice(0, ownerCount)
+                .map((role, i) => [`shareholderOfficer${i + 1}Role`, role])
+            ),
+          }
         : { managersAllOwners: 'Yes' },
       agreement,
     },
