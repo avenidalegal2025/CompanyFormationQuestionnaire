@@ -1092,6 +1092,13 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   xml = stripEmptyParagraphPageBreaks(xml);
   xml = normalizeNewShareholdersHeading(xml);
   xml = standardizeNumberedHeadingShape(xml);
+  // Article XIII flat → hierarchical: demote old §13.2-§13.5 to letter
+  // sub-items under §13.1 RoFR; renumber §13.6 → §13.2 and §13.7 → §13.3.
+  // Runs AFTER standardize so each §X.Y has the canonical split-run shape
+  // (first run = "N.M ", second run = underlined title, third run = body).
+  // No-op when ARTICLE XIII is stripped (closeArticleXIIIGap path).
+  // Antonio review 2026-05-15 (todo 03).
+  xml = restructureArticleXIIIToHierarchical(xml);
   xml = mergeTitleOnlyHeadingsWithBody(xml);
   xml = rebuildFracturedNumberedHeadings(xml);
   xml = collapseEmptiesBetweenListItems(xml);
@@ -4720,6 +4727,125 @@ const ROMAN_TO_INT: Record<string, number> = {
   I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6, VII: 7, VIII: 8,
   IX: 9, X: 10, XI: 11, XII: 12, XIII: 13, XIV: 14, XV: 15, XVI: 16,
 };
+
+/**
+ * Article XIII flat→hierarchical restructure (Antonio review 2026-05-15 todo 03).
+ *
+ * Existing passes produce a flat numbering for Article XIII:
+ *   13.1 Right of First Refusal
+ *   13.2 Offer
+ *   13.3 Notice of Proposed Transfer
+ *   13.4 Concurrence or Acceptance
+ *   13.5 Notice of Election to Sell
+ *   13.6 Purchase of Shareholder Interests upon Deadlock
+ *   13.7 Approved Sale (with A. Drag, B. Tag)
+ *
+ * Antonio's target structure:
+ *   13.1 Right of First Refusal
+ *      A. Offer                       (was 13.2)
+ *      B. Notice of Proposed Transfer (was 13.3)
+ *      C. Concurrence or Acceptance   (was 13.4)
+ *      D. Notice of Election to Sell  (was 13.5)
+ *   13.2 Purchase upon Deadlock       (was 13.6)
+ *   13.3 Approved Sale                (was 13.7)
+ *
+ * Runs AFTER renumberAndRemapSubsections so the canonical 13.2-13.7
+ * numbering exists. The pass:
+ *   1. Demotes §13.2-§13.5 paragraphs to letter-list items (A./B./C./D.)
+ *      under §13.1 by swapping their pPr to the canonical letter-list shape
+ *      (left=2160 hanging=720) and replacing the first run's "13.X " text
+ *      with "<tab/>A.<tab/>".
+ *   2. Renumbers §13.6 → §13.2 and §13.7 → §13.3 by rewriting the first
+ *      <w:t> in those paragraphs.
+ *   3. Updates the one known cross-reference: §4.4 forfeiture's
+ *      "paragraph 13.6" → "paragraph 13.2".
+ *
+ * If Article XIII is stripped (no covenants), this is a no-op.
+ */
+function restructureArticleXIIIToHierarchical(xml: string): string {
+  const xiiiStart = xml.search(/<w:t[^>]*>\s*ARTICLE\s+XIII[: ]/);
+  const xivStart = xml.search(/<w:t[^>]*>\s*ARTICLE\s+XIV[: ]/);
+  if (xiiiStart < 0 || xivStart < 0 || xivStart <= xiiiStart) return xml;
+
+  const sliceStart = paragraphStartBefore(xml, xiiiStart);
+  const sliceEnd = paragraphStartBefore(xml, xivStart);
+  if (sliceStart < 0 || sliceEnd < 0 || sliceEnd <= sliceStart) return xml;
+
+  const before = xml.slice(0, sliceStart);
+  const slice = xml.slice(sliceStart, sliceEnd);
+  const after = xml.slice(sliceEnd);
+
+  // Mirror the existing letter-list pPr shape (cf. §13.6.A "If a Bona Fide
+  // Offer…" in the template — left=2160 hanging=720 is the canonical level-2
+  // indent per CLAUDE.md).
+  const LETTER_LIST_PPR =
+    '<w:pPr>' +
+    '<w:widowControl w:val="1"/>' +
+    '<w:spacing w:after="115" w:before="0" w:line="240" w:lineRule="auto"/>' +
+    '<w:ind w:left="2160" w:hanging="720"/>' +
+    '<w:jc w:val="both"/>' +
+    '<w:rPr>' +
+    '<w:rFonts w:ascii="Times New Roman" w:cs="Times New Roman" w:eastAsia="Times New Roman" w:hAnsi="Times New Roman"/>' +
+    '<w:sz w:val="24"/><w:szCs w:val="24"/>' +
+    '<w:vertAlign w:val="baseline"/>' +
+    '</w:rPr>' +
+    '</w:pPr>';
+
+  const demotions: Record<string, string> = {
+    "13.2": "A",
+    "13.3": "B",
+    "13.4": "C",
+    "13.5": "D",
+  };
+  const renumberings: Record<string, string> = {
+    "13.6": "13.2",
+    "13.7": "13.3",
+  };
+
+  const newSlice = slice.replace(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g, (full) => {
+    // Identify by the first <w:t> in the paragraph (post-renumber it's "13.X ").
+    const firstT = full.match(/<w:t[^>]*>([^<]*)<\/w:t>/);
+    if (!firstT) return full;
+    const m = firstT[1].match(/^(\d+\.\d+)\s*$/);
+    if (!m) return full;
+    const oldNum = m[1];
+
+    if (demotions[oldNum]) {
+      const letter = demotions[oldNum];
+      let updated = full;
+      // Swap pPr to letter-list.
+      updated = updated.replace(/<w:pPr>[\s\S]*?<\/w:pPr>/, LETTER_LIST_PPR);
+      // Replace the first run (which holds "13.X ") with the canonical
+      // letter-prefix run: <w:tab/><w:t>A.</w:t><w:tab/>. Preserve the
+      // run's <w:rPr> so font / baseline carry through.
+      updated = updated.replace(
+        /<w:r\b([^>]*)>([\s\S]*?)<w:t[^>]*>\d+\.\d+\s*<\/w:t>([\s\S]*?)<\/w:r>/,
+        (_full, rAttrs, rPrPart, _rest) =>
+          `<w:r${rAttrs}>${rPrPart}<w:tab/><w:t xml:space="preserve">${letter}.</w:t><w:tab/></w:r>`,
+      );
+      return updated;
+    }
+    if (renumberings[oldNum]) {
+      const newNum = renumberings[oldNum];
+      return full.replace(
+        /<w:t([^>]*)>(\d+\.\d+)(\s*)<\/w:t>/,
+        `<w:t$1>${newNum}$3</w:t>`,
+      );
+    }
+    return full;
+  });
+
+  let result = before + newSlice + after;
+
+  // §4.4 forfeiture clause currently reads "paragraph 13.6 below" pointing at
+  // Deadlock; after the restructure Deadlock lives at §13.2.
+  result = result.replace(
+    /<w:t([^>]*)>([^<]*paragraph\s+)13\.6(\b[^<]*)<\/w:t>/g,
+    `<w:t$1>$213.2$3</w:t>`,
+  );
+
+  return result;
+}
 
 function renumberAndRemapSubsections(xml: string): string {
   const remap = new Map<string, string>();
