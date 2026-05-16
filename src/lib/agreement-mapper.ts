@@ -189,6 +189,17 @@ function buildOfficers(data: FormData): QuestionnaireAnswers["officers"] {
             `Assistant Vice-President, Assistant Secretary, Assistant Treasurer).`
         );
       }
+      // Defense in depth: reject "Director" even if the form/API sends it.
+      // Director is a Board role (§10.5), not an Officer title (§10.6).
+      // Antonio review 2026-05-15 caught Pedro/Sofia rendered as Director
+      // when the upstream form left positions 5/6 blank.
+      if (/^\s*(asst\.?\s+)?director\b/i.test(role)) {
+        throw new Error(
+          `"${role}" is not a valid officer title for owner ${i + 1} (${name}). ` +
+            `Director is a board role, not an officer. ` +
+            `Use President, Vice-President, Secretary, Treasurer, or an Assistant variant.`
+        );
+      }
       list.push({ name, title: role });
     }
   } else {

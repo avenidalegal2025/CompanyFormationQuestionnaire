@@ -62,7 +62,7 @@ function extractDocxText(buf) {
   return { xml, text };
 }
 
-const PROD_URL = 'https://company-formation-questionnaire.vercel.app';
+const PROD_URL = process.env.QA_BASE_URL || 'https://company-formation-questionnaire.vercel.app';
 const STAMP = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 const HOME = process.env.USERPROFILE || process.env.HOME || '.';
 const OUT = join(HOME, 'Downloads', 'agreement-qa-ui', STAMP);
@@ -230,9 +230,11 @@ function buildFlatFormData(v) {
   if (isCorp) {
     flat['admin.officersAllOwners'] = 'Yes';
     // At least one shareholder officer must be President for Step 3 to validate.
-    const ROLES = ['President', 'Vice President', 'Treasurer', 'Secretary', 'Director', 'Director'];
+    // Director is a board role, not an officer title — Antonio review 2026-05-15.
+    // Owners 5/6 use Assistant titles (matches the form dropdown post-fix).
+    const ROLES = ['President', 'Vice-President', 'Treasurer', 'Secretary', 'Assistant Vice-President', 'Assistant Secretary'];
     for (let i = 0; i < v.owners; i++) {
-      flat[`admin.shareholderOfficer${i + 1}Role`] = ROLES[i] || 'Director';
+      flat[`admin.shareholderOfficer${i + 1}Role`] = ROLES[i] || 'Assistant Secretary';
     }
   } else {
     // LLC: managers all owners; assign manager names (form auto-populates from owners
