@@ -1098,13 +1098,10 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   xml = removeKeepLinesFromListItems(xml);
   xml = relabelOrdinalWordListItems(xml);
   xml = normalizeAllSectionHeadingPPr(xml);
-  // alignHeadingWrapWithBody intentionally disabled 2026-05-15 (Antonio review).
-  // It re-inserted <w:tab/> after the period in every §X.Y heading and
-  // pushed body to a dynamic hanging-indent column, producing the wide gap
-  // ("1.6 Majority.       Shareholders…") flagged as inconsistent.
-  // standardizeNumberedHeadingShape already produces "N.M Title.  body"
-  // with two regular spaces, which is the canonical look Antonio asked for.
-  // xml = alignHeadingWrapWithBody(xml);
+  // Per-paragraph hanging indent so wrap aligns under the title.
+  // Reworked 2026-05-15: now computes hangIndent = width of "N.M " only
+  // (not the full prefix), and no longer inserts <w:tab/> after the period.
+  xml = alignHeadingWrapWithBody(xml);
   xml = stripBoldFromInlineTitleRuns(xml);
   xml = fixArticle14CrossReferences(xml);
   xml = closeArticleXIIIGap(xml);
@@ -2395,14 +2392,13 @@ function normalizeSectionNumberTabs(xml: string): string {
     // Skip Heading4 (list-style paragraphs with many tab stops, e.g. §15.11)
     if (/<w:pStyle w:val="Heading4"\/>/.test(fullMatch)) return fullMatch;
 
-    // Target layout for numbered section headings:
+    // Target layout for numbered section headings (Antonio 2026-05-15):
     //   Number at left margin (column 0), title at 720 twips (0.5"),
-    //   body text inline, wrap at 1440 twips (1.0") — matching the body
-    //   wrap position used by unnumbered Heading3 paragraphs (Commencement,
-    //   Dissolution, Authorized Shares, etc.) which use w:left="1440".
-    // Achieved via w:hanging=1440 so the first line starts at 0 while the
-    // wrap indent stays at 1440.
-    const newInd = `<w:ind w:left="1440" w:hanging="1440"/>`;
+    //   body text inline on line 1, wrap at 720 twips so wrap-line starts
+    //   vertically under the underlined title (not under the body word).
+    // Achieved via w:hanging=720 so the first line starts at 0 while the
+    // wrap indent stays at 720.
+    const newInd = `<w:ind w:left="720" w:hanging="720"/>`;
     const newTabs = `<w:tabs><w:tab w:val="left" w:leader="none" w:pos="720"/></w:tabs>`;
 
     let result = fullMatch;
@@ -4105,65 +4101,61 @@ function relabelOrdinalWordListItems(xml: string): string {
  * wrap-line off-page; in those edge cases the long title spans the
  * full first line and body falls below at col 2.5" — still readable.
  */
+/**
+ * Per-paragraph wrap alignment: set the hanging indent on each §N.M
+ * heading to the width of "N.M " (number + single trailing space), so
+ * wrap lines start vertically under the underlined title — not under
+ * the body word, not at a fixed 1440-twip column.
+ *
+ * Antonio review 2026-05-15:
+ *   1.4 Board of Directors or Director.  The person(s) appointed…
+ *       be the Directors of the Corporation by a Majority vote…
+ *       ^^ wrap starts under "Board" (the title), not further right
+ *
+ * Inputs from prior passes:
+ *   - standardizeNumberedHeadingShape already produces runs of the form
+ *     `<w:t>N.M </w:t> <w:t underlined>Title</w:t> <w:t>.  body…</w:t>`
+ *     (number + single space, NO tab between number and title).
+ *   - normalizeAllSectionHeadingPPr applied a fallback ind=720/720.
+ *     This pass overrides ind with the dynamic per-paragraph value.
+ */
 function alignHeadingWrapWithBody(xml: string): string {
+  // Approximate twip widths for Times New Roman 12pt. Good enough for
+  // hanging-indent computation (Word and WPS both anti-alias the wrap
+  // column; the wrap line just needs to land within a glyph-width of
+  // the title's first letter).
+  const widthOf = (ch: string) => {
+    if (/\s/.test(ch)) return 70;
+    if (/[.,;:]/.test(ch)) return 70;
+    if (/\d/.test(ch)) return 130;
+    if (/[A-Z]/.test(ch)) return 165;
+    if (/[ijl]/.test(ch)) return 80;
+    if (/[mw]/.test(ch)) return 195;
+    return 130;
+  };
+
   return xml.replace(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g, (full) => {
     const ppr = (full.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/) || [])[1] || "";
-    const isHeading3 =
-      /<w:pStyle\s+w:val="Heading3"\/>/.test(ppr) &&
-      /<w:ind[^/]*w:left="1440"[^/]*\/>/.test(ppr);
-    if (!isHeading3) return full;
+    if (!/<w:pStyle\s+w:val="Heading3"\/>/.test(ppr)) return full;
 
     const allText = (full.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
       .map((t) => t.replace(/<[^>]+>/g, ""))
       .join("");
-    // Match: "N.M TitleText.  body…" — extract N.M + title.
-    const m = allText.match(/^(\d+\.\d+)\s+([A-Z][\w\s'’,&-]+?)\.\s+\S/);
+    const m = allText.match(/^(\d+\.\d+)\s+([A-Z])/);
     if (!m) return full;
     const numPrefix = m[1];
-    const titleText = m[2];
 
-    // Approximate twips for "N.M Title. " prefix. Times New Roman 12pt.
-    const widthOf = (ch: string) => {
-      if (/\s/.test(ch)) return 70;
-      if (/[.,;:]/.test(ch)) return 70;
-      if (/\d/.test(ch)) return 130;
-      if (/[A-Z]/.test(ch)) return 165;
-      if (/[ijl]/.test(ch)) return 80;
-      if (/[mw]/.test(ch)) return 195;
-      return 130;
-    };
-    const prefix = `${numPrefix} ${titleText}. `;
+    // hangIndent = width of "N.M " (number + one trailing space) so
+    // wrap aligns at the column where the underlined title begins.
     let twips = 0;
-    for (const c of prefix) twips += widthOf(c);
-    // Buffer for visible space after period; cap at 3600 (2.5").
-    twips += 200;
-    const hangIndent = Math.min(Math.max(twips, 1440), 3600);
+    for (const c of `${numPrefix} `) twips += widthOf(c);
+    // Clamp to a sensible range so weird inputs don't blow up layout.
+    const hangIndent = Math.min(Math.max(twips, 280), 900);
 
     let updated = full;
-    // Set ind: line 1 at col 0, wrap at hangIndent.
     updated = updated.replace(
       /<w:ind\b[^/]*\/>/,
       `<w:ind w:left="${hangIndent}" w:hanging="${hangIndent}"/>`,
-    );
-    // Replace pPr's left tab stop with one at hangIndent so the tab
-    // we insert below lands exactly at the wrap column.
-    updated = updated.replace(
-      /<w:tab w:val="left"[^/]*\/>/g,
-      `<w:tab w:val="left" w:leader="none" w:pos="${hangIndent}"/>`,
-    );
-    // jc=both stretches the first line and pushes body word past the
-    // wrap column. Switch to jc=left on §X.Y headings so body word
-    // lands exactly at the tab stop = hanging indent column.
-    updated = updated.replace(
-      /<w:jc\s+w:val="both"\s*\/>/g,
-      '<w:jc w:val="left"/>',
-    );
-    // Insert <w:tab/> after the period (replacing the spaces).
-    // Pattern: first <w:t> whose content starts with ". " followed by
-    // body text. Split into ".</w:t><w:tab/><w:t>body</w:t>".
-    updated = updated.replace(
-      /(<w:t[^>]*>)\.\s+([^<])/,
-      `$1.</w:t><w:tab/><w:t xml:space="preserve">$2`,
     );
     return updated;
   });
@@ -4188,7 +4180,11 @@ function normalizeAllSectionHeadingPPr(xml: string): string {
     "<w:tabs>" +
     '<w:tab w:val="left" w:leader="none" w:pos="720"/>' +
     "</w:tabs>" +
-    '<w:ind w:left="1440" w:hanging="1440"/>' +
+    // left=720, hanging=720 → line 1 starts at col 0 (where "N.M" sits),
+    // wrap lines start at col 720 (where the underlined title sits, after
+    // the number→title tab). Antonio review 2026-05-15: wrap should align
+    // vertically under the title, not under the body word at col 1440.
+    '<w:ind w:left="720" w:hanging="720"/>' +
     '<w:jc w:val="both"/>' +
     "<w:rPr>" +
     '<w:vertAlign w:val="baseline"/>' +
