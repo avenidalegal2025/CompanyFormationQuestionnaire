@@ -1029,6 +1029,9 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                                         <option value="Vice-President">Vice-President</option>
                                         <option value="Treasurer">Treasurer</option>
                                         <option value="Secretary">Secretary</option>
+                                        <option value="Assistant Vice-President">Assistant Vice-President</option>
+                                        <option value="Assistant Treasurer">Assistant Treasurer</option>
+                                        <option value="Assistant Secretary">Assistant Secretary</option>
                                       </select>
                                     )}
                                   />
