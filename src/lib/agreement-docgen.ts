@@ -1098,7 +1098,13 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   xml = removeKeepLinesFromListItems(xml);
   xml = relabelOrdinalWordListItems(xml);
   xml = normalizeAllSectionHeadingPPr(xml);
-  xml = alignHeadingWrapWithBody(xml);
+  // alignHeadingWrapWithBody intentionally disabled 2026-05-15 (Antonio review).
+  // It re-inserted <w:tab/> after the period in every §X.Y heading and
+  // pushed body to a dynamic hanging-indent column, producing the wide gap
+  // ("1.6 Majority.       Shareholders…") flagged as inconsistent.
+  // standardizeNumberedHeadingShape already produces "N.M Title.  body"
+  // with two regular spaces, which is the canonical look Antonio asked for.
+  // xml = alignHeadingWrapWithBody(xml);
   xml = stripBoldFromInlineTitleRuns(xml);
   xml = fixArticle14CrossReferences(xml);
   xml = closeArticleXIIIGap(xml);
