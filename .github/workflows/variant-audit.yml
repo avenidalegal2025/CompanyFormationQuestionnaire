@@ -6,16 +6,20 @@ on:
     paths:
       - 'src/lib/agreement-docgen.ts'
       - 'src/lib/agreement-mapper.ts'
+      - 'src/lib/schema.ts'
       - 'templates/**'
       - 'scripts/audit-corp-structure.mjs'
       - 'scripts/audit-all-variants.ts'
+      - 'scripts/verify-prod-flow-all-variants.ts'
       - 'scripts/lib/agreement-variants.mjs'
   push:
     branches: [main]
     paths:
       - 'src/lib/agreement-docgen.ts'
       - 'src/lib/agreement-mapper.ts'
+      - 'src/lib/schema.ts'
       - 'templates/**'
+      - 'scripts/verify-prod-flow-all-variants.ts'
   workflow_dispatch:
 
 jobs:
@@ -40,10 +44,21 @@ jobs:
       - name: Drift check vs baseline
         run: npx tsx scripts/audit-drift-check.ts --baseline=tests/__snapshots__/audit-baseline.json --current=audit-all-results.json
 
+      - name: Verify production data-flow (288 variants)
+        run: npx tsx scripts/verify-prod-flow-all-variants.ts
+
       - name: Upload audit JSON
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: audit-all-results
           path: audit-all-results.json
+          retention-days: 30
+
+      - name: Upload prod-flow verify JSON
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-prod-flow
+          path: scripts/__verify_out__/verify-prod-flow.json
           retention-days: 30
