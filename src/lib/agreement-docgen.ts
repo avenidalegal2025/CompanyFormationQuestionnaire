@@ -377,25 +377,57 @@ function addExtraLLCMembers(
     }
   }
 
-  // Build signature blocks for extra members with matching formatting
+  // Build signature blocks for extra members with matching formatting.
+  // Template uses a 2-column visual layout achieved via leading <w:tab/>
+  // elements on the right-side Name paragraphs (6 tabs push the name
+  // ~3" right). The Name itself is rendered in TWO runs: non-bold
+  // "Name: " label + bold name. We mirror that structure here so extras
+  // align with Roberto/Ana visually and render their names in bold.
+  const nameLabelRPr = '<w:rPr><w:sz w:val="23"/><w:szCs w:val="23"/></w:rPr>';
+  const nameBoldRPr =
+    '<w:rPr><w:b w:val="1"/><w:bCs w:val="1"/>' +
+    '<w:sz w:val="23"/><w:szCs w:val="23"/></w:rPr>';
+  const buildExtraNameParagraph = (name: string) =>
+    `<w:p>${sigFmt.pPr}` +
+    `<w:r>${nameLabelRPr}` +
+    `<w:tab/><w:tab/><w:tab/><w:tab/><w:tab/><w:tab/>` +
+    `<w:t xml:space="preserve">Name: </w:t></w:r>` +
+    `<w:r>${nameBoldRPr}<w:t xml:space="preserve">${xmlEscape(name)}</w:t></w:r>` +
+    `</w:p>`;
+  // Anchor on member 2's "Owner of the Company" — the first occurrence
+  // of that phrase hits member 1's (Roberto) cell, jamming Carlos/Maria
+  // into the left signature cell and leaving Ana alone in the right
+  // cell. Find member 2's name first, then the "Owner of the Company"
+  // that follows it.
   const lastMember2Sig = `Owner of the Company`;
   const extraSigBlocks = extraOwners
     .map(
       (owner) =>
         `</w:t></w:r></w:p>` +
         buildFormattedParagraph(`By: __________________________`, sigFmt.pPr, sigFmt.rPr) +
-        buildFormattedParagraph(`Name: ${owner.full_name}`, sigFmt.pPr, sigFmt.rPr) +
+        buildExtraNameParagraph(owner.full_name) +
         buildFormattedParagraph(`Owner of the Company`, sigFmt.pPr, sigFmt.rPr) +
         `<w:p><w:r><w:t xml:space="preserve">`
     )
     .join("");
 
-  xml = xmlTextReplace(
-    xml,
-    lastMember2Sig,
-    lastMember2Sig + extraSigBlocks,
-    false
-  );
+  if (extraOwners.length > 0 && member2Name) {
+    // Scope: only look inside the signatures area, AFTER the "IN WITNESS"
+    // recital so we don't anchor on the preamble.
+    const witnessIdx = xml.indexOf("IN WITNESS");
+    const startFrom = witnessIdx >= 0 ? witnessIdx : 0;
+    const member2NameInSig = xml.indexOf(member2Name, startFrom);
+    if (member2NameInSig >= 0) {
+      const ownerTagIdx = xml.indexOf(lastMember2Sig, member2NameInSig);
+      if (ownerTagIdx >= 0) {
+        xml =
+          xml.substring(0, ownerTagIdx) +
+          lastMember2Sig +
+          extraSigBlocks +
+          xml.substring(ownerTagIdx + lastMember2Sig.length);
+      }
+    }
+  }
 
   // Also add extra managers if needed
   if (answers.directors_managers.length > 2) {
