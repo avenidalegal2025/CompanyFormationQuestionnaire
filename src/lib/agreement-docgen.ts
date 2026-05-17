@@ -6378,8 +6378,16 @@ function xmlTextReplace(
 
   // Complex case: text might be split across <w:t> elements.
   // We need to find paragraphs where the concatenated text matches.
+  // Bug-fix 2026-05-17: the prior pattern `<w:t[^>]*>` ALSO matched
+  // `<w:tab/>` self-closing elements (since `<w:t` + `ab/` + `>` satisfies
+  // `<w:t` then `[^>]*` then `>`), causing the capture group to swallow
+  // literal `<w:t…>` opening markup as text — which then got re-emitted
+  // inside the replacement <w:t> producing nested <w:t><w:t> garbage that
+  // LibreOffice refused to load. Require either `<w:t>` (no attrs) or
+  // `<w:t<whitespace>…>` (attrs after a real space) so `<w:tab/>` is
+  // excluded.
   const pRegex = /<w:p[ >][\s\S]*?<\/w:p>/g;
-  const tRegex = /<w:t[^>]*>([\s\S]*?)<\/w:t>/g;
+  const tRegex = /<w:t(?:>|\s[^>]*>)([\s\S]*?)<\/w:t>/g;
 
   let result = xml;
   let match;
