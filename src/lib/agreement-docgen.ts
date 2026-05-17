@@ -311,30 +311,70 @@ function addExtraLLCMembers(
   const capFmt = extractFormatting(xml, answers.owners_list[1]?.full_name || "$");
   const sigFmt = extractFormatting(xml, "Owner of the Company");
 
-  // Build text lines for capital contributions (Sec 5.1)
-  for (const owner of extraOwners) {
-    const line = `${owner.full_name}           $${formatCurrency(owner.capital_contribution)}`;
-    const member02Amount = formatCurrency(answers.owners_list[1]?.capital_contribution || 0);
-    const searchText = `$${member02Amount}`;
-    xml = xmlTextReplace(
-      xml,
-      searchText,
-      `${searchText}</w:t></w:r></w:p>${buildFormattedParagraph(line, capFmt.pPr, capFmt.rPr)}<w:p><w:r><w:t xml:space="preserve">`,
-      false
-    );
+  // Build text lines for capital contributions (Sec 5.1).
+  // Anchor by SCOPING the search to within the §5.1 Capital
+  // Contributions table only — earlier code anchored on member 2's
+  // dollar amount alone, which when fixtures use equal contributions
+  // ($50,000 across the board) lands on member 1's row in the same
+  // table. Even anchoring on member 2's name globally hits the preamble
+  // first ("by Roberto Mendez, Ana Garcia, …"). So we find the
+  // Capital Contributions table boundary first, then anchor inside it.
+  const member2Name = answers.owners_list[1]?.full_name || "";
+  const member02Amount = formatCurrency(answers.owners_list[1]?.capital_contribution || 0);
+  const capAmountText = `$${member02Amount}`;
+  const findInTable = (xml: string, captionAnchor: string, needle: string): number => {
+    const cap = xml.indexOf(captionAnchor);
+    if (cap < 0) return -1;
+    const tblStart = xml.indexOf("<w:tbl", cap);
+    if (tblStart < 0) return -1;
+    const tblEnd = xml.indexOf("</w:tbl>", tblStart);
+    if (tblEnd < 0) return -1;
+    const found = xml.indexOf(needle, tblStart);
+    if (found < 0 || found > tblEnd) return -1;
+    return found;
+  };
+  if (member2Name && extraOwners.length > 0) {
+    const nameIdx = findInTable(xml, "initial capitalization", member2Name);
+    if (nameIdx >= 0) {
+      const amountIdx = xml.indexOf(capAmountText, nameIdx);
+      if (amountIdx >= 0) {
+        const extras = extraOwners
+          .map((owner) => {
+            const line = `${owner.full_name}           $${formatCurrency(owner.capital_contribution)}`;
+            return buildFormattedParagraph(line, capFmt.pPr, capFmt.rPr);
+          })
+          .join("");
+        const insertion = `${capAmountText}</w:t></w:r></w:p>${extras}<w:p><w:r><w:t xml:space="preserve">`;
+        xml =
+          xml.substring(0, amountIdx) +
+          insertion +
+          xml.substring(amountIdx + capAmountText.length);
+      }
+    }
   }
 
-  // Build text lines for MPI percentages (Sec 7.4)
+  // Build text lines for MPI percentages (Sec 7.4). Same scoped-search
+  // anchoring fix.
   const mpiFmt = extractFormatting(xml, "Members Percentage Interests");
-  for (const owner of extraOwners) {
-    const line = `${owner.full_name}           ${owner.shares_or_percentage}%`;
-    const member02Pct = `${answers.owners_list[1]?.shares_or_percentage || 0}%`;
-    xml = xmlTextReplace(
-      xml,
-      member02Pct,
-      `${member02Pct}</w:t></w:r></w:p>${buildFormattedParagraph(line, mpiFmt.pPr, mpiFmt.rPr)}<w:p><w:r><w:t xml:space="preserve">`,
-      false
-    );
+  const member02Pct = `${answers.owners_list[1]?.shares_or_percentage || 0}%`;
+  if (member2Name && extraOwners.length > 0) {
+    const nameIdx = findInTable(xml, "Members Percentage Interests", member2Name);
+    if (nameIdx >= 0) {
+      const pctIdx = xml.indexOf(member02Pct, nameIdx);
+      if (pctIdx >= 0) {
+        const extras = extraOwners
+          .map((owner) => {
+            const line = `${owner.full_name}           ${owner.shares_or_percentage}%`;
+            return buildFormattedParagraph(line, mpiFmt.pPr, mpiFmt.rPr);
+          })
+          .join("");
+        const insertion = `${member02Pct}</w:t></w:r></w:p>${extras}<w:p><w:r><w:t xml:space="preserve">`;
+        xml =
+          xml.substring(0, pctIdx) +
+          insertion +
+          xml.substring(pctIdx + member02Pct.length);
+      }
+    }
   }
 
   // Build signature blocks for extra members with matching formatting
