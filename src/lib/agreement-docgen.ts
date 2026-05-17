@@ -215,6 +215,14 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
     xml = addExtraLLCMembers(xml, answers);
   }
 
+  // For 1-owner LLC: the template hardcodes "by {{m1}} and {{m2}}" /
+  // "designate {{m1}} and {{m2}} to serve" / 2 rows in cap+MPI tables /
+  // 2 sig slots. With member_02 empty, those render with dangling " and "
+  // text, blank table rows, and an empty sig slot. Strip them.
+  if (answers.owners_list.length === 1) {
+    xml = cleanupSingleOwnerLLC(xml, answers);
+  }
+
   // Post-processing: voting text, bank accounts, conditional sections
   xml = applyLLCVotingReplacements(xml, answers);
   xml = applyLLCBankAccountText(xml, answers);
@@ -278,6 +286,162 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     })
   );
+}
+
+// ─── LLC Sole-member cleanup (1 owner) ───────────────────────────────
+
+/**
+ * The LLC template assumes ≥2 members ("by {{m1}} and {{m2}}" preamble,
+ * "designate {{m1}} and {{m2}} to serve" manager paragraph, 2 hardcoded
+ * rows in §5.1 capital + §7.4 MPI tables, 2 sig slots). For 1-owner
+ * LLCs, member_02 placeholders render as empty strings, leaving:
+ *   - "by Roberto Mendez and  (each, a..." (dangling "and ")
+ *   - "designate Roberto Mendez and  to serve..." (dangling "and ")
+ *   - empty 2nd row in cap + MPI tables
+ *   - empty 2nd sig block ("By: ___ / Name: / Owner of the Company")
+ *
+ * Strip them — sole-member LLC is a common real case (single-founder).
+ */
+function cleanupSingleOwnerLLC(
+  xml: string,
+  answers: QuestionnaireAnswers
+): string {
+  const owner1Name = answers.owners_list[0]?.full_name || "";
+  if (!owner1Name) return xml;
+
+  // 1. Strip dangling " and " text fragments. The template renders
+  //    "{{m1}} and {{m2}}" with the literal "and " in its own <w:t>
+  //    run, then the empty-rendered "{{m2}}" run as whitespace. The
+  //    pattern crosses run boundaries, so we walk paragraphs and
+  //    rewrite the "and " run + the following whitespace-only run when
+  //    they sit between owner1's name run and a "(each"/"to serve" run.
+  xml = xml.replace(/<w:p\b[^>]*>[\s\S]*?<\/w:p>/g, (para) => {
+    // Quick filter — only fire on paragraphs containing the owner name
+    // AND one of the two known closing contexts.
+    if (!para.includes(owner1Name)) return para;
+    const hasPreambleCtx = para.includes("(each");
+    const hasMgrCtx = para.includes("to serve");
+    if (!hasPreambleCtx && !hasMgrCtx) return para;
+    // Walk <w:t> texts in order; find the "and " separator and the
+    // following whitespace-only run, clear both.
+    const tMatches = Array.from(para.matchAll(/(<w:t[^>]*>)([^<]*)(<\/w:t>)/g));
+    if (tMatches.length < 2) return para;
+    // Find index of owner1 run.
+    let ownerIdx = -1;
+    for (let i = 0; i < tMatches.length; i++) {
+      if (tMatches[i][2].includes(owner1Name)) { ownerIdx = i; break; }
+    }
+    if (ownerIdx < 0) return para;
+    // Scan forward from owner1: find " and " (or "and ") run. The next
+    // run is either (a) whitespace-only (empty m2 placeholder, preamble
+    // structure) or (b) directly the closing context "to serve" /
+    // "(each" (manager-designation structure, where m2 placeholder was
+    // absorbed). Both cases mean m2 is empty; clear the "and " run.
+    for (let j = ownerIdx + 1; j < tMatches.length - 1; j++) {
+      const txt = tMatches[j][2];
+      if (!/^\s*and\s+$/.test(txt) && !/^\s+and\s*$/.test(txt) && !/^\s*and\s*$/.test(txt)) continue;
+      const next = tMatches[j + 1][2];
+      const nextEmpty = /^\s*$/.test(next);
+      const nextStartsCtx = /^(?:to serve|\(each)/.test(next);
+      if (nextEmpty || nextStartsCtx) {
+        // Clear the "and " run. If the next run is whitespace-only
+        // (preamble case), also clear it. If it's "to serve" (manager
+        // case), leave it alone.
+        let updated = para;
+        if (nextEmpty) {
+          // Right-to-left replace to keep earlier offsets valid.
+          const emptyMatch = tMatches[j + 1];
+          updated =
+            updated.substring(0, emptyMatch.index!) +
+            `${emptyMatch[1]}${emptyMatch[3]}` +
+            updated.substring(emptyMatch.index! + emptyMatch[0].length);
+        }
+        const andMatch = tMatches[j];
+        // For manager case we want to keep the trailing space so " to
+        // serve" doesn't touch the name. Replace "and " with " ".
+        const replacement = nextStartsCtx ? " " : "";
+        updated =
+          updated.substring(0, andMatch.index!) +
+          `${andMatch[1]}${replacement}${andMatch[3]}` +
+          updated.substring(andMatch.index! + andMatch[0].length);
+        return updated;
+      }
+      break;
+    }
+    return para;
+  });
+
+  // 2. Drop the empty 2nd row from §5.1 Capital + §7.4 MPI tables. Empty
+  //    here = a <w:tr> whose <w:t> text contents are all whitespace or
+  //    just "$"/"%" (the dollar/percent sign from the template with an
+  //    empty value attached).
+  for (const caption of ["initial capitalization", "Members Percentage Interests"]) {
+    const cap = xml.indexOf(caption);
+    if (cap < 0) continue;
+    const tblStart = xml.indexOf("<w:tbl", cap);
+    if (tblStart < 0) continue;
+    const tblEnd = xml.indexOf("</w:tbl>", tblStart);
+    if (tblEnd < 0) continue;
+    const table = xml.substring(tblStart, tblEnd);
+    // Find every row inside the table. Drop any row whose NAME cell
+    // (first cell) is empty — that's the member-02 placeholder row
+    // when only 1 member exists. Cap table empty row: name cell empty,
+    // amount cell shows just "$". MPI table empty row: name cell empty,
+    // amount cell "% of the MPI" with empty pct.
+    const newTable = table.replace(/<w:tr\b[\s\S]*?<\/w:tr>/g, (row) => {
+      const cells = row.match(/<w:tc\b[\s\S]*?<\/w:tc>/g) || [];
+      if (cells.length === 0) return row;
+      const firstCellText = (cells[0].match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+        .map((t) => t.replace(/<[^>]+>/g, ""))
+        .join("")
+        .trim();
+      if (firstCellText === "") return ""; // drop this row
+      return row;
+    });
+    xml = xml.substring(0, tblStart) + newTable + xml.substring(tblEnd);
+  }
+
+  // 3. Drop the empty 2nd sig block. The sig area for 2-owner has TWO
+  //    By/Name/Owner triples; for 1-owner the 2nd triple renders with
+  //    empty "Name: " + " Owner of the Company". Walk paragraphs in the
+  //    sig area (after the first "Owner of the Company") and remove any
+  //    paragraph whose <w:t> joined text is empty or trivial ("Name: ",
+  //    "Owner of the Company", "By: ____________________________").
+  const witnessIdx = xml.indexOf("IN WITNESS");
+  if (witnessIdx >= 0) {
+    const before = xml.substring(0, witnessIdx);
+    let middle = xml.substring(witnessIdx);
+    // Find FIRST "Owner of the Company" (member 1's slot).
+    const firstOwner = middle.indexOf("Owner of the Company");
+    if (firstOwner >= 0) {
+      // Find paragraph that contains that occurrence.
+      const firstOwnerParaEnd = middle.indexOf("</w:p>", firstOwner) + "</w:p>".length;
+      const head = middle.substring(0, firstOwnerParaEnd);
+      let tail = middle.substring(firstOwnerParaEnd);
+      // Drop empty paragraphs AND paragraphs whose text is only the
+      // 2nd-slot placeholders (empty name, empty %).
+      tail = tail.replace(/<w:p\b[^>]*>[\s\S]*?<\/w:p>/g, (para) => {
+        const text = (para.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+          .map((t) => t.replace(/<[^>]+>/g, ""))
+          .join("")
+          .trim();
+        // Just whitespace + "Name:": drop (member 2's empty Name slot).
+        if (/^Name:\s*$/.test(text)) return "";
+        // Standalone "% Owner of the Company" (empty pct placeholder
+        // rendered as just "%"): drop — this is member 2's residual
+        // ownership-tag paragraph.
+        if (/^%?\s*Owner of the Company$/.test(text)) return "";
+        // Standalone "By: ___" with no name attached (member 2's empty
+        // sig line). Member 1's By line is already in `head`.
+        if (/^By:[\s_]*$/.test(text)) return "";
+        return para;
+      });
+      middle = head + tail;
+    }
+    xml = before + middle;
+  }
+
+  return xml;
 }
 
 // ─── LLC Extra Members (3-6 owners) ──────────────────────────────────
