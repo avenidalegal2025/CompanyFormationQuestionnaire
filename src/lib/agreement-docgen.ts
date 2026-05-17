@@ -246,6 +246,17 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
   xml = addKeepNextToHeadings(xml);
   xml = chainKeepNextThroughEmpties(xml);
   xml = normalizeSubItemTabs(xml);
+  // §11.9.A/B and similar LLC lettered paragraphs ship with firstLine=700
+  // + inline body <w:tab/> artifacts that force awkward wraps (e.g. lone
+  // "or" stranded on the far left margin). Rewrite indent + strip body
+  // tabs so text reflows naturally.
+  xml = stripLLCBodyTabArtifacts(xml);
+  // §12 ships with 5 empty paragraphs between heading and §12.1; collapse
+  // any heading-followed-by-multiple-empties down to one separator.
+  xml = collapseEmptiesAfterLLCHeadings(xml);
+  // Drop trailing empty paragraphs after the last signature line so the
+  // PDF doesn't end with a blank page.
+  xml = stripTrailingEmptyParagraphs(xml);
   xml = enablePaginationFlags(xml);
   xml = repairXml(xml);
 
@@ -2356,6 +2367,139 @@ function normalizeInlineTitlePeriod(xml: string): string {
  * The attorney's templates have inconsistent indentation on these items.
  * This normalizes them all to use the same tab positions.
  */
+/**
+ * LLC template trails the last signature paragraph with 12 empty
+ * paragraphs, pushing a blank trailing page into the rendered PDF
+ * (variant 1 page 16). Strip every empty paragraph after the last
+ * non-empty content paragraph, leaving the document body to end with
+ * its real content.
+ */
+function stripTrailingEmptyParagraphs(xml: string): string {
+  const bodyEnd = xml.lastIndexOf("</w:body>");
+  if (bodyEnd < 0) return xml;
+  // Find every <w:p>…</w:p> in the body region.
+  const body = xml.substring(0, bodyEnd);
+  const paraRe = /<w:p\b[^>]*>[\s\S]*?<\/w:p>/g;
+  const paras: Array<{ start: number; end: number; isEmpty: boolean }> = [];
+  let pm: RegExpExecArray | null;
+  while ((pm = paraRe.exec(body)) !== null) {
+    const text = (pm[0].match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+      .map((t) => t.replace(/<[^>]+>/g, ""))
+      .join("")
+      .trim();
+    paras.push({ start: pm.index, end: pm.index + pm[0].length, isEmpty: text === "" });
+  }
+  // Walk back from the end, find the first non-empty.
+  let lastContent = -1;
+  for (let i = paras.length - 1; i >= 0; i--) {
+    if (!paras[i].isEmpty) { lastContent = i; break; }
+  }
+  if (lastContent < 0 || lastContent === paras.length - 1) return xml;
+  // Delete every empty paragraph after lastContent.
+  let out = xml;
+  for (let i = paras.length - 1; i > lastContent; i--) {
+    out = out.substring(0, paras[i].start) + out.substring(paras[i].end);
+  }
+  return out;
+}
+
+/**
+ * LLC template ships §12 "Assignment of Interests" with 5 consecutive
+ * empty paragraphs between the centered heading and §12.1 body —
+ * renders as a giant whitespace gap (variant 1 page 8). Collapse any
+ * run of 2+ consecutive empty paragraphs that follow a section
+ * heading-shape paragraph (text matches "N. Title") down to 1.
+ * Other sections (§13, §14, …) ship with the canonical single empty
+ * separator, so this is a targeted cleanup, not a blanket flatten.
+ */
+function collapseEmptiesAfterLLCHeadings(xml: string): string {
+  const paraRe = /<w:p\b[^>]*>[\s\S]*?<\/w:p>/g;
+  type P = { start: number; end: number; text: string; isHeading: boolean; isEmpty: boolean };
+  const paras: P[] = [];
+  let pm: RegExpExecArray | null;
+  while ((pm = paraRe.exec(xml)) !== null) {
+    const text = (pm[0].match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+      .map((t) => t.replace(/<[^>]+>/g, "")).join("").trim();
+    paras.push({
+      start: pm.index,
+      end: pm.index + pm[0].length,
+      text,
+      isHeading: /^\d+\.\s+[A-Z]/.test(text),
+      isEmpty: text === "",
+    });
+  }
+  // Identify empty paragraphs to delete (right-to-left).
+  const toDelete: P[] = [];
+  for (let i = 0; i < paras.length; i++) {
+    if (!paras[i].isHeading) continue;
+    // Count empties after.
+    let j = i + 1;
+    while (j < paras.length && paras[j].isEmpty) j++;
+    const gap = j - i - 1;
+    if (gap <= 1) continue;
+    // Keep first empty (i+1), delete i+2 .. j-1.
+    for (let k = i + 2; k < j; k++) toDelete.push(paras[k]);
+  }
+  // Apply deletes right-to-left.
+  toDelete.sort((a, b) => b.start - a.start);
+  let out = xml;
+  for (const p of toDelete) {
+    out = out.substring(0, p.start) + out.substring(p.end);
+  }
+  return out;
+}
+
+/**
+ * LLC template's lettered sub-items in some sections (e.g. §11.9.A
+ * "Member Meetings", §11.9.B "Manager Meetings") ship with
+ *   <w:ind w:firstLine="700"/>             (no left, no hanging)
+ *   <w:tabs><w:tab w:pos="709"/></w:tabs>  (single tab stop)
+ * plus inline <w:tab/> elements sprinkled through the body text. The
+ * inline tabs are a Google-Docs export artifact: the tabs were originally
+ * inserted at visual wrap-points and the export preserved them as
+ * structural tab markers. When LibreOffice/Word re-flows the text, those
+ * tabs force awkward line breaks — visible as orphaned words ("or") on
+ * the far-left margin between body lines (variant 1 §11.9.A page 7).
+ *
+ * Fix: for paragraphs matching this pattern (firstLine=700, no left/hanging),
+ * rewrite the indent to <w:ind w:left="700" w:hanging="700"/> so wraps land
+ * at col 700 (= where the body title started), and strip every <w:tab/>
+ * EXCEPT the first one (the legitimate label→title separator after "A.").
+ */
+function stripLLCBodyTabArtifacts(xml: string): string {
+  return xml.replace(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g, (full) => {
+    const ppr = (full.match(/<w:pPr>[\s\S]*?<\/w:pPr>/) || [""])[0];
+    if (!ppr) return full;
+    // Match only the Google-Docs-style firstLine=700 indent (no left, no hanging).
+    const indM = ppr.match(/<w:ind\b([^/]*)\/>/);
+    if (!indM) return full;
+    const ind = indM[1];
+    if (!/w:firstLine="700"/.test(ind)) return full;
+    if (/w:left=/.test(ind) || /w:hanging=/.test(ind)) return full;
+
+    // Only fire if there are multiple <w:tab/> markers (1 legit + 1+ body).
+    const tabCount = (full.match(/<w:tab\/>/g) || []).length;
+    if (tabCount < 2) return full;
+
+    let updated = full;
+    // 1. Rewrite ind: firstLine=700 (no left) → left=700 hanging=700 so
+    //    wraps land vertically under the body-title column.
+    updated = updated.replace(
+      /<w:ind\b[^/]*\/>/,
+      '<w:ind w:left="700" w:hanging="700"/>',
+    );
+    // 2. Strip all <w:tab/> except the first. The first one separates the
+    //    label (e.g. "A.") from the underlined title; subsequent ones are
+    //    body-text artifacts that force awkward line breaks.
+    let kept = false;
+    updated = updated.replace(/<w:tab\/>/g, () => {
+      if (!kept) { kept = true; return "<w:tab/>"; }
+      return "";
+    });
+    return updated;
+  });
+}
+
 function normalizeSubItemTabs(xml: string): string {
   return xml.replace(/<w:p([ >][\s\S]*?)<\/w:p>/g, (fullMatch, inner) => {
     const texts = (fullMatch.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
