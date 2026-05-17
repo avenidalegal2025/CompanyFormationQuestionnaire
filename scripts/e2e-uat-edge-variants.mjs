@@ -32,7 +32,7 @@ const STRIPE_EXP = '12/29';
 const STRIPE_CVC = '123';
 const STRIPE_ZIP = '33131';
 const PASSWORD = 'EdgeUAT2026!';
-const RUN_TAG = (process.env.E2E_RUN_TAG || 'b').trim();
+const RUN_TAG = (process.env.E2E_RUN_TAG || 'r2a').trim();
 
 const NAMES = [
   'Roberto Mendez', 'Ana Garcia', 'Carlos Lopez',
@@ -68,6 +68,13 @@ const VARIANTS = [
   { id: 8,  entity: 'LLC',    ownerCount: 4, voting: 'majority',      rofr: true,  drag: false, tag: false, nc: 'Yes', ns: 'Yes', conf: 'Yes', label: 'PFX08' },
   { id: 9,  entity: 'LLC',    ownerCount: 6, voting: 'unanimous',     rofr: true,  drag: true,  tag: true,  nc: 'Yes', ns: 'Yes', conf: 'Yes', label: 'PFX09' },
   { id: 10, entity: 'C-Corp', ownerCount: 1, voting: 'majority',      rofr: false, drag: false, tag: false, nc: 'No',  ns: 'No',  conf: 'No',  label: 'PFX10' },
+  // Round 2 — fills matrix gaps (Corp 4o, LLC 5o, LLC super-majority,
+  // LLC mixed, single-covenant scenarios, drag/tag toggle).
+  { id: 11, entity: 'C-Corp', ownerCount: 4, voting: 'supermajority', rofr: true,  drag: true,  tag: true,  nc: 'No',  ns: 'No',  conf: 'No',  label: 'PFX11' },
+  { id: 12, entity: 'LLC',    ownerCount: 3, voting: 'unanimous',     rofr: false, drag: false, tag: false, nc: 'No',  ns: 'Yes', conf: 'No',  label: 'PFX12' },
+  { id: 13, entity: 'LLC',    ownerCount: 5, voting: 'supermajority', rofr: true,  drag: true,  tag: false, nc: 'Yes', ns: 'No',  conf: 'No',  label: 'PFX13' },
+  { id: 14, entity: 'C-Corp', ownerCount: 3, voting: 'unanimous',     rofr: false, drag: false, tag: false, nc: 'Yes', ns: 'No',  conf: 'No',  label: 'PFX14' },
+  { id: 15, entity: 'LLC',    ownerCount: 2, voting: 'majority',      rofr: true,  drag: false, tag: true,  nc: 'No',  ns: 'No',  conf: 'Yes', label: 'PFX15' },
 ];
 
 function emailFor(v) { return `trimaran.llc+pfx${v.id}${RUN_TAG}@gmail.com`; }
