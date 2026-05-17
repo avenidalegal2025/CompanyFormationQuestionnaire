@@ -390,8 +390,9 @@ function cleanupSingleOwnerLLC(
     // amount cell "% of the MPI" with empty pct.
     const newTable = table.replace(/<w:tr\b[\s\S]*?<\/w:tr>/g, (row) => {
       const cells = row.match(/<w:tc\b[\s\S]*?<\/w:tc>/g) || [];
-      if (cells.length === 0) return row;
-      const firstCellText = (cells[0].match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+      const firstCell = cells[0];
+      if (!firstCell) return row;
+      const firstCellText = (firstCell.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
         .map((t) => t.replace(/<[^>]+>/g, ""))
         .join("")
         .trim();
