@@ -246,6 +246,17 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
   xml = addKeepNextToHeadings(xml);
   xml = chainKeepNextThroughEmpties(xml);
   xml = normalizeSubItemTabs(xml);
+  // §11.9.A/B and similar LLC lettered paragraphs ship with firstLine=700
+  // + inline body <w:tab/> artifacts that force awkward wraps (e.g. lone
+  // "or" stranded on the far left margin). Rewrite indent + strip body
+  // tabs so text reflows naturally.
+  xml = stripLLCBodyTabArtifacts(xml);
+  // §12 ships with 5 empty paragraphs between heading and §12.1; collapse
+  // any heading-followed-by-multiple-empties down to one separator.
+  xml = collapseEmptiesAfterLLCHeadings(xml);
+  // Drop trailing empty paragraphs after the last signature line so the
+  // PDF doesn't end with a blank page.
+  xml = stripTrailingEmptyParagraphs(xml);
   xml = enablePaginationFlags(xml);
   xml = repairXml(xml);
 
@@ -300,51 +311,123 @@ function addExtraLLCMembers(
   const capFmt = extractFormatting(xml, answers.owners_list[1]?.full_name || "$");
   const sigFmt = extractFormatting(xml, "Owner of the Company");
 
-  // Build text lines for capital contributions (Sec 5.1)
-  for (const owner of extraOwners) {
-    const line = `${owner.full_name}           $${formatCurrency(owner.capital_contribution)}`;
-    const member02Amount = formatCurrency(answers.owners_list[1]?.capital_contribution || 0);
-    const searchText = `$${member02Amount}`;
-    xml = xmlTextReplace(
-      xml,
-      searchText,
-      `${searchText}</w:t></w:r></w:p>${buildFormattedParagraph(line, capFmt.pPr, capFmt.rPr)}<w:p><w:r><w:t xml:space="preserve">`,
-      false
-    );
+  // Build text lines for capital contributions (Sec 5.1).
+  // Anchor by SCOPING the search to within the §5.1 Capital
+  // Contributions table only — earlier code anchored on member 2's
+  // dollar amount alone, which when fixtures use equal contributions
+  // ($50,000 across the board) lands on member 1's row in the same
+  // table. Even anchoring on member 2's name globally hits the preamble
+  // first ("by Roberto Mendez, Ana Garcia, …"). So we find the
+  // Capital Contributions table boundary first, then anchor inside it.
+  const member2Name = answers.owners_list[1]?.full_name || "";
+  const member02Amount = formatCurrency(answers.owners_list[1]?.capital_contribution || 0);
+  const capAmountText = `$${member02Amount}`;
+  const findInTable = (xml: string, captionAnchor: string, needle: string): number => {
+    const cap = xml.indexOf(captionAnchor);
+    if (cap < 0) return -1;
+    const tblStart = xml.indexOf("<w:tbl", cap);
+    if (tblStart < 0) return -1;
+    const tblEnd = xml.indexOf("</w:tbl>", tblStart);
+    if (tblEnd < 0) return -1;
+    const found = xml.indexOf(needle, tblStart);
+    if (found < 0 || found > tblEnd) return -1;
+    return found;
+  };
+  if (member2Name && extraOwners.length > 0) {
+    const nameIdx = findInTable(xml, "initial capitalization", member2Name);
+    if (nameIdx >= 0) {
+      const amountIdx = xml.indexOf(capAmountText, nameIdx);
+      if (amountIdx >= 0) {
+        const extras = extraOwners
+          .map((owner) => {
+            const line = `${owner.full_name}           $${formatCurrency(owner.capital_contribution)}`;
+            return buildFormattedParagraph(line, capFmt.pPr, capFmt.rPr);
+          })
+          .join("");
+        const insertion = `${capAmountText}</w:t></w:r></w:p>${extras}<w:p><w:r><w:t xml:space="preserve">`;
+        xml =
+          xml.substring(0, amountIdx) +
+          insertion +
+          xml.substring(amountIdx + capAmountText.length);
+      }
+    }
   }
 
-  // Build text lines for MPI percentages (Sec 7.4)
+  // Build text lines for MPI percentages (Sec 7.4). Same scoped-search
+  // anchoring fix.
   const mpiFmt = extractFormatting(xml, "Members Percentage Interests");
-  for (const owner of extraOwners) {
-    const line = `${owner.full_name}           ${owner.shares_or_percentage}%`;
-    const member02Pct = `${answers.owners_list[1]?.shares_or_percentage || 0}%`;
-    xml = xmlTextReplace(
-      xml,
-      member02Pct,
-      `${member02Pct}</w:t></w:r></w:p>${buildFormattedParagraph(line, mpiFmt.pPr, mpiFmt.rPr)}<w:p><w:r><w:t xml:space="preserve">`,
-      false
-    );
+  const member02Pct = `${answers.owners_list[1]?.shares_or_percentage || 0}%`;
+  if (member2Name && extraOwners.length > 0) {
+    const nameIdx = findInTable(xml, "Members Percentage Interests", member2Name);
+    if (nameIdx >= 0) {
+      const pctIdx = xml.indexOf(member02Pct, nameIdx);
+      if (pctIdx >= 0) {
+        const extras = extraOwners
+          .map((owner) => {
+            const line = `${owner.full_name}           ${owner.shares_or_percentage}%`;
+            return buildFormattedParagraph(line, mpiFmt.pPr, mpiFmt.rPr);
+          })
+          .join("");
+        const insertion = `${member02Pct}</w:t></w:r></w:p>${extras}<w:p><w:r><w:t xml:space="preserve">`;
+        xml =
+          xml.substring(0, pctIdx) +
+          insertion +
+          xml.substring(pctIdx + member02Pct.length);
+      }
+    }
   }
 
-  // Build signature blocks for extra members with matching formatting
+  // Build signature blocks for extra members with matching formatting.
+  // Template uses a 2-column visual layout achieved via leading <w:tab/>
+  // elements on the right-side Name paragraphs (6 tabs push the name
+  // ~3" right). The Name itself is rendered in TWO runs: non-bold
+  // "Name: " label + bold name. We mirror that structure here so extras
+  // align with Roberto/Ana visually and render their names in bold.
+  const nameLabelRPr = '<w:rPr><w:sz w:val="23"/><w:szCs w:val="23"/></w:rPr>';
+  const nameBoldRPr =
+    '<w:rPr><w:b w:val="1"/><w:bCs w:val="1"/>' +
+    '<w:sz w:val="23"/><w:szCs w:val="23"/></w:rPr>';
+  const buildExtraNameParagraph = (name: string) =>
+    `<w:p>${sigFmt.pPr}` +
+    `<w:r>${nameLabelRPr}` +
+    `<w:tab/><w:tab/><w:tab/><w:tab/><w:tab/><w:tab/>` +
+    `<w:t xml:space="preserve">Name: </w:t></w:r>` +
+    `<w:r>${nameBoldRPr}<w:t xml:space="preserve">${xmlEscape(name)}</w:t></w:r>` +
+    `</w:p>`;
+  // Anchor on member 2's "Owner of the Company" — the first occurrence
+  // of that phrase hits member 1's (Roberto) cell, jamming Carlos/Maria
+  // into the left signature cell and leaving Ana alone in the right
+  // cell. Find member 2's name first, then the "Owner of the Company"
+  // that follows it.
   const lastMember2Sig = `Owner of the Company`;
   const extraSigBlocks = extraOwners
     .map(
       (owner) =>
         `</w:t></w:r></w:p>` +
         buildFormattedParagraph(`By: __________________________`, sigFmt.pPr, sigFmt.rPr) +
-        buildFormattedParagraph(`Name: ${owner.full_name}`, sigFmt.pPr, sigFmt.rPr) +
+        buildExtraNameParagraph(owner.full_name) +
         buildFormattedParagraph(`Owner of the Company`, sigFmt.pPr, sigFmt.rPr) +
         `<w:p><w:r><w:t xml:space="preserve">`
     )
     .join("");
 
-  xml = xmlTextReplace(
-    xml,
-    lastMember2Sig,
-    lastMember2Sig + extraSigBlocks,
-    false
-  );
+  if (extraOwners.length > 0 && member2Name) {
+    // Scope: only look inside the signatures area, AFTER the "IN WITNESS"
+    // recital so we don't anchor on the preamble.
+    const witnessIdx = xml.indexOf("IN WITNESS");
+    const startFrom = witnessIdx >= 0 ? witnessIdx : 0;
+    const member2NameInSig = xml.indexOf(member2Name, startFrom);
+    if (member2NameInSig >= 0) {
+      const ownerTagIdx = xml.indexOf(lastMember2Sig, member2NameInSig);
+      if (ownerTagIdx >= 0) {
+        xml =
+          xml.substring(0, ownerTagIdx) +
+          lastMember2Sig +
+          extraSigBlocks +
+          xml.substring(ownerTagIdx + lastMember2Sig.length);
+      }
+    }
+  }
 
   // Also add extra managers if needed
   if (answers.directors_managers.length > 2) {
@@ -1092,6 +1175,13 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   xml = stripEmptyParagraphPageBreaks(xml);
   xml = normalizeNewShareholdersHeading(xml);
   xml = standardizeNumberedHeadingShape(xml);
+  // Article XIII flat → hierarchical: demote old §13.2-§13.5 to letter
+  // sub-items under §13.1 RoFR; renumber §13.6 → §13.2 and §13.7 → §13.3.
+  // Runs AFTER standardize so each §X.Y has the canonical split-run shape
+  // (first run = "N.M ", second run = underlined title, third run = body).
+  // No-op when ARTICLE XIII is stripped (closeArticleXIIIGap path).
+  // Antonio review 2026-05-15 (todo 03).
+  xml = restructureArticleXIIIToHierarchical(xml);
   xml = mergeTitleOnlyHeadingsWithBody(xml);
   xml = rebuildFracturedNumberedHeadings(xml);
   xml = collapseEmptiesBetweenListItems(xml);
@@ -1102,6 +1192,19 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   // Reworked 2026-05-15: now computes hangIndent = width of "N.M " only
   // (not the full prefix), and no longer inserts <w:tab/> after the period.
   xml = alignHeadingWrapWithBody(xml);
+  // Letter / roman list items ship with canonical left=2160 hanging=720
+  // (letter) or left=2880 hanging=720 (roman), which lands wraps at col
+  // 2160 / 2880 — to the right of the body text that follows "A. " /
+  // "i. " on the first line. Bring wraps in to align directly under the
+  // first content word by recomputing hanging from the label width.
+  xml = alignLetterListWrapWithBody(xml);
+  // §10.1 second body paragraph ships with Google-Docs block-quote indent
+  // (left=1440 firstLine=720); rewrite to align with preceding heading's
+  // body column.
+  xml = normalizeContinuationBodyParagraphs(xml);
+  // Shareholder ownership table ships left-aligned with negative tblInd
+  // and overflows content area. Center + shrink to 9972 dxa.
+  xml = centerShareOwnershipTable(xml);
   xml = stripBoldFromInlineTitleRuns(xml);
   xml = fixArticle14CrossReferences(xml);
   xml = closeArticleXIIIGap(xml);
@@ -1297,13 +1400,27 @@ function addExtraCorpShareholders(
     // by an empty paragraph in the template). Without this, the first
     // inserted block (Maria) jams against Carlos's "Name:" line.
     const sepPara = buildFormattedParagraph("", corpSigFmt.pPr, labelRPr);
+    // The shareholder name itself must render BOLD to match slots 1-3 in
+    // the template (Roberto/Ana/Carlos use a 2-run "Name:" paragraph:
+    // non-bold "Name:  " label + bold name). Build an explicit bold rPr
+    // — don't rely on corpSigFmt.rPr because it carries the "% Owner"
+    // formatting (different font size).
+    const nameBoldRPr =
+      '<w:rPr><w:b w:val="1"/><w:bCs w:val="1"/>' +
+      '<w:color w:val="000000"/>' +
+      '<w:vertAlign w:val="baseline"/></w:rPr>';
+    const buildNameParagraph = (fullName: string) =>
+      `<w:p>${corpSigFmt.pPr}` +
+      `<w:r>${labelRPr}<w:t xml:space="preserve">Name:   </w:t></w:r>` +
+      `<w:r>${nameBoldRPr}<w:t xml:space="preserve">${xmlEscape(fullName)}</w:t></w:r>` +
+      `</w:p>`;
     const extraSigs = extraOwners
       .map((owner) => {
         const pct = ((Math.round((owner.shares_or_percentage / 100) * totalShares) / totalShares) * 100).toFixed(2);
         return `</w:t></w:r></w:p>` +
           sepPara +
           buildFormattedParagraph(`By: ______________________`, corpSigFmt.pPr, labelRPr) +
-          buildFormattedParagraph(`Name:   ${owner.full_name}`, corpSigFmt.pPr, labelRPr) +
+          buildNameParagraph(owner.full_name) +
           buildFormattedParagraph(`Owner`, corpSigFmt.pPr, corpSigFmt.rPr) +
           `<w:p><w:r><w:t xml:space="preserve">`;
       })
@@ -2322,6 +2439,139 @@ function normalizeInlineTitlePeriod(xml: string): string {
  * The attorney's templates have inconsistent indentation on these items.
  * This normalizes them all to use the same tab positions.
  */
+/**
+ * LLC template trails the last signature paragraph with 12 empty
+ * paragraphs, pushing a blank trailing page into the rendered PDF
+ * (variant 1 page 16). Strip every empty paragraph after the last
+ * non-empty content paragraph, leaving the document body to end with
+ * its real content.
+ */
+function stripTrailingEmptyParagraphs(xml: string): string {
+  const bodyEnd = xml.lastIndexOf("</w:body>");
+  if (bodyEnd < 0) return xml;
+  // Find every <w:p>…</w:p> in the body region.
+  const body = xml.substring(0, bodyEnd);
+  const paraRe = /<w:p\b[^>]*>[\s\S]*?<\/w:p>/g;
+  const paras: Array<{ start: number; end: number; isEmpty: boolean }> = [];
+  let pm: RegExpExecArray | null;
+  while ((pm = paraRe.exec(body)) !== null) {
+    const text = (pm[0].match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+      .map((t) => t.replace(/<[^>]+>/g, ""))
+      .join("")
+      .trim();
+    paras.push({ start: pm.index, end: pm.index + pm[0].length, isEmpty: text === "" });
+  }
+  // Walk back from the end, find the first non-empty.
+  let lastContent = -1;
+  for (let i = paras.length - 1; i >= 0; i--) {
+    if (!paras[i].isEmpty) { lastContent = i; break; }
+  }
+  if (lastContent < 0 || lastContent === paras.length - 1) return xml;
+  // Delete every empty paragraph after lastContent.
+  let out = xml;
+  for (let i = paras.length - 1; i > lastContent; i--) {
+    out = out.substring(0, paras[i].start) + out.substring(paras[i].end);
+  }
+  return out;
+}
+
+/**
+ * LLC template ships §12 "Assignment of Interests" with 5 consecutive
+ * empty paragraphs between the centered heading and §12.1 body —
+ * renders as a giant whitespace gap (variant 1 page 8). Collapse any
+ * run of 2+ consecutive empty paragraphs that follow a section
+ * heading-shape paragraph (text matches "N. Title") down to 1.
+ * Other sections (§13, §14, …) ship with the canonical single empty
+ * separator, so this is a targeted cleanup, not a blanket flatten.
+ */
+function collapseEmptiesAfterLLCHeadings(xml: string): string {
+  const paraRe = /<w:p\b[^>]*>[\s\S]*?<\/w:p>/g;
+  type P = { start: number; end: number; text: string; isHeading: boolean; isEmpty: boolean };
+  const paras: P[] = [];
+  let pm: RegExpExecArray | null;
+  while ((pm = paraRe.exec(xml)) !== null) {
+    const text = (pm[0].match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+      .map((t) => t.replace(/<[^>]+>/g, "")).join("").trim();
+    paras.push({
+      start: pm.index,
+      end: pm.index + pm[0].length,
+      text,
+      isHeading: /^\d+\.\s+[A-Z]/.test(text),
+      isEmpty: text === "",
+    });
+  }
+  // Identify empty paragraphs to delete (right-to-left).
+  const toDelete: P[] = [];
+  for (let i = 0; i < paras.length; i++) {
+    if (!paras[i].isHeading) continue;
+    // Count empties after.
+    let j = i + 1;
+    while (j < paras.length && paras[j].isEmpty) j++;
+    const gap = j - i - 1;
+    if (gap <= 1) continue;
+    // Keep first empty (i+1), delete i+2 .. j-1.
+    for (let k = i + 2; k < j; k++) toDelete.push(paras[k]);
+  }
+  // Apply deletes right-to-left.
+  toDelete.sort((a, b) => b.start - a.start);
+  let out = xml;
+  for (const p of toDelete) {
+    out = out.substring(0, p.start) + out.substring(p.end);
+  }
+  return out;
+}
+
+/**
+ * LLC template's lettered sub-items in some sections (e.g. §11.9.A
+ * "Member Meetings", §11.9.B "Manager Meetings") ship with
+ *   <w:ind w:firstLine="700"/>             (no left, no hanging)
+ *   <w:tabs><w:tab w:pos="709"/></w:tabs>  (single tab stop)
+ * plus inline <w:tab/> elements sprinkled through the body text. The
+ * inline tabs are a Google-Docs export artifact: the tabs were originally
+ * inserted at visual wrap-points and the export preserved them as
+ * structural tab markers. When LibreOffice/Word re-flows the text, those
+ * tabs force awkward line breaks — visible as orphaned words ("or") on
+ * the far-left margin between body lines (variant 1 §11.9.A page 7).
+ *
+ * Fix: for paragraphs matching this pattern (firstLine=700, no left/hanging),
+ * rewrite the indent to <w:ind w:left="700" w:hanging="700"/> so wraps land
+ * at col 700 (= where the body title started), and strip every <w:tab/>
+ * EXCEPT the first one (the legitimate label→title separator after "A.").
+ */
+function stripLLCBodyTabArtifacts(xml: string): string {
+  return xml.replace(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g, (full) => {
+    const ppr = (full.match(/<w:pPr>[\s\S]*?<\/w:pPr>/) || [""])[0];
+    if (!ppr) return full;
+    // Match only the Google-Docs-style firstLine=700 indent (no left, no hanging).
+    const indM = ppr.match(/<w:ind\b([^/]*)\/>/);
+    if (!indM) return full;
+    const ind = indM[1];
+    if (!/w:firstLine="700"/.test(ind)) return full;
+    if (/w:left=/.test(ind) || /w:hanging=/.test(ind)) return full;
+
+    // Only fire if there are multiple <w:tab/> markers (1 legit + 1+ body).
+    const tabCount = (full.match(/<w:tab\/>/g) || []).length;
+    if (tabCount < 2) return full;
+
+    let updated = full;
+    // 1. Rewrite ind: firstLine=700 (no left) → left=700 hanging=700 so
+    //    wraps land vertically under the body-title column.
+    updated = updated.replace(
+      /<w:ind\b[^/]*\/>/,
+      '<w:ind w:left="700" w:hanging="700"/>',
+    );
+    // 2. Strip all <w:tab/> except the first. The first one separates the
+    //    label (e.g. "A.") from the underlined title; subsequent ones are
+    //    body-text artifacts that force awkward line breaks.
+    let kept = false;
+    updated = updated.replace(/<w:tab\/>/g, () => {
+      if (!kept) { kept = true; return "<w:tab/>"; }
+      return "";
+    });
+    return updated;
+  });
+}
+
 function normalizeSubItemTabs(xml: string): string {
   return xml.replace(/<w:p([ >][\s\S]*?)<\/w:p>/g, (fullMatch, inner) => {
     const texts = (fullMatch.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
@@ -3903,24 +4153,24 @@ function removeKeepLinesFromListItems(xml: string): string {
   });
 }
 
-// ─── Generic: strip bold from §X.Y inline-titled heading runs ───────
+// ─── Generic: force bold on §X.Y inline-titled heading runs ─────────
 
 /**
  * Templates ship one bold-underlined §X.Y title (§10.9 Non-Disparagement)
- * while every other §X.Y title is underlined-only. Visually inconsistent.
+ * while every other §X.Y title is underlined-only. User wants all titles
+ * to be BOTH underlined and bold for visual emphasis.
  *
- * Strip <w:b>/<w:bCs> from any UNDERLINED run in a §X.Y heading
- * paragraph (Heading3 pStyle, ind left=1440 hanging=1440). Body runs
- * (un-underlined) are unaffected — bold inside body text is intentional.
+ * For any UNDERLINED run in a §X.Y heading paragraph (Heading3 pStyle),
+ * flip <w:b w:val="0"/> → <w:b w:val="1"/> and same for <w:bCs>; insert
+ * them if missing. Body runs (un-underlined) are unaffected.
+ *
+ * After alignHeadingWrapWithBody the ind no longer matches left=1440;
+ * detect heading by Heading3 pStyle + leading "N.M " text shape instead.
  */
 function stripBoldFromInlineTitleRuns(xml: string): string {
   return xml.replace(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g, (full) => {
     const ppr = (full.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/) || [])[1] || "";
-    const isHeading3 =
-      /<w:pStyle\s+w:val="Heading3"\/>/.test(ppr) &&
-      /<w:ind[^/]*w:left="1440"[^/]*\/>/.test(ppr);
-    if (!isHeading3) return full;
-    // Only fire on §X.Y heading-shape paragraphs.
+    if (!/<w:pStyle\s+w:val="Heading3"\/>/.test(ppr)) return full;
     const allText = (full.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
       .map((t) => t.replace(/<[^>]+>/g, ""))
       .join("")
@@ -3928,14 +4178,26 @@ function stripBoldFromInlineTitleRuns(xml: string): string {
     if (!/^\d+\.\d+\s+[A-Z]/.test(allText)) return full;
 
     // Inside any <w:r> whose <w:rPr> contains <w:u w:val="single"/>,
-    // strip <w:b w:val="1"/> and <w:bCs w:val="1"/>.
+    // force <w:b w:val="1"/> and <w:bCs w:val="1"/> (flip val=0 → val=1,
+    // insert when absent).
     return full.replace(/<w:r\b[\s\S]*?<\/w:r>/g, (run) => {
       if (!/<w:u\s+w:val="single"\s*\/>/.test(run)) return run;
-      return run
-        .replace(/<w:b\s+w:val="1"\s*\/>/g, "")
-        .replace(/<w:bCs\s+w:val="1"\s*\/>/g, "")
-        .replace(/<w:b\s*\/>/g, "")
-        .replace(/<w:bCs\s*\/>/g, "");
+      let updated = run
+        .replace(/<w:b\s+w:val="0"\s*\/>/g, '<w:b w:val="1"/>')
+        .replace(/<w:bCs\s+w:val="0"\s*\/>/g, '<w:bCs w:val="1"/>');
+      // If still no <w:b>, insert one inside <w:rPr> alongside <w:u>.
+      if (!/<w:b(\s|\/)/.test(updated)) {
+        updated = updated.replace(
+          /(<w:rPr>)/,
+          '$1<w:b w:val="1"/><w:bCs w:val="1"/>',
+        );
+      } else if (!/<w:bCs(\s|\/)/.test(updated)) {
+        updated = updated.replace(
+          /(<w:b\s+w:val="1"\s*\/>)/,
+          '$1<w:bCs w:val="1"/>',
+        );
+      }
+      return updated;
     });
   });
 }
@@ -4120,18 +4382,18 @@ function relabelOrdinalWordListItems(xml: string): string {
  *     This pass overrides ind with the dynamic per-paragraph value.
  */
 function alignHeadingWrapWithBody(xml: string): string {
-  // Approximate twip widths for Times New Roman 12pt. Good enough for
-  // hanging-indent computation (Word and WPS both anti-alias the wrap
-  // column; the wrap line just needs to land within a glyph-width of
-  // the title's first letter).
+  // Twip widths from Times New Roman 12pt AFM metrics
+  // (500/1000 em for digits at 240 twips/em). Earlier coefficients
+  // over-estimated by ~25%, landing the wrap column to the right of
+  // the title's "A" instead of directly under it.
   const widthOf = (ch: string) => {
-    if (/\s/.test(ch)) return 70;
-    if (/[.,;:]/.test(ch)) return 70;
-    if (/\d/.test(ch)) return 130;
-    if (/[A-Z]/.test(ch)) return 165;
-    if (/[ijl]/.test(ch)) return 80;
-    if (/[mw]/.test(ch)) return 195;
-    return 130;
+    if (/\s/.test(ch)) return 60;
+    if (/[.,;:]/.test(ch)) return 60;
+    if (/\d/.test(ch)) return 100;
+    if (/[A-Z]/.test(ch)) return 155;
+    if (/[ijl]/.test(ch)) return 70;
+    if (/[mw]/.test(ch)) return 185;
+    return 120;
   };
 
   return xml.replace(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g, (full) => {
@@ -4157,7 +4419,220 @@ function alignHeadingWrapWithBody(xml: string): string {
       /<w:ind\b[^/]*\/>/,
       `<w:ind w:left="${hangIndent}" w:hanging="${hangIndent}"/>`,
     );
+    // Strip Google-Docs-export inline <w:tab/> elements from BODY runs
+    // (after the title). The template ships with manual <w:tab/> markers
+    // at every visual wrap point — these force text to jump to a tab
+    // stop and override the hanging indent, so wraps appear at col 720
+    // instead of under the title. Word's automatic word-wrap at the
+    // hanging indent handles wrapping correctly once they're gone.
+    //
+    // Limit removal to tab elements that appear AFTER the title's
+    // closing period — the structural number/title runs are handled
+    // by standardizeNumberedHeadingShape (which removes its own tabs).
+    const pPrEnd = updated.indexOf("</w:pPr>");
+    if (pPrEnd >= 0) {
+      const head = updated.substring(0, pPrEnd + "</w:pPr>".length);
+      const body = updated.substring(pPrEnd + "</w:pPr>".length);
+      // Find the body run that contains the title-period (". " marker).
+      // Strip <w:tab/> elements that occur AFTER it (i.e., inside body
+      // text wraps), leaving any pre-period tabs untouched.
+      const periodInBody = body.search(/<w:t[^>]*>[^<]*\.\s/);
+      if (periodInBody >= 0) {
+        const beforePeriod = body.substring(0, periodInBody);
+        const afterPeriod = body.substring(periodInBody).replace(/<w:tab\/>/g, "");
+        updated = head + beforePeriod + afterPeriod;
+      }
+    }
     return updated;
+  });
+}
+
+/**
+ * Bring letter / roman list-item wrap columns in to align with the first
+ * body word on line 1 (not 720 twips further right at the canonical
+ * left=2160 / left=2880 column).
+ *
+ * Detects paragraphs whose <w:ind> matches the canonical letter or roman
+ * list shape and whose first <w:t> starts with "A./B./.../Z." or
+ * "i./ii./iii./.../x." (optionally with a trailing space and inline body).
+ * Computes the label width in TNR 12pt twips and sets:
+ *
+ *   left    = (first-line-column) + labelWidth
+ *   hanging = labelWidth
+ *
+ * which keeps the first-line label at the same horizontal position as
+ * before but moves the wrap column directly under the first body word.
+ */
+function alignLetterListWrapWithBody(xml: string): string {
+  const widthOf = (ch: string) => {
+    if (/\s/.test(ch)) return 60;
+    if (/[.,;:()]/.test(ch)) return 60;
+    if (/\d/.test(ch)) return 100;
+    if (/[A-Z]/.test(ch)) return 155;
+    if (/[ijl]/.test(ch)) return 70;
+    if (/[mw]/.test(ch)) return 185;
+    return 120;
+  };
+  const labelRe = /^\s*(\([a-z]\)|[A-Z]\.|(?:i|ii|iii|iv|v|vi|vii|viii|ix|x)\.)/;
+  const labelWidth = (label: string) => {
+    let twips = 0;
+    for (const c of `${label} `) twips += widthOf(c);
+    return twips;
+  };
+
+  // Two-pass: first collect every list item's position, computed hanging,
+  // and firstLine col. Then group consecutive items sharing a firstLine
+  // and replace each group's hanging with the GROUP MAX so every item in
+  // the list wraps at the same column (under the longest label's body).
+  //
+  // Per-item computation alone breaks for roman lists (i. = 190 wide,
+  // iii. = 330 wide) — each item would wrap at a different column.
+  type Item = { matchStart: number; matchLen: number; firstLine: number; hanging: number };
+  const items: Item[] = [];
+  const paraRe = /<w:p\b[^>]*>[\s\S]*?<\/w:p>/g;
+  let pm: RegExpExecArray | null;
+  while ((pm = paraRe.exec(xml)) !== null) {
+    const full = pm[0];
+    const indM = full.match(/<w:ind\b([^/]*)\/>/);
+    if (!indM) continue;
+    const li = indM[1].match(/w:left="(\d+)"/);
+    const hg = indM[1].match(/w:hanging="(\d+)"/);
+    if (!li || !hg) continue;
+    const leftVal = parseInt(li[1], 10);
+    const hangVal = parseInt(hg[1], 10);
+    if (hangVal !== 720) continue;
+    if (leftVal !== 2160 && leftVal !== 2880) continue;
+    const firstLine = leftVal - hangVal; // 1440 (letter) or 2160 (roman)
+
+    const firstT = full.match(/<w:t[^>]*>([^<]*)<\/w:t>/);
+    if (!firstT) continue;
+    const m = firstT[1].match(labelRe);
+    if (!m) continue;
+    const indAbsStart = pm.index + full.indexOf(indM[0]);
+    items.push({
+      matchStart: indAbsStart,
+      matchLen: indM[0].length,
+      firstLine,
+      hanging: labelWidth(m[1]),
+    });
+  }
+
+  // Group consecutive items sharing the same firstLine; for each group,
+  // every item gets hanging = max(hanging in group).
+  const groupMaxByItemIdx = new Map<number, number>();
+  let i = 0;
+  while (i < items.length) {
+    const fl = items[i].firstLine;
+    let j = i;
+    let max = items[i].hanging;
+    while (j < items.length && items[j].firstLine === fl) {
+      if (items[j].hanging > max) max = items[j].hanging;
+      j += 1;
+    }
+    for (let k = i; k < j; k += 1) groupMaxByItemIdx.set(k, max);
+    i = j;
+  }
+
+  // Apply replacements right-to-left so earlier offsets stay valid.
+  const sorted = items
+    .map((it, idx) => ({ ...it, idx }))
+    .sort((a, b) => b.matchStart - a.matchStart);
+  let out = xml;
+  for (const it of sorted) {
+    const hang = groupMaxByItemIdx.get(it.idx)!;
+    const left = it.firstLine + hang;
+    const replacement = `<w:ind w:left="${left}" w:hanging="${hang}"/>`;
+    out =
+      out.substring(0, it.matchStart) +
+      replacement +
+      out.substring(it.matchStart + it.matchLen);
+  }
+  return out;
+}
+
+/**
+ * §10.1 has a second standalone body paragraph ("The Officers shall have all
+ * rights, power and authority...") that ships from the template with
+ *   <w:ind w:left="1440" w:firstLine="720"/>
+ * — a Google-Docs "block-quote" indent that pushes the first line to col
+ * 2160 and wraps to col 1440. In context it should be a normal body
+ * paragraph aligned with the preceding §N.M heading's wrap column.
+ *
+ * For each such paragraph, walk back to the nearest preceding Heading3
+ * paragraph, read its <w:ind w:left="X" w:hanging="X"/>, and rewrite the
+ * body paragraph's ind to <w:ind w:left="X" w:firstLine="0"/> so its
+ * lines align flush with the heading's body column.
+ */
+function normalizeContinuationBodyParagraphs(xml: string): string {
+  const BAD = /<w:ind\s+w:left="1440"\s+w:firstLine="720"\/>/;
+  const paraRe = /<w:p\b[^>]*>[\s\S]*?<\/w:p>/g;
+  type P = { start: number; end: number; isHeading: boolean; headingLeft: number; hasBad: boolean };
+  const paras: P[] = [];
+  let pm: RegExpExecArray | null;
+  while ((pm = paraRe.exec(xml)) !== null) {
+    const full = pm[0];
+    const isHeading = /<w:pStyle\s+w:val="Heading3"\/>/.test(full);
+    let headingLeft = 0;
+    if (isHeading) {
+      const m = full.match(/<w:ind\s+w:left="(\d+)"\s+w:hanging="(\d+)"/);
+      if (m) headingLeft = parseInt(m[1], 10);
+    }
+    paras.push({
+      start: pm.index,
+      end: pm.index + full.length,
+      isHeading,
+      headingLeft,
+      hasBad: BAD.test(full),
+    });
+  }
+  // Apply right-to-left.
+  let out = xml;
+  for (let i = paras.length - 1; i >= 0; i -= 1) {
+    if (!paras[i].hasBad) continue;
+    // Find nearest preceding heading.
+    let bodyCol = 420; // sensible fallback for §10.x family
+    for (let j = i - 1; j >= 0; j -= 1) {
+      if (paras[j].isHeading && paras[j].headingLeft > 0) {
+        bodyCol = paras[j].headingLeft;
+        break;
+      }
+    }
+    const para = out.substring(paras[i].start, paras[i].end);
+    const fixed = para.replace(
+      BAD,
+      `<w:ind w:left="${bodyCol}" w:firstLine="0"/>`,
+    );
+    out = out.substring(0, paras[i].start) + fixed + out.substring(paras[i].end);
+  }
+  return out;
+}
+
+/**
+ * Shareholder ownership / §4.2 Initial Capital Contributions table ships
+ * from the template with <w:jc w:val="left"/> + <w:tblInd w:w="-108".../>
+ * in its <w:tblPr>. fixCapitalTableWidth (earlier in the pipeline) shrinks
+ * the table to 9000 dxa and centers TEXT inside cells, but never changes
+ * tblPr's table-level alignment — so the 9000-dxa table still left-aligns
+ * inside the 9972-dxa content area, with all 972 dxa of slack landing on
+ * the right side. Visually: small left whitespace, large right whitespace.
+ *
+ * Fix: tblPr.jc = center + drop tblInd. Keep the 9000-dxa width set by
+ * fixCapitalTableWidth.
+ */
+function centerShareOwnershipTable(xml: string): string {
+  return xml.replace(/<w:tbl>[\s\S]*?<\/w:tbl>/g, (tbl) => {
+    if (!/Shares Owned/.test(tbl)) return tbl;
+    return tbl.replace(
+      /(<w:tblPr>[\s\S]*?<\/w:tblPr>)/,
+      (tblPr) => {
+        let p = tblPr.replace(/<w:jc\s+w:val="left"\/>/g, '<w:jc w:val="center"/>');
+        if (!/<w:jc\s+w:val=/.test(p)) {
+          p = p.replace(/<\/w:tblPr>/, '<w:jc w:val="center"/></w:tblPr>');
+        }
+        p = p.replace(/<w:tblInd\b[^/]*\/>/g, "");
+        return p;
+      },
+    );
   });
 }
 
@@ -4720,6 +5195,125 @@ const ROMAN_TO_INT: Record<string, number> = {
   I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6, VII: 7, VIII: 8,
   IX: 9, X: 10, XI: 11, XII: 12, XIII: 13, XIV: 14, XV: 15, XVI: 16,
 };
+
+/**
+ * Article XIII flat→hierarchical restructure (Antonio review 2026-05-15 todo 03).
+ *
+ * Existing passes produce a flat numbering for Article XIII:
+ *   13.1 Right of First Refusal
+ *   13.2 Offer
+ *   13.3 Notice of Proposed Transfer
+ *   13.4 Concurrence or Acceptance
+ *   13.5 Notice of Election to Sell
+ *   13.6 Purchase of Shareholder Interests upon Deadlock
+ *   13.7 Approved Sale (with A. Drag, B. Tag)
+ *
+ * Antonio's target structure:
+ *   13.1 Right of First Refusal
+ *      A. Offer                       (was 13.2)
+ *      B. Notice of Proposed Transfer (was 13.3)
+ *      C. Concurrence or Acceptance   (was 13.4)
+ *      D. Notice of Election to Sell  (was 13.5)
+ *   13.2 Purchase upon Deadlock       (was 13.6)
+ *   13.3 Approved Sale                (was 13.7)
+ *
+ * Runs AFTER renumberAndRemapSubsections so the canonical 13.2-13.7
+ * numbering exists. The pass:
+ *   1. Demotes §13.2-§13.5 paragraphs to letter-list items (A./B./C./D.)
+ *      under §13.1 by swapping their pPr to the canonical letter-list shape
+ *      (left=2160 hanging=720) and replacing the first run's "13.X " text
+ *      with "<tab/>A.<tab/>".
+ *   2. Renumbers §13.6 → §13.2 and §13.7 → §13.3 by rewriting the first
+ *      <w:t> in those paragraphs.
+ *   3. Updates the one known cross-reference: §4.4 forfeiture's
+ *      "paragraph 13.6" → "paragraph 13.2".
+ *
+ * If Article XIII is stripped (no covenants), this is a no-op.
+ */
+function restructureArticleXIIIToHierarchical(xml: string): string {
+  const xiiiStart = xml.search(/<w:t[^>]*>\s*ARTICLE\s+XIII[: ]/);
+  const xivStart = xml.search(/<w:t[^>]*>\s*ARTICLE\s+XIV[: ]/);
+  if (xiiiStart < 0 || xivStart < 0 || xivStart <= xiiiStart) return xml;
+
+  const sliceStart = paragraphStartBefore(xml, xiiiStart);
+  const sliceEnd = paragraphStartBefore(xml, xivStart);
+  if (sliceStart < 0 || sliceEnd < 0 || sliceEnd <= sliceStart) return xml;
+
+  const before = xml.slice(0, sliceStart);
+  const slice = xml.slice(sliceStart, sliceEnd);
+  const after = xml.slice(sliceEnd);
+
+  // Mirror the existing letter-list pPr shape (cf. §13.6.A "If a Bona Fide
+  // Offer…" in the template — left=2160 hanging=720 is the canonical level-2
+  // indent per CLAUDE.md).
+  const LETTER_LIST_PPR =
+    '<w:pPr>' +
+    '<w:widowControl w:val="1"/>' +
+    '<w:spacing w:after="115" w:before="0" w:line="240" w:lineRule="auto"/>' +
+    '<w:ind w:left="2160" w:hanging="720"/>' +
+    '<w:jc w:val="both"/>' +
+    '<w:rPr>' +
+    '<w:rFonts w:ascii="Times New Roman" w:cs="Times New Roman" w:eastAsia="Times New Roman" w:hAnsi="Times New Roman"/>' +
+    '<w:sz w:val="24"/><w:szCs w:val="24"/>' +
+    '<w:vertAlign w:val="baseline"/>' +
+    '</w:rPr>' +
+    '</w:pPr>';
+
+  const demotions: Record<string, string> = {
+    "13.2": "A",
+    "13.3": "B",
+    "13.4": "C",
+    "13.5": "D",
+  };
+  const renumberings: Record<string, string> = {
+    "13.6": "13.2",
+    "13.7": "13.3",
+  };
+
+  const newSlice = slice.replace(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g, (full) => {
+    // Identify by the first <w:t> in the paragraph (post-renumber it's "13.X ").
+    const firstT = full.match(/<w:t[^>]*>([^<]*)<\/w:t>/);
+    if (!firstT) return full;
+    const m = firstT[1].match(/^(\d+\.\d+)\s*$/);
+    if (!m) return full;
+    const oldNum = m[1];
+
+    if (demotions[oldNum]) {
+      const letter = demotions[oldNum];
+      let updated = full;
+      // Swap pPr to letter-list.
+      updated = updated.replace(/<w:pPr>[\s\S]*?<\/w:pPr>/, LETTER_LIST_PPR);
+      // Replace the first run (which holds "13.X ") with the canonical
+      // letter-prefix run: <w:tab/><w:t>A.</w:t><w:tab/>. Preserve the
+      // run's <w:rPr> so font / baseline carry through.
+      updated = updated.replace(
+        /<w:r\b([^>]*)>([\s\S]*?)<w:t[^>]*>\d+\.\d+\s*<\/w:t>([\s\S]*?)<\/w:r>/,
+        (_full, rAttrs, rPrPart, _rest) =>
+          `<w:r${rAttrs}>${rPrPart}<w:tab/><w:t xml:space="preserve">${letter}.</w:t><w:tab/></w:r>`,
+      );
+      return updated;
+    }
+    if (renumberings[oldNum]) {
+      const newNum = renumberings[oldNum];
+      return full.replace(
+        /<w:t([^>]*)>(\d+\.\d+)(\s*)<\/w:t>/,
+        `<w:t$1>${newNum}$3</w:t>`,
+      );
+    }
+    return full;
+  });
+
+  let result = before + newSlice + after;
+
+  // §4.4 forfeiture clause currently reads "paragraph 13.6 below" pointing at
+  // Deadlock; after the restructure Deadlock lives at §13.2.
+  result = result.replace(
+    /<w:t([^>]*)>([^<]*paragraph\s+)13\.6(\b[^<]*)<\/w:t>/g,
+    `<w:t$1>$213.2$3</w:t>`,
+  );
+
+  return result;
+}
 
 function renumberAndRemapSubsections(xml: string): string {
   const remap = new Map<string, string>();
@@ -5459,7 +6053,18 @@ function renderOfficersList(
     '<w:rtl w:val="0"/>' +
     "</w:rPr>";
 
-  const buildCell = (text: string, jcVal: "right" | "left", colW: number) =>
+  // keepNext on the cell paragraph chains this row to the next row's
+  // paragraph, so Word treats the table as an atomic block under content
+  // pressure. Combined with <w:cantSplit/> on every <w:tr> (which prevents
+  // a single row from being torn in half by a page break), this keeps the
+  // whole officers list on one page. Mirrors the §4.2 capital table fix
+  // in fixCapitalTableWidth.
+  const buildCell = (
+    text: string,
+    jcVal: "right" | "left",
+    colW: number,
+    keepNext: boolean,
+  ) =>
     `<w:tc>` +
     `<w:tcPr>` +
     `<w:tcW w:w="${colW}" w:type="dxa"/>` +
@@ -5469,6 +6074,7 @@ function renderOfficersList(
     `</w:tcPr>` +
     `<w:p>` +
     `<w:pPr>` +
+    (keepNext ? `<w:keepNext/>` : ``) +
     `<w:jc w:val="${jcVal}"/>` +
     `<w:rPr><w:vertAlign w:val="baseline"/></w:rPr>` +
     `</w:pPr>` +
@@ -5480,13 +6086,17 @@ function renderOfficersList(
   const COL2_W = 2200; // ~1.53"
   const TABLE_W = COL1_W + COL2_W;
 
+  const lastIdx = officers.length - 1;
   const rows = officers
-    .map(
-      (o) =>
-        `<w:tr>${buildCell(xmlEscape(o.name), "left", COL1_W)}` +
-        `${buildCell(xmlEscape(o.title || ""), "left", COL2_W)}` +
-        `</w:tr>`,
-    )
+    .map((o, i) => {
+      const kn = i < lastIdx;
+      return (
+        `<w:tr><w:trPr><w:cantSplit/></w:trPr>` +
+        `${buildCell(xmlEscape(o.name), "left", COL1_W, kn)}` +
+        `${buildCell(xmlEscape(o.title || ""), "left", COL2_W, kn)}` +
+        `</w:tr>`
+      );
+    })
     .join("");
 
   const table =
@@ -5840,8 +6450,16 @@ function xmlTextReplace(
 
   // Complex case: text might be split across <w:t> elements.
   // We need to find paragraphs where the concatenated text matches.
+  // Bug-fix 2026-05-17: the prior pattern `<w:t[^>]*>` ALSO matched
+  // `<w:tab/>` self-closing elements (since `<w:t` + `ab/` + `>` satisfies
+  // `<w:t` then `[^>]*` then `>`), causing the capture group to swallow
+  // literal `<w:t…>` opening markup as text — which then got re-emitted
+  // inside the replacement <w:t> producing nested <w:t><w:t> garbage that
+  // LibreOffice refused to load. Require either `<w:t>` (no attrs) or
+  // `<w:t<whitespace>…>` (attrs after a real space) so `<w:tab/>` is
+  // excluded.
   const pRegex = /<w:p[ >][\s\S]*?<\/w:p>/g;
-  const tRegex = /<w:t[^>]*>([\s\S]*?)<\/w:t>/g;
+  const tRegex = /<w:t(?:>|\s[^>]*>)([\s\S]*?)<\/w:t>/g;
 
   let result = xml;
   let match;

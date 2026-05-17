@@ -144,10 +144,12 @@ for (const p of paras) {
   if (letM) {
     const letter = letM[1].toLowerCase();
     // Indent check is Corp-only — LLC template ships with mixed
-    // letter-list indents (720/0, 0/0, 680/0, 2160/0) that render fine
-    // but don't match Corp's canonical 2160/720.
-    if (ENTITY === "CORP" && (p.left !== 2160 || p.hanging !== 720)) {
-      push("L1", `letter ${letM[1]}. has non-canonical indent (left=${p.left} hanging=${p.hanging}, expected 2160/720): ${t.slice(0,60)}`);
+    // letter-list indents that render fine but vary widely.
+    // Post-alignLetterListWrapWithBody (2026-05-16): letter items
+    // have first-line column 1440 (= left - hanging) and hanging =
+    // labelWidth (varies per label, ~275 for "A." through "Z.").
+    if (ENTITY === "CORP" && (p.left - p.hanging !== 1440 || p.hanging < 200 || p.hanging > 800)) {
+      push("L1", `letter ${letM[1]}. has non-canonical indent (left=${p.left} hanging=${p.hanging}, expected first-line col 1440 / hanging ~275): ${t.slice(0,60)}`);
     }
     if (lastLetter === null) {
       if (letter !== "a") push("L1", `first letter in §${curArticle} sequence is ${letM[1]}, expected A.`);
@@ -163,8 +165,10 @@ for (const p of paras) {
   const romM = t.match(ROMAN_RE);
   if (romM && ROMAN_VALS.has(romM[1])) {
     // Indent check is Corp-only (same rationale as letter labels above).
-    if (ENTITY === "CORP" && (p.left !== 2880 || p.hanging !== 720)) {
-      push("L1", `roman ${romM[1]}. has non-canonical indent (left=${p.left} hanging=${p.hanging}, expected 2880/720): ${t.slice(0,60)}`);
+    // Post-alignLetterListWrapWithBody: first-line col 2160, hanging
+    // = labelWidth (varies per roman label, ~190 "i." up to ~330 "iii.").
+    if (ENTITY === "CORP" && (p.left - p.hanging !== 2160 || p.hanging < 150 || p.hanging > 600)) {
+      push("L1", `roman ${romM[1]}. has non-canonical indent (left=${p.left} hanging=${p.hanging}, expected first-line col 2160 / hanging ~190-330): ${t.slice(0,60)}`);
     }
     if (curLetter === null) {
       push("L1", `roman ${romM[1]}. has no parent letter — should be a letter at this level: ${t.slice(0,60)}`);
