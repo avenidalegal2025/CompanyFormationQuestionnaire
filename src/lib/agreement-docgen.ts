@@ -749,24 +749,22 @@ function applyLLCVotingReplacements(
         },
       );
     });
-    // Post-cleanup: article-grammar fix when target is Unanimous. After
-    // "Majority" → "Unanimous", phrases like "a Majority of the Members"
-    // become "a Unanimous of the Members" — broken article-noun
-    // agreement. Rewrite to "Unanimous consent of …" so the result
-    // reads naturally.
-    if (replacement === "Unanimous") {
-      xml = xml.replace(
-        /<w:t([^>]*)>([^<]*)<\/w:t>/g,
-        (m, attrs, content) => {
-          let updated = content;
-          updated = updated.replace(/\ba Unanimous of\b/g, "Unanimous consent of");
-          updated = updated.replace(/\bthe Unanimous of\b/g, "the Unanimous consent of");
-          updated = updated.replace(/\ba Unanimous consent\b/g, "Unanimous consent");
-          return updated === content ? m : `<w:t${attrs}>${updated}</w:t>`;
-        },
-      );
-    }
   }
+
+  // Always-run article-grammar cleanup. Same rationale as Corp: targeted
+  // replacements can produce "a Unanimous of …" via voting keys other
+  // than major_decisions_voting (e.g. mixed profile + new-members
+  // voting=unanimous). Run unconditionally so all sources get cleaned.
+  xml = xml.replace(
+    /<w:t([^>]*)>([^<]*)<\/w:t>/g,
+    (m, attrs, content) => {
+      let updated = content;
+      updated = updated.replace(/\ba Unanimous of\b/g, "Unanimous consent of");
+      updated = updated.replace(/\bthe Unanimous of\b/g, "the Unanimous consent of");
+      updated = updated.replace(/\ba Unanimous consent\b/g, "Unanimous consent");
+      return updated === content ? m : `<w:t${attrs}>${updated}</w:t>`;
+    },
+  );
 
   // Replace majority threshold percentage in Sec 19.7
   // Template has "50.1%" — replace with user's threshold (e.g., "50.01%")
@@ -1808,26 +1806,26 @@ function applyCorpVotingReplacements(
         },
       );
     });
-    // Post-cleanup: article-grammar fix. After "Majority" → "Unanimous"
-    // substitution, phrases like "a Majority of the Shareholders" become
-    // "a Unanimous of the Shareholders" — broken article-noun agreement.
-    // Rewrite to "Unanimous consent of …" so the result reads naturally.
-    // Runs AFTER both the targeted-replacement loop above (which can
-    // also produce "a Unanimous of …" via the §4.3 entry) and the
-    // sweep, catching all sources.
-    if (replacement === "Unanimous") {
-      xml = xml.replace(
-        /<w:t([^>]*)>([^<]*)<\/w:t>/g,
-        (m, attrs, content) => {
-          let updated = content;
-          updated = updated.replace(/\ba Unanimous of\b/g, "Unanimous consent of");
-          updated = updated.replace(/\bthe Unanimous of\b/g, "the Unanimous consent of");
-          updated = updated.replace(/\ba Unanimous consent\b/g, "Unanimous consent");
-          return updated === content ? m : `<w:t${attrs}>${updated}</w:t>`;
-        },
-      );
-    }
   }
+
+  // Always-run article-grammar cleanup. The sweep above only fires when
+  // major_decisions_voting !== majority, but targeted per-phrase
+  // replacements can ALSO produce "a Unanimous of …" through other
+  // voting keys (e.g. new_member_admission_voting=unanimous in mixed
+  // profile via the §4.3 "approved by a Majority of the Shareholders"
+  // entry). Run the article-grammar cleanup unconditionally so all
+  // "a Unanimous of …" / "the Unanimous of …" remnants get rewritten
+  // to "Unanimous consent of …" regardless of how they got there.
+  xml = xml.replace(
+    /<w:t([^>]*)>([^<]*)<\/w:t>/g,
+    (m, attrs, content) => {
+      let updated = content;
+      updated = updated.replace(/\ba Unanimous of\b/g, "Unanimous consent of");
+      updated = updated.replace(/\bthe Unanimous of\b/g, "the Unanimous consent of");
+      updated = updated.replace(/\ba Unanimous consent\b/g, "Unanimous consent");
+      return updated === content ? m : `<w:t${attrs}>${updated}</w:t>`;
+    },
+  );
 
   // NOTE: spending threshold rendering is handled by the direct docxtemplater
   // placeholder `${{major_spending_threshold}}` (see generateCorp's render
