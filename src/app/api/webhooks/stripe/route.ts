@@ -15,6 +15,14 @@ import { sendEmailWithMultipleAttachments, sendHtmlEmail } from '@/lib/ses-email
 // touch ~6 Lambdas + 4 S3 template copies sequentially.
 export const maxDuration = 300;
 
+// Cache-buster marker (2026-05-16): the webhook's bundled copy of
+// @/lib/agreement-docgen appeared to lag behind /api/agreement/generate's
+// — inserted owners 4-6 were rendered as single non-bold runs even after
+// the buildNameParagraph 2-run fix landed on HEAD. Touching this file
+// forces Vercel to rebuild this route's bundle.
+const _WEBHOOK_BUNDLE_VERSION = "2026-05-17-boldfix-rebuild";
+void _WEBHOOK_BUNDLE_VERSION;
+
 // Send notification email for new company formations
 async function sendNewCompanyNotification(
   companyName: string,
