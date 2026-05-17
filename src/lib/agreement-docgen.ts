@@ -1409,11 +1409,18 @@ function addExtraCorpShareholders(
       '<w:rPr><w:b w:val="1"/><w:bCs w:val="1"/>' +
       '<w:color w:val="000000"/>' +
       '<w:vertAlign w:val="baseline"/></w:rPr>';
-    const buildNameParagraph = (fullName: string) =>
-      `<w:p>${corpSigFmt.pPr}` +
-      `<w:r>${labelRPr}<w:t xml:space="preserve">Name:   </w:t></w:r>` +
-      `<w:r>${nameBoldRPr}<w:t xml:space="preserve">${xmlEscape(fullName)}</w:t></w:r>` +
-      `</w:p>`;
+    const buildNameParagraph = (fullName: string) => {
+      // Marker for deployment verification — if "BOLDFIX-v2" appears in
+      // generated docx XML the new 2-run path ran; if not, the deployed
+      // build is serving the legacy single-run code.
+      console.log(`[BOLDFIX-v2] buildNameParagraph fired for ${fullName}`);
+      return (
+        `<w:p>${corpSigFmt.pPr}` +
+        `<w:r>${labelRPr}<w:t xml:space="preserve">Name:   </w:t></w:r>` +
+        `<w:r>${nameBoldRPr}<w:t xml:space="preserve">${xmlEscape(fullName)}</w:t></w:r>` +
+        `</w:p>`
+      );
+    };
     const extraSigs = extraOwners
       .map((owner) => {
         const pct = ((Math.round((owner.shares_or_percentage / 100) * totalShares) / totalShares) * 100).toFixed(2);
