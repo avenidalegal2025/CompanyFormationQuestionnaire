@@ -153,9 +153,18 @@ function buildDirectorsManagers(
   return list;
 }
 
-/** Build officers list (Corp only) */
+/** Build officers list (Corp only — LLC has Managers, not Officers) */
 function buildOfficers(data: FormData): QuestionnaireAnswers["officers"] {
   const list: { name: string; title: string }[] = [];
+  // LLC entities have no officers; skip the "all owners" expansion +
+  // validation entirely. Previously an LLC with 5+ owners whose form
+  // happened to carry officersAllOwners=Yes (e.g. leftover from a prior
+  // entity-type toggle, or set by a test fixture) would throw "Officer
+  // role required for owner 5" → webhook crashed → S3 retained the raw
+  // template copy. LLC variants don't use the officers list anyway.
+  const entityType = (data.company?.entityType || "").toUpperCase();
+  const isCorp = entityType.includes("CORP") || entityType.includes("INC");
+  if (!isCorp) return list;
   const count = data.admin?.officersCount || 0;
   const allOwners = data.admin?.officersAllOwners === "Yes";
 
