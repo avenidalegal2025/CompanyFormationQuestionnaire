@@ -1410,11 +1410,12 @@ function addExtraCorpShareholders(
       '<w:color w:val="000000"/>' +
       '<w:vertAlign w:val="baseline"/></w:rPr>';
     const buildNameParagraph = (fullName: string) => {
-      // Marker for deployment verification — if "BOLDFIX-v2" appears in
-      // generated docx XML the new 2-run path ran; if not, the deployed
-      // build is serving the legacy single-run code.
-      console.log(`[BOLDFIX-v2] buildNameParagraph fired for ${fullName}`);
+      // Marker embedded in document.xml as an XML comment for deployment
+      // verification. If "BOLDFIX-DEPLOYED" appears in the rendered DOCX
+      // the new 2-run code ran; if not, the deployed bundle is stale and
+      // still running the legacy single-run path.
       return (
+        `<!-- BOLDFIX-DEPLOYED -->` +
         `<w:p>${corpSigFmt.pPr}` +
         `<w:r>${labelRPr}<w:t xml:space="preserve">Name:   </w:t></w:r>` +
         `<w:r>${nameBoldRPr}<w:t xml:space="preserve">${xmlEscape(fullName)}</w:t></w:r>` +
