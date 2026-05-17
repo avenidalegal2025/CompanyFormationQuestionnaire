@@ -550,7 +550,12 @@ export interface AirtableFormationRecord {
  */
 export async function createFormationRecord(data: AirtableFormationRecord): Promise<string> {
   const fields = { ...(data as any) };
-  const maxRetries = 5;
+  // Bumped from 5 → 50: each retry strips ONE unknown field. For 6-owner
+  // Corp the loop needed to strip "Officer N SSN" for N=1..6 plus other
+  // schema-missing fields, blowing past the prior 5-retry cap and throwing
+  // 500 → Stripe retries → webhook skip-on-duplicate → only 4 docs land
+  // in DynamoDB.
+  const maxRetries = 50;
   let attempt = 0;
 
   const getUnknownFieldName = (error: any): string | null => {
@@ -601,7 +606,12 @@ export async function updateFormationRecord(
   data: Partial<AirtableFormationRecord>
 ): Promise<void> {
   const fields = { ...(data as any) };
-  const maxRetries = 5;
+  // Bumped from 5 → 50: each retry strips ONE unknown field. For 6-owner
+  // Corp the loop needed to strip "Officer N SSN" for N=1..6 plus other
+  // schema-missing fields, blowing past the prior 5-retry cap and throwing
+  // 500 → Stripe retries → webhook skip-on-duplicate → only 4 docs land
+  // in DynamoDB.
+  const maxRetries = 50;
   let attempt = 0;
 
   const getUnknownFieldName = (error: any): string | null => {

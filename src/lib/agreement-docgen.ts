@@ -251,6 +251,12 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
   // "or" stranded on the far left margin). Rewrite indent + strip body
   // tabs so text reflows naturally.
   xml = stripLLCBodyTabArtifacts(xml);
+  // Label/body separator pass (same as Corp) — generic, low-risk.
+  xml = fixLabelBodySpacing(xml);
+  // After conditional sections are stripped (§11.10 Non-disclosure when
+  // confidentiality=No), close the numbering gap (§11.9 → §11.11 becomes
+  // §11.9 → §11.10).
+  xml = renumberSectionsToCloseGaps(xml);
   // §12 ships with 5 empty paragraphs between heading and §12.1; collapse
   // any heading-followed-by-multiple-empties down to one separator.
   xml = collapseEmptiesAfterLLCHeadings(xml);
@@ -307,75 +313,78 @@ function addExtraLLCMembers(
     );
   }
 
-  // Extract formatting from the capital contributions section
-  const capFmt = extractFormatting(xml, answers.owners_list[1]?.full_name || "$");
   const sigFmt = extractFormatting(xml, "Owner of the Company");
 
-  // Build text lines for capital contributions (Sec 5.1).
-  // Anchor by SCOPING the search to within the §5.1 Capital
-  // Contributions table only — earlier code anchored on member 2's
-  // dollar amount alone, which when fixtures use equal contributions
-  // ($50,000 across the board) lands on member 1's row in the same
-  // table. Even anchoring on member 2's name globally hits the preamble
-  // first ("by Roberto Mendez, Ana Garcia, …"). So we find the
-  // Capital Contributions table boundary first, then anchor inside it.
+  // Build text lines for capital contributions (Sec 5.1) and MPI
+  // percentages (Sec 7.4) by CLONING member 2's table row for each extra
+  // member, replacing the name + value in the clone. Previously we
+  // appended paragraphs INSIDE member 2's existing cell ("cell cramming")
+  // which renders as multiple owners stacked in one table cell — ugly.
+  // Row cloning produces proper one-row-per-member tables, matching the
+  // Corp template's row-cloning pattern.
   const member2Name = answers.owners_list[1]?.full_name || "";
   const member02Amount = formatCurrency(answers.owners_list[1]?.capital_contribution || 0);
   const capAmountText = `$${member02Amount}`;
-  const findInTable = (xml: string, captionAnchor: string, needle: string): number => {
-    const cap = xml.indexOf(captionAnchor);
-    if (cap < 0) return -1;
-    const tblStart = xml.indexOf("<w:tbl", cap);
-    if (tblStart < 0) return -1;
-    const tblEnd = xml.indexOf("</w:tbl>", tblStart);
-    if (tblEnd < 0) return -1;
-    const found = xml.indexOf(needle, tblStart);
-    if (found < 0 || found > tblEnd) return -1;
-    return found;
-  };
-  if (member2Name && extraOwners.length > 0) {
-    const nameIdx = findInTable(xml, "initial capitalization", member2Name);
-    if (nameIdx >= 0) {
-      const amountIdx = xml.indexOf(capAmountText, nameIdx);
-      if (amountIdx >= 0) {
-        const extras = extraOwners
-          .map((owner) => {
-            const line = `${owner.full_name}           $${formatCurrency(owner.capital_contribution)}`;
-            return buildFormattedParagraph(line, capFmt.pPr, capFmt.rPr);
-          })
-          .join("");
-        const insertion = `${capAmountText}</w:t></w:r></w:p>${extras}<w:p><w:r><w:t xml:space="preserve">`;
-        xml =
-          xml.substring(0, amountIdx) +
-          insertion +
-          xml.substring(amountIdx + capAmountText.length);
-      }
-    }
-  }
-
-  // Build text lines for MPI percentages (Sec 7.4). Same scoped-search
-  // anchoring fix.
-  const mpiFmt = extractFormatting(xml, "Members Percentage Interests");
   const member02Pct = `${answers.owners_list[1]?.shares_or_percentage || 0}%`;
-  if (member2Name && extraOwners.length > 0) {
-    const nameIdx = findInTable(xml, "Members Percentage Interests", member2Name);
-    if (nameIdx >= 0) {
-      const pctIdx = xml.indexOf(member02Pct, nameIdx);
-      if (pctIdx >= 0) {
-        const extras = extraOwners
-          .map((owner) => {
-            const line = `${owner.full_name}           ${owner.shares_or_percentage}%`;
-            return buildFormattedParagraph(line, mpiFmt.pPr, mpiFmt.rPr);
-          })
-          .join("");
-        const insertion = `${member02Pct}</w:t></w:r></w:p>${extras}<w:p><w:r><w:t xml:space="preserve">`;
-        xml =
-          xml.substring(0, pctIdx) +
-          insertion +
-          xml.substring(pctIdx + member02Pct.length);
-      }
+
+  /**
+   * Locate the table containing `captionAnchor` (a fragment of body text
+   * preceding the table), then find the LAST <w:tr>…</w:tr> in it. This
+   * is member 2's row. Clone it for each extra owner, applying the given
+   * field transform (name + dollar amount / percent / etc.), and insert
+   * the cloned rows just before </w:tbl>.
+   *
+   * The `rewriteCell` function receives the cloned-row XML and the
+   * new owner; it should return the row with member 2's data replaced.
+   */
+  const cloneLastRowPerOwner = (
+    xml: string,
+    captionAnchor: string,
+    rewriteCell: (rowXml: string, owner: Owner) => string,
+  ): string => {
+    if (extraOwners.length === 0) return xml;
+    const cap = xml.indexOf(captionAnchor);
+    if (cap < 0) return xml;
+    const tblStart = xml.indexOf("<w:tbl", cap);
+    if (tblStart < 0) return xml;
+    const tblEnd = xml.indexOf("</w:tbl>", tblStart);
+    if (tblEnd < 0) return xml;
+    const tableSegment = xml.substring(tblStart, tblEnd);
+    // Find last <w:tr>…</w:tr> within the table (member 2's row).
+    const trRe = /<w:tr\b[\s\S]*?<\/w:tr>/g;
+    let lastTr: { full: string; start: number; end: number } | null = null;
+    let m: RegExpExecArray | null;
+    while ((m = trRe.exec(tableSegment)) !== null) {
+      lastTr = { full: m[0], start: m.index, end: m.index + m[0].length };
     }
-  }
+    if (!lastTr) return xml;
+    const lastTrAbsEnd = tblStart + lastTr.end;
+    const clones = extraOwners
+      .map((owner) => rewriteCell(lastTr!.full, owner))
+      .join("");
+    return xml.substring(0, lastTrAbsEnd) + clones + xml.substring(lastTrAbsEnd);
+  };
+
+  // Capital contributions table (§5.1) — clone last row with new name + amount.
+  xml = cloneLastRowPerOwner(xml, "initial capitalization", (rowXml, owner) => {
+    let cloned = rowXml;
+    // Replace name FIRST so we don't accidentally rewrite a substring of
+    // the dollar amount if it happens to match.
+    cloned = cloned.replace(member2Name, owner.full_name);
+    cloned = cloned.replace(
+      capAmountText,
+      `$${formatCurrency(owner.capital_contribution)}`,
+    );
+    return cloned;
+  });
+
+  // MPI percentages table (§7.4) — clone last row with new name + pct.
+  xml = cloneLastRowPerOwner(xml, "Members Percentage Interests", (rowXml, owner) => {
+    let cloned = rowXml;
+    cloned = cloned.replace(member2Name, owner.full_name);
+    cloned = cloned.replace(member02Pct, `${owner.shares_or_percentage}%`);
+    return cloned;
+  });
 
   // Build signature blocks for extra members with matching formatting.
   // Template uses a 2-column visual layout achieved via leading <w:tab/>
@@ -1198,6 +1207,11 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   // "i. " on the first line. Bring wraps in to align directly under the
   // first content word by recomputing hanging from the label width.
   xml = alignLetterListWrapWithBody(xml);
+  // §8.2.B.ii ships with body run starting "Obtain…" instead of " Obtain…"
+  // (missing leading separator) so "ii." touches the body text in render.
+  // Generic pass: prepend space to body run when label/body run pair lacks
+  // whitespace separator.
+  xml = fixLabelBodySpacing(xml);
   // §10.1 second body paragraph ships with Google-Docs block-quote indent
   // (left=1440 firstLine=720); rewrite to align with preceding heading's
   // body column.
@@ -1473,6 +1487,13 @@ function applyCorpVotingReplacements(
     {
       find: "approved by a Majority of the Shareholders",
       replace: `approved by a ${votingText(answers.new_member_admission_voting)} of the Shareholders`,
+    },
+    // Sec 4.5 - Additional capital (uses additional_capital_voting, not
+    // major_decisions_voting — the sweep block below skips when major is
+    // majority, leaving §4.5 unchanged even for mixed-voting profiles).
+    {
+      find: "raise additional capital shall be made with the Majority approval of the Shareholders",
+      replace: `raise additional capital shall be made with the ${votingText(answers.additional_capital_voting)} approval of the Shareholders`,
     },
     // Sec 7.3 - Shareholder loans ("explicit Majority" is unique to the loans clause)
     {
@@ -4605,6 +4626,131 @@ function normalizeContinuationBodyParagraphs(xml: string): string {
     out = out.substring(0, paras[i].start) + fixed + out.substring(paras[i].end);
   }
   return out;
+}
+
+/**
+ * After removeLLCConditionalSections strips §11.10 Non-disclosure (when
+ * confidentiality=No), the visible numbering jumps §11.9 → §11.11.
+ * Generic fix: scan the body for any §X.Y heading sequence, detect
+ * gaps, and decrement all subsequent §X.Y labels down to close them.
+ * Also rewrites in-body cross-references ("Paragraph 11.11 below").
+ */
+function renumberSectionsToCloseGaps(xml: string): string {
+  // Pass 1: collect every existing §X.Y heading present in the doc.
+  // We treat a paragraph as a heading if its first <w:t> starts with
+  // "N.M" (digit+digit) — same rule used by other passes.
+  const paraRe = /<w:p\b[^>]*>[\s\S]*?<\/w:p>/g;
+  const headings: Array<{ article: number; section: number; paraIdx: number; start: number; end: number }> = [];
+  let pm: RegExpExecArray | null;
+  while ((pm = paraRe.exec(xml)) !== null) {
+    const text = (pm[0].match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+      .map((t) => t.replace(/<[^>]+>/g, ""))
+      .join("");
+    // Match "N.M" at start, NOT followed by another digit (so "11.1" doesn't
+    // swallow into "11.11"). Use a negative lookahead instead of \b — \b
+    // between a digit and a letter ("11.11Intellectual") is not a boundary.
+    const m = text.match(/^(\d+)\.(\d+)(?!\d)/);
+    if (!m) continue;
+    headings.push({
+      article: parseInt(m[1], 10),
+      section: parseInt(m[2], 10),
+      paraIdx: headings.length,
+      start: pm.index,
+      end: pm.index + pm[0].length,
+    });
+  }
+  // Group by article and compute target renumbering: section[i] → i+1
+  // (sequential from 1). Only renumber when at least one gap exists.
+  type Rename = { from: string; to: string; article: number };
+  const renames: Rename[] = [];
+  const byArticle = new Map<number, typeof headings>();
+  for (const h of headings) {
+    if (!byArticle.has(h.article)) byArticle.set(h.article, []);
+    byArticle.get(h.article)!.push(h);
+  }
+  for (const [article, hs] of byArticle) {
+    hs.sort((a, b) => a.section - b.section);
+    let hasGap = false;
+    for (let i = 0; i < hs.length; i++) {
+      if (hs[i].section !== i + 1) { hasGap = true; break; }
+    }
+    if (!hasGap) continue;
+    for (let i = 0; i < hs.length; i++) {
+      const desired = i + 1;
+      if (hs[i].section === desired) continue;
+      renames.push({
+        from: `${article}.${hs[i].section}`,
+        to: `${article}.${desired}`,
+        article,
+      });
+    }
+  }
+  if (renames.length === 0) return xml;
+  // Pass 2: apply renames everywhere they appear in body text. Word
+  // numbers appear in <w:t> contents — replace literal "11.11" → "11.10"
+  // etc. Be careful to process highest-section-number FIRST so that we
+  // don't double-rename (e.g. 11.11 → 11.10 then 11.12 → 11.11 with the
+  // first rename clobbering the second's source).
+  renames.sort((a, b) => {
+    const aSec = parseInt(a.from.split(".")[1], 10);
+    const bSec = parseInt(b.from.split(".")[1], 10);
+    return aSec - bSec; // ascending: 11.11→11.10 first, then 11.12→11.11
+  });
+  let out = xml;
+  for (const r of renames) {
+    // Only replace inside <w:t> text nodes — leave attributes (like
+    // w14:paraId hexes) untouched. Match the from-number followed by
+    // a non-digit so "11.1" doesn't accidentally match within "11.11".
+    // Match the from-number NOT preceded by a digit (so "1.11" doesn't
+    // match inside "111.11") and NOT followed by a digit (so "11.1"
+    // doesn't match inside "11.11"). \b is unsafe here because the
+    // adjacent character is often a non-word symbol (".", "(", etc.)
+    // — explicit lookbehind/lookahead is more reliable.
+    out = out.replace(
+      new RegExp(
+        `(<w:t[^>]*>)([^<]*?)(?<!\\d)${r.from.replace(".", "\\.")}(?!\\d)`,
+        "g",
+      ),
+      (_full, openTag, before) => `${openTag}${before}${r.to}`,
+    );
+  }
+  return out;
+}
+
+/**
+ * Some templates ship sub-item paragraphs where the label run and the
+ * body run are split into two <w:t> elements but the body run forgets
+ * its leading whitespace separator. Example: §8.2.B.ii in the Corp
+ * template has run 1 "ii." and run 2 "Obtain from the Secretary…",
+ * which concatenates to "ii.Obtain…" with no space (variant 3 page 8).
+ * §8.2.B.i for comparison has run 2 starting with "  Inspect…" (two
+ * leading spaces) — author oversight on the ii. variant.
+ *
+ * Detect paragraphs whose first <w:t> is a bare label (roman, letter,
+ * or paren-form) and whose second <w:t> starts with a non-whitespace
+ * uppercase letter or quote. Prepend a single space to the second
+ * <w:t>'s text so the label and body don't run together.
+ */
+function fixLabelBodySpacing(xml: string): string {
+  const labelOnly = /^\s*(\([a-z]\)|[A-Z]\.|(?:i|ii|iii|iv|v|vi|vii|viii|ix|x|xi|xii)\.)\s*$/;
+  return xml.replace(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g, (full) => {
+    const tMatches = Array.from(full.matchAll(/(<w:t[^>]*>)([^<]*)(<\/w:t>)/g));
+    if (tMatches.length < 2) return full;
+    const first = tMatches[0][2];
+    if (!labelOnly.test(first)) return full;
+    const second = tMatches[1];
+    const bodyText = second[2];
+    if (!bodyText || /^[\s ]/.test(bodyText)) return full; // already has whitespace
+    if (!/^[A-Z"'“]/.test(bodyText)) return full; // body should start with cap or quote
+    // Replace ONLY the second <w:t>'s text — use its exact match offset to
+    // avoid hitting a same-content <w:t> elsewhere in the paragraph.
+    const repl = `${second[1]} ${bodyText}${second[3]}`;
+    return (
+      full.substring(0, second.index!) +
+      repl +
+      full.substring(second.index! + second[0].length)
+    );
+  });
 }
 
 /**
