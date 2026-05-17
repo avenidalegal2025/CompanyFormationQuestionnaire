@@ -1727,10 +1727,16 @@ function applyCorpVotingReplacements(
       find: "explicit Majority approval of the Board of Directors",
       replace: `explicit ${votingText(answers.shareholder_loans_voting)} approval of the Board of Directors`,
     },
-    // Sec 9.1 / 10.2.e - Sale of corporation
+    // Sec 9.1 / 10.2.e - Sale of corporation (two phrasings ship in
+    // the template: "both the Shareholders and the Board" and just
+    // "the Shareholders and the Board"; cover both).
     {
       find: "Majority consent or approval of both the Shareholders and the Board",
       replace: `${votingText(answers.sale_of_company_voting)} consent or approval of both the Shareholders and the Board`,
+    },
+    {
+      find: "Majority consent or approval of the Shareholders and the Board",
+      replace: `${votingText(answers.sale_of_company_voting)} consent or approval of the Shareholders and the Board`,
     },
     // Sec 10.1 - Major decisions
     {
