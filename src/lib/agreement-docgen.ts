@@ -706,6 +706,68 @@ function applyLLCVotingReplacements(
     xml = xmlTextReplace(xml, r.find, r.replace);
   }
 
+  // Comprehensive "remaining Majority" sweep — the per-phrase list above
+  // covers ~8 specific section anchors, but variants surface ~5-7 more
+  // "Majority" references (§5.2 "without the Majority approval", §12.2
+  // "without the Majority vote or consent", §12.3 "withdraw without the
+  // Majority", §15.1 dissolution variants, etc.). Mirror the Corp sweep
+  // pattern: fire when major_decisions_voting !== majority, walk every
+  // <w:t> text node, replace remaining bare "Majority" with the target.
+  //
+  // Protections:
+  //   1. Skip the §19.7 "Majority Defined" definition paragraph so the
+  //      defined-term reference stays intact.
+  //   2. "Majority Members" idiom (controlling owners, not a vote
+  //      threshold) — negative lookahead.
+  //   3. Already-replaced "Super Majority" — negative lookbehind.
+  //   4. When target is "Unanimous", also rewrite "a Majority of …" /
+  //      "the Majority of …" idioms which would otherwise produce
+  //      "a Unanimous of …" (broken article-noun agreement). Replace
+  //      these with "Unanimous consent of …" / "the Unanimous consent
+  //      of …" so the result reads naturally.
+  if (answers.major_decisions_voting !== "majority") {
+    const replacement = votingText(answers.major_decisions_voting);
+    // Main sweep — every remaining bare "Majority".
+    xml = xml.replace(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g, (full) => {
+      const text = (full.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+        .map((t) => t.replace(/<[^>]+>/g, ""))
+        .join("")
+        .replace(/\s+/g, " ")
+        .trim();
+      // Protect §19.7 Majority Defined paragraph.
+      if (/^19\.7\s+Majority\b/.test(text)) return full;
+      // Sweep <w:t> contents with protections.
+      return full.replace(
+        /<w:t([^>]*)>([^<]*)<\/w:t>/g,
+        (m, attrs, content) => {
+          const updated = content.replace(
+            /(?<!Super )\bMajority\b(?! Members\b)/g,
+            replacement,
+          );
+          if (updated === content) return m;
+          return `<w:t${attrs}>${updated}</w:t>`;
+        },
+      );
+    });
+    // Post-cleanup: article-grammar fix when target is Unanimous. After
+    // "Majority" → "Unanimous", phrases like "a Majority of the Members"
+    // become "a Unanimous of the Members" — broken article-noun
+    // agreement. Rewrite to "Unanimous consent of …" so the result
+    // reads naturally.
+    if (replacement === "Unanimous") {
+      xml = xml.replace(
+        /<w:t([^>]*)>([^<]*)<\/w:t>/g,
+        (m, attrs, content) => {
+          let updated = content;
+          updated = updated.replace(/\ba Unanimous of\b/g, "Unanimous consent of");
+          updated = updated.replace(/\bthe Unanimous of\b/g, "the Unanimous consent of");
+          updated = updated.replace(/\ba Unanimous consent\b/g, "Unanimous consent");
+          return updated === content ? m : `<w:t${attrs}>${updated}</w:t>`;
+        },
+      );
+    }
+  }
+
   // Replace majority threshold percentage in Sec 19.7
   // Template has "50.1%" — replace with user's threshold (e.g., "50.01%")
   if (answers.majority_threshold) {
@@ -1740,6 +1802,25 @@ function applyCorpVotingReplacements(
         },
       );
     });
+    // Post-cleanup: article-grammar fix. After "Majority" → "Unanimous"
+    // substitution, phrases like "a Majority of the Shareholders" become
+    // "a Unanimous of the Shareholders" — broken article-noun agreement.
+    // Rewrite to "Unanimous consent of …" so the result reads naturally.
+    // Runs AFTER both the targeted-replacement loop above (which can
+    // also produce "a Unanimous of …" via the §4.3 entry) and the
+    // sweep, catching all sources.
+    if (replacement === "Unanimous") {
+      xml = xml.replace(
+        /<w:t([^>]*)>([^<]*)<\/w:t>/g,
+        (m, attrs, content) => {
+          let updated = content;
+          updated = updated.replace(/\ba Unanimous of\b/g, "Unanimous consent of");
+          updated = updated.replace(/\bthe Unanimous of\b/g, "the Unanimous consent of");
+          updated = updated.replace(/\ba Unanimous consent\b/g, "Unanimous consent");
+          return updated === content ? m : `<w:t${attrs}>${updated}</w:t>`;
+        },
+      );
+    }
   }
 
   // NOTE: spending threshold rendering is handled by the direct docxtemplater
