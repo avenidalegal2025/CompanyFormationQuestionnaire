@@ -11,7 +11,7 @@ async function main() {
     nonCompete: 'Yes', nonSolicitation: 'Yes', confidentiality: 'Yes',
   });
   // Patch in the missing field that the mapper reads for §4.5
-  v.formData.agreement.corp_moreCapitalDecision = 'Supermayoría';
+  (v.formData.agreement as any).corp_moreCapitalDecision = 'Supermayoría';
   const answers = await mapFormToDocgenAnswers(v.formData);
   console.log('additional_capital_voting:', (answers as any).additional_capital_voting);
   const doc = await generateDocument(answers as any);
