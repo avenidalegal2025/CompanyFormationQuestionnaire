@@ -349,6 +349,9 @@ export async function mapFormToDocgenAnswers(
     shareholder_loans_voting: isCorp
       ? votingCode(agreement.corp_shareholderLoansVoting)
       : votingCode(agreement.llc_memberLoansVoting),
+    include_loans: isCorp
+      ? agreement.corp_shareholderLoans !== "No"
+      : agreement.llc_memberLoans !== "No",
 
     // Distributions
     distribution_frequency: (() => {

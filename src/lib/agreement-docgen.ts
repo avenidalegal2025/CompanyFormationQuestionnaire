@@ -73,6 +73,8 @@ export interface QuestionnaireAnswers {
   tax_matters_partner?: string;
   additional_capital_voting: string;
   shareholder_loans_voting: string;
+  /** Whether the agreement permits loans from owners to the company at all. */
+  include_loans?: boolean;
   distribution_frequency: string;
   min_tax_distribution?: number;
   majority_threshold: number;
@@ -225,7 +227,14 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
 
   // Post-processing: voting text, bank accounts, conditional sections
   xml = applyLLCVotingReplacements(xml, answers);
+  // §19.7 Unanimous threshold body — when voting=unanimous, replace the
+  // (still-50.01%) percentage with 100% so the definition matches the
+  // (now-renamed) "Unanimous Defined" heading. Super-majority is left
+  // alone — §19.8 already provides that definition at 75%.
+  xml = applyLLCUnanimousDefinedThreshold(xml, answers);
   xml = applyLLCBankAccountText(xml, answers);
+  // Strip / rewrite §6.1 Member Loans body when llc_memberLoans === "No".
+  xml = applyLLCMemberLoansToggle(xml, answers);
   xml = removeLLCConditionalSections(xml, answers);
 
   // Specific Responsibilities (per-member title + desc from Step 6).
@@ -1153,6 +1162,15 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   // Bank account text (additional replacements beyond the template var)
   xml = applyCorpBankAccountText(xml, answers);
 
+  // Swap hardcoded "quarterly" wording in §4.1.B.ii / §5.1.D / §6.1 / §11.6
+  // to match the user-selected distribution_frequency (issue tracked
+  // 2026-05-17 via UAT page-by-page review on v200).
+  xml = applyCorpDistributionFrequency(xml, answers);
+
+  // Strip / rewrite §7.3 Shareholder Loans body when the user opted out
+  // of allowing shareholder loans (corp_shareholderLoans === "No").
+  xml = applyCorpShareholderLoansToggle(xml, answers);
+
   // Template bug: after {{principal_address}} the template has a stray
   // superscripted "th" run (left over from when that placeholder was a date).
   // It renders as "...FL 33181ᵗʰ or such other place...". The "th" lives in
@@ -1863,6 +1881,166 @@ function applyCorpBankAccountText(
       "the signature of two of the Officers of the Corporation"
     );
   }
+  return xml;
+}
+
+// ─── Distribution frequency (Corp) ───────────────────────────────────
+//
+// The Corp template hardcodes "quarterly" / "every quarter" cadence in
+// §4.1.B.ii (Dividends), §5.1 (Distributions order), §6.1 (Officer payments
+// review), and §11.6 (Quarterly Meetings). The questionnaire lets the user
+// pick Trimestral / Semestral / Anual / Discreción de la Junta, but those
+// choices were never propagated. This pass swaps the hardcoded phrasing to
+// match `answers.distribution_frequency` when it is anything other than the
+// default "quarterly".
+function applyCorpDistributionFrequency(
+  xml: string,
+  answers: QuestionnaireAnswers
+): string {
+  const freq = answers.distribution_frequency || "quarterly";
+  if (freq === "quarterly") return xml;
+
+  // Cadence phrasings keyed to the four supported frequencies.
+  const map: Record<
+    string,
+    {
+      adverb: string;        // "quarterly" → adverb form
+      periodNoun: string;    // "every quarter" → period noun
+      basis: string;         // "on a quarterly basis" → basis phrase
+      meetingsHeading: string; // "Quarterly Meetings" heading
+    }
+  > = {
+    annual: {
+      adverb: "annually",
+      periodNoun: "every year",
+      basis: "on an annual basis",
+      meetingsHeading: "Annual Meetings",
+    },
+    semi_annual: {
+      adverb: "semi-annually",
+      periodNoun: "every six months",
+      basis: "on a semi-annual basis",
+      meetingsHeading: "Semi-Annual Meetings",
+    },
+    discretion: {
+      adverb: "at the discretion of the Board of Directors",
+      periodNoun: "as the Board of Directors determines",
+      basis: "at the discretion of the Board of Directors",
+      meetingsHeading: "Distribution Meetings",
+    },
+  };
+  const m = map[freq];
+  if (!m) return xml;
+
+  // §4.1.B.ii Dividends: "Dividends shall be paid out quarterly,…"
+  xml = xmlTextReplace(
+    xml,
+    "Dividends shall be paid out quarterly,",
+    `Dividends shall be paid out ${m.adverb},`
+  );
+  // §5.1.D: "Dividends shall be declared on a quarterly basis."
+  xml = xmlTextReplace(
+    xml,
+    "Dividends shall be declared on a quarterly basis.",
+    `Dividends shall be declared ${m.basis}.`
+  );
+  // §6.1 Salary and Bonus: "Board of Directors agrees to meet every quarter to determine"
+  xml = xmlTextReplace(
+    xml,
+    "agrees to meet every quarter to determine",
+    `agrees to meet ${m.periodNoun} to determine`
+  );
+  // §11.6 Quarterly Meetings — body sentence
+  xml = xmlTextReplace(
+    xml,
+    "Board of Directors shall meet quarterly to discuss the payment of dividends",
+    `Board of Directors shall meet ${m.adverb} to discuss the payment of dividends`
+  );
+  // §11.6 heading itself
+  xml = xmlTextReplace(xml, "Quarterly Meetings", m.meetingsHeading, true);
+
+  return xml;
+}
+
+// ─── Shareholder / Member loans toggle ───────────────────────────────
+//
+// Questionnaire Step 7 has a Yes/No toggle for whether owners may make
+// loans to the company (corp_shareholderLoans / llc_memberLoans). When
+// the user picks "No", the template's §7.3 (Corp) / §6.1 (LLC) loan
+// permission clause is replaced with an explicit prohibition. Sibling
+// references in §8.1.D's "loans/repaying loans" enumeration and §5.1.C's
+// "loans from Shareholders" priority line are left untouched — those
+// describe how the company would treat pre-existing or third-party loans
+// if any exist, not whether owners can make new ones.
+function applyCorpShareholderLoansToggle(
+  xml: string,
+  answers: QuestionnaireAnswers
+): string {
+  if (answers.include_loans !== false) return xml;
+  // §7.3 ships: "Except as provided by law, Shareholders shall have the
+  // right to make loans to Corporation, provided that no loan from the
+  // Shareholder may be made without the explicit {voting} approval of the
+  // Board of Directors." Replace the permissive body with a prohibition;
+  // the heading "Shareholder Loans" stays so cross-refs (none currently)
+  // and visual layout are preserved.
+  xml = xmlTextReplace(
+    xml,
+    "Except as provided by law, Shareholders shall have the right to make loans to Corporation, provided that no loan from the Shareholder may be made without the",
+    "Shareholders shall not make loans to the Corporation. The Shareholders may revisit this restriction by the"
+  );
+  // Tail of that sentence: "…approval of the Board of Directors." stays.
+  return xml;
+}
+
+function applyLLCMemberLoansToggle(
+  xml: string,
+  answers: QuestionnaireAnswers
+): string {
+  if (answers.include_loans !== false) return xml;
+  // §6.1 ships: "The Company shall only accept individual and personal
+  // loans from any Member of the Company with the {voting} consent of the
+  // Members." Replace permissive body with a prohibition that can be
+  // revisited by the same voting threshold.
+  xml = xmlTextReplace(
+    xml,
+    "The Company shall only accept individual and personal loans from any Member of the Company with the",
+    "The Company shall not accept loans from any Member. The Members may revisit this restriction by the"
+  );
+  return xml;
+}
+
+// ─── §19.7 Unanimous percentage threshold (LLC) ───────────────────────
+//
+// LLC template §19.7 "Majority Defined" body reads "Members collectively
+// holding at least 50.01% of the total MPI held by all Members." When
+// major_decisions_voting === "unanimous", the global rename pass relabels
+// the heading + the term inside the body from "Majority" to "Unanimous"
+// but the percentage stays 50.01% — semantically wrong (unanimous = 100%).
+//
+// Super-majority is left alone here: §19.8 ships an independent "Super
+// Majority Defined" definition at 75%, so the §19.7 super-majority body
+// would just duplicate §19.8 — that's a separate dedup concern, not a
+// threshold-correctness concern.
+function applyLLCUnanimousDefinedThreshold(
+  xml: string,
+  answers: QuestionnaireAnswers
+): string {
+  if (answers.major_decisions_voting !== "unanimous") return xml;
+
+  // The exact percentage in §19.7 depends on the user's majority_threshold
+  // (template ships "50.1%"; an earlier pass rewrites it to e.g. "50%" or
+  // "50.01%"). Match any "at least <num>% of" inside the two §19.7 sentence
+  // shapes and rewrite to "100% of".
+  const memberRe = /(Members collectively holding )at least \d+(?:\.\d+)?% of/g;
+  const managerRe = /(Managers collectively representing )at least \d+(?:\.\d+)?% of(?= all the Managers)/g;
+  // Replace inside <w:t> text nodes only so attribute values like w14:paraId
+  // (which contain hex digits + "%") stay untouched.
+  xml = xml.replace(/<w:t([^>]*)>([^<]*)<\/w:t>/g, (m, attrs, content) => {
+    let updated = content;
+    updated = updated.replace(memberRe, "$1100% of");
+    updated = updated.replace(managerRe, "$1100% of");
+    return updated === content ? m : `<w:t${attrs}>${updated}</w:t>`;
+  });
   return xml;
 }
 
