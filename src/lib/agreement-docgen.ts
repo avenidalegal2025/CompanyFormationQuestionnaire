@@ -4899,7 +4899,11 @@ function renumberSectionsToCloseGaps(xml: string): string {
     // Match "N.M" at start, NOT followed by another digit (so "11.1" doesn't
     // swallow into "11.11"). Use a negative lookahead instead of \b — \b
     // between a digit and a letter ("11.11Intellectual") is not a boundary.
-    const m = text.match(/^(\d+)\.(\d+)(?!\d)/);
+    // Allow leading whitespace — LLC template's §14.1 ships with a leading
+    // space (" 14.1A Member who…"); without trimming, this heading was
+    // missed and the rest of Article 14 was incorrectly renumbered down by
+    // one, duplicating §14.1.
+    const m = text.match(/^\s*(\d+)\.(\d+)(?!\d)/);
     if (!m) continue;
     headings.push({
       article: parseInt(m[1], 10),
