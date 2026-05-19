@@ -1257,11 +1257,74 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
     "",
   );
 
+  // ── Override §10.5 directors list when directors_managers diverges from
+  //    the shareholder list (directorsAllOwners=No path). The Corp template
+  //    hardcodes "initial Directors shall be {{shareholder_1_name}},
+  //    {{shareholder_2_name}}, {{shareholder_3_name}}." which only works
+  //    when every director is also a shareholder. For non-owner directors
+  //    we replace the rendered phrase with the actual list. ──
+  if (
+    answers.directors_managers &&
+    answers.directors_managers.length > 0
+  ) {
+    const directorNamesArr = answers.directors_managers
+      .map((d) => d.name)
+      .filter((n) => n && n.trim());
+    const directorList = directorNamesArr.join(", ");
+    // Skip when the director list is identical (in count + names + order) to
+    // the first-N owner names — the template's default render is already
+    // correct in that case (no replacement needed) and our regex-based
+    // replacement would unnecessarily rebuild the bold names run, breaking
+    // the audit's "§10.5 number in separate un-underlined run" check.
+    const ownerSlice = answers.owners_list
+      .map((o) => o.full_name)
+      .slice(0, directorNamesArr.length);
+    const divergent =
+      directorNamesArr.length !== ownerSlice.length ||
+      directorNamesArr.some((n, i) => n !== ownerSlice[i]);
+    if (directorList && divergent) {
+      // Match the post-docxtemplater render of the §10.5 sentence with
+      // any combination of shareholder names (and possible empty/trailing
+      // commas from missing shareholder_N_name placeholders). The phrase
+      // starts after "The initial Directors shall be " and ends at the
+      // first period that closes the sentence.
+      // Use xmlTextReplace so cross-run text is matched.
+      const ownerNames = answers.owners_list
+        .map((o) => o.full_name)
+        .filter((n) => n && n.trim());
+      // Build the rendered shareholder name list (with whatever trailing
+      // empty slots the template produced) so we can swap it out wholesale.
+      // Template has 3 slots; only the first N (N = ownerCount) have names.
+      const renderedShareholderSlots: string[] = [];
+      for (let i = 0; i < 3; i++) {
+        renderedShareholderSlots.push(ownerNames[i] || "");
+      }
+      // Construct possible rendered forms (with various trailing commas)
+      // and replace the first match.
+      const renderedJoined = renderedShareholderSlots.join(", ");
+      const phrase = `The initial Directors shall be ${renderedJoined}.`;
+      const target = `The initial Directors shall be ${directorList}.`;
+      const before = xml;
+      xml = xmlTextReplace(xml, phrase, target, true);
+      if (xml === before) {
+        // Cross-run fallback — directly rewrite the names run inside the
+        // §10.5 paragraph. The director list lives in a bold-styled <w:t>
+        // run that contains the rendered "X, Y, Z." text (with possible
+        // empty placeholders left as ", , ." dangling commas).
+        xml = xml.replace(
+          /(initial Directors shall be <\/w:t>[\s\S]*?<w:t[^>]*>)[^<]*(<\/w:t>)/,
+          (_m, open, close) => `${open}${directorList}.${close}`,
+        );
+      }
+    }
+  }
+
   // ── Fix trailing commas in directors list (TODO #7, video-review bug) ──
   // Template is `initial Directors shall be {{s1}}, {{s2}}, {{s3}}.`; when
   // there are only 2 directors {{s3}} renders empty, producing
-  // "...Jane TestTwo, ." — strip the orphan comma.
-  // Also handle the 1-director case (", ,") same way.
+  // "...Jane TestTwo, ." — strip the orphan comma. The new override above
+  // covers the common cases; this remains as a defensive net for any
+  // residue.
   xml = xmlTextReplace(xml, ", , .", ".", true);
   xml = xmlTextReplace(xml, ", .", ".", true);
   xml = xmlTextReplace(xml, ",  .", ".", true);
