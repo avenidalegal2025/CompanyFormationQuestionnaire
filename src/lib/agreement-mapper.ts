@@ -123,7 +123,17 @@ function buildDirectorsManagers(
       }
     } else {
       for (let i = 1; i <= count; i++) {
-        const name = data.admin?.[`director${i}Name`] || "";
+        // Step5Admin's directorsAllOwners="No" UI registers FirstName and
+        // LastName inputs, not a Name input. The Name field is only set
+        // by the "Yes" path's auto-population useEffect. Fall back to
+        // composing from FirstName+LastName when Name is missing so
+        // external directors actually flow through. (Same logic as the
+        // LLC manager branch below.)
+        const explicitName = data.admin?.[`director${i}Name`] || "";
+        const first = data.admin?.[`director${i}FirstName`] || "";
+        const last = data.admin?.[`director${i}LastName`] || "";
+        const composed = [first, last].filter(Boolean).join(" ");
+        const name = explicitName || composed;
         if (name) list.push({ name });
       }
     }
