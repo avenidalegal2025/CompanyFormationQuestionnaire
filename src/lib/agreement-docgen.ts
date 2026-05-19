@@ -225,6 +225,11 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
     xml = cleanupSingleOwnerLLC(xml, answers);
   }
 
+  // §11.1.D dangling "and" when directors_managers.length === 1 regardless
+  // of owner count (covers the 2+-owner LLC with one designated non-owner
+  // manager — cleanupSingleOwnerLLC doesn't run for those).
+  xml = stripDanglingManagerAndForSingleManager(xml, answers);
+
   // Post-processing: voting text, bank accounts, conditional sections
   xml = applyLLCVotingReplacements(xml, answers);
   // §19.7 Unanimous threshold body — when voting=unanimous, replace the
@@ -318,6 +323,13 @@ function cleanupSingleOwnerLLC(
   const owner1Name = answers.owners_list[0]?.full_name || "";
   if (!owner1Name) return xml;
 
+  // For the manager-designation paragraph, {{Manager_1}} renders to
+  // directors_managers[0] (which may be a non-owner when managersAllOwners=No).
+  // We need to detect that paragraph by its actual rendered name, not by
+  // owner1's name.
+  const manager1Name = answers.directors_managers?.[0]?.name || "";
+  const onlyOneManager = (answers.directors_managers?.length || 0) === 1;
+
   // 1. Strip dangling " and " text fragments. The template renders
   //    "{{m1}} and {{m2}}" with the literal "and " in its own <w:t>
   //    run, then the empty-rendered "{{m2}}" run as whitespace. The
@@ -325,20 +337,25 @@ function cleanupSingleOwnerLLC(
   //    rewrite the "and " run + the following whitespace-only run when
   //    they sit between owner1's name run and a "(each"/"to serve" run.
   xml = xml.replace(/<w:p\b[^>]*>[\s\S]*?<\/w:p>/g, (para) => {
-    // Quick filter — only fire on paragraphs containing the owner name
-    // AND one of the two known closing contexts.
-    if (!para.includes(owner1Name)) return para;
+    // Quick filter — only fire on paragraphs containing the anchor name
+    // (owner1 for the preamble, manager1 for §11.1.D) AND one of the two
+    // known closing contexts.
     const hasPreambleCtx = para.includes("(each");
     const hasMgrCtx = para.includes("to serve");
     if (!hasPreambleCtx && !hasMgrCtx) return para;
+    const anchorName =
+      hasMgrCtx && onlyOneManager && manager1Name && para.includes(manager1Name)
+        ? manager1Name
+        : owner1Name;
+    if (!para.includes(anchorName)) return para;
     // Walk <w:t> texts in order; find the "and " separator and the
     // following whitespace-only run, clear both.
     const tMatches = Array.from(para.matchAll(/(<w:t[^>]*>)([^<]*)(<\/w:t>)/g));
     if (tMatches.length < 2) return para;
-    // Find index of owner1 run.
+    // Find index of anchor-name run.
     let ownerIdx = -1;
     for (let i = 0; i < tMatches.length; i++) {
-      if (tMatches[i][2].includes(owner1Name)) { ownerIdx = i; break; }
+      if (tMatches[i][2].includes(anchorName)) { ownerIdx = i; break; }
     }
     if (ownerIdx < 0) return para;
     // Scan forward from owner1: find " and " (or "and ") run. The next
@@ -452,6 +469,65 @@ function cleanupSingleOwnerLLC(
   }
 
   return xml;
+}
+
+// ─── Single-manager dangling "and" cleanup (any owner count) ─────────
+//
+// When the LLC has exactly one entry in directors_managers, §11.1.D
+// renders as "The Members hereby designate {{Manager_1}} and {{Manager_2}}
+// to serve…" with an empty Manager_2, leaving "designate Daniel Vega and
+// to serve" with a dangling "and".
+//
+// cleanupSingleOwnerLLC handles the ownerCount===1 case (since it runs
+// only then). This pass covers the remaining case: ownerCount >= 2 with
+// a designated non-owner manager. We anchor on the actual manager name
+// from the answers object so it works regardless of owner count.
+function stripDanglingManagerAndForSingleManager(
+  xml: string,
+  answers: QuestionnaireAnswers
+): string {
+  const mgrs = answers.directors_managers || [];
+  if (mgrs.length !== 1) return xml;
+  const mgrName = mgrs[0]?.name || "";
+  if (!mgrName) return xml;
+
+  return xml.replace(/<w:p\b[^>]*>[\s\S]*?<\/w:p>/g, (para) => {
+    if (!para.includes(mgrName)) return para;
+    if (!para.includes("to serve")) return para;
+    const tMatches = Array.from(para.matchAll(/(<w:t[^>]*>)([^<]*)(<\/w:t>)/g));
+    if (tMatches.length < 2) return para;
+    let mgrIdx = -1;
+    for (let i = 0; i < tMatches.length; i++) {
+      if (tMatches[i][2].includes(mgrName)) { mgrIdx = i; break; }
+    }
+    if (mgrIdx < 0) return para;
+    for (let j = mgrIdx + 1; j < tMatches.length - 1; j++) {
+      const txt = tMatches[j][2];
+      if (!/^\s*and\s+$/.test(txt) && !/^\s+and\s*$/.test(txt) && !/^\s*and\s*$/.test(txt)) continue;
+      const next = tMatches[j + 1][2];
+      const nextEmpty = /^\s*$/.test(next);
+      const nextStartsCtx = /^(?:to serve|\(each)/.test(next);
+      if (nextEmpty || nextStartsCtx) {
+        let updated = para;
+        if (nextEmpty) {
+          const emptyMatch = tMatches[j + 1];
+          updated =
+            updated.substring(0, emptyMatch.index!) +
+            `${emptyMatch[1]}${emptyMatch[3]}` +
+            updated.substring(emptyMatch.index! + emptyMatch[0].length);
+        }
+        const andMatch = tMatches[j];
+        const replacement = nextStartsCtx ? " " : "";
+        updated =
+          updated.substring(0, andMatch.index!) +
+          `${andMatch[1]}${replacement}${andMatch[3]}` +
+          updated.substring(andMatch.index! + andMatch[0].length);
+        return updated;
+      }
+      break;
+    }
+    return para;
+  });
 }
 
 // ─── LLC Extra Members (3-6 owners) ──────────────────────────────────
