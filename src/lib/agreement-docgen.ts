@@ -825,8 +825,13 @@ function applyLLCVotingReplacements(
       return full.replace(
         /<w:t([^>]*)>([^<]*)<\/w:t>/g,
         (m, attrs, content) => {
+          // Protect "Majority Members" AND "Majority Selling Members" — both
+          // are defined terms for the controlling-stake bloc (≥50.01%), NOT a
+          // voting threshold, so they must stay "Majority …" regardless of the
+          // chosen voting profile. (2026-05-19 review: a unanimous variant was
+          // rendering "Unanimous Selling Members" in §12.9 drag/tag.)
           const updated = content.replace(
-            /(?<!Super )\bMajority\b(?! Members\b)/g,
+            /(?<!Super )\bMajority\b(?! (?:Selling )?Members\b)/g,
             replacement,
           );
           if (updated === content) return m;
@@ -845,8 +850,16 @@ function applyLLCVotingReplacements(
     (m, attrs, content) => {
       let updated = content;
       updated = updated.replace(/\ba Unanimous of\b/g, "Unanimous consent of");
+      updated = updated.replace(/\bA Unanimous of\b/g, "Unanimous consent of");
       updated = updated.replace(/\bthe Unanimous of\b/g, "the Unanimous consent of");
+      updated = updated.replace(/\bThe Unanimous of\b/g, "The Unanimous consent of");
       updated = updated.replace(/\ba Unanimous consent\b/g, "Unanimous consent");
+      // "Unanimous" is an adjective, not a noun — bare "by Unanimous" reads
+      // wrong (2026-05-19 review). Give it a noun unless one already follows.
+      updated = updated.replace(
+        /\bby Unanimous\b(?! (?:vote|consent|decision|approval|election|Vote|Consent|Decision|Approval|Election|Selling))/g,
+        "by Unanimous vote",
+      );
       return updated === content ? m : `<w:t${attrs}>${updated}</w:t>`;
     },
   );
@@ -1123,7 +1136,43 @@ function removeLLCConditionalSections(
   // pre-table keepNext.
   xml = forceKeepNextBeforeTables(xml);
 
+  // LLC level-3 list items ship with paren-roman labels "(i)/(ii)"; the house
+  // convention (and the Corp output) uses dotted roman "i./ii.". Convert
+  // paragraph-leading labels only (2026-05-19 review: §11.4 major decisions,
+  // §12.9 drag/tag). Corp runs equivalent relabel passes; LLC didn't.
+  xml = relabelLLCRomanSubitems(xml);
+
   return xml;
+}
+
+/**
+ * Convert paragraph-LEADING paren-roman list labels "(i)/(ii)/(iii)…" to the
+ * house convention "i./ii./iii." (lowercase roman + dot). Only the label at
+ * the very start of a paragraph is touched; inline "(i)" enumerations inside a
+ * sentence (e.g. "…may (i) sell or (ii) retain") are left parenthesized, which
+ * is correct. Mirrors the dotted-roman style Corp already produces.
+ */
+function relabelLLCRomanSubitems(xml: string): string {
+  const ROMAN = "(?:viii|vii|vi|iv|ix|iii|ii|i|v|x)";
+  const leadRe = new RegExp(`^\\s*\\((${ROMAN})\\)`);
+  return xml.replace(/<w:p\b[^>]*>[\s\S]*?<\/w:p>/g, (para) => {
+    const text = (para.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+      .map((t) => t.replace(/<[^>]+>/g, ""))
+      .join("");
+    const m = text.match(leadRe);
+    if (!m) return para;
+    const roman = m[1];
+    const contentRe = new RegExp(`^(\\s*)\\(${roman}\\)`);
+    let done = false;
+    return para.replace(
+      /(<w:t[^>]*>)([^<]*)(<\/w:t>)/g,
+      (full, open, content, close) => {
+        if (done || !contentRe.test(content)) return full;
+        done = true;
+        return open + content.replace(contentRe, `$1${roman}.`) + close;
+      },
+    );
+  });
 }
 
 // ─── Corp Document Generation ─────────────────────────────────────────
@@ -1283,37 +1332,42 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
       directorNamesArr.length !== ownerSlice.length ||
       directorNamesArr.some((n, i) => n !== ownerSlice[i]);
     if (directorList && divergent) {
-      // Match the post-docxtemplater render of the §10.5 sentence with
-      // any combination of shareholder names (and possible empty/trailing
-      // commas from missing shareholder_N_name placeholders). The phrase
-      // starts after "The initial Directors shall be " and ends at the
-      // first period that closes the sentence.
-      // Use xmlTextReplace so cross-run text is matched.
-      const ownerNames = answers.owners_list
-        .map((o) => o.full_name)
-        .filter((n) => n && n.trim());
-      // Build the rendered shareholder name list (with whatever trailing
-      // empty slots the template produced) so we can swap it out wholesale.
-      // Template has 3 slots; only the first N (N = ownerCount) have names.
-      const renderedShareholderSlots: string[] = [];
-      for (let i = 0; i < 3; i++) {
-        renderedShareholderSlots.push(ownerNames[i] || "");
-      }
-      // Construct possible rendered forms (with various trailing commas)
-      // and replace the first match.
-      const renderedJoined = renderedShareholderSlots.join(", ");
-      const phrase = `The initial Directors shall be ${renderedJoined}.`;
-      const target = `The initial Directors shall be ${directorList}.`;
+      // Run-preserving replacement: rewrite ONLY the bold names run that
+      // follows "initial Directors shall be ", leaving the §10.5 heading's
+      // number / underlined-title / body runs intact. docxtemplater renders
+      // the substituted "{{shareholder_1_name}}, …." into a single run, so a
+      // targeted regex on that run is sufficient and safe.
+      //
+      // DO NOT use xmlTextReplace(phrase, target, true) here: the phrase
+      // "The initial Directors shall be {names}." spans TWO runs (the body
+      // run ending "…shall be " + the bold names run), so it never matches
+      // literally and falls into xmlTextReplace's cross-run branch — which
+      // "dumps all paragraph text into the first <w:t> and empties the rest",
+      // collapsing the entire §10.5 paragraph into one un-formatted run. That
+      // de-styles the heading (loses Heading3 + the underlined title), so a
+      // downstream renumber pass stops recognizing §10.5: §10.6 Officers gets
+      // renumbered to 10.5 (duplicate) and every later §10.x shifts down one.
+      // Regression surfaced via v493 (Corp soleDirector) page-by-page UAT,
+      // 2026-05-20.
       const before = xml;
-      xml = xmlTextReplace(xml, phrase, target, true);
+      const directorsXml = directorList
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+      // body run ends with the anchor + </w:t>; [\s\S]*? skips the run/rPr
+      // boundary to the next opening <w:t…> (the names run); [^<]* is that
+      // run's text. <w:t(?:>|\s[^>]*>) excludes self-closing <w:tab/>.
+      xml = xml.replace(
+        /(initial Directors shall be\s*<\/w:t>[\s\S]*?<w:t(?:>|\s[^>]*>))[^<]*(<\/w:t>)/,
+        (_m, open, close) => `${open}${directorsXml}.${close}`,
+      );
       if (xml === before) {
-        // Cross-run fallback — directly rewrite the names run inside the
-        // §10.5 paragraph. The director list lives in a bold-styled <w:t>
-        // run that contains the rendered "X, Y, Z." text (with possible
-        // empty placeholders left as ", , ." dangling commas).
-        xml = xml.replace(
-          /(initial Directors shall be <\/w:t>[\s\S]*?<w:t[^>]*>)[^<]*(<\/w:t>)/,
-          (_m, open, close) => `${open}${directorList}.${close}`,
+        // Template structure changed — do NOT fall back to the destructive
+        // cross-run replace. Leave the template render rather than mangle the
+        // heading; surfaces in the auditor as owner-names-in-§10.5.
+        // eslint-disable-next-line no-console
+        console.warn(
+          "[docgen-corp] §10.5 directors override: names run not matched; left template render intact",
         );
       }
     }
@@ -1978,8 +2032,16 @@ function applyCorpVotingReplacements(
     (m, attrs, content) => {
       let updated = content;
       updated = updated.replace(/\ba Unanimous of\b/g, "Unanimous consent of");
+      updated = updated.replace(/\bA Unanimous of\b/g, "Unanimous consent of");
       updated = updated.replace(/\bthe Unanimous of\b/g, "the Unanimous consent of");
+      updated = updated.replace(/\bThe Unanimous of\b/g, "The Unanimous consent of");
       updated = updated.replace(/\ba Unanimous consent\b/g, "Unanimous consent");
+      // "Unanimous" is an adjective, not a noun — bare "by Unanimous" reads
+      // wrong (2026-05-19 review). Give it a noun unless one already follows.
+      updated = updated.replace(
+        /\bby Unanimous\b(?! (?:vote|consent|decision|approval|election|Vote|Consent|Decision|Approval|Election|Selling))/g,
+        "by Unanimous vote",
+      );
       return updated === content ? m : `<w:t${attrs}>${updated}</w:t>`;
     },
   );

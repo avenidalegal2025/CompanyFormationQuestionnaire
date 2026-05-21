@@ -254,7 +254,35 @@ export async function mapFormToDocgenAnswers(
   const entityType = data.company?.entityType;
   const isCorp = entityType === "C-Corp" || entityType === "S-Corp";
   const agreement = data.agreement || {};
-  const ownerCount = data.ownersCount || 1;
+  // Owner count is normally driven by `ownersCount`, but never trust it
+  // blindly: if a generation path omits/under-sets it (e.g. a hand-built
+  // payload or a draft reload), owners 2..N would silently vanish and a lone
+  // owner renders at 100% — exactly the "3 owners → 1 owner" defect from the
+  // 2026-05-19 client review. Recover the real count from the populated owner
+  // entries (those carrying a name or ownership) and use the larger of the
+  // two, so no entered owner is ever dropped. Cap at MAX_OWNERS (6).
+  const declaredCount = Number(data.ownersCount) || 0;
+  const ownerEntries = (data.owners || {}) as Record<
+    string,
+    { fullName?: string; firstName?: string; lastName?: string; ownership?: unknown } | undefined
+  >;
+  const populatedOwnerCount = Object.keys(ownerEntries).filter((k) => {
+    const o = ownerEntries[k];
+    return (
+      !!o &&
+      (!!o.fullName ||
+        !!o.firstName ||
+        !!o.lastName ||
+        (o.ownership !== undefined && o.ownership !== null && o.ownership !== ""))
+    );
+  }).length;
+  const ownerCount = Math.min(Math.max(declaredCount, populatedOwnerCount, 1), 6);
+  if (declaredCount && populatedOwnerCount && declaredCount !== populatedOwnerCount) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[agreement-mapper] ownersCount=${declaredCount} disagrees with ${populatedOwnerCount} populated owner entries — using ${ownerCount} (never silently drop owners)`,
+    );
+  }
 
   // Build company name — avoid double suffix (e.g., "ACME LLC LLC")
   const companyNameBase = (data.company?.companyNameBase || "").trim();
@@ -434,8 +462,11 @@ export async function mapFormToDocgenAnswers(
     include_nonsolicitation: isCorp
       ? agreement.corp_nonSolicitation !== "No"
       : agreement.llc_nonSolicitation !== "No",
-    include_confidentiality: isCorp
-      ? agreement.corp_confidentiality !== "No"
-      : agreement.llc_confidentiality !== "No",
+    // Confidentiality is non-optional per client policy (Antonio, 2026-05-19
+    // review): "is there a way to not even make that an option, just
+    // automatically have the confidentiality provisions … I can't imagine
+    // somebody wouldn't want that." Always include regardless of the answer.
+    // (The questionnaire toggle should be removed in the form separately.)
+    include_confidentiality: true,
   };
 }
