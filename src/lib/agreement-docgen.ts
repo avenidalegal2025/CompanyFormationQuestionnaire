@@ -1013,6 +1013,41 @@ function removeLLCConditionalSections(
     ]);
   }
 
+  // When BOTH drag and tag are off, the §12.x "Approved Sale" section exists
+  // only to host them — its intro paragraph must disappear too, otherwise it
+  // dangles as "…(an "Approved Sale"):" with a colon and no body. (2026-05-19
+  // client review: "12.x should all disappear, not just have that one first
+  // paragraph.") Remove the intro and renumber the following §12.x down by 1.
+  if (!answers.drag_along && !answers.tag_along) {
+    const APPROVED_SALE_ANCHOR = "desire to sell their entire MPI to a third party";
+    let introN: number | null = null;
+    for (const p of xml.split(/(?=<w:p[ >])/)) {
+      const txt = (p.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+        .map((s) => s.replace(/<[^>]+>/g, ""))
+        .join("");
+      if (txt.includes(APPROVED_SALE_ANCHOR)) {
+        const mm = txt.match(/^\s*12\.(\d+)/);
+        if (mm) introN = parseInt(mm[1], 10);
+        break;
+      }
+    }
+    xml = removeXmlParagraphsContaining(xml, [APPROVED_SALE_ANCHOR]);
+    if (introN !== null) {
+      for (let n = introN + 1; n <= 14; n++) {
+        const from = `12.${n}`;
+        const to = `12.${n - 1}`;
+        xml = xml.replace(
+          new RegExp(`(<w:t[^>]*>)${from.replace(".", "\\.")}(</w:t>)`, "g"),
+          `$1${to}$2`,
+        );
+        xml = xml.replace(
+          new RegExp(`\\b(Sections?|Paragraphs?|Articles?)(\\s+)${from.replace(".", "\\.")}\\b`, "gi"),
+          `$1$2${to}`,
+        );
+      }
+    }
+  }
+
   // Non-compete: Insert Sec 11.12 when non-compete=Yes
   // The LLC template doesn't have this section — we add it via XML post-processing.
   // Text provided by attorney Antonio Regojo.
