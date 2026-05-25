@@ -894,6 +894,12 @@ function applyLLCVotingReplacements(
       updated = updated.replace(/\bthe Unanimous of\b/g, "the Unanimous consent of");
       updated = updated.replace(/\bThe Unanimous of\b/g, "The Unanimous consent of");
       updated = updated.replace(/\ba Unanimous consent\b/g, "Unanimous consent");
+      // De-double "consent of Unanimous consent of" → "Unanimous consent of".
+      // Arises when the template says "…written consent of a Majority of …":
+      // the sweep makes it "consent of a Unanimous of", then the "a Unanimous
+      // of" → "Unanimous consent of" rule above yields "consent of Unanimous
+      // consent of" (e.g. Corp §12.1 Removal). Collapse the redundant "consent of".
+      updated = updated.replace(/\bconsent of Unanimous consent of\b/g, "Unanimous consent of");
       // "Unanimous" is an adjective, not a noun — bare "by Unanimous" reads
       // wrong (2026-05-19 review). Give it a noun unless one already follows.
       updated = updated.replace(
@@ -2118,6 +2124,12 @@ function applyCorpVotingReplacements(
       updated = updated.replace(/\bthe Unanimous of\b/g, "the Unanimous consent of");
       updated = updated.replace(/\bThe Unanimous of\b/g, "The Unanimous consent of");
       updated = updated.replace(/\ba Unanimous consent\b/g, "Unanimous consent");
+      // De-double "consent of Unanimous consent of" → "Unanimous consent of".
+      // Arises when the template says "…written consent of a Majority of …":
+      // the sweep makes it "consent of a Unanimous of", then the "a Unanimous
+      // of" → "Unanimous consent of" rule above yields "consent of Unanimous
+      // consent of" (e.g. Corp §12.1 Removal). Collapse the redundant "consent of".
+      updated = updated.replace(/\bconsent of Unanimous consent of\b/g, "Unanimous consent of");
       // "Unanimous" is an adjective, not a noun — bare "by Unanimous" reads
       // wrong (2026-05-19 review). Give it a noun unless one already follows.
       updated = updated.replace(
