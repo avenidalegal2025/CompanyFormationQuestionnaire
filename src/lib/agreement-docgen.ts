@@ -6452,7 +6452,7 @@ function removeSignaturePageBelowHeading(xml: string): string {
       .map((t) => t.replace(/<[^>]+>/g, ""))
       .join("")
       .trim();
-    if (txt === "[SIGNATURE PAGE BELOW]") {
+    if (txt === "[SIGNATURE PAGE BELOW]" || txt === "[SIGNATURE PAGE TO FOLLOW]") {
       headingStart = match.index;
       headingEnd = match.index + para.length;
       break;
@@ -6506,6 +6506,43 @@ function removeSignaturePageBelowHeading(xml: string): string {
     emptyPara +
     emptyPara +
     xml.substring(headingStart);
+
+  // Ensure the signature block starts on its own page so the marker
+  // ("[SIGNATURE PAGE BELOW]" / "[SIGNATURE PAGE TO FOLLOW]") is truthful.
+  // The Corp template already ships a <w:br w:type="page"/> before
+  // "IN WITNESS WHEREOF"; the LLC template does NOT (its signatures fell on
+  // the same page, making the "TO FOLLOW" marker misleading). Add
+  // pageBreakBefore to the witness paragraph ONLY when no page break already
+  // separates the marker from the witness — so the LLC matches the Corp
+  // without double-breaking the Corp.
+  const witRe = /<w:p\b[^>]*>[\s\S]*?<\/w:p>/g;
+  let wmatch: RegExpExecArray | null;
+  while ((wmatch = witRe.exec(xml)) !== null) {
+    const para = wmatch[0];
+    const txt = (para.match(/<w:t[^>]*>[^<]*<\/w:t>/g) || [])
+      .map((t) => t.replace(/<[^>]+>/g, ""))
+      .join("")
+      .trim();
+    if (!txt.startsWith("IN WITNESS WHEREOF")) continue;
+    const markerIdx = xml.lastIndexOf("SIGNATURE PAGE", wmatch.index);
+    const gap = markerIdx >= 0 ? xml.substring(markerIdx, wmatch.index) : "";
+    const alreadyBreaks =
+      /<w:br\b[^>]*w:type="page"/.test(gap) ||
+      /<w:pageBreakBefore\b(?![^>]*w:val="0")/.test(para);
+    if (!alreadyBreaks) {
+      const fixed = /<w:pPr>/.test(para)
+        ? para.replace(/<w:pPr>/, '<w:pPr><w:pageBreakBefore w:val="1"/>')
+        : para.replace(
+            /(<w:p\b[^>]*>)/,
+            '$1<w:pPr><w:pageBreakBefore w:val="1"/></w:pPr>',
+          );
+      xml =
+        xml.substring(0, wmatch.index) +
+        fixed +
+        xml.substring(wmatch.index + para.length);
+    }
+    break;
+  }
 
   return xml;
 }
