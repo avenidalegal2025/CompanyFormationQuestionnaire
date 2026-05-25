@@ -232,11 +232,14 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
 
   // Post-processing: voting text, bank accounts, conditional sections
   xml = applyLLCVotingReplacements(xml, answers);
-  // §19.7 Unanimous threshold body — when voting=unanimous, replace the
-  // (still-50.01%) percentage with 100% so the definition matches the
-  // (now-renamed) "Unanimous Defined" heading. Super-majority is left
-  // alone — §19.8 already provides that definition at 75%.
-  xml = applyLLCUnanimousDefinedThreshold(xml, answers);
+  // NOTE: §19.7 "Majority Defined" (50.01%) and §19.8 "Super Majority Defined"
+  // (75%) are now kept as FIXED glossary definitions for every voting choice,
+  // mirroring Corp §1.6/§1.7 (see the §19.7 protection in
+  // applyLLCVotingReplacements). We therefore no longer rename §19.7 to
+  // "Unanimous Defined" nor rewrite its threshold to 100% — that produced the
+  // broken "Unanimous of the Managers @ 100%" wording and, for super-majority,
+  // a duplicate "Super Majority Defined". The body uses the chosen term; the
+  // definitions stay as written.
   xml = applyLLCBankAccountText(xml, answers);
   // Strip / rewrite §6.1 Member Loans body when llc_memberLoans === "No".
   xml = applyLLCMemberLoansToggle(xml, answers);
@@ -691,12 +694,20 @@ function addExtraLLCMembers(
   // Also add extra managers if needed
   if (answers.directors_managers.length > 2) {
     const extraManagers = answers.directors_managers.slice(2);
+    const manager1Name = answers.directors_managers[0]?.name || "";
     const manager2Name = answers.directors_managers[1]?.name || "";
     if (manager2Name) {
+      // Serial-comma list for 3+ managers: "m1, m2, m3, …, and mN". The
+      // template ships "designate {{Manager_1}} and {{Manager_2}} to serve…",
+      // so we (a) append the extras as ", m3, …, and mN" and (b) rewrite the
+      // template's "m1 and m2" separator to "m1, m2" below. Previously every
+      // extra was joined with " and ", producing "m1 and m2 and m3 and …".
       // Manager names are user-supplied and go straight into the XML via
       // xmlTextReplace, so escape `&`, `<`, `>` to keep document.xml valid.
       const extraManagerText = extraManagers
-        .map((m) => ` and ${xmlEscape(m.name)}`)
+        .map((m, i) =>
+          `${i === extraManagers.length - 1 ? ", and " : ", "}${xmlEscape(m.name)}`
+        )
         .join("");
       xml = xmlTextReplace(
         xml,
@@ -704,6 +715,16 @@ function addExtraLLCMembers(
         manager2Name + extraManagerText + " to serve as the Managers",
         false
       );
+      // Convert the template's "m1 and m2" → "m1, m2" so the full list reads
+      // as a proper serial-comma sequence.
+      if (manager1Name) {
+        xml = xmlTextReplace(
+          xml,
+          manager1Name + " and " + manager2Name + ", ",
+          manager1Name + ", " + manager2Name + ", ",
+          false
+        );
+      }
     }
   }
 
@@ -819,8 +840,27 @@ function applyLLCVotingReplacements(
         .join("")
         .replace(/\s+/g, " ")
         .trim();
-      // Protect §19.7 Majority Defined paragraph.
-      if (/^19\.7\s+Majority\b/.test(text)) return full;
+      // Protect the §19.7 definitions glossary — the "Majority Defined"
+      // heading AND its two definition sub-items ("Majority of the Managers",
+      // "Majority of Members"). The "19.7" number and "Majority Defined" title
+      // ship in SEPARATE runs (a <w:tab/> between them), so the joined text
+      // often has no space and the old /^19\.7\s+Majority/ never matched —
+      // which let the sweep rename §19.7 to a DUPLICATE "Super Majority
+      // Defined" (colliding with §19.8 at a different 75% threshold) and break
+      // grammar for unanimous ("Unanimous of the Managers"). Keep this glossary
+      // FIXED for every voting choice, mirroring Corp §1.6/§1.7; the body uses
+      // the chosen term, the definitions stay as written. ("Majority of the
+      // Managers/Members" appears ONLY here, never in a body clause.)
+      // NOTE: no leading \b on "Majority Defined" — the number run "19.7" is
+      // glued to the title ("19.7Majority Defined.") in the joined text since
+      // the separator is a <w:tab/> element, not text; a \b would never match
+      // between "7" and "M".
+      if (
+        /Majority Defined/.test(text) ||
+        /\bMajority of (?:the Managers|Members)\b/.test(text)
+      ) {
+        return full;
+      }
       // Sweep <w:t> contents with protections.
       return full.replace(
         /<w:t([^>]*)>([^<]*)<\/w:t>/g,
@@ -1354,19 +1394,26 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
     const directorNamesArr = answers.directors_managers
       .map((d) => d.name)
       .filter((n) => n && n.trim());
-    const directorList = directorNamesArr.join(", ");
+    // Serial-comma join: "A and B" (2) / "A, B, and C" (3+).
+    const directorList =
+      directorNamesArr.length === 2
+        ? `${directorNamesArr[0]} and ${directorNamesArr[1]}`
+        : directorNamesArr.length >= 3
+          ? `${directorNamesArr.slice(0, -1).join(", ")}, and ${directorNamesArr[directorNamesArr.length - 1]}`
+          : directorNamesArr.join(", ");
     // Skip when the director list is identical (in count + names + order) to
     // the first-N owner names — the template's default render is already
     // correct in that case (no replacement needed) and our regex-based
     // replacement would unnecessarily rebuild the bold names run, breaking
     // the audit's "§10.5 number in separate un-underlined run" check.
-    const ownerSlice = answers.owners_list
-      .map((o) => o.full_name)
-      .slice(0, directorNamesArr.length);
-    const divergent =
-      directorNamesArr.length !== ownerSlice.length ||
-      directorNamesArr.some((n, i) => n !== ownerSlice[i]);
-    if (directorList && divergent) {
+    // Run for ALL Corps (not just divergent-director ones) so the directors
+    // list always gets the serial-comma join ("A and B" / "A, B, and C").
+    // The template's default render uses comma-only separators ("A, B."),
+    // which is grammatically wrong. The rewrite below is run-preserving
+    // (rewrites only the single bold names run that follows "initial
+    // Directors shall be "), so it does not disturb the §10.5 number/title
+    // runs the auditor checks.
+    if (directorList) {
       // Run-preserving replacement: rewrite ONLY the bold names run that
       // follows "initial Directors shall be ", leaving the §10.5 heading's
       // number / underlined-title / body runs intact. docxtemplater renders
@@ -2242,41 +2289,6 @@ function applyLLCMemberLoansToggle(
     "The Company shall only accept individual and personal loans from any Member of the Company with the",
     "The Company shall not accept loans from any Member. The Members may revisit this restriction by the"
   );
-  return xml;
-}
-
-// ─── §19.7 Unanimous percentage threshold (LLC) ───────────────────────
-//
-// LLC template §19.7 "Majority Defined" body reads "Members collectively
-// holding at least 50.01% of the total MPI held by all Members." When
-// major_decisions_voting === "unanimous", the global rename pass relabels
-// the heading + the term inside the body from "Majority" to "Unanimous"
-// but the percentage stays 50.01% — semantically wrong (unanimous = 100%).
-//
-// Super-majority is left alone here: §19.8 ships an independent "Super
-// Majority Defined" definition at 75%, so the §19.7 super-majority body
-// would just duplicate §19.8 — that's a separate dedup concern, not a
-// threshold-correctness concern.
-function applyLLCUnanimousDefinedThreshold(
-  xml: string,
-  answers: QuestionnaireAnswers
-): string {
-  if (answers.major_decisions_voting !== "unanimous") return xml;
-
-  // The exact percentage in §19.7 depends on the user's majority_threshold
-  // (template ships "50.1%"; an earlier pass rewrites it to e.g. "50%" or
-  // "50.01%"). Match any "at least <num>% of" inside the two §19.7 sentence
-  // shapes and rewrite to "100% of".
-  const memberRe = /(Members collectively holding )at least \d+(?:\.\d+)?% of/g;
-  const managerRe = /(Managers collectively representing )at least \d+(?:\.\d+)?% of(?= all the Managers)/g;
-  // Replace inside <w:t> text nodes only so attribute values like w14:paraId
-  // (which contain hex digits + "%") stay untouched.
-  xml = xml.replace(/<w:t([^>]*)>([^<]*)<\/w:t>/g, (m, attrs, content) => {
-    let updated = content;
-    updated = updated.replace(memberRe, "$1100% of");
-    updated = updated.replace(managerRe, "$1100% of");
-    return updated === content ? m : `<w:t${attrs}>${updated}</w:t>`;
-  });
   return xml;
 }
 
