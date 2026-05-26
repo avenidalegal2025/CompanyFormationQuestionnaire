@@ -1,0 +1,49 @@
+name: Payload→Output Fidelity
+
+# Verifies that, for the most-recent real agreement submissions, the generated
+# agreement DOCX faithfully reflects the LITERAL stored formData payload
+# (owners + %, voting, covenants, RoFR, drag/tag, managers/directors/officers,
+# numbering). Catches mapper-vs-product divergence on the real production path.
+#
+# REQUIRED REPO SECRETS (Settings → Secrets and variables → Actions):
+#   AWS_ACCESS_KEY_ID      – key with dynamodb:GetItem + dynamodb:Scan on the
+#   AWS_SECRET_ACCESS_KEY    Company_Creation_Questionaire_Avenida_Legal table
+# OPTIONAL repo variables (vars):
+#   AWS_REGION   (default us-west-1)
+#   DYNAMO_TABLE (default Company_Creation_Questionaire_Avenida_Legal)
+#
+# Manual for now (workflow_dispatch). Once the secrets are added, uncomment the
+# `schedule:` block below to run it nightly as a live regression net.
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'How many most-recent submissions to verify'
+        required: false
+        default: '12'
+  # schedule:
+  #   - cron: '0 7 * * *'   # 07:00 UTC nightly
+
+jobs:
+  fidelity:
+    name: Payload→Output mapping fidelity
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Verify payload→output fidelity (N most-recent submissions)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ vars.AWS_REGION || 'us-west-1' }}
+          DYNAMO_TABLE: ${{ vars.DYNAMO_TABLE || 'Company_Creation_Questionaire_Avenida_Legal' }}
+        run: npx tsx scripts/verify-payload-vs-output.ts --limit "${{ github.event.inputs.limit || '12' }}"
