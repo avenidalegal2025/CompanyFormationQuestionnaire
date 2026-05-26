@@ -781,10 +781,19 @@ function applyLLCVotingReplacements(
       replace: `${votingText(answers.major_decisions_voting)} Approval of the Members`,
       votingKey: "major_decisions_voting",
     },
-    // Sec 13 - New member admission
+    // Sec 13.1 - New member admission. The clause has TWO voting refs; both
+    // must honor new_member_admission_voting (not the major-decisions term).
+    // Previously a no-op (find===replace), so §13.1 stayed the template default
+    // "Majority" whenever the comprehensive sweep didn't fire (e.g. mixed
+    // profile with major=majority but new-member=unanimous).
     {
-      find: "Subject to the limitations in this Agreement, the Company may admit new Members",
-      replace: `Subject to the limitations in this Agreement, the Company may admit new Members`,
+      find: "by the Majority vote or consent of the existing Members",
+      replace: `by the ${votingText(answers.new_member_admission_voting)} vote or consent of the existing Members`,
+      votingKey: "new_member_admission_voting",
+    },
+    {
+      find: "unless the Members by Majority agree otherwise",
+      replace: `unless the Members by ${votingText(answers.new_member_admission_voting)} agree otherwise`,
       votingKey: "new_member_admission_voting",
     },
     // Sec 14.6 - Officer/member removal
@@ -861,6 +870,10 @@ function applyLLCVotingReplacements(
       ) {
         return full;
       }
+      // Protect the §13.1 new-member-admission clause — its voting term is set
+      // by new_member_admission_voting via the targeted replacements above; the
+      // major-decisions sweep must NOT override it with the major term.
+      if (/may admit new Members/.test(text)) return full;
       // Sweep <w:t> contents with protections.
       return full.replace(
         /<w:t([^>]*)>([^<]*)<\/w:t>/g,
