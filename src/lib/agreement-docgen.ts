@@ -1130,8 +1130,7 @@ function removeLLCConditionalSections(
   if (answers.include_noncompete) {
     const duration = answers.noncompete_duration || 2;
     const durationWord = numberToWords(duration).toUpperCase();
-    const nonCompeteText =
-      `11.12 Non-competition. ` +
+    const nonCompeteBody =
       `(a) Covenant Against Competition. During the term of this Agreement and for ${durationWord} (${duration}) years following termination as a Member, Manager and/or employee of the Company (the "Restrictive Period"), no Member (nor any member, partner, owner, officer, director or manager of such Member) shall directly or indirectly, individually or on behalf of any Person other than the Company or any affiliate or subsidiary of the Company: ` +
       `(i) solicit any Customers of the Company for the purpose of selling to them products or services competitive with the products or services sold by the Company; ` +
       `(ii) provide directly or indirectly products, services, or assist anyone to provide the products or services of the type provided by the Company during the term of this Agreement, to any Person (other than the Company) which is then engaged within the Territory in a business similar to the Company's Business; or ` +
@@ -1159,7 +1158,13 @@ function removeLLCConditionalSections(
         const p13Idx = xml.indexOf("11.13");
         const pStart = paragraphStartBefore(xml, p13Idx);
         if (pStart >= 0) {
-          const ncParagraph = buildFormattedParagraph(nonCompeteText, llcFmt.pPr, llcFmt.rPr);
+          const ncParagraph = buildUnderlinedTitleParagraph(
+            "11.12",
+            "Non-competition",
+            nonCompeteBody,
+            llcFmt.pPr,
+            llcFmt.rPr,
+          );
           const emptySep = '<w:p><w:pPr><w:rPr><w:vertAlign w:val="baseline"/></w:rPr></w:pPr></w:p>';
           xml = xml.substring(0, pStart) + ncParagraph + emptySep + xml.substring(pStart);
         }
@@ -1186,8 +1191,7 @@ function removeLLCConditionalSections(
     // at 11.12 and NS goes at 11.13.
     const nsNum = xml.includes("Covenant Against Competition") ? "11.14" : "11.13";
 
-    const nonSolicitationText =
-      `${nsNum} Non-Solicitation. ` +
+    const nonSolicitationBody =
       `During the term of this Agreement and for ${nsDurWord} (${nsDuration}) years following termination as a Member, Manager and/or employee of the Company (the "NS Restrictive Period"), no Member (nor any member, partner, owner, officer, director or manager of such Member) shall, directly or indirectly, individually or on behalf of any Person other than the Company or any affiliate or subsidiary of the Company: ` +
       `(i) solicit, induce, encourage, or otherwise attempt to influence any employee, contractor, or consultant of the Company to leave or terminate their employment or engagement with the Company; ` +
       `(ii) solicit, divert, or attempt to divert any Customer, supplier, vendor, or business partner of the Company to cease doing business with the Company or to do business with any competing Person; or ` +
@@ -1204,14 +1208,32 @@ function removeLLCConditionalSections(
         // spacing matches every other inter-section gap. Without this
         // §11.13 ND and §11.14 NS render flush against each other.
         const emptySep = '<w:p><w:pPr><w:rPr><w:vertAlign w:val="baseline"/></w:rPr></w:pPr></w:p>';
-        const nsParagraph = buildFormattedParagraph(
-          nonSolicitationText,
+        const nsParagraph = buildUnderlinedTitleParagraph(
+          nsNum,
+          "Non-Solicitation",
+          nonSolicitationBody,
           nsLlcFmt.pPr,
           nsLlcFmt.rPr,
         );
         xml = xml.substring(0, insertAt) + emptySep + nsParagraph + xml.substring(insertAt);
       }
     }
+  }
+
+  // §14.4 Successor's Interest — death/incapacity forced-sale toggle (LLC).
+  // The LLC template hard-ships the OPTIONAL wording ("option to sell ... or
+  // retain the interest"). When the client answers Yes to "should heirs be
+  // obligated to sell?" (death_incapacity_forced_sale=true), flip it to the
+  // forced-sale wording so the Successor cannot retain. Mirrors Antonio's
+  // own framing on the 2026-05-26 call ("Yes ⇒ required to sell, No ⇒ option
+  // to retain") and the Corp template's existing "required to sell" language.
+  // Without this the toggle is a no-op and the client's choice is ignored.
+  if (answers.death_incapacity_forced_sale) {
+    xml = xmlTextReplace(
+      xml,
+      "shall have the option to sell the Successor’s interest as set forth in this Agreement (and in particular, Section 12 above) or retain the interest.",
+      "shall be required to sell the Successor’s interest as set forth in this Agreement (and in particular, Section 12 above) and shall not have the option to retain the interest.",
+    );
   }
 
   // Confidentiality: STRIP when include_confidentiality=No (LLC).
@@ -2601,6 +2623,23 @@ function removeCorpConditionalSections(
         xml = xml.substring(0, insertPoint) + nsParagraph + xml.substring(insertPoint);
       }
     }
+  }
+
+  // Death/incapacity forced-sale toggle (Corp). Mirror image of the LLC fix:
+  // the Corp template hard-ships the FORCED-SALE wording ("The Successor shall
+  // be required to sell the interest."). When the client answers No to "should
+  // heirs be obligated to sell?" (death_incapacity_forced_sale=false), flip it
+  // to the OPTIONAL wording so the Successor may retain. Only the FIRST
+  // occurrence (the death/incapacity item A) matches — the divorce sub-clause
+  // ("such divorced spouse or Involuntary Assignee shall be required to sell
+  // upon the Corporation's exercise...") uses different text and is governed by
+  // the separate divorce toggle. Without this the toggle is a no-op.
+  if (!answers.death_incapacity_forced_sale) {
+    xml = xmlTextReplace(
+      xml,
+      "The Successor shall be required to sell the interest.",
+      "The Successor shall have the option to sell the interest or to retain it.",
+    );
   }
 
   // Confidentiality: STRIP when include_confidentiality=No (Corp).
@@ -7341,6 +7380,40 @@ function extractFormatting(xml: string, nearText: string): { pPr: string; rPr: s
  */
 function buildFormattedParagraph(text: string, pPr: string, rPr: string): string {
   return `<w:p>${pPr}<w:r>${rPr}<w:t xml:space="preserve">${xmlEscape(text)}</w:t></w:r></w:p>`;
+}
+
+/**
+ * Build a §N.M paragraph whose TITLE run is underlined, mirroring the run shape
+ * the LLC template ships on its always-on titled sections (e.g. §11.13
+ * Non-Disparagement):
+ *   run1 = "N.M" + <w:tab/>   (plain rPr)
+ *   run2 = title              (rPr + <w:u w:val="single"/>)
+ *   run3 = ". " + body        (plain rPr)
+ * The LLC generate path has no standardizeNumberedHeadingShape pass (that pass
+ * is Corp-only), so covenant clauses inserted via buildFormattedParagraph land
+ * as a single un-underlined run. This builder applies the underline directly so
+ * the inserted §11.12 Non-competition / §11.14 Non-Solicitation titles match
+ * every other LLC section title.
+ */
+function buildUnderlinedTitleParagraph(
+  num: string,
+  title: string,
+  body: string,
+  pPr: string,
+  baseRPr: string,
+): string {
+  const underlineRPr = /<w:u\b/.test(baseRPr)
+    ? baseRPr
+    : baseRPr.includes("</w:rPr>")
+      ? baseRPr.replace("</w:rPr>", '<w:u w:val="single"/></w:rPr>')
+      : `<w:rPr><w:u w:val="single"/></w:rPr>`;
+  return (
+    `<w:p>${pPr}` +
+    `<w:r>${baseRPr}<w:t xml:space="preserve">${xmlEscape(num)}</w:t><w:tab/></w:r>` +
+    `<w:r>${underlineRPr}<w:t xml:space="preserve">${xmlEscape(title)}</w:t></w:r>` +
+    `<w:r>${baseRPr}<w:t xml:space="preserve">. ${xmlEscape(body)}</w:t></w:r>` +
+    `</w:p>`
+  );
 }
 
 /**

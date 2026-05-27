@@ -113,7 +113,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                 </label>
                 <div className="mt-3 md:mt-0 md:justify-self-end md:w-[500px]">
                   <Controller
-                    name="agreement.corp_incapacityHeirsPolicy"
+                    name="agreement.corp_heirsForcedToSell"
                     control={control}
                     render={({ field }) => (
                       <SegmentedToggle
@@ -238,7 +238,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                 </label>
                 <div className="mt-3 md:mt-0 md:justify-self-end md:w-[500px]">
                   <Controller
-                    name="agreement.llc_incapacityHeirsPolicy"
+                    name="agreement.llc_heirsForcedToSell"
                     control={control}
                     render={({ field }) => (
                       <SegmentedToggle

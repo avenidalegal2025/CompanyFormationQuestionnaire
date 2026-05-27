@@ -213,6 +213,11 @@ export const AgreementSchema = z
     corp_rofrOfferPeriod: z.number().min(1).optional(),
     corp_transferToRelatives: z.string().optional(),
     corp_transferToRelativesMajority: z.number().min(50.01).max(99.99).optional(),
+    // Yes = on a shareholder's death/incapacity, heirs are FORCED to sell the
+    // interest back (cannot inherit/retain); No = heirs may retain. Drives
+    // death_incapacity_forced_sale → the §14 Successor's Interest clause.
+    corp_heirsForcedToSell: z.enum(["Yes", "No"]).optional(),
+    // deprecated alias (pre-2026-05-27 stored payloads); mapper falls back to it
     corp_incapacityHeirsPolicy: z.enum(["Yes", "No"]).optional(),
     corp_divorceBuyoutPolicy: z.enum(["Yes", "No"]).optional(),
     corp_divorceTransferVoting: z.enum(["Decisión Unánime", "Supermayoría", "Mayoría"]).optional(),
@@ -283,6 +288,11 @@ export const AgreementSchema = z
     // LLC actions & succession
     llc_rofr: z.enum(["Yes", "No"]).optional(),
     llc_rofrOfferPeriod: z.number().min(1).optional(),
+    // Yes = on a member's death/incapacity, heirs are FORCED to sell the
+    // interest back (cannot inherit/retain); No = heirs may retain. Drives
+    // death_incapacity_forced_sale → the §14 Successor's Interest clause.
+    llc_heirsForcedToSell: z.enum(["Yes", "No"]).optional(),
+    // deprecated alias (pre-2026-05-27 stored payloads); mapper falls back to it
     llc_incapacityHeirsPolicy: z.enum(["Yes", "No"]).optional(),
     llc_transferToRelatives: z.string().optional(),
     llc_transferToRelativesMajority: z.number().min(50.01).max(99.99).optional(),

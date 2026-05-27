@@ -1115,7 +1115,7 @@ export function mapQuestionnaireToAirtable(
     record['LLC Key Man Insurance'] = agreement.llc_keyManInsurance;
     record['LLC Dispute Resolution'] = agreement.llc_disputeResolution;
     record['LLC ROFR'] = agreement.llc_rofr === 'Yes' ? 'Yes' : 'No';
-    record['LLC Incapacity Heirs Policy'] = agreement.llc_incapacityHeirsPolicy === 'Yes' ? 'Yes' : 'No';
+    record['LLC Incapacity Heirs Policy'] = (agreement.llc_heirsForcedToSell ?? agreement.llc_incapacityHeirsPolicy) === 'Yes' ? 'Yes' : 'No';
     record['LLC New Partners Admission'] = agreement.llc_newPartnersAdmission;
     record['LLC New Partners Majority %'] = agreement.llc_newPartnersMajority ? agreement.llc_newPartnersMajority / 100 : undefined;
     record['LLC Dissolution Decision'] = agreement.llc_dissolutionDecision;
@@ -1160,7 +1160,7 @@ export function mapQuestionnaireToAirtable(
     record['Corp ROFR'] = agreement.corp_rofr === 'Yes' ? 'Yes' : 'No';
     record['Corp Transfer To Relatives'] = agreement.corp_transferToRelatives;
     record['Corp Transfer To Relatives Majority %'] = agreement.corp_transferToRelativesMajority ? agreement.corp_transferToRelativesMajority / 100 : undefined;
-    record['Corp Incapacity Heirs Policy'] = agreement.corp_incapacityHeirsPolicy === 'Yes' ? 'Yes' : 'No';
+    record['Corp Incapacity Heirs Policy'] = (agreement.corp_heirsForcedToSell ?? agreement.corp_incapacityHeirsPolicy) === 'Yes' ? 'Yes' : 'No';
     record['Corp Divorce Buyout Policy'] = agreement.corp_divorceBuyoutPolicy === 'Yes' ? 'Yes' : 'No';
     record['Corp Tag Drag Rights'] = agreement.corp_tagDragRights === 'Yes' ? 'Yes' : 'No';
     record['Corp Additional Clauses'] = agreement.corp_additionalClauses;

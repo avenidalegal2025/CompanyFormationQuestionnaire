@@ -440,8 +440,8 @@ export async function mapFormToDocgenAnswers(
       ? agreement.corp_rofrOfferPeriod || 60
       : agreement.llc_rofrOfferPeriod || 60,
     death_incapacity_forced_sale: isCorp
-      ? agreement.corp_incapacityHeirsPolicy === "Yes"
-      : agreement.llc_incapacityHeirsPolicy === "Yes",
+      ? (agreement.corp_heirsForcedToSell ?? agreement.corp_incapacityHeirsPolicy) === "Yes"
+      : (agreement.llc_heirsForcedToSell ?? agreement.llc_incapacityHeirsPolicy) === "Yes",
     drag_along: isCorp
       ? agreement.corp_tagDragRights === "Yes"
       : agreement.llc_tagDragRights === "Yes",
