@@ -147,6 +147,19 @@ function votingText(value: string): string {
   }
 }
 
+// True iff "Super Majority" is actually used by at least one voting decision.
+// Per Antonio (2026-05-26 review): don't DEFINE a term the agreement never uses
+// — if no decision is super-majority, the "Super Majority Defined" glossary
+// entry (LLC §19.8 / Corp §1.7) must be omitted. ("Majority" stays defined.)
+const SUPERMAJORITY_VOTING_KEYS: Array<keyof QuestionnaireAnswers> = [
+  "additional_capital_voting", "shareholder_loans_voting", "sale_of_company_voting",
+  "major_decisions_voting", "new_member_admission_voting", "dissolution_voting",
+  "officer_removal_voting",
+];
+function supermajorityIsUsed(answers: QuestionnaireAnswers): boolean {
+  return SUPERMAJORITY_VOTING_KEYS.some((k) => answers[k] === "supermajority");
+}
+
 // ─── LLC Document Generation ──────────────────────────────────────────
 
 function generateLLC(answers: QuestionnaireAnswers): Buffer {
@@ -936,8 +949,9 @@ function applyLLCVotingReplacements(
   // LLC template has "19.7 Majority Defined" then "19.8 INDEMNIFICATION"
   // Insert Super Majority definition and renumber the three following
   // sections (INDEMNIFICATION / ATTORNEYS' FEES / WAIVER OF JURY TRIAL)
-  // to 19.9 / 19.10 / 19.11.
-  if (answers.supermajority_threshold) {
+  // to 19.9 / 19.10 / 19.11. Only when Super Majority is actually used —
+  // otherwise we'd define an unused term (Antonio 2026-05-26).
+  if (answers.supermajority_threshold && supermajorityIsUsed(answers)) {
     const supPct = answers.supermajority_threshold;
     const supPctFormatted = typeof supPct === 'number' && supPct % 1 === 0 ? `${supPct}.00` : String(supPct);
     const supText = `${numberToWords(supPct).toUpperCase()} PERCENT (${supPctFormatted}%)`;
@@ -1631,7 +1645,9 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   // Strategy: cascade-renumber sections 1.7..1.10 → 1.8..1.11 FIRST (in reverse
   // to avoid collisions), then insert the new 1.7 Super Majority as a proper
   // standalone paragraph cloning the 1.6 Majority formatting.
-  if (answers.supermajority_threshold) {
+  // Only when Super Majority is actually used — otherwise an unused term would
+  // be defined (Antonio 2026-05-26). "Majority" (§1.6) always stays.
+  if (answers.supermajority_threshold && supermajorityIsUsed(answers)) {
     const supPct = answers.supermajority_threshold;
     const supPctFormatted =
       typeof supPct === "number" && supPct % 1 === 0
@@ -4656,6 +4672,48 @@ function closeArticleXIIIGap(xml: string): string {
  * shareholder and "CORPORATION", and between "CORPORATION" header
  * blocks.
  */
+// LLC signature blocks render as "By: ___" / "Name: X" pairs with NO blank
+// paragraph between consecutive members — cramped, leaving no room to sign
+// (Antonio 2026-05-26, esp. the 6-owner case). The Corp gets
+// expandSignatureBlockSpacing; the LLC path didn't get any spacer. Insert 2
+// empty paragraphs after each "Name: X" that is immediately followed (skipping
+// existing empties) by another member's "By:" line. Targeted index inserts
+// preserve the trailing <w:sectPr>.
+function expandLLCSignatureSpacing(xml: string): string {
+  const anchor = xml.indexOf("IN WITNESS WHEREOF");
+  if (anchor < 0) return xml;
+  const sigStart = xml.lastIndexOf("<w:p ", anchor);
+  if (sigStart < 0) return xml;
+  const sigEnd = xml.indexOf("</w:body>", sigStart);
+  if (sigEnd < 0) return xml;
+  let block = xml.substring(sigStart, sigEnd);
+
+  const paraRe = /<w:p\b[^>]*>[\s\S]*?<\/w:p>/g;
+  const spans: { end: number; text: string; full: string }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = paraRe.exec(block))) {
+    const text = (m[0].match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+      .map((t) => t.replace(/<[^>]+>/g, ""))
+      .join("")
+      .trim();
+    spans.push({ end: m.index + m[0].length, text, full: m[0] });
+  }
+  // Clone an existing empty sig-area paragraph for matching line-height;
+  // fall back to a bare empty paragraph.
+  const empty = spans.find((s) => !s.text)?.full || "<w:p/>";
+  const insertAt: number[] = [];
+  for (let i = 0; i < spans.length; i++) {
+    if (!/^Name:/.test(spans[i].text)) continue;
+    let j = i + 1;
+    while (j < spans.length && !spans[j].text) j++;
+    if (j < spans.length && /^By:/.test(spans[j].text)) insertAt.push(spans[i].end);
+  }
+  for (let k = insertAt.length - 1; k >= 0; k--) {
+    block = block.slice(0, insertAt[k]) + empty + empty + block.slice(insertAt[k]);
+  }
+  return xml.substring(0, sigStart) + block + xml.substring(sigEnd);
+}
+
 function expandSignatureBlockSpacing(xml: string): string {
   // Anchor on the curly-quoted "SHAREHOLDERS" sig header (distinct
   // from "SHAREHOLDERS' AGREEMENT" on the cover page) and walk back to
