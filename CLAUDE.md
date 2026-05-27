@@ -166,6 +166,19 @@ See `_set_table_col_widths()` in both Lambda files for the working implementatio
 
 ## Testing / Verification
 
+### Regression suite — run before every docgen change (CI: "Docgen Regression" + "Variant Audit")
+Three secret-free layers guard `agreement-docgen.ts`. Run all three locally after any docgen/mapper/schema edit:
+
+| Layer | Command | Catches |
+|------|---------|---------|
+| **Toggle coverage** | `npx tsx scripts/audit-toggle-coverage.ts` | A "dead toggle" — a questionnaire toggle the form collects but the document IGNORES (we shipped 4: nonsolicitation, confidentiality, incapacity/heirs, transfer-to-relatives). Generates A/B per toggle, asserts the doc changes. `PENDING_ANTONIO` allowlist = known-dead awaiting attorney clause text; graduate a toggle out of it once wired. |
+| **Document snapshots** | `npx tsx scripts/test-docgen-snapshots.ts` (compare) · `--update` (rewrite) | ANY unreviewed change to generated output (wording, numbering, a clause appearing/disappearing). Golden text snapshots of representative variants under `tests/__snapshots__/docgen/`. After an intentional change: `--update`, then review `git diff tests/__snapshots__/docgen/`. |
+| **Structural drift** | `npx tsx scripts/audit-all-variants.ts --out=/tmp/a.json` then `npx tsx scripts/audit-drift-check.ts --baseline=tests/__snapshots__/audit-baseline.json --current=/tmp/a.json` | A variant flipping PASS↔FAIL vs the committed baseline (288 variants). The raw audit is NOT the gate — drift is. Refresh the baseline (`cp` current → baseline) only after reviewing why statuses changed. |
+
+Notes:
+- The structural auditor (`scripts/audit-corp-structure.mjs`) is **entity-aware**: Corp nests romans under a letter (A.→i.); the LLC legitimately places romans directly under a §N.M heading (e.g. §12.9 "i. Drag Along / ii. Tag Along"). The baseline has **36 known-FAIL synthetic drag≠tag variants** the real form can't emit (`drag_along` and `tag_along` both derive from the single `tagDragRights` toggle) — they're baselined, not bugs.
+- All three use committed fixtures `scripts/fixtures/{llc,corp}-base.payload.json` — no AWS/secrets.
+
 ### Do your own QA/UAT — never ask the user to verify
 After any UI/DOCX/Lambda change, **run the verification yourself** before
 reporting back: build, invoke prod, screenshot or assert the result, and
