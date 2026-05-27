@@ -117,6 +117,11 @@ for (const p of paras) {
   // Section heading
   const secM = t.match(SEC_RE);
   if (secM) {
+    // Track the section as the current context. The LLC template has no
+    // "ARTICLE X" captions, so without this curArticle stays null and roman
+    // findings read "null.null"; tracking the §N.M also gives roman sequence
+    // checks a correct reset boundary.
+    curArticle = `§${secM[1]}.${secM[2]}`;
     curLetter = null; lastLetter = null; lastRoman = null;
     // L1: orphan-title — Heading-style paragraph must have keepNext
     // ONLY if title-only (body on next paragraph). Inline-titled
@@ -170,7 +175,11 @@ for (const p of paras) {
     if (ENTITY === "CORP" && (p.left - p.hanging !== 2160 || p.hanging < 150 || p.hanging > 600)) {
       push("L1", `roman ${romM[1]}. has non-canonical indent (left=${p.left} hanging=${p.hanging}, expected first-line col 2160 / hanging ~190-330): ${t.slice(0,60)}`);
     }
-    if (curLetter === null) {
+    // Corp nests romans under a letter (A. → i.); the LLC template legitimately
+    // places romans directly under a §N.M heading (e.g. §12.9 "i. Drag Along /
+    // ii. Tag Along", §19.7 "i. Majority of the Managers / ii. Majority of
+    // Members"). Only flag a missing parent letter for Corp.
+    if (ENTITY === "CORP" && curLetter === null) {
       push("L1", `roman ${romM[1]}. has no parent letter — should be a letter at this level: ${t.slice(0,60)}`);
     }
     const R2I = {i:1,ii:2,iii:3,iv:4,v:5,vi:6,vii:7,viii:8,ix:9,x:10};
