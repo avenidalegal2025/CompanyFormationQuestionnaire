@@ -1,11 +1,17 @@
-name: Toggle Coverage Guard
+name: Docgen Regression
 
-# Fails the build if any questionnaire toggle the form collects is IGNORED by
-# the generated agreement (the "dead toggle" class: nonsolicitation,
-# confidentiality, incapacity/heirs, transfer-to-relatives have all shipped this
-# way). Generates Yes/No (or A/B) per toggle through the real production
-# transform and asserts the document actually changes. No secrets needed — uses
-# committed fixtures under scripts/fixtures/.
+# Fast, secret-free regression net for document generation, run on every push/PR:
+#
+#  1. Toggle coverage — fails if any questionnaire toggle the form collects is
+#     IGNORED by the generated agreement (the "dead toggle" class: nonsolicitation,
+#     confidentiality, incapacity/heirs, transfer-to-relatives have all shipped
+#     this way). Generates A/B per toggle and asserts the document changes.
+#  2. Document snapshots — golden text snapshots of representative variants;
+#     fails on ANY unreviewed change to generated output (wording, numbering,
+#     a clause appearing/disappearing). Update with `--update` and review the
+#     diff under tests/__snapshots__/docgen/.
+#
+# Both use committed fixtures under scripts/fixtures/ — no AWS/secrets needed.
 
 on:
   push:
@@ -14,8 +20,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  toggle-coverage:
-    name: Every toggle must change the document
+  regression:
+    name: Docgen regression (toggles + snapshots)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -27,3 +33,5 @@ jobs:
       - run: npm ci
       - name: Toggle-coverage guard
         run: npx tsx scripts/audit-toggle-coverage.ts
+      - name: Document snapshot regression
+        run: npx tsx scripts/test-docgen-snapshots.ts
