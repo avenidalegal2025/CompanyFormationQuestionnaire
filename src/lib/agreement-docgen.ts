@@ -279,6 +279,9 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
   // Rewrite "Owner of the Company" under each Name with owner.title (or
   // remove it if no title was set) — v2 TODO #16.
   xml = rewriteSignatureOwnerLabel(xml, answers.owners_list);
+  // Space out the LLC member signature blocks so signers have room to sign
+  // (Antonio 2026-05-26 — the multi-owner block was cramped).
+  xml = expandLLCSignatureSpacing(xml);
 
   // Add keepNext to all section headings to prevent page breaks between heading and body
   xml = addKeepNextToHeadings(xml);
