@@ -1,0 +1,101 @@
+{
+  "attachments": {},
+  "agreement": {
+    "llc_bankSigners": "Dos firmantes",
+    "llc_companySaleDecision": "Decisión Unánime",
+    "llc_officerRemovalVoting": "Decisión Unánime",
+    "llc_newPartnersAdmission": "Decisión Unánime",
+    "llc_managingMembers": "Yes",
+    "llc_memberLoans": "Yes",
+    "llc_additionalContributionsDecision": "Decisión Unánime",
+    "supermajorityThreshold": 75,
+    "llc_incapacityHeirsPolicy": "Yes",
+    "llc_nonDisparagement": "Yes",
+    "llc_additionalContributions": "Sí, Pro-Rata",
+    "llc_confidentiality": "Yes",
+    "llc_capitalContributions_4": "50000",
+    "wants": "Yes",
+    "llc_taxPartner": "Roberto Mendez",
+    "llc_capitalContributions_5": "50000",
+    "llc_rofr": "Yes",
+    "llc_newMembersAdmission": "Decisión Unánime",
+    "llc_capitalContributions_0": "50000",
+    "llc_dissolutionDecision": "Decisión Unánime",
+    "llc_capitalContributions_1": "50000",
+    "llc_nonSolicitation": "Yes",
+    "llc_capitalContributions_2": "50000",
+    "llc_capitalContributions_3": "50000",
+    "majorityThreshold": 50.01,
+    "llc_majorSpendingThreshold": "15000",
+    "distributionFrequency": "Trimestral",
+    "llc_tagDragRights": "Yes",
+    "llc_majorDecisions": "Decisión Unánime",
+    "llc_nonCompete": "Yes",
+    "llc_memberLoansVoting": "Decisión Unánime",
+    "llc_rofrOfferPeriod": 180,
+    "llc_minTaxDistribution": 30
+  },
+  "profile": {},
+  "admin": {
+    "officersAllOwners": "Yes",
+    "directorsAllOwners": "Yes",
+    "managersAllOwners": "Yes"
+  },
+  "company": {
+    "businessPurpose": "",
+    "hasUsaAddress": "No",
+    "hasUsPhone": "No",
+    "entitySuffix": "LLC",
+    "companyNameBase": "PFX09",
+    "entityType": "LLC",
+    "companyName": "PFX09 LLC",
+    "forwardPhoneE164": "+1",
+    "formationState": "Florida"
+  },
+  "owners": [
+    {
+      "fullName": "Roberto Mendez",
+      "firstName": "Roberto",
+      "lastName": "Mendez",
+      "ownership": 16,
+      "ownershipPercentage": 16
+    },
+    {
+      "fullName": "Ana Garcia",
+      "firstName": "Ana",
+      "lastName": "Garcia",
+      "ownership": 16,
+      "ownershipPercentage": 16
+    },
+    {
+      "fullName": "Carlos Lopez",
+      "firstName": "Carlos",
+      "lastName": "Lopez",
+      "ownership": 16,
+      "ownershipPercentage": 16
+    },
+    {
+      "fullName": "Maria Torres",
+      "firstName": "Maria",
+      "lastName": "Torres",
+      "ownership": 16,
+      "ownershipPercentage": 16
+    },
+    {
+      "fullName": "Pedro Ramirez",
+      "firstName": "Pedro",
+      "lastName": "Ramirez",
+      "ownership": 16,
+      "ownershipPercentage": 16
+    },
+    {
+      "fullName": "Sofia Flores",
+      "firstName": "Sofia",
+      "lastName": "Flores",
+      "ownership": 20,
+      "ownershipPercentage": 20
+    }
+  ],
+  "ownersCount": 6,
+  "banking": {}
+}

@@ -1,0 +1,67 @@
+{
+  "attachments": {},
+  "agreement": {
+    "corp_majorDecisionThreshold": "Decisión Unánime",
+    "corp_capitalPerOwner_0": "50000",
+    "corp_capitalPerOwner_1": "50000",
+    "corp_tagDragRights": "Yes",
+    "supermajorityThreshold": 75,
+    "corp_rofr": "Yes",
+    "corp_rofrOfferPeriod": 90,
+    "corp_confidentiality": "Yes",
+    "corp_taxOwner": "Roberto Mendez",
+    "corp_moreCapitalDecision": "Decisión Unánime",
+    "corp_transferToRelatives": "Sí, podrán transferir libremente sus acciones.",
+    "corp_newShareholdersAdmission": "Decisión Unánime",
+    "wants": "Yes",
+    "corp_moreCapitalProcess": "Sí, Pro-Rata",
+    "corp_majorSpendingThreshold": "7500",
+    "corp_nonCompete": "Yes",
+    "corp_shareholderLoansVoting": "Decisión Unánime",
+    "majorityThreshold": 50.01,
+    "corp_saleDecisionThreshold": "Decisión Unánime",
+    "distributionFrequency": "Trimestral",
+    "corp_shareholderLoans": "Yes",
+    "corp_officerRemovalVoting": "Decisión Unánime",
+    "corp_nonSolicitation": "Yes",
+    "corp_incapacityHeirsPolicy": "Yes",
+    "corp_divorceBuyoutPolicy": "Yes",
+    "corp_bankSigners": "Dos firmantes"
+  },
+  "profile": {},
+  "admin": {
+    "shareholderOfficer2Role": "Vice-President",
+    "shareholderOfficer1Role": "President",
+    "officersAllOwners": "Yes",
+    "directorsAllOwners": "Yes"
+  },
+  "company": {
+    "businessPurpose": "",
+    "hasUsaAddress": "No",
+    "hasUsPhone": "No",
+    "entitySuffix": "Corp",
+    "companyNameBase": "PFX20",
+    "entityType": "C-Corp",
+    "companyName": "PFX20 Corp",
+    "forwardPhoneE164": "+1",
+    "formationState": "Florida"
+  },
+  "owners": [
+    {
+      "fullName": "Roberto Mendez",
+      "firstName": "Roberto",
+      "lastName": "Mendez",
+      "ownership": 50,
+      "ownershipPercentage": 50
+    },
+    {
+      "fullName": "Ana Garcia",
+      "firstName": "Ana",
+      "lastName": "Garcia",
+      "ownership": 50,
+      "ownershipPercentage": 50
+    }
+  ],
+  "ownersCount": 2,
+  "banking": {}
+}

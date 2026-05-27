@@ -1,0 +1,29 @@
+name: Toggle Coverage Guard
+
+# Fails the build if any questionnaire toggle the form collects is IGNORED by
+# the generated agreement (the "dead toggle" class: nonsolicitation,
+# confidentiality, incapacity/heirs, transfer-to-relatives have all shipped this
+# way). Generates Yes/No (or A/B) per toggle through the real production
+# transform and asserts the document actually changes. No secrets needed — uses
+# committed fixtures under scripts/fixtures/.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  toggle-coverage:
+    name: Every toggle must change the document
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - name: Toggle-coverage guard
+        run: npx tsx scripts/audit-toggle-coverage.ts
