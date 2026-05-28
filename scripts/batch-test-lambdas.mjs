@@ -445,8 +445,12 @@ function assertShRegFormatting(xml) {
     errors.push('No fixed table layout found');
   }
 
-  // 4. Column widths in tblGrid
-  const expectedWidths = [1368, 2592, 1224, 1152, 1152, 1512];
+  // 4. Column widths in tblGrid (twips). Must match the intended widths set in
+  // lambda-functions/shareholder_registry_lambda.py col_widths_in (inches ×1440):
+  //   [0.95, 1.60, 1.05, 0.80, 0.85, 1.05] = Date | Name | Transaction | #Shares | Class | %
+  // The Transaction column was widened (0.85→1.05) so the "Transaction" header
+  // doesn't wrap, with Name trimmed (1.80→1.60) to keep the total at 6.30".
+  const expectedWidths = [1368, 2304, 1512, 1152, 1224, 1512];
   const gridMatch = xml.match(/<w:tblGrid>.*?<\/w:tblGrid>/s);
   if (!gridMatch) {
     errors.push('No <w:tblGrid> found');
