@@ -83,8 +83,6 @@ const CASES: Case[] = [
 // build-failing. Remove from this list as each is wired — then the guard
 // enforces it stays wired.
 const PENDING_ANTONIO = new Set<string>([
-  "LLC Transfer-to-relatives",
-  "Corp Transfer-to-relatives",
   "LLC Divorce buyout",
   "Corp Divorce buyout",
 ]);

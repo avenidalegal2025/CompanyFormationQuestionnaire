@@ -160,6 +160,32 @@ function supermajorityIsUsed(answers: QuestionnaireAnswers): boolean {
   return SUPERMAJORITY_VOTING_KEYS.some((k) => answers[k] === "supermajority");
 }
 
+// Family-transfer (transfer-to-relatives) carve-out. The form asks whether an
+// owner may transfer their interest to relatives freely, or only with the
+// unanimous / majority consent of the others (answers.family_transfer =
+// "free" | "unanimous" | "majority", default "free"). Neither template ships a
+// family-transfer clause, so this builds the appropriate sentence to append to
+// the assignment provision (LLC §12.4 / Corp §9.1). Without it the toggle is a
+// no-op and the client's choice is ignored.
+function familyTransferClause(entity: "LLC" | "CORP", mode: string): string {
+  const who = entity === "LLC" ? "Member" : "Shareholder";
+  const interest = entity === "LLC" ? "Membership Interest" : "Shares";
+  const interestPlural = entity === "LLC" ? "Membership Interests" : "Shares";
+  let condition: string;
+  if (mode === "unanimous") {
+    condition = `, subject to the Unanimous vote or consent of the other ${who}s,`;
+  } else if (mode === "majority") {
+    condition = `, subject to the vote or consent of ${who}s holding a Majority of the ${interestPlural} then held by the other ${who}s,`;
+  } else {
+    condition = `, without the consent of, and free of any right of first refusal or other transfer restriction otherwise applicable under this Agreement to, the other ${who}s,`;
+  }
+  return (
+    `  Notwithstanding any other provision of this Agreement, a ${who} may transfer all or any part of such ${who}’s ${interest} ` +
+    `to an immediate family member (including such ${who}’s spouse, child, parent, or sibling, or a trust or other entity established for the benefit of any of them)` +
+    `${condition} provided that the transferee executes a written agreement to be bound by the terms of this Agreement.`
+  );
+}
+
 // ─── LLC Document Generation ──────────────────────────────────────────
 
 function generateLLC(answers: QuestionnaireAnswers): Buffer {
@@ -1221,19 +1247,30 @@ function removeLLCConditionalSections(
   }
 
   // §14.4 Successor's Interest — death/incapacity forced-sale toggle (LLC).
-  // The LLC template hard-ships the OPTIONAL wording ("option to sell ... or
-  // retain the interest"). When the client answers Yes to "should heirs be
-  // obligated to sell?" (death_incapacity_forced_sale=true), flip it to the
-  // forced-sale wording so the Successor cannot retain. Mirrors Antonio's
-  // own framing on the 2026-05-26 call ("Yes ⇒ required to sell, No ⇒ option
-  // to retain") and the Corp template's existing "required to sell" language.
-  // Without this the toggle is a no-op and the client's choice is ignored.
-  if (answers.death_incapacity_forced_sale) {
+  // Antonio dictated the exact two phrasings on the 2026-05-26 review:
+  //   Yes (forced) → "The Successor shall be required to sell the interest."
+  //   No  (option) → "The Successor shall have the option to retain the interest."
+  // The LLC template ships a verbose optional sentence; replace it wholesale with
+  // the toggle-appropriate phrasing (identical wording to the Corp, for
+  // consistency). Without this the toggle is a no-op and the client's choice is
+  // ignored.
+  {
+    const llcSuccessorSentence = answers.death_incapacity_forced_sale
+      ? "The Successor shall be required to sell the interest."
+      : "The Successor shall have the option to retain the interest.";
     xml = xmlTextReplace(
       xml,
-      "shall have the option to sell the Successor’s interest as set forth in this Agreement (and in particular, Section 12 above) or retain the interest.",
-      "shall be required to sell the Successor’s interest as set forth in this Agreement (and in particular, Section 12 above) and shall not have the option to retain the interest.",
+      "The Successor shall have the option to sell the Successor’s interest as set forth in this Agreement (and in particular, Section 12 above) or retain the interest.",
+      llcSuccessorSentence,
     );
+  }
+
+  // Transfer-to-relatives (LLC): append the family-transfer carve-out to §12.4
+  // (Permitted Assignees). free/unanimous/majority per answers.family_transfer.
+  {
+    const anchor =
+      "admitted to the Company as a Member with the Unanimous vote of the Members.";
+    xml = xmlTextReplace(xml, anchor, anchor + familyTransferClause("LLC", answers.family_transfer));
   }
 
   // Confidentiality: STRIP when include_confidentiality=No (LLC).
@@ -2638,8 +2675,16 @@ function removeCorpConditionalSections(
     xml = xmlTextReplace(
       xml,
       "The Successor shall be required to sell the interest.",
-      "The Successor shall have the option to sell the interest or to retain it.",
+      "The Successor shall have the option to retain the interest.",
     );
+  }
+
+  // Transfer-to-relatives (Corp): append the family-transfer carve-out to §9.1
+  // (Shareholder Assignment Prohibited). free/unanimous/majority per family_transfer.
+  {
+    const anchor =
+      "Shares or any interest in the Corporation unless the procedures set forth in this Agreement are followed.";
+    xml = xmlTextReplace(xml, anchor, anchor + familyTransferClause("CORP", answers.family_transfer));
   }
 
   // Confidentiality: STRIP when include_confidentiality=No (Corp).
