@@ -442,6 +442,9 @@ export async function mapFormToDocgenAnswers(
     death_incapacity_forced_sale: isCorp
       ? (agreement.corp_heirsForcedToSell ?? agreement.corp_incapacityHeirsPolicy) === "Yes"
       : (agreement.llc_heirsForcedToSell ?? agreement.llc_incapacityHeirsPolicy) === "Yes",
+    divorce_forced_buyout: isCorp
+      ? agreement.corp_divorceBuyoutPolicy === "Yes"
+      : agreement.llc_divorceBuyoutPolicy === "Yes",
     drag_along: isCorp
       ? agreement.corp_tagDragRights === "Yes"
       : agreement.llc_tagDragRights === "Yes",

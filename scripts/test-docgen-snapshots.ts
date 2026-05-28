@@ -53,7 +53,7 @@ const VARIANTS: { name: string; data: any }[] = [
     data: withAgreement(LLC, {
       llc_rofr: "Yes", llc_nonCompete: "Yes", llc_nonSolicitation: "No",
       llc_tagDragRights: "No", llc_heirsForcedToSell: "Yes",
-      llc_majorDecisions: "Supermayoría",
+      llc_majorDecisions: "Supermayoría", llc_divorceBuyoutPolicy: "Yes",
     }),
   },
   { name: "corp-all-on", data: CORP },
@@ -63,6 +63,7 @@ const VARIANTS: { name: string; data: any }[] = [
       corp_rofr: "No", corp_nonCompete: "No", corp_nonSolicitation: "No",
       corp_tagDragRights: "No", corp_heirsForcedToSell: "No",
       corp_majorDecisionThreshold: "Mayoría", corp_saleDecisionThreshold: "Mayoría",
+      corp_divorceBuyoutPolicy: "No",
     }),
   },
   {

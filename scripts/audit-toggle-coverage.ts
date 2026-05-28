@@ -82,10 +82,7 @@ const CASES: Case[] = [
 // Known-dead toggles awaiting Antonio's clause text/decision. Reported but not
 // build-failing. Remove from this list as each is wired — then the guard
 // enforces it stays wired.
-const PENDING_ANTONIO = new Set<string>([
-  "LLC Divorce buyout",
-  "Corp Divorce buyout",
-]);
+const PENDING_ANTONIO = new Set<string>([]);
 
 async function genText(payloadPath: string, field: string, value: string): Promise<string> {
   const data = JSON.parse(fs.readFileSync(payloadPath, "utf8"));

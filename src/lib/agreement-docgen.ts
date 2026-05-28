@@ -90,6 +90,7 @@ export interface QuestionnaireAnswers {
   right_of_first_refusal: boolean;
   rofr_offer_period?: number;
   death_incapacity_forced_sale: boolean;
+  divorce_forced_buyout: boolean;
   drag_along: boolean;
   tag_along: boolean;
   include_noncompete: boolean;
@@ -1273,6 +1274,24 @@ function removeLLCConditionalSections(
     xml = xmlTextReplace(xml, anchor, anchor + familyTransferClause("LLC", answers.family_transfer));
   }
 
+  // Divorce buyout toggle (LLC). The LLC template has NO divorce provision, so
+  // when the client answers Yes to "should the company buy out the ex-spouse's
+  // interest?" (divorce_forced_buyout=true), append a buyout provision to §14.4
+  // Successor's Interest (mirrors the Corp §14.4/§14.5.B machinery in LLC terms).
+  // Appended (not a new numbered section) so the LLC, which has no renumber pass,
+  // needs no renumbering. Without this the toggle is a no-op.
+  if (answers.divorce_forced_buyout) {
+    const anchor = "shall be exercised by giving notice to the Successor within that time period.";
+    const divorceProvision =
+      "  In the event of the filing of a petition for dissolution of marriage or legal separation of a Member, " +
+      "the Company shall have the option to purchase any Membership Interest awarded to, or claimed by, the Member’s spouse, " +
+      "former spouse, or any Involuntary Assignee at its fair market value, and such spouse, former spouse, or Involuntary " +
+      "Assignee shall be required to sell such interest upon the Company’s exercise of its option. The Company’s decision to " +
+      "exercise this option shall be within the discretion of the Unanimous consent of the remaining Members, exercisable by " +
+      "giving notice within 60 calendar days after the divorce or Involuntary Transfer.";
+    xml = xmlTextReplace(xml, anchor, anchor + divorceProvision);
+  }
+
   // Confidentiality: STRIP when include_confidentiality=No (LLC).
   // The LLC template ships §11.10 Non-disclosure heading + FIVE
   // sub-items (A. body, B. CI def, C. Return of CI, D. severability,
@@ -1728,6 +1747,36 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
     xml = insertSuperMajorityCorp(xml, supText);
   }
 
+  // Divorce buyout toggle (Corp). The template hard-ships the full divorce
+  // machinery in ARTICLE XIV; when the client answers No to "should the company
+  // buy out the ex-spouse's shares?" (divorce_forced_buyout=false), strip it.
+  // Done BEFORE renumberAndRemapSubsections so the §14.4 Divorce removal is
+  // auto-resequenced (Successor's Interest → §14.4, etc.) and cross-refs remap.
+  if (!answers.divorce_forced_buyout) {
+    // 1. Remove the standalone §14.4 Divorce section.
+    xml = removeXmlParagraphsContaining(xml, [
+      "upon the filing of a petition for dissolution of marriage",
+    ]);
+    // 2. Remove §14.5 item B (the ex-spouse/Involuntary-Assignee buyout option).
+    xml = removeXmlParagraphsContaining(xml, [
+      "The Corporation shall further have the option to purchase the Shares from a divorcing",
+    ]);
+    // 3. Article title: drop "OR DIVORCE".
+    xml = xmlTextReplace(
+      xml,
+      "DEATH, INCAPACITY OR DIVORCE OF SHAREHOLDER",
+      "DEATH OR INCAPACITY OF SHAREHOLDER",
+    );
+    // 4. Residual "divorce" / "Divorcing Shareholder" prose mentions.
+    xml = xmlTextReplace(xml, "from the death, incapacity or divorce of the Withdrawing", "from the death or incapacity of the Withdrawing");
+    xml = xmlTextReplace(xml, "an Involuntary Assignee, Divorcing Shareholder’s or Successor’s interest", "an Involuntary Assignee’s or Successor’s interest");
+    xml = xmlTextReplace(xml, "incapacitated, divorces or the Shares", "incapacitated or the Shares");
+    xml = xmlTextReplace(xml, "Successor, Assignee or Divorcing Shareholder reasonably", "Successor or Assignee reasonably");
+    xml = xmlTextReplace(xml, "fails to notify the Divorcing Shareholder, Successor or", "fails to notify the Successor or");
+    xml = xmlTextReplace(xml, "the Divorcing Shareholder, Successor, or Involuntary Assignee shall become", "the Successor or Involuntary Assignee shall become");
+    xml = xmlTextReplace(xml, "such Divorcing Shareholder, Successor or Involuntary Assignee may at this time", "such Successor or Involuntary Assignee may at this time");
+  }
+
   // ── Sequentially renumber every Article's Heading3 sub-items ──
   // Runs AFTER all conditional content changes (responsibilities injection,
   // ROFR/Drag-Along/Tag-Along removal, Non-Compete insertion, Super Majority
@@ -1835,7 +1884,7 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   // and overflows content area. Center + shrink to 9972 dxa.
   xml = centerShareOwnershipTable(xml);
   xml = stripBoldFromInlineTitleRuns(xml);
-  xml = fixArticle14CrossReferences(xml);
+  xml = fixArticle14CrossReferences(xml, !answers.divorce_forced_buyout);
   xml = closeArticleXIIIGap(xml);
   // Generic remediation pass: any cross-reference ("Section N.M" /
   // "Subject to Section N below," / "per Section N below.") to a
@@ -4975,14 +5024,19 @@ function repairDanglingCrossReferences(xml: string): string {
  *   "Section 14.1(b)" → "Section 14.3"
  *   "Section 14.1(d)" / "14.1(d)" / "14.1 (d)" → "Section 14.5"
  */
-function fixArticle14CrossReferences(xml: string): string {
+function fixArticle14CrossReferences(xml: string, divorceStripped = false): string {
+  // The template writes some §14 cross-refs in sub-item form ("Section 14.1(b)"
+  // / "14.1(d)"); remap them to the real section numbers. "14.1(d)" points at
+  // Successor's Interest, which is §14.5 normally but §14.4 once the §14.4
+  // Divorce section is stripped (divorce buyout = No) and §14 is resequenced.
+  const successorInterestRef = divorceStripped ? "Section 14.4" : "Section 14.5";
   // Process the textual content of <w:t> runs in-place to avoid
   // touching other XML structure.
   return xml.replace(/<w:t[^>]*>([^<]*)<\/w:t>/g, (full, text) => {
     let t = text;
     t = t.replace(/Section\s+14\.1\(b\)/g, "Section 14.3");
-    t = t.replace(/Section\s+14\.1\s*\(d\)/g, "Section 14.5");
-    t = t.replace(/(?<!Section\s)14\.1\s*\(d\)/g, "Section 14.5");
+    t = t.replace(/Section\s+14\.1\s*\(d\)/g, successorInterestRef);
+    t = t.replace(/(?<!Section\s)14\.1\s*\(d\)/g, successorInterestRef);
     return full.replace(text, t);
   });
 }
