@@ -4,6 +4,11 @@
  * across entity / owner-count / voting profile / every toggle. */
 import * as fs from "fs";
 import * as zlib from "zlib";
+import * as os from "os";
+import * as nodePath from "path";
+
+// CI-safe scratch dir (the runner has no /tmp/ulcheck).
+const TMPDIR = fs.mkdtempSync(nodePath.join(os.tmpdir(), "v100-"));
 import { execSync } from "child_process";
 import { mapFormToDocgenAnswers } from "../src/lib/agreement-mapper.js";
 import { generateDocument } from "../src/lib/agreement-docgen.js";
@@ -67,7 +72,7 @@ function payload(c: Cfg) {
     try {
       const answers = await mapFormToDocgenAnswers(payload(c));
       const { buffer } = await generateDocument(answers);
-      const path = `/tmp/ulcheck/v100_${i}.docx`; fs.writeFileSync(path, buffer); t = txt(buffer);
+      const path = nodePath.join(TMPDIR, `v100_${i}.docx`); fs.writeFileSync(path, buffer); t = txt(buffer);
       // structural audit
       const a = execSync(`node scripts/audit-corp-structure.mjs ${path} 2>&1`).toString();
       if (!a.includes("CLEAN")) errs.push("AUDIT not clean: " + (a.match(/\d+ issue|first roman[^\n]*|letter sequence[^\n]*|no parent[^\n]*/g) || []).slice(0, 2).join("; "));
