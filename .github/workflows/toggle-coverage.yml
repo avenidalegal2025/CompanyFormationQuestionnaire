@@ -35,3 +35,5 @@ jobs:
         run: npx tsx scripts/audit-toggle-coverage.ts
       - name: Document snapshot regression
         run: npx tsx scripts/test-docgen-snapshots.ts
+      - name: 100-variant content + structure sweep
+        run: npx tsx scripts/verify-100-variants.ts

@@ -1283,10 +1283,19 @@ function removeLLCConditionalSections(
 
   // Transfer-to-relatives (LLC): append the family-transfer carve-out to §12.4
   // (Permitted Assignees). free/unanimous/majority per answers.family_transfer.
+  // §12.4's admission sentence ends "…with the <VOTE> vote of the Members." and
+  // that <VOTE> term varies with the voting profile (Majority / Super Majority /
+  // Unanimous), so the anchor must try all three — hard-coding "Unanimous"
+  // dropped the clause for every non-unanimous LLC (caught by the 100-variant run).
   {
-    const anchor =
-      "admitted to the Company as a Member with the Unanimous vote of the Members.";
-    xml = xmlTextReplace(xml, anchor, anchor + familyTransferClause("LLC", answers.family_transfer));
+    // The §12.4 text spans <w:t> runs, so detect+append via xmlTextReplace
+    // (run-aware) for each possible vote term — exactly one is present, the
+    // other two are no-ops.
+    const clause = familyTransferClause("LLC", answers.family_transfer);
+    for (const term of ["Majority", "Super Majority", "Unanimous"]) {
+      const anchor = `admitted to the Company as a Member with the ${term} vote of the Members.`;
+      xml = xmlTextReplace(xml, anchor, anchor + clause);
+    }
   }
 
   // Divorce buyout toggle (LLC). The LLC template has NO divorce provision, so
