@@ -780,6 +780,13 @@ function applyLLCVotingReplacements(
   xml: string,
   answers: QuestionnaireAnswers
 ): string {
+  // Each per-decision clause carries its OWN voting threshold. We set them with
+  // a sentinel token (VT) instead of the literal term, run the major-decisions
+  // sweep (which can only touch GENERIC bare "Majority" — tokens are immune),
+  // then resolve the tokens to their real per-decision term. This stops the
+  // sweep from clobbering a lower per-decision threshold (e.g. loans=Majority)
+  // up to the major term when major_decisions_voting is elevated.
+  const VT = (key: keyof QuestionnaireAnswers) => `@VK:${String(key)}@`;
   // Each replacement targets specific text in specific sections.
   // We find the exact phrase and replace "Majority" with the chosen option.
   //
@@ -803,19 +810,19 @@ function applyLLCVotingReplacements(
     // Sec 5.1 - Additional capital
     {
       find: "agreed by Majority to the incurrence",
-      replace: `agreed by ${votingText(answers.additional_capital_voting)} to the incurrence`,
+      replace: `agreed by ${VT("additional_capital_voting")} to the incurrence`,
       votingKey: "additional_capital_voting",
     },
     // Sec 6.1 - Shareholder loans
     {
       find: "Majority consent of the Members",
-      replace: `${votingText(answers.shareholder_loans_voting)} consent of the Members`,
+      replace: `${VT("shareholder_loans_voting")} consent of the Members`,
       votingKey: "shareholder_loans_voting",
     },
     // Sec 8 / 10.3 - Sale of company/assets
     {
       find: "requires the Majority consent of the Members",
-      replace: `requires the ${votingText(answers.sale_of_company_voting)} consent of the Members`,
+      replace: `requires the ${VT("sale_of_company_voting")} consent of the Members`,
       votingKey: "sale_of_company_voting",
     },
     // Sec 11.4(i) - Major decisions
@@ -831,12 +838,12 @@ function applyLLCVotingReplacements(
     // profile with major=majority but new-member=unanimous).
     {
       find: "by the Majority vote or consent of the existing Members",
-      replace: `by the ${votingText(answers.new_member_admission_voting)} vote or consent of the existing Members`,
+      replace: `by the ${VT("new_member_admission_voting")} vote or consent of the existing Members`,
       votingKey: "new_member_admission_voting",
     },
     {
       find: "unless the Members by Majority agree otherwise",
-      replace: `unless the Members by ${votingText(answers.new_member_admission_voting)} agree otherwise`,
+      replace: `unless the Members by ${VT("new_member_admission_voting")} agree otherwise`,
       votingKey: "new_member_admission_voting",
     },
     // Sec 14.6 - Officer/member removal
@@ -848,13 +855,13 @@ function applyLLCVotingReplacements(
     // Sec 15.1 - Dissolution
     {
       find: "Majority election of the Members to dissolve",
-      replace: `${votingText(answers.dissolution_voting)} election of the Members to dissolve`,
+      replace: `${VT("dissolution_voting")} election of the Members to dissolve`,
       votingKey: "dissolution_voting",
     },
     // Sec 11.1C - Manager removal
     {
       find: "Majority vote of the Members excluding",
-      replace: `${votingText(answers.officer_removal_voting)} vote of the Members excluding`,
+      replace: `${VT("officer_removal_voting")} vote of the Members excluding`,
       votingKey: "officer_removal_voting",
     },
   ];
@@ -936,6 +943,14 @@ function applyLLCVotingReplacements(
       );
     });
   }
+
+  // Resolve the per-decision voting tokens to their real terms (unconditional —
+  // tokens are inserted by the targeted replacements regardless of whether the
+  // sweep above ran). Runs BEFORE the grammar cleanup so any "Unanimous" it
+  // produces gets the same article-agreement fixups.
+  xml = xml.replace(/@VK:(\w+)@/g, (_m, k) =>
+    votingText((answers as unknown as Record<string, string>)[k]),
+  );
 
   // Always-run article-grammar cleanup. Same rationale as Corp: targeted
   // replacements can produce "a Unanimous of …" via voting keys other
@@ -2155,6 +2170,11 @@ function applyCorpVotingReplacements(
   xml: string,
   answers: QuestionnaireAnswers
 ): string {
+  // Per-decision clauses carry a sentinel token (immune to the major-decisions
+  // sweep below); resolved to the real term after the sweep. Stops the sweep
+  // from clobbering a lower per-decision threshold up to the major term. (Same
+  // mechanism as applyLLCVotingReplacements.)
+  const VT = (key: keyof QuestionnaireAnswers) => `@VK:${String(key)}@`;
   // Corp voting locations (from template analysis):
   //
   // Sec 3.2 (dissolution): "Majority election to dissolve by the Shareholders"
@@ -2170,35 +2190,39 @@ function applyCorpVotingReplacements(
     // Sec 3.2 - Dissolution
     {
       find: "Majority election to dissolve by the Shareholders",
-      replace: `${votingText(answers.dissolution_voting)} election to dissolve by the Shareholders`,
+      replace: `${VT("dissolution_voting")} election to dissolve by the Shareholders`,
     },
-    // Sec 4.3 - New shareholders
+    // Sec 4.3 - New shareholders. Anchor on the distinctive surrounding text:
+    // "approved by a Majority of the Shareholders" alone also appears in §3.2.B
+    // (dissolution trigger), the dividends clauses, and §13.3 Approved Sale —
+    // all of which should follow the major-decisions sweep. Only THIS clause is
+    // governed by new_member_admission_voting.
     {
-      find: "approved by a Majority of the Shareholders",
-      replace: `approved by a ${votingText(answers.new_member_admission_voting)} of the Shareholders`,
+      find: "proposed by any Shareholder and approved by a Majority of the Shareholders",
+      replace: `proposed by any Shareholder and approved by a ${VT("new_member_admission_voting")} of the Shareholders`,
     },
     // Sec 4.5 - Additional capital (uses additional_capital_voting, not
     // major_decisions_voting — the sweep block below skips when major is
     // majority, leaving §4.5 unchanged even for mixed-voting profiles).
     {
       find: "raise additional capital shall be made with the Majority approval of the Shareholders",
-      replace: `raise additional capital shall be made with the ${votingText(answers.additional_capital_voting)} approval of the Shareholders`,
+      replace: `raise additional capital shall be made with the ${VT("additional_capital_voting")} approval of the Shareholders`,
     },
     // Sec 7.3 - Shareholder loans ("explicit Majority" is unique to the loans clause)
     {
       find: "explicit Majority approval of the Board of Directors",
-      replace: `explicit ${votingText(answers.shareholder_loans_voting)} approval of the Board of Directors`,
+      replace: `explicit ${VT("shareholder_loans_voting")} approval of the Board of Directors`,
     },
     // Sec 9.1 / 10.2.e - Sale of corporation (two phrasings ship in
     // the template: "both the Shareholders and the Board" and just
     // "the Shareholders and the Board"; cover both).
     {
       find: "Majority consent or approval of both the Shareholders and the Board",
-      replace: `${votingText(answers.sale_of_company_voting)} consent or approval of both the Shareholders and the Board`,
+      replace: `${VT("sale_of_company_voting")} consent or approval of both the Shareholders and the Board`,
     },
     {
       find: "Majority consent or approval of the Shareholders and the Board",
-      replace: `${votingText(answers.sale_of_company_voting)} consent or approval of the Shareholders and the Board`,
+      replace: `${VT("sale_of_company_voting")} consent or approval of the Shareholders and the Board`,
     },
     // Sec 10.1 - Major decisions
     {
@@ -2213,7 +2237,7 @@ function applyCorpVotingReplacements(
     // Sec 12.1 - Officer/Director removal
     {
       find: "Majority vote of the Shareholders at a meeting",
-      replace: `${votingText(answers.officer_removal_voting)} vote of the Shareholders at a meeting`,
+      replace: `${VT("officer_removal_voting")} vote of the Shareholders at a meeting`,
     },
   ];
 
@@ -2271,6 +2295,13 @@ function applyCorpVotingReplacements(
       );
     });
   }
+
+  // Resolve per-decision voting tokens to their real terms (unconditional —
+  // tokens are inserted regardless of whether the sweep ran). Before the
+  // article-grammar cleanup so "Unanimous" remnants get the same fixups.
+  xml = xml.replace(/@VK:(\w+)@/g, (_m, k) =>
+    votingText((answers as unknown as Record<string, string>)[k]),
+  );
 
   // Always-run article-grammar cleanup. The sweep above only fires when
   // major_decisions_voting !== majority, but targeted per-phrase

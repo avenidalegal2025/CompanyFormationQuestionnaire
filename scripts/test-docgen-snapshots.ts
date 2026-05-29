@@ -53,7 +53,11 @@ const VARIANTS: { name: string; data: any }[] = [
     data: withAgreement(LLC, {
       llc_rofr: "Yes", llc_nonCompete: "Yes", llc_nonSolicitation: "No",
       llc_tagDragRights: "No", llc_heirsForcedToSell: "Yes",
-      llc_majorDecisions: "Supermayoría", llc_divorceBuyoutPolicy: "Yes",
+      // mixed voting — major elevated but loans/dissolution kept at majority.
+      // Locks in the token fix that stops the major sweep clobbering lower
+      // per-decision thresholds.
+      llc_majorDecisions: "Supermayoría", llc_memberLoansVoting: "Mayoría",
+      llc_dissolutionDecision: "Mayoría", llc_divorceBuyoutPolicy: "Yes",
     }),
   },
   { name: "corp-all-on", data: CORP },
@@ -71,7 +75,9 @@ const VARIANTS: { name: string; data: any }[] = [
     data: withAgreement(CORP, {
       corp_rofr: "Yes", corp_nonCompete: "Yes", corp_nonSolicitation: "No",
       corp_tagDragRights: "Yes", corp_heirsForcedToSell: "Yes",
-      corp_majorDecisionThreshold: "Supermayoría",
+      // mixed voting — major elevated but loans/capital kept at majority.
+      corp_majorDecisionThreshold: "Supermayoría", corp_shareholderLoansVoting: "Mayoría",
+      corp_moreCapitalDecision: "Mayoría",
     }),
   },
 ];

@@ -423,7 +423,11 @@ export async function mapFormToDocgenAnswers(
       ? votingCode(agreement.corp_newShareholdersAdmission)
       : votingCode(agreement.llc_newMembersAdmission),
     dissolution_voting: isCorp
-      ? "majority" // Corp doesn't have a separate dissolution field; defaults to majority
+      // Corp has no separate dissolution field; dissolution is a major decision,
+      // so follow major_decisions_voting. (This matches the long-standing
+      // rendered output — the docgen voting sweep already elevated the Corp
+      // dissolution clause to the major term — so it is not an output change.)
+      ? votingCode(agreement.corp_majorDecisionThreshold)
       : votingCode(agreement.llc_dissolutionDecision),
     officer_removal_voting: isCorp
       ? votingCode(agreement.corp_officerRemovalVoting)
