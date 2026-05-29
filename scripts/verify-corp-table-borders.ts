@@ -53,6 +53,7 @@ function buildAnswers(ownerCount: number): QuestionnaireAnswers {
     right_of_first_refusal: true,
     rofr_offer_period: 180,
     death_incapacity_forced_sale: false,
+    divorce_forced_buyout: false,
     drag_along: true,
     tag_along: true,
     include_noncompete: false,

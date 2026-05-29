@@ -1854,7 +1854,13 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   // (first run = "N.M ", second run = underlined title, third run = body).
   // No-op when ARTICLE XIII is stripped (closeArticleXIIIGap path).
   // Antonio review 2026-05-15 (todo 03).
-  xml = restructureArticleXIIIToHierarchical(xml);
+  // ONLY when RoFR is on: the demotion targets the §13.1 RoFR heading. With RoFR
+  // off, the offer-steps are already stripped and renumber has left the survivors
+  // (Deadlock → §13.1, Approved Sale → §13.2) correctly numbered — running the
+  // restructure then would wrongly demote §13.2 Approved Sale to "A.".
+  if (answers.right_of_first_refusal) {
+    xml = restructureArticleXIIIToHierarchical(xml);
+  }
   xml = mergeTitleOnlyHeadingsWithBody(xml);
   xml = rebuildFracturedNumberedHeadings(xml);
   xml = collapseEmptiesBetweenListItems(xml);
@@ -1886,6 +1892,25 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   xml = stripBoldFromInlineTitleRuns(xml);
   xml = fixArticle14CrossReferences(xml, !answers.divorce_forced_buyout);
   xml = closeArticleXIIIGap(xml);
+
+  // §4.4 forfeiture → Deadlock buy-sell, RoFR-off case. When RoFR is on the
+  // ARTICLE-XIII restructure remaps the §4.4 "paragraph 13.6" ref to Deadlock's
+  // final §13.2; when RoFR is off that restructure is skipped, leaving the ref
+  // dangling at the template §13.6. Point it at whatever number Deadlock now
+  // carries (robust to the covenant-off article shift).
+  if (!answers.right_of_first_refusal) {
+    const deadlockNum = xml
+      .replace(/<[^>]+>/g, "")
+      .match(/(\d+\.\d+)\s+Purchase of Shareholder Interests upon Deadlock/);
+    if (deadlockNum) {
+      xml = xmlTextReplace(
+        xml,
+        "shall not trigger paragraph 13.6 below",
+        `shall not trigger paragraph ${deadlockNum[1]} below`,
+      );
+    }
+  }
+
   // Generic remediation pass: any cross-reference ("Section N.M" /
   // "Subject to Section N below," / "per Section N below.") to a
   // section that doesn't exist gets stripped (sentence-end) or its
@@ -2504,19 +2529,17 @@ function removeCorpConditionalSections(
   xml: string,
   answers: QuestionnaireAnswers
 ): string {
-  // §4.4 forfeiture references "paragraph 13.2 below" but §13.2 is the
-  // Offer/RoFR offer step, not the right target. The intent is to say
-  // forfeiture doesn't trigger the §13.6 deadlock purchase mechanism.
-  // Repoint the reference (the entire sentence is stripped below when
-  // RoFR is OFF since §13.x is gone in that case).
-  if (answers.right_of_first_refusal) {
-    xml = xmlTextReplace(
-      xml,
-      "The application of this clause shall not trigger paragraph 13.2 below.",
-      "The application of this clause shall not trigger paragraph 13.6 below.",
-      true,
-    );
-  }
+  // §4.4 forfeiture references "paragraph 13.2 below" but template §13.2 is the
+  // Offer/RoFR offer step, not the right target. The intent is the Deadlock
+  // buy-sell (template §13.6). Repoint to §13.6 unconditionally — the Deadlock
+  // provision survives whether or not RoFR is on, and renumber/restructure then
+  // remaps §13.6 to its final number (RoFR on → §13.2, RoFR off → §13.1).
+  xml = xmlTextReplace(
+    xml,
+    "The application of this clause shall not trigger paragraph 13.2 below.",
+    "The application of this clause shall not trigger paragraph 13.6 below.",
+    true,
+  );
 
   // §9.2.A.iii references "9.1(iv)" but §9.1 uses letter labels
   // A./B./C./D./E. — there is no roman 9.1(iv). The intent is to point
@@ -2536,9 +2559,16 @@ function removeCorpConditionalSections(
       "The Transferor shall deliver a notice",
       "Concurrence or Acceptance.  The Offerees shall respond",
       "In the event that a Shareholder has elected to sell its Shares",
-      "Purchase of Shareholder Interests upon Deadlock",
-      "Bona Fide Offer",
+      // RoFR consummation step. Precise anchor — a bare "Bona Fide Offer" match
+      // also hit the §13.2 Deadlock buy-sell paragraph (which prices off a Bona
+      // Fide Offer), silently deleting the shotgun provision when RoFR was off.
+      "If a Bona Fide Offer (as defined above) has been accepted by the Acquired Shareholder",
     ]);
+    // NOTE: the Deadlock buy-sell ("Purchase of Shareholder Interests upon
+    // Deadlock") is INDEPENDENT of RoFR and must survive — it used to be in the
+    // strip list above, which silently dropped the shotgun provision whenever a
+    // client turned RoFR off. renumberAndRemapSubsections re-sequences the
+    // surviving §13 sections (Deadlock → §13.1, Approved Sale → §13.2).
 
     // §9.1.A "The Shares are first offered to the current Shareholders
     // per Section 13 below" describes a process that doesn't exist when
@@ -2564,30 +2594,11 @@ function removeCorpConditionalSections(
     // text replacements happen AFTER normalizeListParagraphs has
     // assigned the "A./B." labels — see the post-render call site for
     // fixSection9CrossRefsAfterRoFRStrip.
-
-    // The Corp template has an inline body ref "The application of this
-    // clause shall not trigger paragraph 13.2 below." inside Section 4.4.
-    // Article XIII is entirely ROFR and got removed above, so paragraph
-    // 13.2 no longer exists — strip the dangling sentence. Keep the
-    // leading space tidy.
-    xml = xmlTextReplace(
-      xml,
-      "  The application of this clause shall not trigger paragraph 13.2 below.",
-      "",
-      true,
-    );
-    xml = xmlTextReplace(
-      xml,
-      " The application of this clause shall not trigger paragraph 13.2 below.",
-      "",
-      true,
-    );
-    xml = xmlTextReplace(
-      xml,
-      "The application of this clause shall not trigger paragraph 13.2 below.",
-      "",
-      true,
-    );
+    //
+    // NOTE: the §4.4 forfeiture cross-ref to the Deadlock buy-sell is NOT
+    // stripped here anymore — Deadlock survives a RoFR-off strip (it is an
+    // independent provision), so the §4.4 repoint above (→ §13.6) stands and
+    // renumber remaps it to Deadlock's RoFR-off number (§13.1).
   }
 
   // Drag-Along = No
