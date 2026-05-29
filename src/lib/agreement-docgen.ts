@@ -1307,6 +1307,14 @@ function removeLLCConditionalSections(
     xml = xmlTextReplace(xml, anchor, anchor + divorceProvision);
   }
 
+  // LLC terminology: the template's §5.3 and §12.1 RoFR clauses say "Shares"
+  // (a Corp term). An LLC holds a Membership Percentage Interest (MPI), not
+  // shares. Correct the three occurrences (LLC-only; the Corp legitimately uses
+  // "Shares"). No-ops when the clause is absent (e.g. §12.1 when RoFR is off).
+  xml = xmlTextReplace(xml, "Forfeiture of Shares", "Forfeiture of Interest");
+  xml = xmlTextReplace(xml, "shall first offer to sell his Shares to the other Members", "shall first offer to sell his MPI to the other Members");
+  xml = xmlTextReplace(xml, "Percentage Interests of Shares being sold", "Percentage Interests of MPI being sold");
+
   // Confidentiality: STRIP when include_confidentiality=No (LLC).
   // The LLC template ships §11.10 Non-disclosure heading + FIVE
   // sub-items (A. body, B. CI def, C. Return of CI, D. severability,
