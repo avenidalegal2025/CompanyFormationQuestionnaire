@@ -1,14 +1,19 @@
-/* 100-variant content+structure verification through the REAL production
- * transform (mapFormToDocgenAnswers -> generateDocument), each run through the
- * structural auditor + per-variant content assertions. Deterministic spread
- * across entity / owner-count / voting profile / every toggle. */
+/* Systematic variant matrix through the REAL production transform
+ * (mapFormToDocgenAnswers -> generateDocument), each run through the structural
+ * auditor + per-variant content assertions.
+ *
+ * Unlike the bit-pattern spread this fully DECOUPLES the dimensions:
+ *   2 entities x 6 owner-counts x 4 voting profiles x 5 toggle-presets = 240.
+ * So every entity gets every voting profile at every owner count (the bit
+ * pattern coupled LLC -> never supermajority/mixed), and the 5 presets exercise
+ * each toggle in both states incl. the heirs+divorce combo. */
 import * as fs from "fs";
 import * as zlib from "zlib";
 import * as os from "os";
 import * as nodePath from "path";
 
 // CI-safe scratch dir (the runner has no /tmp/ulcheck).
-const TMPDIR = fs.mkdtempSync(nodePath.join(os.tmpdir(), "v100-"));
+const TMPDIR = fs.mkdtempSync(nodePath.join(os.tmpdir(), "vmatrix-"));
 import { execSync } from "child_process";
 import { mapFormToDocgenAnswers } from "../src/lib/agreement-mapper.js";
 import { generateDocument } from "../src/lib/agreement-docgen.js";
@@ -29,13 +34,26 @@ function txt(buf: Buffer): string {
   return "";
 }
 
-type Cfg = { i: number; entity: "LLC" | "Corp"; n: number; voting: keyof typeof V | "mixed"; rofr: boolean; dragtag: boolean; nc: boolean; ns: boolean; heirs: boolean; divorce: boolean; xfer: keyof typeof XFER };
+type Cfg = { i: number; entity: "LLC" | "Corp"; n: number; voting: keyof typeof V | "mixed"; preset: string; rofr: boolean; dragtag: boolean; nc: boolean; ns: boolean; heirs: boolean; divorce: boolean; xfer: keyof typeof XFER };
 
-function buildCfg(i: number): Cfg {
-  const entity = i % 2 === 0 ? "LLC" : "Corp";
-  const n = (i % 6) + 1;
-  const voting = (["majority", "supermajority", "unanimous", "mixed"] as const)[i % 4];
-  return { i, entity, n, voting, rofr: !!((i >> 1) & 1), dragtag: !!((i >> 2) & 1), nc: !!((i >> 3) & 1), ns: !!((i >> 4) & 1), heirs: !!((i >> 5) & 1), divorce: !!((i >> 6) & 1), xfer: (["free", "unanimous", "majority"] as const)[i % 3] };
+// 5 toggle-presets — each toggle appears in BOTH states across the set, and the
+// heirs+divorce succession combo is exercised on its own (the bit pattern only
+// reached it at i in [96,99]).
+const PRESETS = [
+  { name: "allOff", rofr: false, dragtag: false, nc: false, ns: false, heirs: false, divorce: false, xfer: "free" as const },
+  { name: "allOn", rofr: true, dragtag: true, nc: true, ns: true, heirs: true, divorce: true, xfer: "unanimous" as const },
+  { name: "covenants", rofr: false, dragtag: false, nc: true, ns: true, heirs: false, divorce: false, xfer: "majority" as const },
+  { name: "xferDivorce", rofr: true, dragtag: true, nc: false, ns: false, heirs: false, divorce: true, xfer: "unanimous" as const },
+  { name: "succession", rofr: false, dragtag: false, nc: true, ns: false, heirs: true, divorce: true, xfer: "majority" as const },
+];
+const ENTITIES = ["LLC", "Corp"] as const;
+const VOTINGS = ["majority", "supermajority", "unanimous", "mixed"] as const;
+
+function buildMatrix(): Cfg[] {
+  const out: Cfg[] = []; let i = 0;
+  for (const entity of ENTITIES) for (let n = 1; n <= 6; n++) for (const voting of VOTINGS) for (const pr of PRESETS)
+    out.push({ i: i++, entity, n, voting, preset: pr.name, rofr: pr.rofr, dragtag: pr.dragtag, nc: pr.nc, ns: pr.ns, heirs: pr.heirs, divorce: pr.divorce, xfer: pr.xfer });
+  return out;
 }
 
 function payload(c: Cfg) {
@@ -63,16 +81,18 @@ function payload(c: Cfg) {
 }
 
 (async () => {
+  const matrix = buildMatrix();
+  const TOTAL = matrix.length;
   let fails = 0; const failList: string[] = [];
-  for (let i = 0; i < 100; i++) {
-    const c = buildCfg(i);
-    const label = `#${i} ${c.entity} ${c.n}o ${c.voting} rofr=${+c.rofr} dt=${+c.dragtag} nc=${+c.nc} ns=${+c.ns} heirs=${+c.heirs} div=${+c.divorce}`;
+  for (const c of matrix) {
+    const i = c.i;
+    const label = `#${i} ${c.entity} ${c.n}o ${c.voting} [${c.preset}] rofr=${+c.rofr} dt=${+c.dragtag} nc=${+c.nc} ns=${+c.ns} heirs=${+c.heirs} div=${+c.divorce} xfer=${c.xfer}`;
     const errs: string[] = [];
     let t = "";
     try {
       const answers = await mapFormToDocgenAnswers(payload(c));
       const { buffer } = await generateDocument(answers);
-      const path = nodePath.join(TMPDIR, `v100_${i}.docx`); fs.writeFileSync(path, buffer); t = txt(buffer);
+      const path = nodePath.join(TMPDIR, `vm_${i}.docx`); fs.writeFileSync(path, buffer); t = txt(buffer);
       // structural audit
       const a = execSync(`node scripts/audit-corp-structure.mjs ${path} 2>&1`).toString();
       if (!a.includes("CLEAN")) errs.push("AUDIT not clean: " + (a.match(/\d+ issue|first roman[^\n]*|letter sequence[^\n]*|no parent[^\n]*/g) || []).slice(0, 2).join("; "));
@@ -96,14 +116,14 @@ function payload(c: Cfg) {
     // divorce machinery
     const divHas = c.entity === "LLC" ? has("dissolution of marriage or legal separation of a Member") : has("Divorcing Shareholder");
     if (c.divorce !== divHas) errs.push(`divorce presence wrong (want ${c.divorce})`);
-    // transfer-to-relatives clause present
+    // transfer-to-relatives clause present (always added; wording varies by mode)
     if (!has("to an immediate family member")) errs.push("transfer-to-relatives clause MISSING");
     // unanimous => no Super Majority Defined glossary
     if (c.voting === "unanimous" && /Super Majority Defined/.test(t)) errs.push("unanimous but Super Majority Defined present");
     if (errs.length) { fails++; failList.push(label + " :: " + errs.join(" | ")); console.log(`🔴 ${label}`); errs.forEach((e) => console.log("     " + e)); }
-    else process.stdout.write(`\r✓ ${i + 1}/100   `);
+    else process.stdout.write(`\r✓ ${i + 1}/${TOTAL}   `);
   }
   console.log("\n" + "=".repeat(56));
-  console.log(fails === 0 ? "✅ 100/100 variants PASS (structure + content)" : `🔴 ${fails}/100 FAILED:\n` + failList.join("\n"));
+  console.log(fails === 0 ? `✅ ${TOTAL}/${TOTAL} variants PASS (structure + content)` : `🔴 ${fails}/${TOTAL} FAILED:\n` + failList.join("\n"));
   process.exit(fails === 0 ? 0 : 1);
 })();
