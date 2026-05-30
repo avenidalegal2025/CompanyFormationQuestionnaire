@@ -202,6 +202,10 @@ function payload(c: Cfg) {
       // new shareholder post-failure-to-purchase + future attempted transfers.
       ["Majority approve such new shareholder", 4, "new_shareholder §13.8"],
       ["require the Majority approval of the Shareholders, except that the Personal Representative", 4, "new_shareholder §13.8-alt"],
+      // §3.2.B sale-of-assets dissolution event — should use sale_of_company,
+      // not the major-decisions global sweep (matches LLC §8 semantics).
+      // Key idx=2 (sale_of_company). Surfaced 2026-05-30 during PFX23/PFX69 UAT.
+      ["approved by a Majority of the Shareholders in their sole and absolute discretion", 2, "sale §3.2.B"],
     ];
     // Corp-specific template-typo guards (surfaced PFX21 UAT 2026-05-30):
     //   (a) §13.1.D template originally had "a Majority the remaining

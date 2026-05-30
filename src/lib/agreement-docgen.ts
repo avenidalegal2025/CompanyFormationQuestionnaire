@@ -2292,6 +2292,24 @@ function applyCorpVotingReplacements(
       find: "require the Majority approval of the Shareholders, except that the Personal Representative",
       replace: `require the ${VT("new_member_admission_voting")} approval of the Shareholders, except that the Personal Representative`,
     },
+    // Sec 3.2.B (Event of Dissolution / Corp) — sale of all-or-substantially-all
+    // of the assets approved by Shareholders. Semantically this is a sale-of-
+    // company decision (same conceptual event as LLC §8 which uses
+    // sale_of_company_voting). Without a targeted entry it fell through to the
+    // major-decisions global sweep — invisible in same-key variants but wrong
+    // in mixed (e.g. PFX23/PFX69: sale=Supermayoría + major=Mayoría → §3.2.B
+    // rendered "Majority", should be "Super Majority"). The §3.2.A election-
+    // to-dissolve already has its own targeted entry (dissolution_voting), so
+    // the per-event design intent is established. Surfaced 2026-05-30. If
+    // Antonio prefers §3.2.B stay at major_decisions, revert this entry.
+    {
+      // Note: template has DOUBLE SPACE between "the" and "Shareholders" — match
+      // it literally. The `.replace(/\s+/g, " ")` in the audit's text extraction
+      // hides this, but xmlTextReplace operates on raw XML where the double-space
+      // is preserved.
+      find: "approved by a Majority of the  Shareholders in their sole and absolute discretion",
+      replace: `approved by a ${VT("sale_of_company_voting")} of the  Shareholders in their sole and absolute discretion`,
+    },
   ];
 
   for (const r of replacements) {

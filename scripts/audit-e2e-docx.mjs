@@ -147,6 +147,7 @@ function auditVariant(v) {
     absenceCheck("Majority vote of the Shareholders at a meeting", "removal", "officer_removal");
     absenceCheck("Majority approve such new shareholder", "newMember", "new_shareholder §13.8");
     absenceCheck("require the Majority approval of the Shareholders, except that the Personal Representative", "newMember", "new_shareholder §13.8-alt");
+    absenceCheck("approved by a Majority of the Shareholders in their sole and absolute discretion", "sale", "sale §3.2.B");
     // §13.1.D typo guard (Corp template missing "of" — fixed in 2ad8a3bb)
     for (const w of ["Majority", "Super Majority", "Unanimous"]) {
       if (has(`${w} the remaining Shareholders`)) errors.push(`Corp §13.1.D template typo: '${w} the remaining Shareholders' (missing 'of')`);
