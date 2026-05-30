@@ -392,6 +392,11 @@ function makeAgreementData(v) {
       // drag/tag (product is correctly wired). Mirror the Corp field.
       llc_tagDragRights: (v.drag || v.tag) ? 'Yes' : 'No',
       llc_incapacityHeirsPolicy: incapacityHeirs ? 'Yes' : 'No',
+      // Harness gap fixed 2026-05-30: the LLC branch was missing the divorce
+      // field, so every LLC e2e UAT ran with divorce=No regardless of the
+      // per-variant rand draw. The Corp branch (above) had it; mirror it here.
+      // Surfaced during PFX17 page-by-page review.
+      llc_divorceBuyoutPolicy: divorceBuyout ? 'Yes' : 'No',
       llc_dissolutionDecision: p.dissolution,
       llc_newMembersAdmission: p.newMember,
       llc_newPartnersAdmission: p.newMember,
