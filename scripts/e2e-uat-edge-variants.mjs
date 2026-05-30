@@ -34,7 +34,7 @@ const STRIPE_ZIP = '33131';
 const PASSWORD = 'EdgeUAT2026!';
 const RUN_TAG = (process.env.E2E_RUN_TAG || 'r8').trim();
 
-const NAMES = [
+export const NAMES = [
   'Roberto Mendez', 'Ana Garcia', 'Carlos Lopez',
   'Maria Torres', 'Pedro Ramirez', 'Sofia Flores',
 ];
@@ -55,7 +55,7 @@ const OFFICER_ROLES = [
   'Assistant Vice-President', 'Assistant Secretary',
 ];
 
-function votingProfile(v) {
+export function votingProfile(v) {
   const map = {
     unanimous: { sale: 'Decisión Unánime', major: 'Decisión Unánime', newMember: 'Decisión Unánime', dissolution: 'Decisión Unánime', removal: 'Decisión Unánime', loans: 'Decisión Unánime', capital: 'Decisión Unánime' },
     majority:  { sale: 'Mayoría',          major: 'Mayoría',          newMember: 'Mayoría',          dissolution: 'Mayoría',          removal: 'Mayoría',          loans: 'Mayoría',          capital: 'Mayoría' },
@@ -75,7 +75,7 @@ function ownerArray(n) {
   }));
 }
 
-const VARIANTS = [
+export const VARIANTS = [
   { id: 6,  entity: 'LLC',    ownerCount: 1, voting: 'majority',      rofr: false, drag: false, tag: false, nc: 'No',  ns: 'No',  conf: 'No',  label: 'PFX06' },
   { id: 7,  entity: 'C-Corp', ownerCount: 2, voting: 'supermajority', rofr: false, drag: false, tag: false, nc: 'No',  ns: 'No',  conf: 'No',  label: 'PFX07' },
   { id: 8,  entity: 'LLC',    ownerCount: 4, voting: 'majority',      rofr: true,  drag: false, tag: false, nc: 'Yes', ns: 'Yes', conf: 'Yes', label: 'PFX08' },
@@ -976,4 +976,7 @@ async function main() {
   process.exit(results.every(r => r.status === 'PASS') ? 0 : 1);
 }
 
-main().catch(e => { console.error('FATAL:', e); process.exit(2); });
+// Run main() only when invoked directly (not when imported by audit script).
+import { fileURLToPath } from 'url';
+const __isMain = process.argv[1] && process.argv[1] === fileURLToPath(import.meta.url);
+if (__isMain) main().catch(e => { console.error('FATAL:', e); process.exit(2); });
