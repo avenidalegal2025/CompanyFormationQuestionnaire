@@ -149,16 +149,66 @@ function payload(c: Cfg) {
     // NC duration renders ("TWO (2) years following termination") — fixture has
     // no nonCompeteDuration override so it falls back to the docgen default of 2.
     if (c.nc && !has("TWO (2) years following termination")) errs.push("NC=on but 'TWO (2) years following termination' missing");
-    // §14.6 (LLC) Member-removal-for-cause must use the officer-removal voting
-    // word, NOT a hardcoded "Majority". Caught a real no-op replacement bug
-    // 2026-05-30 — the §14.6 entry had find===replace so the sweep silently
-    // skipped it (the matrix passed even though the production doc was wrong
-    // for non-Majority officer_removal). Now asserts the correct word.
-    if (c.entity === "LLC") {
-      const orWord = c.voting === "mixed" ? "Super Majority" : c.voting === "supermajority" ? "Super Majority" : c.voting === "unanimous" ? "Unanimous" : "Majority";
-      // §14.6 anchor — distinctive "of all other Members of the Company" phrase.
-      const sec146Marker = `${orWord} vote or consent of all other Members of the Company`;
-      if (!has(sec146Marker)) errs.push(`§14.6 voting wrong (expect '${orWord}' for officer_removal=${c.voting})`);
+    // Per-voting-key rendered-word assertions. One per entry in
+    // apply{LLC,Corp}VotingReplacements — catches the §14.6-class bug
+    // (no-op replacement, missing/typo'd find string, accidental ordering
+    // change) at CI time instead of UAT time.
+    //
+    // The matrix's mixed mix is [SUPERMAJ, MAJ, UNAN, SUPERMAJ, UNAN, MAJ,
+    // SUPERMAJ] indexed by VOTING_KEYS_LLC order; Corp uses the same array
+    // mod its 6-key length. Corp dissolution follows Corp major per mapper.
+    const TERM = { majority: "Majority", supermajority: "Super Majority", unanimous: "Unanimous" } as const;
+    const mixMap = ["supermajority", "majority", "unanimous", "supermajority", "unanimous", "majority", "supermajority"] as const;
+    const wordFor = (keyIdx: number): string => {
+      if (c.voting === "mixed") return TERM[mixMap[keyIdx % mixMap.length]];
+      return TERM[c.voting as keyof typeof TERM];
+    };
+    // For each apply{LLC,Corp}VotingReplacements entry, ABSENCE-check the
+    // original "Majority X" anchor when the variant's expected word for that
+    // key is NOT "Majority". If the anchor survives, either the targeted
+    // entry is a no-op (the §14.6 bug class) AND the global major-decisions
+    // sweep didn't catch it (i.e. mixed-voting with major=Majority but this
+    // key=Supermaj/Unanimous). Doesn't depend on knowing post-replacement
+    // grammar (which differs per term — "a Majority X" vs "Unanimous consent
+    // of X" etc.). The 4 visible-text assertions above lock in the specific
+    // grammatical forms; this layer just enforces "the bare 'Majority X'
+    // anchor is removed when the key isn't Majority".
+    // LLC key indexes (per VOTING_KEYS_LLC order):
+    //   0=additional_capital  1=loans  2=sale  3=major  4=new_member
+    //   5=dissolution  6=officer_removal
+    // Corp uses 6 keys (no separate dissolution; dissolution = major per mapper):
+    //   0=moreCapital  1=loans  2=sale  3=major  4=newShareholders  5=officerRemoval
+    const llcAnchors: Array<[string, number, string]> = [
+      ["agreed by Majority to the incurrence", 0, "additional_capital §5.2"],
+      ["personal loans from any Member of the Company with the Majority consent of the Members", 1, "loans §6.1"],
+      ["Company's assets requires the Majority consent of the Members", 2, "sale §8"],
+      ["The Majority Approval of the Members shall be required", 3, "major §11.4.i"],
+      ["shall admit new Members (or transferees of any interests of existing Members) to the Company by the Majority vote or consent", 4, "new_member §13.1"],
+      ["unless the Members by Majority agree otherwise", 4, "new_member §13.1-alt"],
+      ["Majority vote or consent of all other Members of the Company", 6, "officer_removal §14.6"],
+      ["Majority election of the Members to dissolve", 5, "dissolution §15.1"],
+      ["Majority vote of the Members excluding", 6, "officer_removal §11.1.C"],
+    ];
+    const corpAnchors: Array<[string, number, string]> = [
+      ["Majority election to dissolve by the Shareholders", 3, "dissolution"],
+      ["proposed by any Shareholder and approved by a Majority of the Shareholders", 4, "new_shareholder"],
+      ["raise additional capital shall be made with the Majority approval of the Shareholders", 0, "moreCapital"],
+      ["explicit Majority approval of the Board of Directors", 1, "loans"],
+      ["Majority affirmative vote of the Board of Directors", 3, "major affirmative"],
+      ["Majority consent of the Board of Directors", 3, "major consent"],
+      ["Majority vote of the Shareholders at a meeting", 5, "officer_removal"],
+    ];
+    const anchors = c.entity === "LLC" ? llcAnchors : corpAnchors;
+    const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    for (const [anchor, idx, label] of anchors) {
+      if (wordFor(idx) === "Majority") continue; // No replacement expected.
+      // Negative-lookbehind for "Super " — the "Super Majority X" form contains
+      // bare "Majority X" as a substring, but it's NOT a stale anchor (it's the
+      // post-replacement form). Match only bare "Majority X" not prefixed by Super.
+      const re = new RegExp(`(?<!Super )${escapeRe(anchor)}`);
+      if (re.test(t)) {
+        errs.push(`${c.entity} voting [${label}] STALE 'Majority' anchor (expected ${wordFor(idx)} for variant voting=${c.voting})`);
+      }
     }
     if (errs.length) { fails++; failList.push(label + " :: " + errs.join(" | ")); console.log(`🔴 ${label}`); errs.forEach((e) => console.log("     " + e)); }
     else process.stdout.write(`\r✓ ${i + 1}/${TOTAL}   `);
