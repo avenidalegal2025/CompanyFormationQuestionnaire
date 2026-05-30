@@ -128,8 +128,21 @@ function payload(c: Cfg) {
     if (c.divorce !== divHas) errs.push(`divorce presence wrong (want ${c.divorce})`);
     // transfer-to-relatives clause present (always added; wording varies by mode)
     if (!has("to an immediate family member")) errs.push("transfer-to-relatives clause MISSING");
+    // Per-mode xfer wording — content-rendering fidelity, not just presence:
+    if (c.xfer === "free" && !has("free of any right of first refusal or other transfer restriction")) errs.push("xfer=free but free-wording missing");
+    if (c.xfer === "unanimous" && !has("Unanimous vote or consent of the other")) errs.push("xfer=unanimous but unanimous-wording missing");
+    if (c.xfer === "majority" && !has("holding a Majority of the")) errs.push("xfer=majority but majority-wording missing");
     // unanimous => no Super Majority Defined glossary
     if (c.voting === "unanimous" && /Super Majority Defined/.test(t)) errs.push("unanimous but Super Majority Defined present");
+    // Supermajority threshold % renders when supermajority is actually used
+    // (voting=supermajority always; voting=mixed has supermajority in the rotation).
+    // The fixture default is 75 -> "(75.00%)" in the SMD glossary entry.
+    const supUsed = c.voting === "supermajority" || c.voting === "mixed";
+    if (supUsed && !has("(75.00%)")) errs.push("supermajority used but '(75.00%)' threshold missing");
+    if (!supUsed && has("(75.00%)")) errs.push("supermajority NOT used but '(75.00%)' threshold present");
+    // NC duration renders ("TWO (2) years following termination") — fixture has
+    // no nonCompeteDuration override so it falls back to the docgen default of 2.
+    if (c.nc && !has("TWO (2) years following termination")) errs.push("NC=on but 'TWO (2) years following termination' missing");
     if (errs.length) { fails++; failList.push(label + " :: " + errs.join(" | ")); console.log(`🔴 ${label}`); errs.forEach((e) => console.log("     " + e)); }
     else process.stdout.write(`\r✓ ${i + 1}/${TOTAL}   `);
   }
