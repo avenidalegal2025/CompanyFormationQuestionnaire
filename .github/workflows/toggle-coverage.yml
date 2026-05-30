@@ -43,3 +43,9 @@ jobs:
         # combinatorial presets coupled. Structural audit + content assertions
         # per variant. ~2m30s.
         run: npx tsx scripts/verify-variant-matrix.ts
+      - name: Numeric-value rendering sweep
+        # The matrix uses fixture-default numerics (threshold=75, duration=2).
+        # This sweep fixes the topology and varies threshold ∈ {51,67,75,99} and
+        # NC duration ∈ {1,2,3,5} = 32 variants. Catches "renders the wrong
+        # value" + "stale value leaked" regressions. ~25s.
+        run: npx tsx scripts/verify-numeric-values.ts
