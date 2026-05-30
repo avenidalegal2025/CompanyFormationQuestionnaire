@@ -174,11 +174,30 @@ Three secret-free layers guard `agreement-docgen.ts`. Run all three locally afte
 | **Toggle coverage** | `npx tsx scripts/audit-toggle-coverage.ts` | A "dead toggle" — a questionnaire toggle the form collects but the document IGNORES (we shipped 4: nonsolicitation, confidentiality, incapacity/heirs, transfer-to-relatives). Generates A/B per toggle, asserts the doc changes. `PENDING_ANTONIO` allowlist = known-dead awaiting attorney clause text; graduate a toggle out of it once wired. |
 | **Document snapshots** | `npx tsx scripts/test-docgen-snapshots.ts` (compare) · `--update` (rewrite) | ANY unreviewed change to generated output (wording, numbering, a clause appearing/disappearing). Golden text snapshots of representative variants under `tests/__snapshots__/docgen/`. After an intentional change: `--update`, then review `git diff tests/__snapshots__/docgen/`. |
 | **Structural drift** | `npx tsx scripts/audit-all-variants.ts --out=/tmp/a.json` then `npx tsx scripts/audit-drift-check.ts --baseline=tests/__snapshots__/audit-baseline.json --current=/tmp/a.json` | A variant flipping PASS↔FAIL vs the committed baseline (288 variants). The raw audit is NOT the gate — drift is. Refresh the baseline (`cp` current → baseline) only after reviewing why statuses changed. |
-| **Variant matrix** | `npx tsx scripts/verify-variant-matrix.ts` | Systematic decoupled cross-product: 2 entities × 6 owner-counts × 4 voting profiles × 10 toggle-presets = **480 variants**, each run through the structural auditor + content + content-rendering assertions (clause presence/absence, per-mode xfer wording, supermajority threshold `(75.00%)` rendering, NC duration `TWO (2) years…` rendering). Catches what toggle-coverage misses (combination + interaction bugs) and what snapshots miss (the specific dimension that broke). ~2m20s. |
+| **Variant matrix** | `npx tsx scripts/verify-variant-matrix.ts` | Systematic decoupled cross-product: 2 entities × 6 owner-counts × 4 voting profiles × 10 toggle-presets = **480 variants**, each run through the structural auditor + content + content-rendering assertions (clause presence/absence, per-mode xfer wording, supermajority threshold `(75.00%)` rendering, NC duration `TWO (2) years…` rendering, **16+ voting-key absence anchors** to catch the §14.6-class silent no-op bug). Catches what toggle-coverage misses (combination + interaction bugs) and what snapshots miss (the specific dimension that broke). ~2m20s. |
+| **Layer 1 e2e audit** *(on-demand)* | `bash scripts/run-full100.sh` (~30 min for 100 IDs, 4× parallel) then `node scripts/audit-e2e-docx.mjs <ids>` | Runs **live e2e against Vercel** for N variants and audits the produced DOCXes with the same content + voting-anchor + bug-class assertions as the matrix — proves Vercel + docgen + matrix are aligned. Catches deployment drift, environment-specific bugs, harness-flow issues that the local matrix can't see. Default 100 IDs; pass custom IDs as args. Auth0 creates a unique test user per variant; Stripe test mode (4242 card, free); Twilio skipped (no forwardPhoneE164 sent). Last full run 2026-05-30: 100/100 PASS. |
 
 Notes:
 - The structural auditor (`scripts/audit-corp-structure.mjs`) is **entity-aware**: Corp nests romans under a letter (A.→i.); the LLC legitimately places romans directly under a §N.M heading (e.g. §12.9 "i. Drag Along / ii. Tag Along"). The baseline has **36 known-FAIL synthetic drag≠tag variants** the real form can't emit (`drag_along` and `tag_along` both derive from the single `tagDragRights` toggle) — they're baselined, not bugs.
-- All four use committed fixtures `scripts/fixtures/{llc,corp}-base.payload.json` — no AWS/secrets.
+- All four CI layers use committed fixtures `scripts/fixtures/{llc,corp}-base.payload.json` — no AWS/secrets. The Layer 1 audit reads downloaded DOCXes from `Downloads/e2e-uat-edge-variants/`.
+- **Voting-anchor absence-check pattern (matrix + Layer 1)**: for each voting-replacement entry in `apply{LLC,Corp}VotingReplacements`, when a variant's expected voting word for that entry's key is NOT "Majority", the original "Majority X" anchor must NOT survive in the rendered output (uses negative-lookbehind `(?<!Super )` so "Super Majority X" doesn't false-positive on substring overlap). Catches the §14.6-class bug: a no-op `find: "...", replace: "..."` entry leaves "Majority X" stranded in mixed-voting variants where major≠the-specific-key. **20+ anchors** locked in across LLC + Corp; 4 historical bugs of this class were surfaced via UAT + fixed (LLC §14.6, Corp §13.1.D template typo, Corp §13.2.A LLC-term leak, Corp §13.8 wrong-key).
+
+### WSL `/mnt/c` stale-cache gotcha for visual reviews
+WSL2's 9p bridge serves **inconsistent cached views** of `/mnt/c` under concurrent writes. Critical for the page-by-page UAT pipeline:
+- **Node `fs.readFileSync` / `fs.statSync`** → reliable, sees actual file content.
+- **Shell tools (`cp`, `md5sum`, `stat`, `wc -c`)** → may serve a STALE cached view from minutes-to-hours earlier.
+- **LibreOffice opened directly on a `/mnt/c` path** → may render the STALE cached version.
+
+Surfaced 2026-05-30 during the 100-variant batch e2e: same file shown by Node as 336K bytes / "May 30" date / fix-applied, but by shell tools as 315K / "May 17" / pre-fix.
+
+**Cache-bust pattern for visual reviews**:
+```bash
+mkdir -p /tmp/render
+node -e "const fs=require('fs');fs.writeFileSync('/tmp/render/x.docx', fs.readFileSync('Downloads/e2e-uat-edge-variants/v17_PFX17_LLC_-_Operating_Agreement.docx'))"
+"/mnt/c/Program Files/LibreOffice/program/soffice.com" --headless --convert-to pdf /tmp/render/x.docx
+pdftoppm -r 145 /tmp/render/x.pdf /tmp/render/page -png
+```
+Do NOT use `cp /mnt/c/... /tmp/...` — `cp` reads via the broken caching layer too. **Only Node's fs.readFileSync forces an actual filesystem fetch.** The audit-e2e-docx.mjs script uses Node, so its results are reliable.
 
 ### Do your own QA/UAT — never ask the user to verify
 After any UI/DOCX/Lambda change, **run the verification yourself** before
