@@ -2276,6 +2276,22 @@ function applyCorpVotingReplacements(
       find: "Majority vote of the Shareholders at a meeting",
       replace: `${VT("officer_removal_voting")} vote of the Shareholders at a meeting`,
     },
+    // Sec 13.8 (Failure to Purchase / Corp) — TWO anchors that approve a new
+    // shareholder (post-divorce / post-failure-to-purchase third-party sale +
+    // future attempted transfers). Semantically these are new-member admission
+    // votes, NOT major-decisions. Without targeted entries they fell through to
+    // the global major-decisions sweep — invisible in same-key variants (PFX21
+    // all-supermaj rendered "Super Majority" via major) but wrong in mixed
+    // (PFX23 newMember=Unánime + major=Mayoría → rendered "Majority", should be
+    // "Unanimous"). Surfaced during PFX23 page-by-page UAT 2026-05-30.
+    {
+      find: "Majority approve such new shareholder",
+      replace: `${VT("new_member_admission_voting")} approve such new shareholder`,
+    },
+    {
+      find: "require the Majority approval of the Shareholders, except that the Personal Representative",
+      replace: `require the ${VT("new_member_admission_voting")} approval of the Shareholders, except that the Personal Representative`,
+    },
   ];
 
   for (const r of replacements) {

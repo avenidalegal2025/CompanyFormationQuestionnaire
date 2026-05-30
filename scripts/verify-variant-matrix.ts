@@ -197,6 +197,11 @@ function payload(c: Cfg) {
       ["Majority affirmative vote of the Board of Directors", 3, "major affirmative"],
       ["Majority consent of the Board of Directors", 3, "major consent"],
       ["Majority vote of the Shareholders at a meeting", 5, "officer_removal"],
+      // §13.8 — new-shareholder admission anchors (PFX23 UAT 2026-05-30). Key
+      // idx=4 (new_shareholders_admission). Both anchors approve admitting a
+      // new shareholder post-failure-to-purchase + future attempted transfers.
+      ["Majority approve such new shareholder", 4, "new_shareholder §13.8"],
+      ["require the Majority approval of the Shareholders, except that the Personal Representative", 4, "new_shareholder §13.8-alt"],
     ];
     // Corp-specific template-typo guards (surfaced PFX21 UAT 2026-05-30):
     //   (a) §13.1.D template originally had "a Majority the remaining
