@@ -198,6 +198,22 @@ function payload(c: Cfg) {
       ["Majority consent of the Board of Directors", 3, "major consent"],
       ["Majority vote of the Shareholders at a meeting", 5, "officer_removal"],
     ];
+    // Corp-specific template-typo guards (surfaced PFX21 UAT 2026-05-30):
+    //   (a) §13.1.D template originally had "a Majority the remaining
+    //       Shareholders" (missing "of"). Sweep propagated it as "a Super
+    //       Majority the remaining" / "a Unanimous the remaining". Fixed in
+    //       generateCorp; assert here so a regression in the find-string is
+    //       caught immediately. Check across all 3 voting words.
+    //   (b) §13.2.A template used LLC term "membership interest" in a Corp
+    //       doc (entity-term leak — same class as the LLC "his Shares" bug).
+    //       Corp must never contain the LLC-only term "membership interest".
+    if (c.entity === "Corp") {
+      for (const w of ["Majority", "Super Majority", "Unanimous"]) {
+        if (has(`${w} the remaining Shareholders`)) errs.push(`Corp §13.1.D template typo: '${w} the remaining Shareholders' (missing 'of')`);
+      }
+      if (has("membership interest")) errs.push("Corp doc contains LLC-only term 'membership interest'");
+    }
+
     const anchors = c.entity === "LLC" ? llcAnchors : corpAnchors;
     const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     for (const [anchor, idx, label] of anchors) {

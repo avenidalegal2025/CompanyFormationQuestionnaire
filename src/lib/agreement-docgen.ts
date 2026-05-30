@@ -1927,6 +1927,21 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   // and overflows content area. Center + shrink to 9972 dxa.
   xml = centerShareOwnershipTable(xml);
   xml = stripBoldFromInlineTitleRuns(xml);
+
+  // ─── Corp-template typo fixes (surfaced during PFX21 UAT 2026-05-30) ───
+  // §13.1.D: "a Majority the remaining Shareholders" — missing "of". The
+  // voting sweep at line 1511 already ran by here, so the original anchor
+  // may now read "Majority"/"Super Majority"/"Unanimous" depending on the
+  // major-decisions voting term. Patch all three.
+  for (const w of ["Majority", "Super Majority", "Unanimous"]) {
+    xml = xmlTextReplace(xml, `${w} the remaining Shareholders`, `${w} of the remaining Shareholders`);
+  }
+  // §13.2.A: Corp template incorrectly uses LLC term "membership interest"
+  // in the Acquiring/Selling Shareholder Deadlock shotgun. Same class as the
+  // §5.3 "his Shares" fix that already shipped for LLC (CLAUDE.md). For Corp
+  // the correct term is "Shares".
+  xml = xmlTextReplace(xml, "purchasing the membership interest of the Acquiring Shareholder", "purchasing the Shares of the Acquiring Shareholder");
+
   xml = fixArticle14CrossReferences(xml, !answers.divorce_forced_buyout);
   xml = closeArticleXIIIGap(xml);
 
