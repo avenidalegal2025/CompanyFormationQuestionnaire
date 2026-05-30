@@ -89,10 +89,16 @@ function auditVariant(v) {
   if (!has("Confidential Information")) errors.push("Confidential Information missing (should be forced on)");
   if (v.rofr && !has("Right of First Refusal")) errors.push("rofr=true but 'Right of First Refusal' missing");
   if (!v.rofr && has("Right of First Refusal")) errors.push("rofr=false but 'Right of First Refusal' present");
-  if (v.drag && !has("Drag Along")) errors.push("drag=true but 'Drag Along' missing");
-  if (!v.drag && has("Drag Along")) errors.push("drag=false but 'Drag Along' present");
-  if (v.tag && !has("Tag Along")) errors.push("tag=true but 'Tag Along' missing");
-  if (!v.tag && has("Tag Along")) errors.push("tag=false but 'Tag Along' present");
+  // drag + tag are coupled in the real form via a single `tagDragRights`
+  // toggle (CLAUDE.md). The harness's makeAgreementData sets
+  // `tagDragRights: (v.drag || v.tag) ? 'Yes' : 'No'`, so synthetic configs
+  // where v.drag !== v.tag render both clauses (or neither) — audit the
+  // coupled effective flag, not the independent inputs.
+  const dragOrTag = !!(v.drag || v.tag);
+  if (dragOrTag && !has("Drag Along")) errors.push("drag|tag=true but 'Drag Along' missing");
+  if (!dragOrTag && has("Drag Along")) errors.push("drag|tag=false but 'Drag Along' present");
+  if (dragOrTag && !has("Tag Along")) errors.push("drag|tag=true but 'Tag Along' missing");
+  if (!dragOrTag && has("Tag Along")) errors.push("drag|tag=false but 'Tag Along' present");
 
   // ─── Deadlock always present ───────────────────────────────────────────
   const deadlockMarker = isCorp ? "Purchase of Shareholder Interests upon Deadlock" : "Purchasing Member";
