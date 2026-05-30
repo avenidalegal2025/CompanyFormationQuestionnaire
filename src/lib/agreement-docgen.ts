@@ -846,10 +846,15 @@ function applyLLCVotingReplacements(
       replace: `unless the Members by ${VT("new_member_admission_voting")} agree otherwise`,
       votingKey: "new_member_admission_voting",
     },
-    // Sec 14.6 - Officer/member removal
+    // Sec 14.6 - Member removal for cause (the original entry had the same
+    // find+replace string — a no-op — so §14.6 stayed hardcoded "Majority"
+    // even when officer_removal_voting was Super Majority or Unanimous. The
+    // §11.1.C Manager-removal entry below DID rewrite. Surfaced during the
+    // PFX17 page-by-page UAT review on 2026-05-30 (mix had removal=Supermaj
+    // → §11.1.C correctly read "Super Majority", §14.6 still read "Majority").
     {
-      find: "any Member of the Company may be removed for cause",
-      replace: "any Member of the Company may be removed for cause",
+      find: "Majority vote or consent of all other Members of the Company",
+      replace: `${VT("officer_removal_voting")} vote or consent of all other Members of the Company`,
       votingKey: "officer_removal_voting",
     },
     // Sec 15.1 - Dissolution

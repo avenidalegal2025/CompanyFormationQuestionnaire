@@ -149,6 +149,17 @@ function payload(c: Cfg) {
     // NC duration renders ("TWO (2) years following termination") — fixture has
     // no nonCompeteDuration override so it falls back to the docgen default of 2.
     if (c.nc && !has("TWO (2) years following termination")) errs.push("NC=on but 'TWO (2) years following termination' missing");
+    // §14.6 (LLC) Member-removal-for-cause must use the officer-removal voting
+    // word, NOT a hardcoded "Majority". Caught a real no-op replacement bug
+    // 2026-05-30 — the §14.6 entry had find===replace so the sweep silently
+    // skipped it (the matrix passed even though the production doc was wrong
+    // for non-Majority officer_removal). Now asserts the correct word.
+    if (c.entity === "LLC") {
+      const orWord = c.voting === "mixed" ? "Super Majority" : c.voting === "supermajority" ? "Super Majority" : c.voting === "unanimous" ? "Unanimous" : "Majority";
+      // §14.6 anchor — distinctive "of all other Members of the Company" phrase.
+      const sec146Marker = `${orWord} vote or consent of all other Members of the Company`;
+      if (!has(sec146Marker)) errs.push(`§14.6 voting wrong (expect '${orWord}' for officer_removal=${c.voting})`);
+    }
     if (errs.length) { fails++; failList.push(label + " :: " + errs.join(" | ")); console.log(`🔴 ${label}`); errs.forEach((e) => console.log("     " + e)); }
     else process.stdout.write(`\r✓ ${i + 1}/${TOTAL}   `);
   }
