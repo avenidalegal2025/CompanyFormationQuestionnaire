@@ -111,6 +111,12 @@ function payload(c: Cfg) {
     const has = (s: string) => t.includes(s);
     if (/@VK:/.test(t)) errs.push("leftover @VK token");
     NAMES.slice(0, c.n).forEach((nm) => { if (!has(nm)) errs.push(`owner missing: ${nm}`); });
+    // Per-owner capital contribution renders ($10,000.00 / $20,000.00 / …) in
+    // §4.2; catches "table broken" / "$0 rendered" / "owner-k amount missing".
+    // Leak detect: amounts beyond owner-n must NOT appear (catches "all 6
+    // template rows leaked through" when ownersCount<6).
+    for (let k = 0; k < c.n; k++) { const amt = `$${(10000 * (k + 1)).toLocaleString("en-US")}.00`; if (!has(amt)) errs.push(`capital amount ${amt} for owner ${k + 1} MISSING`); }
+    for (let k = c.n; k < 6; k++) { const amt = `$${(10000 * (k + 1)).toLocaleString("en-US")}.00`; if (has(amt)) errs.push(`stale capital amount ${amt} leaked (n=${c.n})`); }
     const ncTerm = c.entity === "LLC" ? "Non-competition" : "Covenant Against Competition";
     if (c.nc !== has(ncTerm)) errs.push(`NC presence wrong (want ${c.nc})`);
     if (c.ns !== has("Non-Solicitation")) errs.push(`NS presence wrong (want ${c.ns})`);
