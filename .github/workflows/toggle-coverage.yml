@@ -36,8 +36,10 @@ jobs:
       - name: Document snapshot regression
         run: npx tsx scripts/test-docgen-snapshots.ts
       - name: Variant-matrix content + structure sweep
-        # 2 entities x 6 owner-counts x 4 voting profiles x 5 toggle-presets = 240,
-        # fully decoupled so every entity gets every voting profile at every owner
-        # count. Each variant is run through the structural auditor + content
-        # assertions. ~90s.
+        # 2 entities x 6 owner-counts x 4 voting profiles x 10 toggle-presets =
+        # 480, fully decoupled so every entity gets every voting profile at every
+        # owner count, including 5 single-feature presets (NS-only / RoFR-only /
+        # DT-only / Heirs-only / Divorce-only) that close pair-combo gaps the
+        # combinatorial presets coupled. Structural audit + content assertions
+        # per variant. ~2m30s.
         run: npx tsx scripts/verify-variant-matrix.ts

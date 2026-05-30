@@ -3,10 +3,12 @@
  * auditor + per-variant content assertions.
  *
  * Unlike the bit-pattern spread this fully DECOUPLES the dimensions:
- *   2 entities x 6 owner-counts x 4 voting profiles x 5 toggle-presets = 240.
+ *   2 entities x 6 owner-counts x 4 voting profiles x 10 toggle-presets = 480.
  * So every entity gets every voting profile at every owner count (the bit
- * pattern coupled LLC -> never supermajority/mixed), and the 5 presets exercise
- * each toggle in both states incl. the heirs+divorce combo. */
+ * pattern coupled LLC -> never supermajority/mixed), and the 10 presets cover
+ * each toggle in both states INCLUDING the single-feature configs (NS-only,
+ * RoFR-only, DragTag-only, Heirs-only, Divorce-only) — pair-gaps the previous
+ * 5-preset set coupled. */
 import * as fs from "fs";
 import * as zlib from "zlib";
 import * as os from "os";
@@ -36,15 +38,23 @@ function txt(buf: Buffer): string {
 
 type Cfg = { i: number; entity: "LLC" | "Corp"; n: number; voting: keyof typeof V | "mixed"; preset: string; rofr: boolean; dragtag: boolean; nc: boolean; ns: boolean; heirs: boolean; divorce: boolean; xfer: keyof typeof XFER };
 
-// 5 toggle-presets — each toggle appears in BOTH states across the set, and the
-// heirs+divorce succession combo is exercised on its own (the bit pattern only
-// reached it at i in [96,99]).
+// 10 toggle-presets — 5 combinatorial (allOff/allOn/covenants/xferDivorce/
+// succession) + 5 single-feature (NS-only / RoFR-only / DT-only / Heirs-only /
+// Divorce-only). The single-feature ones close pair-gaps the combinatorial
+// presets coupled: NS-without-NC, RoFR-without-DragTag, DragTag-without-RoFR,
+// Heirs-alone, Divorce-alone — all real form configs.
 const PRESETS = [
   { name: "allOff", rofr: false, dragtag: false, nc: false, ns: false, heirs: false, divorce: false, xfer: "free" as const },
   { name: "allOn", rofr: true, dragtag: true, nc: true, ns: true, heirs: true, divorce: true, xfer: "unanimous" as const },
   { name: "covenants", rofr: false, dragtag: false, nc: true, ns: true, heirs: false, divorce: false, xfer: "majority" as const },
   { name: "xferDivorce", rofr: true, dragtag: true, nc: false, ns: false, heirs: false, divorce: true, xfer: "unanimous" as const },
   { name: "succession", rofr: false, dragtag: false, nc: true, ns: false, heirs: true, divorce: true, xfer: "majority" as const },
+  // single-feature (each toggle ON alone) — closes the pair-combo gaps above.
+  { name: "NSonly", rofr: false, dragtag: false, nc: false, ns: true, heirs: false, divorce: false, xfer: "free" as const },
+  { name: "RoFRonly", rofr: true, dragtag: false, nc: false, ns: false, heirs: false, divorce: false, xfer: "free" as const },
+  { name: "DTonly", rofr: false, dragtag: true, nc: false, ns: false, heirs: false, divorce: false, xfer: "free" as const },
+  { name: "Heirsonly", rofr: false, dragtag: false, nc: false, ns: false, heirs: true, divorce: false, xfer: "free" as const },
+  { name: "Divorceonly", rofr: false, dragtag: false, nc: false, ns: false, heirs: false, divorce: true, xfer: "free" as const },
 ];
 const ENTITIES = ["LLC", "Corp"] as const;
 const VOTINGS = ["majority", "supermajority", "unanimous", "mixed"] as const;
