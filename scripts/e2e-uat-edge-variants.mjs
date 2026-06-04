@@ -98,6 +98,10 @@ export const VARIANTS = [
   { id: 23, entity: 'C-Corp', ownerCount: 4, voting: 'mixed',         rofr: false, drag: false, tag: false, nc: 'No',  ns: 'Yes', conf: 'No',  label: 'PFX23' },
   { id: 24, entity: 'LLC',    ownerCount: 1, voting: 'unanimous',     rofr: false, drag: false, tag: false, nc: 'Yes', ns: 'Yes', conf: 'Yes', label: 'PFX24' },
   { id: 25, entity: 'C-Corp', ownerCount: 2, voting: 'majority',      rofr: true,  drag: false, tag: false, nc: 'Yes', ns: 'No',  conf: 'No',  label: 'PFX25' },
+  // Matrix-closing cell — Corp×mixed×6o was the only (entity × voting × owner) combo
+  // missing from the catalog after 205 variants of coverage analysis (2026-06-03).
+  // Mirrors PFX73 (LLC×mixed×6o full-stack) for cross-entity symmetry.
+  { id: 26, entity: 'C-Corp', ownerCount: 6, voting: 'mixed',         rofr: true,  drag: true,  tag: true,  nc: 'Yes', ns: 'Yes', conf: 'Yes', label: 'PFX26' },
   // Round 10-14 — v51-75 fill remaining cov/voting × owner combos.
   { id: 51, entity: 'LLC',    ownerCount: 1, voting: 'unanimous',     rofr: false, drag: false, tag: false, nc: 'No',  ns: 'Yes', conf: 'No',  label: 'PFX51' },
   { id: 52, entity: 'LLC',    ownerCount: 1, voting: 'unanimous',     rofr: false, drag: false, tag: false, nc: 'No',  ns: 'No',  conf: 'Yes', label: 'PFX52' },
