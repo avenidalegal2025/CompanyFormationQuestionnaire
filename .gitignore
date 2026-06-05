@@ -115,3 +115,8 @@ next-env.d.ts
 .vercel
 .env*.local
 .env.vercel
+
+# e2e test artifacts (large; reproducible from the harness)
+Downloads/
+_verify_out/
+scripts/__verify_out__/
