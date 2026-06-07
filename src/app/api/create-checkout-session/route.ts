@@ -6,13 +6,15 @@ import { authOptions } from '@/lib/auth';
 import { saveFormData } from '@/lib/dynamo';
 import { saveFormDataSnapshot } from '@/lib/s3-vault';
 
-// Initialize Stripe with fallback key to bypass environment variable issues
-const encodedKey = 'c2tfdGVzdF81MUdHRlZ5R29LZXhrbGRiTlZTaFQ3R25vSGU3blR2bDJDaTdzUTJrMW1UQlN2VlowWnBGRDg3QlZpN3pvSHMyOVBLWEdJZ2RpbmIzdWlFV3dZcjJkcm0yMDAyMjlGczN5';
-const stripeKey = process.env.STRIPE_SECRET_KEY || Buffer.from(encodedKey, 'base64').toString();
+// Initialize Stripe from env ONLY. No hardcoded fallback: silently falling back
+// to a test key in production would let "successful" checkouts collect no real
+// money. Fail loudly if the key is missing so misconfiguration is obvious.
+const stripeKey = process.env.STRIPE_SECRET_KEY;
+if (!stripeKey) {
+  throw new Error('STRIPE_SECRET_KEY is not set');
+}
 
-console.log('Stripe key length:', stripeKey.length);
-console.log('Stripe key starts with:', stripeKey.substring(0, 10));
-console.log('Stripe key ends with:', stripeKey.substring(stripeKey.length - 10));
+console.log('Stripe key starts with:', stripeKey.substring(0, 8)); // sk_test_ / sk_live_
 
 const stripe = new Stripe(stripeKey, {
   apiVersion: '2025-09-30.clover',
@@ -120,6 +122,41 @@ export async function POST(request: NextRequest) {
         }
       }
     }
+
+    // --- DEMO_DOLLAR override (prod UAT only) -------------------------------
+    // When DEMO_DOLLAR=1 AND the signed-in email is allowlisted, collapse the
+    // whole cart to a single $1.00 line item so a real (live-mode) charge can
+    // be run end-to-end for ~$1 instead of the full formation price. Off by
+    // default; fail-safe (full price) if the flag is set but email not listed.
+    // DEMO_DOLLAR_EMAILS = comma-separated allowlist, or "*" for any signed-in user.
+    const demoDollarOn = process.env.DEMO_DOLLAR === '1';
+    let demoDollarApplied = false;
+    if (demoDollarOn) {
+      const allow = (process.env.DEMO_DOLLAR_EMAILS || '')
+        .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+      const email = (session.user.email || '').toLowerCase();
+      const allowed = allow.includes('*') || allow.includes(email);
+      if (allowed) {
+        lineItems.length = 0;
+        lineItems.push({
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: `Avenida UAT — demo ($1) · ${entityType} ${state}`,
+              description: 'Prueba de producción end-to-end. Cargo de demostración de $1.00 USD.',
+              metadata: { serviceId: 'demo_dollar', category: 'demo' },
+            },
+            unit_amount: 100,
+          },
+          quantity: 1,
+        });
+        demoDollarApplied = true;
+        console.log(`💵 DEMO_DOLLAR applied for ${email} — cart collapsed to $1.00`);
+      } else {
+        console.warn(`⚠️ DEMO_DOLLAR=1 but ${email} not in DEMO_DOLLAR_EMAILS allowlist — charging FULL price`);
+      }
+    }
+    // -----------------------------------------------------------------------
 
     // Create or get customer using session email
     let customer;
@@ -236,6 +273,7 @@ export async function POST(request: NextRequest) {
         totalAmount: totalPrice.toString(),
         selectedServices: JSON.stringify(normalizedSelected),
         forwardPhoneE164: formData?.company?.forwardPhoneE164 || '',
+        demoDollar: demoDollarApplied.toString(),
         userId: session.user.email // Store user ID to retrieve form data from DynamoDB
       }
     });

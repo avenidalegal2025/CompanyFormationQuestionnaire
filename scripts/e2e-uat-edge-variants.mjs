@@ -863,7 +863,7 @@ async function runVariant(v, log) {
 
     // ─── Stripe checkout via API (form state flows through naturally) ─
     log('Stripe checkout session…');
-    const checkout = await page.evaluate(async ({ entity }) => {
+    const checkout = await page.evaluate(async ({ entity, forwardPhone }) => {
       let fd = null;
       for (const el of document.querySelectorAll('*')) {
         for (const key of Object.keys(el)) {
@@ -880,6 +880,15 @@ async function runVariant(v, log) {
       // Debug: log admin slice to console (visible in test log)
       console.log('CHECKOUT_FD_ADMIN:', JSON.stringify(fd?.admin || {}));
       const svc = entity === 'C-Corp' ? ['formation', 'shareholder_agreement'] : ['formation', 'operating_agreement'];
+      // Opt-in real Twilio number: when UAT_FORWARD_PHONE_E164 is set, request a
+      // business phone and supply the forward-to number so the webhook provisions
+      // a REAL US number. Unset → behaves exactly as before (no phone).
+      if (forwardPhone) {
+        fd = fd || {};
+        fd.company = fd.company || {};
+        fd.company.forwardPhoneE164 = forwardPhone;
+        if (!svc.includes('business_phone')) svc.push('business_phone');
+      }
       const resp = await fetch('/api/create-checkout-session', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -889,7 +898,7 @@ async function runVariant(v, log) {
       });
       const json = await resp.json().catch(() => ({}));
       return { status: resp.status, url: json.paymentLinkUrl || json.url || json.checkoutUrl };
-    }, { entity: v.entity });
+    }, { entity: v.entity, forwardPhone: process.env.UAT_FORWARD_PHONE_E164 || '' });
     log(`  checkout: ${JSON.stringify(checkout).slice(0, 220)}`);
     if (!checkout.url) throw new Error(`create-checkout-session: ${JSON.stringify(checkout)}`);
 
