@@ -468,7 +468,20 @@ def fill_corp_form(driver, wait, data, company_name):
             human_typing(driver.find_element(By.ID, f"{prefix}last_name"), person.get("last_name", ""))
             human_typing(driver.find_element(By.ID, f"{prefix}first_name"), person.get("first_name", ""))
 
-            # Address
+            # Address — Sunbiz requires Address/City/State/Zip for EVERY name; a
+            # blank street address triggers "Address,City,State,Zip and Title are
+            # required for name-N" on the review page. When the officer/director has
+            # no address of their own, fall back to the corporation's principal
+            # address (mirrors the LLC manager fallback).
+            if not addr_parts.get('line1', '').strip():
+                addr_parts = {
+                    'line1': pa.get('line1', ''),
+                    'line2': pa.get('line2', ''),
+                    'city': pa.get('city', ''),
+                    'state': pa.get('state', ''),
+                    'zip': pa.get('zip', ''),
+                }
+                country = 'US'
             addr_line = addr_parts.get('line1', '') + (
                 ' ' + addr_parts.get('line2', '') if addr_parts.get('line2') else ''
             )
