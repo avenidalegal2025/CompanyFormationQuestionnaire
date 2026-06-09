@@ -19,6 +19,7 @@ from filing_utils import (
     AVENIDA_LEGAL_ADDRESS,
     REGISTERED_AGENT,
     human_typing,
+    set_field,
     screenshot,
     upload_file_to_s3,
     take_and_upload_screenshot,
@@ -227,9 +228,9 @@ def fill_llc_form(driver, wait, data, company_name):
         human_typing(driver.find_element(By.ID, "princ_addr1"), llc["principal_address"]["line1"])
         human_typing(driver.find_element(By.ID, "princ_addr2"), llc["principal_address"]["line2"])
         human_typing(driver.find_element(By.ID, "princ_city"), llc["principal_address"]["city"])
-        human_typing(driver.find_element(By.ID, "princ_st"), llc["principal_address"]["state"])
+        set_field(driver, "princ_st", llc["principal_address"]["state"])
         human_typing(driver.find_element(By.ID, "princ_zip"), llc["principal_address"]["zip"])
-        human_typing(driver.find_element(By.ID, "princ_cntry"), llc["principal_address"]["country"])
+        set_field(driver, "princ_cntry", llc["principal_address"]["country"])
         driver.find_element(By.TAG_NAME, "body").click()
         time.sleep(1)
         driver.find_element(By.ID, "same_addr_flag").click()
@@ -273,9 +274,9 @@ def fill_llc_form(driver, wait, data, company_name):
         human_typing(driver.find_element(By.ID, "off1_name_first_name"), auth["first_name"])
         human_typing(driver.find_element(By.ID, "off1_name_addr1"), auth["address"])
         human_typing(driver.find_element(By.ID, "off1_name_city"), auth["city"])
-        human_typing(driver.find_element(By.ID, "off1_name_st"), auth["state"])
+        set_field(driver, "off1_name_st", auth["state"])
         human_typing(driver.find_element(By.ID, "off1_name_zip"), auth["zip"])
-        human_typing(driver.find_element(By.ID, "off1_name_cntry"), auth["country"])
+        set_field(driver, "off1_name_cntry", auth["country"])
         take_and_upload_screenshot(driver, "08_manager_filled", company_name)
     except Exception as e:
         take_and_upload_screenshot(driver, "ERROR_authorized_person", company_name)
@@ -342,13 +343,21 @@ def main(record_id=None):
             update_airtable_status(airtable_record_id, "Pending", f"Validation error: {e}")
         raise
 
-    # Update status to In Progress
-    if airtable_record_id:
+    dry_run = os.environ.get("DRY_RUN") == "1"
+    if dry_run:
+        print("\U0001f9ea DRY RUN ENABLED — will fill the whole form + screenshot, but never pay/submit and never write Airtable status.")
+
+    # Update status to In Progress (skip entirely in dry-run so the record is untouched)
+    if airtable_record_id and not dry_run:
         update_airtable_status(airtable_record_id, "In Progress")
 
-    # Fetch payment data
-    print("\U0001f4b3 Fetching payment data from SSM...")
-    payment = fetch_payment_data_from_ssm(llc_name)
+    # Fetch payment data (never touch the card in dry-run)
+    if dry_run:
+        print("\U0001f9ea DRY RUN — skipping SSM payment fetch.")
+        payment = {}
+    else:
+        print("\U0001f4b3 Fetching payment data from SSM...")
+        payment = fetch_payment_data_from_ssm(llc_name)
 
     # Initialize browser
     print("\U0001f98a Starting Firefox browser...")
@@ -370,15 +379,18 @@ def main(record_id=None):
         # Step 4: Payment
         fill_payment_and_submit(driver, wait, payment, llc_name)
 
-        # Update Airtable status to Filed
-        if airtable_record_id:
+        # Update Airtable status to Filed (only on a real submission)
+        if airtable_record_id and not dry_run:
             update_airtable_status(
                 airtable_record_id,
                 "Filed",
                 f"Filed on {datetime.now().isoformat()}",
             )
 
-        print("\u2705 LLC Filing completed successfully!")
+        if dry_run:
+            print("\u2705 DRY RUN complete \u2014 form filled + screenshots uploaded; stopped before payment. Nothing filed, no charge.")
+        else:
+            print("\u2705 LLC Filing completed successfully!")
 
     except Exception as e:
         print(f"\u274c Error: {e}")

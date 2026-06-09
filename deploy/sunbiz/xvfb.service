@@ -1,0 +1,15 @@
+[Unit]
+Description=Xvfb virtual display :1 for Sunbiz Firefox automation
+After=network.target
+
+[Service]
+# The Sunbiz filing scripts run Firefox against DISPLAY=:1. Firefox headless mode
+# is more easily flagged by Sunbiz's Cloudflare layer, so we render to a real
+# virtual X display instead. This service must be up before sunbiz-filing.service.
+ExecStart=/usr/bin/Xvfb :1 -screen 0 1920x1080x24 -nolisten tcp
+Restart=always
+RestartSec=2
+User=ubuntu
+
+[Install]
+WantedBy=multi-user.target

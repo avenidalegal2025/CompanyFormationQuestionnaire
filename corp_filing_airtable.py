@@ -30,6 +30,7 @@ from filing_utils import (
     AVENIDA_LEGAL_ADDRESS,
     REGISTERED_AGENT,
     human_typing,
+    set_field,
     screenshot,
     upload_file_to_s3,
     take_and_upload_screenshot,
@@ -388,9 +389,9 @@ def fill_corp_form(driver, wait, data, company_name):
         human_typing(driver.find_element(By.ID, "princ_addr1"), pa["line1"])
         human_typing(driver.find_element(By.ID, "princ_addr2"), pa["line2"])
         human_typing(driver.find_element(By.ID, "princ_city"), pa["city"])
-        human_typing(driver.find_element(By.ID, "princ_st"), pa["state"])
+        set_field(driver, "princ_st", pa["state"])
         human_typing(driver.find_element(By.ID, "princ_zip"), pa["zip"])
-        human_typing(driver.find_element(By.ID, "princ_cntry"), pa["country"])
+        set_field(driver, "princ_cntry", pa["country"])
         driver.find_element(By.TAG_NAME, "body").click()
         time.sleep(1)
         # Check "same as principal" for mailing address
@@ -473,15 +474,15 @@ def fill_corp_form(driver, wait, data, company_name):
             )
             human_typing(driver.find_element(By.ID, f"{prefix}addr1"), addr_line)
             human_typing(driver.find_element(By.ID, f"{prefix}city"), addr_parts.get('city', '') or 'N/A')
-            human_typing(
-                driver.find_element(By.ID, f"{prefix}st"),
+            set_field(
+                driver, f"{prefix}st",
                 addr_parts.get('state', '') or ('FL' if country == 'US' else 'N/A')
             )
             human_typing(
                 driver.find_element(By.ID, f"{prefix}zip"),
                 addr_parts.get('zip', '') or ('33181' if country == 'US' else '00000')
             )
-            human_typing(driver.find_element(By.ID, f"{prefix}cntry"), country)
+            set_field(driver, f"{prefix}cntry", country)
 
             print(f"    \u2705 Slot {slot}: {person['sunbiz_title']} - {person.get('name', 'N/A')}")
 
@@ -539,13 +540,21 @@ def main(record_id=None):
             update_airtable_status(airtable_record_id, "Pending", f"Validation error: {e}")
         raise
 
-    # Update status to In Progress
-    if airtable_record_id:
+    dry_run = os.environ.get("DRY_RUN") == "1"
+    if dry_run:
+        print("\U0001f9ea DRY RUN ENABLED — fill + screenshot only, never pay/submit, never write Airtable status.")
+
+    # Update status to In Progress (skip in dry-run so the record is untouched)
+    if airtable_record_id and not dry_run:
         update_airtable_status(airtable_record_id, "In Progress")
 
-    # Fetch payment data
-    print("\U0001f4b3 Fetching payment data from SSM...")
-    payment = fetch_payment_data_from_ssm(corp_name)
+    # Fetch payment data (never touch the card in dry-run)
+    if dry_run:
+        print("\U0001f9ea DRY RUN — skipping SSM payment fetch.")
+        payment = {}
+    else:
+        print("\U0001f4b3 Fetching payment data from SSM...")
+        payment = fetch_payment_data_from_ssm(corp_name)
 
     # Initialize browser
     print("\U0001f98a Starting Firefox browser...")
@@ -567,15 +576,18 @@ def main(record_id=None):
         # Step 4: Payment
         fill_payment_and_submit(driver, wait, payment, corp_name)
 
-        # Update Airtable status to Filed
-        if airtable_record_id:
+        # Update Airtable status to Filed (only on a real submission)
+        if airtable_record_id and not dry_run:
             update_airtable_status(
                 airtable_record_id,
                 "Filed",
                 f"Filed ({entity_type}) on {datetime.now().isoformat()}",
             )
 
-        print(f"\u2705 {entity_type} Filing completed successfully!")
+        if dry_run:
+            print(f"\u2705 DRY RUN complete ({entity_type}) \u2014 form filled + screenshots uploaded; stopped before payment. Nothing filed, no charge.")
+        else:
+            print(f"\u2705 {entity_type} Filing completed successfully!")
 
     except Exception as e:
         print(f"\u274c Error: {e}")

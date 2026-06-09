@@ -1,0 +1,20 @@
+[Unit]
+Description=Sunbiz filing — run-once on boot, then self-stop the instance
+After=network-online.target xvfb.service
+Wants=network-online.target xvfb.service
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/home/ubuntu/company-questionnaire
+EnvironmentFile=/home/ubuntu/.airtable_env
+Environment=DISPLAY=:1
+# AUTO_SHUTDOWN=1 makes the box stop itself after the run-once completes.
+# Set to 0 to keep it alive for debugging.
+Environment=AUTO_SHUTDOWN=1
+ExecStart=/home/ubuntu/company-questionnaire/run_and_stop.sh
+RemainAfterExit=no
+TimeoutStartSec=1800
+
+[Install]
+WantedBy=multi-user.target

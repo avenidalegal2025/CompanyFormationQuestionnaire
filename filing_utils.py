@@ -63,6 +63,48 @@ def human_typing(element, text, min_delay=0.03, max_delay=0.12):
         time.sleep(random.uniform(min_delay, max_delay))
 
 
+def set_field(driver, field_id, value):
+    """
+    Set a form field by ID, auto-handling <select> dropdowns vs text inputs.
+
+    Sunbiz renders some fields (notably the country field `princ_cntry` /
+    `off1_name_cntry`, and sometimes the state field) as a <select>. Sending
+    keystrokes (human_typing) into a <select> is unreliable and can leave it on
+    its default/blank option — which is what produced the empty-Country bug.
+    For a <select> we use a real Select interaction; for anything else we type.
+    """
+    if value is None:
+        value = ""
+    el = driver.find_element(By.ID, field_id)
+    tag = (el.tag_name or "").lower()
+
+    if tag != "select":
+        human_typing(el, value)
+        return
+
+    sel = Select(el)
+    val = str(value).strip()
+    if not val:
+        return
+    # 1) exact option value, 2) exact visible text
+    for selector in (sel.select_by_value, sel.select_by_visible_text):
+        try:
+            selector(val)
+            return
+        except Exception:
+            pass
+    # 3) case-insensitive exact/partial match on value or visible text
+    target = val.lower()
+    for opt in sel.options:
+        ov = (opt.get_attribute("value") or "").strip().lower()
+        ot = (opt.text or "").strip().lower()
+        if target in (ov, ot) or (target and (target in ov or target in ot)):
+            sel.select_by_value(opt.get_attribute("value"))
+            return
+    # 4) last resort: type into it (keeps old behavior rather than failing hard)
+    human_typing(el, val)
+
+
 def screenshot(driver, label):
     """Take a screenshot and return the local filename."""
     filename = f"{label}.png"
@@ -140,12 +182,22 @@ def parse_address(address_str, is_international=False):
 
     parts = {}
 
-    # Detect international addresses
-    international_indicators = [
-        "UK", "GB", "CA", "MX", "DE", "FR", "ES", "IT", "AU", "NZ",
-        "London", "Paris", "Madrid", "Berlin", "Toronto", "Mexico",
+    # Detect international addresses.
+    # IMPORTANT: only match full country/region NAMES, never bare 2-letter codes.
+    # Bare codes like "CA"/"IT"/"DE" collide with US state abbreviations and with
+    # ordinary substrings, which previously misflagged US addresses (e.g.
+    # "100 Main St, Sacramento, CA 90001") as international -> country='INT' ->
+    # has_complete_address became False -> the principal address was silently
+    # replaced with Avenida Legal's own address. That was the "info not mapped" bug.
+    international_keywords = [
+        "United Kingdom", "England", "Scotland", "Wales", "London", "Manchester",
+        "Canada", "Toronto", "Vancouver", "Montreal", "Ontario", "Quebec",
+        "Mexico", "México", "Guadalajara", "Monterrey",
+        "France", "Paris", "Germany", "Berlin", "Spain", "Madrid",
+        "Italy", "Rome", "Australia", "Sydney", "New Zealand", "Auckland",
     ]
-    is_international = is_international or any(ind in address_str for ind in international_indicators)
+    lowered = address_str.lower()
+    is_international = is_international or any(kw.lower() in lowered for kw in international_keywords)
 
     if is_international:
         sections = [s.strip() for s in address_str.split(",")]
@@ -379,7 +431,20 @@ def fill_correspondence(driver, contact_name, email, company_name):
 
 
 def fill_payment_and_submit(driver, wait, payment, company_name):
-    """Fill the payment form and submit (shared between LLC and Corp)."""
+    """Fill the payment form and submit (shared between LLC and Corp).
+
+    DRY_RUN safety gate: when env DRY_RUN=1, stop here — BEFORE clicking
+    'Credit Card Payment', before entering any card data, and before submitting.
+    This is the single chokepoint where a real $125 charge + real state filing
+    would happen, so the no-payment verification run hard-stops at this line.
+    """
+    if os.environ.get("DRY_RUN") == "1":
+        print("\U0001f9ea DRY RUN — stopping BEFORE payment/submit. No card entered, no charge, no filing.")
+        try:
+            take_and_upload_screenshot(driver, "DRY_RUN_stopped_before_payment", company_name)
+        except Exception:
+            pass
+        return
     print("\U0001f4b3 Proceeding to payment page...")
     wait.until(EC.element_to_be_clickable(
         (By.XPATH, "//input[@type='submit' and @value='Credit Card Payment']")
