@@ -499,9 +499,14 @@ def fill_payment_and_submit(driver, wait, payment, company_name):
 
     # Submit payment
     wait.until(EC.element_to_be_clickable((By.ID, "bntNextPaymentInfo"))).click()
+    take_and_upload_screenshot(driver, "13_review_before_submit", company_name)
     wait.until(EC.element_to_be_clickable((By.ID, "submitPayment"))).click()
 
-    take_and_upload_screenshot(driver, "13_final_confirmation", company_name)
+    # Wait for the processor to respond, then capture the ACTUAL result page
+    # (approved / declined). Without this wait the screenshot catches the
+    # pre-response page and we can't tell what really happened.
+    time.sleep(10)
+    take_and_upload_screenshot(driver, "14_payment_result", company_name)
 
 
 def click_continue_through_pages(driver, wait, num_continues, company_name):

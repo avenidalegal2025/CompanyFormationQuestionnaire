@@ -344,11 +344,15 @@ def main(record_id=None):
         raise
 
     dry_run = os.environ.get("DRY_RUN") == "1"
+    # TEST_CARD: drive the REAL Sunbiz payment form with a Stripe-style test card
+    # (4242...) instead of the SSM card. Sunbiz's live processor declines it ->
+    # no real card touched, no charge, no completed filing. Verifies payment nav.
+    test_card = os.environ.get("TEST_CARD") == "1" and not dry_run
     if dry_run:
         print("\U0001f9ea DRY RUN ENABLED — will fill the whole form + screenshot, but never pay/submit and never write Airtable status.")
 
     # Update status to In Progress (skip entirely in dry-run so the record is untouched)
-    if airtable_record_id and not dry_run:
+    if airtable_record_id and not dry_run and not test_card:
         update_airtable_status(airtable_record_id, "In Progress")
 
     # Fetch payment data (never touch the card in dry-run)
@@ -357,7 +361,17 @@ def main(record_id=None):
         payment = {}
     else:
         print("\U0001f4b3 Fetching payment data from SSM...")
-        payment = fetch_payment_data_from_ssm(llc_name)
+        if test_card:
+            payment = {
+                "pay_first": "Test", "pay_last": "Cardholder",
+                "pay_address": "12550 Biscayne Blvd", "pay_city": "North Miami",
+                "pay_state": "FL", "pay_zip": "33181",
+                "pay_phone": "3055551234", "pay_email": "trimaran.llc@gmail.com",
+                "cc_number": "4242424242424242", "cc_exp_month": "12",
+                "cc_exp_year": "2030", "cc_cvv": "123", "cc_name": "Test Cardholder",
+            }
+        else:
+            payment = fetch_payment_data_from_ssm(llc_name)
 
     # Initialize browser
     print("\U0001f98a Starting Firefox browser...")
@@ -380,7 +394,7 @@ def main(record_id=None):
         fill_payment_and_submit(driver, wait, payment, llc_name)
 
         # Update Airtable status to Filed (only on a real submission)
-        if airtable_record_id and not dry_run:
+        if airtable_record_id and not dry_run and not test_card:
             update_airtable_status(
                 airtable_record_id,
                 "Filed",
