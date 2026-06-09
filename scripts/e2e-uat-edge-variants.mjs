@@ -717,7 +717,13 @@ async function runVariant(v, log) {
   log(`\n${'='.repeat(72)}\nVariant ${v.id}: ${v.label} = ${v.entity} ${v.ownerCount}o ${v.voting} nc=${v.nc} ns=${v.ns} conf=${v.conf} rofr=${v.rofr} dragTag=${v.drag||v.tag}\nEmail: ${email}\n${'='.repeat(72)}`);
 
   const browser = await chromium.launch({ headless: true });
-  const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } });
+  const ctx = await browser.newContext({
+    viewport: { width: 1400, height: 900 },
+    // Record a video of the whole front-end run when E2E_VIDEO_DIR is set (UAT evidence).
+    ...(process.env.E2E_VIDEO_DIR
+      ? { recordVideo: { dir: process.env.E2E_VIDEO_DIR, size: { width: 1400, height: 900 } } }
+      : {}),
+  });
   const page = await ctx.newPage();
   page.setDefaultTimeout(30000);
 
