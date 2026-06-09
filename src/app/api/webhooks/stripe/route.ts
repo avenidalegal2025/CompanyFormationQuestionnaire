@@ -350,6 +350,17 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
     console.error('⚠️ Failed to check Airtable for existing Stripe Payment ID (continuing anyway):', idempLookupError);
   }
 
+  // ATOMIC idempotency on the SESSION id. Both `checkout.session.completed` and
+  // `payment_intent.succeeded` reach formation creation for the same session but
+  // carry DIFFERENT Stripe event ids — so event-id dedup doesn't span them, and
+  // the findFormationByStripeId check above is check-then-act (racy under
+  // ~simultaneous delivery). Claim the session id with an atomic conditional
+  // write so exactly ONE invocation creates the formation, whatever the trigger.
+  if (await claimWebhookEvent(`FORMATION#${session.id}`)) {
+    console.log('🔁 Formation already created/in-progress for this session — skipping duplicate.', { stripePaymentId: session.id });
+    return;
+  }
+
   // Step 0: Create minimal Airtable stub IMMEDIATELY so the company is visible
   // in the user's dashboard within seconds. Without this, 6-owner Corp flows
   // (4 sequential template copies + multiple Lambda calls) push first dashboard
