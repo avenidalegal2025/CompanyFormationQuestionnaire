@@ -241,7 +241,8 @@ def fill_llc_form(driver, wait, data, company_name):
 
     # --- Section 2: Registered Agent ---
     try:
-        fill_registered_agent(driver, company_name)
+        # Use a synthetic RA in test mode (data["registered_agent"]); else the default.
+        fill_registered_agent(driver, company_name, ra=data.get("registered_agent"))
     except Exception as e:
         take_and_upload_screenshot(driver, "ERROR_registered_agent", company_name)
         raise RuntimeError(f"Failed filling Registered Agent: {e}") from e
@@ -286,6 +287,34 @@ def fill_llc_form(driver, wait, data, company_name):
     take_and_upload_screenshot(driver, "09_before_submit", company_name)
 
 
+# ===================== TEST-SAFE SYNTHETIC DATA =====================
+
+def _synthesize_test_data(data):
+    """Overwrite ALL identifying fields with obviously-fake, non-attributable
+    values for throwaway Sunbiz test runs (TEST_CARD/DRY_RUN). Ensures no real or
+    Avenida Legal data (company name, principal address, registered agent,
+    correspondence) ever lands in an abandoned/declined filing."""
+    fake = {"line1": "100 QA Test Plaza", "line2": "", "city": "Orlando",
+            "state": "FL", "zip": "32801", "country": "US"}
+    data["llc"]["name"] = "ZZ QA DO NOT FILE LLC"
+    data["llc"]["principal_address"] = dict(fake)
+    data["llc"]["purpose"] = "QA test filing - do not process"
+    data["authorized_person"] = {
+        "signature": "QA Tester", "title": "MGR",
+        "first_name": "QA", "last_name": "Tester",
+        "address": fake["line1"], "city": fake["city"],
+        "state": fake["state"], "zip": fake["zip"], "country": "US",
+    }
+    data["return_contact"] = {"name": "QA Tester", "email": "qa-noreply@example.com"}
+    data["registered_agent"] = {
+        "first_name": "QA", "last_name": "Agent",
+        "address1": fake["line1"], "address2": "",
+        "city": fake["city"], "state": fake["state"], "zip": fake["zip"],
+        "signature": "QA Agent",
+    }
+    print("🧪 TEST DATA — synthetic, non-attributable data only (no real/Avenida data in this filing).")
+
+
 # ===================== MAIN =====================
 
 def main(record_id=None):
@@ -305,6 +334,13 @@ def main(record_id=None):
     if data is None:
         print("\n\u2705 No new formations to process. Exiting.")
         return
+
+    # SAFETY: throwaway test runs (TEST_CARD decline / DRY_RUN) must NEVER enter
+    # real or Avenida-attributable data into Sunbiz \u2014 they abandon at payment, but
+    # even abandoned data is best kept non-attributable. Replace every identifying
+    # field with obviously-fake values.
+    if os.environ.get("TEST_CARD") == "1" or os.environ.get("DRY_RUN") == "1":
+        _synthesize_test_data(data)
 
     llc = data["llc"]
     llc_name = llc["name"].replace(" ", "_")

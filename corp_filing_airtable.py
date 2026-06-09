@@ -403,7 +403,7 @@ def fill_corp_form(driver, wait, data, company_name):
 
     # --- Section 3: Registered Agent ---
     try:
-        fill_registered_agent(driver, company_name)
+        fill_registered_agent(driver, company_name, ra=data.get("registered_agent"))
     except Exception as e:
         take_and_upload_screenshot(driver, "ERROR_registered_agent", company_name)
         raise RuntimeError(f"Failed filling Registered Agent: {e}") from e
@@ -508,6 +508,36 @@ def fill_corp_form(driver, wait, data, company_name):
     take_and_upload_screenshot(driver, "09_before_submit", company_name)
 
 
+# ===================== TEST-SAFE SYNTHETIC DATA =====================
+
+def _synthesize_test_data(data):
+    """Overwrite ALL identifying corp fields with obviously-fake values for
+    throwaway test runs (TEST_CARD/DRY_RUN), so no real/Avenida data lands in an
+    abandoned/declined filing."""
+    fake_line = "100 QA Test Plaza, Orlando, FL 32801"
+    data["corp"]["name"] = "ZZ QA DO NOT FILE INC"
+    data["corp"]["stock_shares"] = data["corp"].get("stock_shares") or "1000"
+    data["corp"]["principal_address"] = {
+        "line1": "100 QA Test Plaza", "line2": "", "city": "Orlando",
+        "state": "FL", "zip": "32801", "country": "US",
+    }
+    data["incorporator"] = {
+        "name": "QA Tester", "address": "100 QA Test Plaza", "suite": "",
+        "city_st_zip": "Orlando, FL 32801", "signature": "QA Tester",
+    }
+    data["officers_directors"] = [{
+        "first_name": "QA", "last_name": "Tester", "name": "QA Tester",
+        "address": fake_line, "role": "President", "sunbiz_title": "P",
+    }]
+    data["return_contact"] = {"name": "QA Tester", "email": "qa-noreply@example.com"}
+    data["registered_agent"] = {
+        "first_name": "QA", "last_name": "Agent",
+        "address1": "100 QA Test Plaza", "address2": "",
+        "city": "Orlando", "state": "FL", "zip": "32801", "signature": "QA Agent",
+    }
+    print("🧪 TEST DATA — synthetic, non-attributable data only (no real/Avenida data in this filing).")
+
+
 # ===================== MAIN =====================
 
 def main(record_id=None):
@@ -527,6 +557,11 @@ def main(record_id=None):
     if data is None:
         print("\n\u2705 No new Corp formations to process. Exiting.")
         return
+
+    # SAFETY: throwaway test runs (TEST_CARD / DRY_RUN) use only synthetic,
+    # non-attributable data \u2014 never real or Avenida data in an abandoned filing.
+    if os.environ.get("TEST_CARD") == "1" or os.environ.get("DRY_RUN") == "1":
+        _synthesize_test_data(data)
 
     corp = data["corp"]
     corp_name = corp["name"].replace(" ", "_")
