@@ -1,6 +1,6 @@
 // src/lib/dynamo.ts
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, PutCommand, GetCommand, UpdateCommand, QueryCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, PutCommand, GetCommand, UpdateCommand, QueryCommand, ScanCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
 
 export const REGION = process.env.AWS_REGION || "us-west-1";
 export const TABLE_NAME =
@@ -34,6 +34,56 @@ export const ddb = DynamoDBDocumentClient.from(ddbClient, {
     convertClassInstanceToMap: true,
   },
 });
+
+/**
+ * Event-level idempotency for Stripe webhooks.
+ *
+ * Stripe delivers webhook events AT-LEAST-once and can fire the same event
+ * twice nearly simultaneously. The old check-then-create idempotency
+ * (findFormationByStripeId → createFormationRecord) raced under that, creating
+ * duplicate Airtable formations. This claims a given Stripe event id exactly
+ * once via an ATOMIC conditional write, so the handler runs once even under
+ * concurrent duplicate deliveries. Reuses the main table with a namespaced key
+ * (so it inherits the app's existing DynamoDB permissions — no new table/IAM).
+ *
+ * Returns true if the event was ALREADY claimed (duplicate → caller should skip),
+ * false if the claim succeeded (first delivery → caller should process).
+ * Fails OPEN (returns false) on unexpected errors so a DynamoDB hiccup never
+ * silently drops a real paid event.
+ */
+export async function claimWebhookEvent(eventId: string): Promise<boolean> {
+  const item: Record<string, any> = {
+    [TABLE_PK_NAME]: `WEBHOOK_EVENT#${eventId}`,
+    claimedAt: new Date().toISOString(),
+    ttl: Math.floor(Date.now() / 1000) + 7 * 24 * 3600, // 7-day TTL (enable on table to auto-prune)
+  };
+  if (TABLE_SK_NAME) item[TABLE_SK_NAME] = 'STRIPE_EVENT';
+  try {
+    await ddb.send(new PutCommand({
+      TableName: TABLE_NAME,
+      Item: item,
+      ConditionExpression: 'attribute_not_exists(#pk)',
+      ExpressionAttributeNames: { '#pk': TABLE_PK_NAME },
+    }));
+    return false; // first time — proceed
+  } catch (e: any) {
+    if (e?.name === 'ConditionalCheckFailedException') return true; // duplicate — skip
+    console.error('⚠️ claimWebhookEvent failed open (processing anyway):', e?.message);
+    return false;
+  }
+}
+
+/** Release a previously-claimed event id so Stripe's retry can reprocess it
+ *  (used when the handler throws and we return a non-2xx). Non-fatal on error. */
+export async function releaseWebhookEvent(eventId: string): Promise<void> {
+  const key: Record<string, any> = { [TABLE_PK_NAME]: `WEBHOOK_EVENT#${eventId}` };
+  if (TABLE_SK_NAME) key[TABLE_SK_NAME] = 'STRIPE_EVENT';
+  try {
+    await ddb.send(new DeleteCommand({ TableName: TABLE_NAME, Key: key }));
+  } catch (e: any) {
+    console.error('⚠️ releaseWebhookEvent non-fatal:', e?.message);
+  }
+}
 
 // Domain registration types
 export interface DomainRegistration {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
-import { saveDomainRegistration, type DomainRegistration, saveBusinessPhone, saveGoogleWorkspace, type GoogleWorkspaceRecord, saveUserCompanyDocuments, type DocumentRecord, saveVaultMetadata, type VaultMetadata, getFormData, addUserCompanyDocument } from '@/lib/dynamo';
+import { saveDomainRegistration, type DomainRegistration, saveBusinessPhone, saveGoogleWorkspace, type GoogleWorkspaceRecord, saveUserCompanyDocuments, type DocumentRecord, saveVaultMetadata, type VaultMetadata, getFormData, addUserCompanyDocument, claimWebhookEvent, releaseWebhookEvent } from '@/lib/dynamo';
 import { formatCompanyDocumentTitle, formatCompanyFileName } from '@/lib/document-names';
 import { createVaultStructure, copyTemplateToVault, getFormDataSnapshot } from '@/lib/s3-vault';
 import { createFormationRecord, updateFormationRecord, mapQuestionnaireToAirtable, findFormationByStripeId } from '@/lib/airtable';
@@ -182,6 +182,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
 
+  // Event-level idempotency: Stripe delivers events at-least-once and may fire
+  // the same event twice nearly simultaneously. Claim event.id atomically so the
+  // handler runs EXACTLY once — this is what prevents duplicate Airtable
+  // formations (and duplicate docs/Twilio) under concurrent duplicate deliveries.
+  const isDuplicate = await claimWebhookEvent(event.id);
+  if (isDuplicate) {
+    console.log('🔁 Duplicate Stripe event — already processed, skipping:', event.id, event.type);
+    return NextResponse.json({ received: true, duplicate: true });
+  }
+
   try {
     switch (event.type) {
       case 'checkout.session.completed':
@@ -196,6 +206,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ received: true });
   } catch (error) {
+    // Release the claim so Stripe's automatic retry can reprocess this event
+    // (we return non-2xx below, which triggers the retry).
+    await releaseWebhookEvent(event.id);
     console.error('Webhook handler error:', error);
     return NextResponse.json({ error: 'Webhook handler failed' }, { status: 500 });
   }
