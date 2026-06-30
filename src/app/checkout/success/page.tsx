@@ -61,14 +61,25 @@ function CheckoutSuccessContent() {
           return ['ss4-ein-application'];
         })();
         
+        const isGenerated = (doc: any) =>
+          doc.s3Key || doc.status === 'generated' || doc.status === 'signed';
         const hasAllKeyDocuments = keyDocuments.every(docId =>
-          documents.some((doc: any) => doc.id === docId && (doc.s3Key || doc.status === 'generated' || doc.status === 'signed'))
+          documents.some((doc: any) => doc.id === docId && isGenerated(doc))
         );
-        // When entityType is unknown (e.g. no localStorage), require at least 3
-        // generated docs before declaring ready, so we don't show the celebration
-        // screen prematurely when only the SS-4 has finished.
-        const generatedDocs = documents.filter((doc: any) => (doc.s3Key || doc.status === 'generated' || doc.status === 'signed'));
-        const ready = hasAllKeyDocuments || (entityType === null && generatedDocs.length >= 3);
+        const generatedDocs = documents.filter(isGenerated);
+        // The SS-4 (EIN application) is generated last and is the document most
+        // often still missing when users land on the dashboard, so we treat it as
+        // the hard readiness gate: NEVER declare ready until the SS-4 actually
+        // exists. When we know the entity type we also require that entity's other
+        // key docs; when it's unknown we additionally require at least 3 generated
+        // docs so we don't celebrate on the SS-4 alone.
+        const hasSS4 = documents.some(
+          (doc: any) => doc.id === 'ss4-ein-application' && isGenerated(doc)
+        );
+        const ready =
+          entityType === null
+            ? hasSS4 && generatedDocs.length >= 3
+            : hasSS4 && hasAllKeyDocuments;
 
         // Track whether an agreement document exists (for checklist rendering)
         const hasAgreement = documents.some(
@@ -235,7 +246,9 @@ function CheckoutSuccessContent() {
           }
         }, 2000);
         
-        // Stop polling after 60 seconds max (documents should be ready by then)
+        // Stop polling after 90 seconds max (documents should be ready by then).
+        // The SS-4 in particular can lag the other docs, so give it a generous cap
+        // before falling back to the "still processing, we'll email you" state.
         maxWaitTimeoutRef.current = setTimeout(() => {
           if (!isReady) {
             if (pollIntervalRef.current) {
@@ -248,7 +261,7 @@ function CheckoutSuccessContent() {
             setDocumentsTimedOut(true);
             setCheckingDocuments(false);
           }
-        }, 60000);
+        }, 90000);
       }, 2000);
       
       return () => {

@@ -3532,9 +3532,11 @@ function collapseEmptiesAfterLLCHeadings(xml: string): string {
  * the far-left margin between body lines (variant 1 §11.9.A page 7).
  *
  * Fix: for paragraphs matching this pattern (firstLine=700, no left/hanging),
- * rewrite the indent to <w:ind w:left="700" w:hanging="700"/> so wraps land
- * at col 700 (= where the body title started), and strip every <w:tab/>
- * EXCEPT the first one (the legitimate label→title separator after "A.").
+ * rewrite the indent to <w:ind w:left="2160" w:hanging="720"/> — the standard
+ * level-2 lettered sub-item convention (label outdented to 1440, body/wraps at
+ * 2160; see CLAUDE.md) — and strip every <w:tab/> EXCEPT the first one (the
+ * legitimate label→title separator after "A."). The kept tab advances the
+ * title to col 2160 so it aligns with sibling lettered items elsewhere.
  */
 function stripLLCBodyTabArtifacts(xml: string): string {
   return xml.replace(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g, (full) => {
@@ -3552,11 +3554,13 @@ function stripLLCBodyTabArtifacts(xml: string): string {
     if (tabCount < 2) return full;
 
     let updated = full;
-    // 1. Rewrite ind: firstLine=700 (no left) → left=700 hanging=700 so
-    //    wraps land vertically under the body-title column.
+    // 1. Rewrite ind: firstLine=700 (no left) → left=2160 hanging=720, the
+    //    standard level-2 lettered sub-item indent (CLAUDE.md convention), so
+    //    §11.9.A/B align with the other lettered sub-lists instead of sitting
+    //    under-indented near the far-left margin.
     updated = updated.replace(
       /<w:ind\b[^/]*\/>/,
-      '<w:ind w:left="700" w:hanging="700"/>',
+      '<w:ind w:left="2160" w:hanging="720"/>',
     );
     // 2. Strip all <w:tab/> except the first. The first one separates the
     //    label (e.g. "A.") from the underlined title; subsequent ones are
@@ -3582,28 +3586,25 @@ function normalizeSubItemTabs(xml: string): string {
 
     if (!isRoman && !isLetter) return fullMatch;
 
-    const targetLeft = isRoman ? "1440" : "720";  // 1 inch for romans, 0.5 inch for letters
-    const targetFirstLine = "0";
+    // Lettered sub-items (level 2) use the standard left=2160 hanging=720
+    // convention (CLAUDE.md): label outdented to 1440, body/wraps at 2160.
+    // These paragraphs carry a <w:tab/> after the label, so the hanging indent
+    // tab-aligns the body to col 2160. Romans (level 3) keep their 1-inch
+    // (1440) left/firstLine=0 layout — unchanged here.
+    const newInd = isRoman
+      ? '<w:ind w:left="1440" w:firstLine="0"/>'
+      : '<w:ind w:left="2160" w:hanging="720"/>';
 
     // If paragraph has pPr with ind, normalize it
     if (fullMatch.includes("<w:pPr>")) {
       // Replace or add w:ind within existing pPr
       if (fullMatch.includes("<w:ind ")) {
-        return fullMatch.replace(
-          /<w:ind [^/]*\/>/,
-          `<w:ind w:left="${targetLeft}" w:firstLine="${targetFirstLine}"/>`
-        );
+        return fullMatch.replace(/<w:ind [^/]*\/>/, newInd);
       } else {
-        return fullMatch.replace(
-          "<w:pPr>",
-          `<w:pPr><w:ind w:left="${targetLeft}" w:firstLine="${targetFirstLine}"/>`
-        );
+        return fullMatch.replace("<w:pPr>", `<w:pPr>${newInd}`);
       }
     } else if (fullMatch.includes("<w:p>")) {
-      return fullMatch.replace(
-        "<w:p>",
-        `<w:p><w:pPr><w:ind w:left="${targetLeft}" w:firstLine="${targetFirstLine}"/></w:pPr>`
-      );
+      return fullMatch.replace("<w:p>", `<w:p><w:pPr>${newInd}</w:pPr>`);
     }
 
     return fullMatch;

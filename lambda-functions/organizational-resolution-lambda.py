@@ -619,10 +619,23 @@ def replace_placeholders(doc, data):
     # --- Bug #19: Add vertical spacing between "By:" and "Name:" signature lines ---
     # The template has minimal spacing between signature elements.
     # Add space_after on "By:" lines so there's room for a physical signature.
+    # FIX #8 (Antonio 2026-06-23): tightened from Pt(18) to Pt(6) so "Name:"/
+    # "Title:" sit one line under the "By:" signature rule (small gap that still
+    # leaves room for a wet signature, but no longer pushed too far below).
     for paragraph in doc.paragraphs:
         txt = paragraph.text.strip()
         if re.match(r'^By:\s*_', txt):
-            paragraph.paragraph_format.space_after = Pt(18)  # ~0.25 inch gap for signature
+            paragraph.paragraph_format.space_after = Pt(6)  # tight one-line gap under signature rule
+
+    # --- FIX #7 (Antonio 2026-06-23): Page break before the signature block ---
+    # The signature block ("IN WITNESS WHEREOF" + By:/Name:/Title:) should start
+    # on a new page so it never splits awkwardly across a page boundary.
+    # Apply to the FIRST "IN WITNESS WHEREOF" paragraph only; idempotent (setting
+    # page_break_before = True repeatedly is a no-op). Shared LLC + Inc path.
+    for paragraph in doc.paragraphs:
+        if 'IN WITNESS WHEREOF' in paragraph.text:
+            paragraph.paragraph_format.page_break_before = True
+            break
 
     # --- Bug #16: Replace hardcoded "1,000 shares" with actual totalShares ---
     # The Corp Org Resolution templates have "1,000 shares" and "$0.01 per Share" hardcoded.
