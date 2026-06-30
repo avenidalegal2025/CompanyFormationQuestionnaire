@@ -21,8 +21,12 @@ const STATE_TO_AREACODES: Record<string, number[]> = {
 export async function POST(req: NextRequest) {
   try {
     const { formationState, forwardToE164 } = await req.json();
-    if (!formationState || !forwardToE164) {
-      return NextResponse.json({ error: 'formationState y forwardToE164 son requeridos' }, { status: 400 });
+    // forwardToE164 is OPTIONAL: a number must always be provisioned (the SS-4 /
+    // 8821 forms need *a* business number); call forwarding is a secondary
+    // convenience that can be configured later. Previously a missing forward
+    // target returned 400 and no number was ever bought.
+    if (!formationState) {
+      return NextResponse.json({ error: 'formationState es requerido' }, { status: 400 });
     }
     if (!ACCOUNT_SID || !AUTH_TOKEN || !BASE_URL) {
       return NextResponse.json({ error: 'Configuración de Twilio/BASE_URL incompleta' }, { status: 500 });
@@ -50,8 +54,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No se encontraron números disponibles en los códigos de área preferidos' }, { status: 404 });
     }
 
-    // Configure voice webhook to forward to chosen number; use query param for MVP
-    const voiceUrl = `${BASE_URL}/api/phone/voice-webhook?forwardTo=${encodeURIComponent(forwardToE164)}`;
+    // Configure voice webhook to forward to chosen number; use query param for MVP.
+    // When no forward target is supplied, still point at the voice webhook (it
+    // returns valid TwiML without a forwardTo) so the number is fully usable.
+    const voiceUrl = forwardToE164
+      ? `${BASE_URL}/api/phone/voice-webhook?forwardTo=${encodeURIComponent(forwardToE164)}`
+      : `${BASE_URL}/api/phone/voice-webhook`;
 
     const purchased = await client.incomingPhoneNumbers.create({
       phoneNumber: candidateNumber,

@@ -48,7 +48,7 @@ async function sendNewCompanyNotification(
       subject: `🏢 Nueva Empresa: ${companyName} - Requiere Aprobación`,
       htmlBody: `
         <h2>Nueva Empresa Registrada</h2>
-        <p>Se ha registrado una nueva empresa que requiere aprobación para el auto-filing:</p>
+        <p>Se ha registrado una nueva empresa. El auto-filing de Sunbiz se dispara automáticamente tras el pago (Autofill=Yes). Revise los documentos; si necesita detener un envío use el panel.</p>
         <table style="border-collapse: collapse; margin: 20px 0;">
           <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Empresa:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${companyName}</td></tr>
           <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Tipo:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">${entityType}</td></tr>
@@ -59,8 +59,8 @@ async function sendNewCompanyNotification(
         <p><strong>Acción Requerida:</strong></p>
         <ol>
           <li>Revisar los documentos de la empresa en el <a href="${adminDocsUrl}">Panel de Abogado</a></li>
-          <li>Si todo está correcto, cambiar la columna <strong>Autofill</strong> a <strong>"Yes"</strong> en Airtable</li>
-          <li>El sistema automáticamente llenará el formulario de Sunbiz</li>
+          <li>El sistema ya marcó <strong>Autofill = "Yes"</strong> y llenará el formulario de Sunbiz automáticamente</li>
+          <li>Si algo está incorrecto y necesita evitar el envío, cambie <strong>Autofill</strong> a <strong>"No"</strong> de inmediato en Airtable</li>
           <li>Las capturas de pantalla estarán disponibles en: <a href="${screenshotsUrl}">Ver Screenshots</a></li>
         </ol>
         <p style="margin-top: 20px;">
@@ -822,6 +822,57 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
         console.error('⚠️ Failed to save documents to DynamoDB (will continue anyway):', docsError);
       }
       
+      // Auto-provision the business phone BEFORE Step 8 so the SS-4 / 8821 tax
+      // forms pick up the new number — they read 'Business Phone' from Airtable
+      // (generate-ss4 route, applicantPhone). Previously phone provisioning ran
+      // AFTER form regeneration, so the forms always had a blank phone even on a
+      // successful purchase. A missing forward target no longer skips
+      // provisioning (a number is always bought; forwarding is optional), and a
+      // phone error never aborts the handler.
+      try {
+        const needsPhone = (selectedServices || []).includes('business_phone') || !hasUsPhone;
+        if (needsPhone && state && airtableRecordId) {
+          const phoneBaseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
+            (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+          if (!forwardPhoneE164) {
+            console.warn('⚠️ No forwardPhoneE164 captured; provisioning a number WITHOUT call forwarding.');
+          }
+          const resp = await fetch(`${phoneBaseUrl}/api/phone/provision`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ formationState: state, forwardToE164: forwardPhoneE164 || undefined }),
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            console.log('📞 Phone provisioned:', data);
+            const userKey = session.customer_details?.email || (session.customer_email as string) || '';
+            if (userKey) {
+              await saveBusinessPhone(userKey, {
+                phoneNumber: data.phoneNumber,
+                areaCode: data.areaCode,
+                sid: data.sid,
+                forwardToE164: forwardPhoneE164,
+                updatedAt: new Date().toISOString(),
+              });
+            }
+            // Write to THIS company's Airtable record so the SS-4 / 8821 (Step 8
+            // below) and the dashboard use the correct number.
+            try {
+              await updateFormationRecord(airtableRecordId, {
+                'Business Phone': data.phoneNumber, // E.164, includes area code
+              });
+              console.log(`✅ Airtable ${airtableRecordId} Business Phone = ${data.phoneNumber} (before SS-4 regen)`);
+            } catch (updateError) {
+              console.error('❌ Failed to write Business Phone to Airtable:', updateError);
+            }
+          } else {
+            console.error('❌ Failed to provision phone:', await resp.text());
+          }
+        }
+      } catch (err) {
+        console.error('Auto-provision phone error (continuing):', err);
+      }
+
       // Step 8: Regenerate tax forms (SS-4, 2848, 8821) from Airtable data (after payment confirmation)
       // This ensures all forms use canonical Airtable data, especially owner information
       // IMPORTANT: Use absolute URL for internal API calls in Vercel
@@ -1081,59 +1132,30 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
   
   console.log('Company formation payment processed successfully');
 
-  // Auto-provision phone if the package includes it (or user lacks US phone)
+  // (Phone provisioning moved earlier — before Step 8 — so the SS-4 / 8821 forms
+  // pick up the new Business Phone. See the block above the "Step 8" comment.)
+
+  // Auto-file with Sunbiz: flip Autofill -> "Yes" so the EC2 filing watcher
+  // (autofill_watcher.py) picks up this record and submits the Florida
+  // formation. Previously the app left Autofill='No' and only emailed the
+  // lawyer to flip it by hand, so nothing was ever filed automatically — this
+  // is why SPICE TWENTY FIVE paid + got docs but was never filed. Runs LAST so
+  // the record is fully populated (owner/manager/address fields the filer reads)
+  // before the watcher can grab it. Gated by SUNBIZ_AUTOFILE (set to 'off' to
+  // restore the manual review gate). Florida only — the watcher ignores other
+  // states.
   try {
-    const needsPhone = (selectedServices || []).includes('business_phone') || !hasUsPhone;
-    if (needsPhone && state) {
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
-      if (!baseUrl) throw new Error('Missing NEXT_PUBLIC_BASE_URL');
-      if (!forwardPhoneE164) {
-        console.warn('No forwardPhoneE164 provided; skipping phone provisioning');
-        return;
-      }
-      const resp = await fetch(`${baseUrl}/api/phone/provision`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ formationState: state, forwardToE164: forwardPhoneE164 })
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        console.log('📞 Phone provisioned:', data);
-        const userKey = session.customer_details?.email || (session.customer_email as string) || '';
-        if (userKey) {
-          // Save to DynamoDB (for user-level phone management)
-          await saveBusinessPhone(userKey, {
-            phoneNumber: data.phoneNumber,
-            areaCode: data.areaCode,
-            sid: data.sid,
-            forwardToE164: forwardPhoneE164,
-            updatedAt: new Date().toISOString(),
-          });
-          
-          // CRITICAL: Also save to Airtable's "Business Phone" field for this specific company
-          // This ensures the SS4 form uses the correct phone number for this company
-          if (airtableRecordId) {
-            try {
-              const { updateFormationRecord } = await import('@/lib/airtable');
-              // Format phone number: Twilio returns E.164 format (+17866400626), we need to store it with area code
-              // The phone number already includes area code in E.164 format
-              await updateFormationRecord(airtableRecordId, {
-                'Business Phone': data.phoneNumber, // E.164 format includes area code: +17866400626
-              });
-              console.log(`✅ Updated Airtable record ${airtableRecordId} with Business Phone: ${data.phoneNumber}`);
-            } catch (updateError) {
-              console.error('❌ Failed to update Airtable with Business Phone:', updateError);
-            }
-          } else {
-            console.warn('⚠️ No airtableRecordId available to update with Business Phone');
-          }
-        }
+    const autofileEnabled = (process.env.SUNBIZ_AUTOFILE || 'on').toLowerCase() !== 'off';
+    if (airtableRecordId && state === 'Florida') {
+      if (autofileEnabled) {
+        await updateFormationRecord(airtableRecordId, { 'Autofill': 'Yes' });
+        console.log(`🏛️ Sunbiz auto-file armed: Autofill=Yes on ${airtableRecordId} (EC2 watcher will file).`);
       } else {
-        console.error('❌ Failed to provision phone:', await resp.text());
+        console.log('🏛️ Sunbiz auto-file disabled (SUNBIZ_AUTOFILE=off) — record left for manual review.');
       }
     }
   } catch (err) {
-    console.error('Auto-provision phone error:', err);
+    console.error('Sunbiz auto-file (Autofill=Yes) error:', err);
   }
 
   // Auto-provision Google Workspace if the package includes it
