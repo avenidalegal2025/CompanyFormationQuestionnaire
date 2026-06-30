@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
 const GOOGLE_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
 /** Minimal runtime shapes so we don’t rely on @types/google.maps */
-type AcAddressComponent = { long_name: string; types: string[] };
+type AcAddressComponent = { long_name: string; short_name: string; types: string[] };
 type AcPlace = { address_components?: AcAddressComponent[]; formatted_address?: string };
 type AcListener = { remove: () => void };
 type AcInstance = {
@@ -80,6 +80,45 @@ export type AddressSelectPayload = {
   country: string;
 };
 
+/**
+ * Fallback parser for a US `formatted_address` string when structured
+ * `address_components` are unavailable (Google's 2025 legacy-Places changes can
+ * return predictions + formatted_address while omitting components for some
+ * keys). Example: "3090 West Oakland Park Blvd, Oakland Park, FL 33311, USA".
+ */
+function parseFormattedUsAddress(
+  formatted: string
+): Omit<AddressSelectPayload, "fullAddress" | "country"> {
+  const parts = formatted
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const result = { line1: "", city: "", state: "", postalCode: "" };
+
+  // Find the "ST 33311" (state + ZIP) chunk.
+  let stateZipIdx = -1;
+  for (let i = 0; i < parts.length; i++) {
+    const m = parts[i].match(/\b([A-Z]{2})\b\s+(\d{5})(?:-\d{4})?/);
+    if (m) {
+      result.state = m[1];
+      result.postalCode = m[2];
+      stateZipIdx = i;
+      break;
+    }
+  }
+
+  if (stateZipIdx >= 1) {
+    result.line1 = parts[0];
+    result.city = parts.slice(1, stateZipIdx).join(", ");
+  } else {
+    result.line1 = parts[0] ?? "";
+    if (parts.length >= 3) result.city = parts[1];
+  }
+
+  return result;
+}
+
 type Props = {
   placeholder?: string;
   /** Uncontrolled initial value */
@@ -102,46 +141,74 @@ export default function AddressAutocomplete({
 }: Props) {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
+  // Keep the latest callbacks in refs so the place_changed listener always
+  // calls the current handlers WITHOUT re-creating the Autocomplete widget.
+  // Re-instantiating the widget on every render (because onSelect is an inline
+  // function) attaches duplicate widgets to the same input and makes
+  // place_changed fire unreliably — the bug this component had.
+  const onSelectRef = useRef(onSelect);
+  const onChangeTextRef = useRef(onChangeText);
+  useEffect(() => {
+    onSelectRef.current = onSelect;
+    onChangeTextRef.current = onChangeText;
+  });
+
   useEffect(() => {
     let listener: AcListener | null = null;
+    let cancelled = false;
 
     loadMapsOnce()
       .then(() => {
+        if (cancelled) return;
         const g = (window as unknown as { google?: GoogleRuntime }).google;
         if (!inputRef.current || !g?.maps?.places) return;
 
         const ac = new g.maps.places.Autocomplete(inputRef.current, {
           fields: ["address_components", "formatted_address"],
+          types: ["address"],
           ...(country ? { componentRestrictions: { country } } : {}),
         });
 
         listener = ac.addListener("place_changed", () => {
           const place = ac.getPlace();
           const comps = place.address_components ?? [];
+          const formatted = place.formatted_address ?? "";
 
           const byType = (t: string) =>
             comps.find((c) => c.types.includes(t))?.long_name ?? "";
+          const byTypeShort = (t: string) =>
+            comps.find((c) => c.types.includes(t))?.short_name ?? "";
 
-          const line1 = [byType("street_number"), byType("route")]
+          let line1 = [byType("street_number"), byType("route")]
             .filter(Boolean)
             .join(" ");
-
-          const city =
+          let city =
             byType("locality") ||
             byType("postal_town") ||
             byType("sublocality") ||
             "";
-
-          const state =
+          // Prefer the 2-letter state abbreviation (FL), which is what the
+          // downstream forms and Sunbiz expect.
+          let state =
+            byTypeShort("administrative_area_level_1") ||
             byType("administrative_area_level_1") ||
             byType("administrative_area_level_2") ||
             "";
-
-          const postalCode = byType("postal_code");
+          let postalCode = byType("postal_code");
           const countryName = byType("country");
 
-          onSelect({
-            fullAddress: place.formatted_address ?? "",
+          // Fallback: if structured components didn't yield the street address,
+          // parse the formatted_address string so the fields still populate.
+          if ((!line1 || !city || !state || !postalCode) && formatted) {
+            const f = parseFormattedUsAddress(formatted);
+            line1 = line1 || f.line1;
+            city = city || f.city;
+            state = state || f.state;
+            postalCode = postalCode || f.postalCode;
+          }
+
+          onSelectRef.current({
+            fullAddress: formatted,
             line1,
             city,
             state,
@@ -149,8 +216,8 @@ export default function AddressAutocomplete({
             country: countryName,
           });
 
-          if (onChangeText && place.formatted_address) {
-            onChangeText(place.formatted_address);
+          if (onChangeTextRef.current && formatted) {
+            onChangeTextRef.current(formatted);
           }
         });
       })
@@ -160,9 +227,12 @@ export default function AddressAutocomplete({
       });
 
     return () => {
+      cancelled = true;
       if (listener) listener.remove();
     };
-  }, [country, onSelect, onChangeText]);
+    // Only re-create the widget if the country restriction changes — NOT on
+    // every render. Callbacks are read from refs above.
+  }, [country]);
 
   // Controlled vs uncontrolled configuration
   const inputProps =
