@@ -223,6 +223,30 @@ function payload(c: Cfg) {
       if (has("membership interest")) errs.push("Corp doc contains LLC-only term 'membership interest'");
     }
 
+    // LLC §14.4 Successor's-Interest buyout discretion is a FIXED majority — no
+    // questionnaire field governs the successor-buyout threshold, so it must
+    // ALWAYS read "a Majority of the remaining Members" regardless of
+    // major_decisions. The major-decisions sweep used to clobber it (the §19.7
+    // glossary guard only matched "Majority of the Managers/Members", missing
+    // "Majority of the *remaining* Members"), so a unanimous/supermajority major
+    // profile rendered "Unanimous consent of the remaining Members" /
+    // "a Super Majority of the remaining Members". Surfaced 2026-06-23 (SPICE
+    // TWENTY FIVE review). The divorce-buyout sentence ("exercise this option…")
+    // is a SEPARATE clause and intentionally unanimous — anchor on "interest
+    // shall be within the discretion of" so this guard only checks the successor
+    // sentence, not the divorce one.
+    if (c.entity === "LLC") {
+      if (!has("interest shall be within the discretion of a Majority of the remaining Members"))
+        errs.push("LLC §14.4 successor-buyout discretion missing fixed 'a Majority of the remaining Members'");
+      for (const bad of [
+        "interest shall be within the discretion of a Super Majority",
+        "interest shall be within the discretion of Unanimous",
+        "interest shall be within the discretion of the Unanimous",
+      ]) {
+        if (has(bad)) errs.push(`LLC §14.4 successor-buyout threshold wrongly swept: '${bad}…' (must stay Majority)`);
+      }
+    }
+
     const anchors = c.entity === "LLC" ? llcAnchors : corpAnchors;
     const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     for (const [anchor, idx, label] of anchors) {

@@ -929,6 +929,17 @@ function applyLLCVotingReplacements(
       // by new_member_admission_voting via the targeted replacements above; the
       // major-decisions sweep must NOT override it with the major term.
       if (/may admit new Members/.test(text)) return full;
+      // Protect §14.4 Successor's Interest buyout discretion. The template ships
+      // "…within the discretion of a Majority of the remaining Members." — a
+      // FIXED majority (no questionnaire field governs the successor-buyout
+      // threshold), so the major-decisions sweep must NOT upgrade it. The §19.7
+      // glossary guard above only matches "Majority of the Managers/Members";
+      // this phrase is "Majority of the remaining Members" (note "remaining"),
+      // so it slipped through and rendered "Unanimous consent of the remaining
+      // Members" whenever major_decisions != majority. (2026-06-23 SPICE review.)
+      // "remaining Members" appears as a voting phrase ONLY here, so guarding it
+      // globally is safe.
+      if (/\bMajority of the remaining Members\b/.test(text)) return full;
       // Sweep <w:t> contents with protections.
       return full.replace(
         /<w:t([^>]*)>([^<]*)<\/w:t>/g,
