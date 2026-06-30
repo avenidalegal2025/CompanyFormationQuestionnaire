@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2025-09-30.clover',
-});
+// Lazy Stripe init: avoid throwing at module scope when STRIPE_SECRET_KEY is
+// absent at build time (next build imports route modules to collect page data).
+let _stripe: Stripe | null = null;
+function getStripe(): Stripe {
+  if (_stripe) return _stripe;
+  _stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+    apiVersion: '2025-09-30.clover',
+  });
+  return _stripe;
+}
 
 /**
  * GET /api/session/email?session_id=xxx
@@ -11,6 +18,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
  */
 export async function GET(request: NextRequest) {
   try {
+    const stripe = getStripe();
     const { searchParams } = new URL(request.url);
     const sessionId = searchParams.get('session_id');
 

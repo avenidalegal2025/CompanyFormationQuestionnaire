@@ -152,9 +152,17 @@ async function sendClientDocumentsEmail(
 
 // import { createWorkspaceAccount } from '@/lib/googleWorkspace'; // Temporarily disabled
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-09-30.clover',
-});
+// Lazy Stripe init: `new Stripe(undefined)` throws at construction, and at
+// module scope that breaks `next build` page-data collection when
+// STRIPE_SECRET_KEY isn't present at build time (e.g. Vercel Preview).
+let _stripe: Stripe | null = null;
+function getStripe(): Stripe {
+  if (_stripe) return _stripe;
+  _stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+    apiVersion: '2025-09-30.clover',
+  });
+  return _stripe;
+}
 
 const NAMECHEAP_PROXY_URL = 'http://3.149.156.19:8000';
 const PROXY_TOKEN = process.env.NAMECHEAP_PROXY_TOKEN || 'super-secret-32char-token-12345';
@@ -170,6 +178,7 @@ export async function POST(request: NextRequest) {
   }
 
   let event: Stripe.Event;
+  const stripe = getStripe();
 
   try {
     event = stripe.webhooks.constructEvent(
@@ -301,7 +310,8 @@ async function handleDomainPurchase(session: Stripe.Checkout.Session) {
 
 async function handleCompanyFormation(session: Stripe.Checkout.Session) {
   console.log('Processing company formation payment:', session.id);
-  
+  const stripe = getStripe();
+
   const entityType = session.metadata?.entityType || '';
   const state = session.metadata?.state || '';
   const hasUsAddress = session.metadata?.hasUsAddress === 'true';

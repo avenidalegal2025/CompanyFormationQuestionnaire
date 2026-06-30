@@ -3,15 +3,24 @@ import Stripe from 'stripe';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-09-30.clover',
-});
+// Lazy Stripe init: `new Stripe(undefined)`/`new Stripe('')` throws at
+// construction, and at module scope that breaks `next build` page-data
+// collection when STRIPE_SECRET_KEY isn't present at build time (e.g. Preview).
+let _stripe: Stripe | null = null;
+function getStripe(): Stripe {
+  if (_stripe) return _stripe;
+  _stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+    apiVersion: '2025-09-30.clover',
+  });
+  return _stripe;
+}
 
 const NAMECHEAP_PROXY_URL = 'http://3.149.156.19:8000';
 const PROXY_TOKEN = process.env.NAMECHEAP_PROXY_TOKEN || 'super-secret-32char-token';
 
 export async function POST(request: NextRequest) {
   try {
+    const stripe = getStripe();
     // Get user session for user_id
     const userSession = await getServerSession(authOptions);
     if (!userSession?.user?.email) {

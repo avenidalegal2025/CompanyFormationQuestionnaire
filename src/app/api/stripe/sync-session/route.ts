@@ -2,9 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { handleCheckoutSessionCompleted } from '@/app/api/webhooks/stripe/route';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2025-09-30.clover',
-});
+// Lazy Stripe init: avoid throwing at module scope when STRIPE_SECRET_KEY is
+// absent at build time (next build imports route modules to collect page data).
+let _stripe: Stripe | null = null;
+function getStripe(): Stripe {
+  if (_stripe) return _stripe;
+  _stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+    apiVersion: '2025-09-30.clover',
+  });
+  return _stripe;
+}
 
 /**
  * POST /api/stripe/sync-session
@@ -32,6 +39,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const stripe = getStripe();
     const session = await stripe.checkout.sessions.retrieve(sessionId);
     await handleCheckoutSessionCompleted(session);
 
