@@ -5,9 +5,9 @@ const ACCOUNT_SID = (process.env.TWILIO_ACCOUNT_SID || process.env.TWILIO_TEST_A
 const AUTH_TOKEN = (process.env.TWILIO_AUTH_TOKEN || process.env.TWILIO_TEST_AUTH_TOKEN || '').trim();
 const BASE_URL = (process.env.NEXT_PUBLIC_BASE_URL || '').trim();
 
-// Simple prestigious area code mapping per state
+// Simple prestigious area code mapping per state (tried first, in order)
 const STATE_TO_AREACODES: Record<string, number[]> = {
-  Florida: [305, 786], // Miami / Miami-Dade
+  Florida: [305, 786, 954, 561, 407, 813], // Miami first, then Ft Lauderdale/Palm Beach/Orlando/Tampa
   Delaware: [302],
   Wyoming: [307],
   Texas: [512, 214, 713, 469], // Austin, Dallas, Houston
@@ -16,6 +16,22 @@ const STATE_TO_AREACODES: Record<string, number[]> = {
   California: [415, 310, 424], // SF, LA
   Georgia: [404, 470], // Atlanta
   Arizona: [602, 480], // Phoenix, East Valley
+};
+
+// USPS region code per state, for the state-wide fallback search when the
+// preferred area codes have no inventory (Twilio's pool fluctuates — e.g. Miami
+// 305/786 can be fully dry, which previously made provisioning 404 and leave the
+// customer with no number).
+const STATE_TO_REGION: Record<string, string> = {
+  Florida: 'FL',
+  Delaware: 'DE',
+  Wyoming: 'WY',
+  Texas: 'TX',
+  Nevada: 'NV',
+  'New Mexico': 'NM',
+  California: 'CA',
+  Georgia: 'GA',
+  Arizona: 'AZ',
 };
 
 export async function POST(req: NextRequest) {
@@ -47,6 +63,20 @@ export async function POST(req: NextRequest) {
       if (first?.phoneNumber) {
         candidateNumber = first.phoneNumber;
         break;
+      }
+    }
+
+    // Fallback: if every preferred area code is dry, take ANY number in the
+    // formation state's region so the customer still gets a local number.
+    if (!candidateNumber) {
+      const region = STATE_TO_REGION[formationState];
+      if (region) {
+        const list = await client.availablePhoneNumbers('US').local.list({ inRegion: region, limit: 5, voiceEnabled: true, smsEnabled: true });
+        const first = list.find(n => !!n.phoneNumber);
+        if (first?.phoneNumber) {
+          candidateNumber = first.phoneNumber;
+          console.log(`📞 Preferred area codes dry for ${formationState}; fell back to region ${region}: ${candidateNumber}`);
+        }
       }
     }
 
