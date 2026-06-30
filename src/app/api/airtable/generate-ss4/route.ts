@@ -228,7 +228,7 @@ async function categorizeBusinessPurposeForLine16(businessPurpose: string): Prom
           {
             role: 'system',
             content:
-              'You classify business purposes into IRS categories. Return only JSON with "category" and optional "otherSpecify". Allowed categories: construction, rental, transportation, healthcare, accommodation, wholesale_broker, wholesale_other, retail, real_estate, manufacturing, finance, other. If "other", set "otherSpecify" to a COMPLETE short description (max 45 chars, ALL CAPS) that reads as a finished phrase — never cut off mid-thought. Use abbreviations (SVCS, MKTG, DEV, TECH, MGMT) to fit. Choose the best category. Restaurants/hotels/catering/food: accommodation. Shops/ecommerce/stores: retail. Renting/leasing: rental.',
+              'You classify business purposes into IRS categories. The input may be in Spanish. Return only JSON with "category" and optional "otherSpecify". Allowed categories: construction, rental, transportation, healthcare, accommodation, wholesale_broker, wholesale_other, retail, real_estate, manufacturing, finance, other. Strongly prefer a concrete category over "other"; only use "other" when no listed category plausibly fits. If "other", set "otherSpecify" to a COMPLETE short description (max 45 chars, ALL CAPS) that reads as a finished phrase — never cut off mid-thought. Use abbreviations (SVCS, MKTG, DEV, TECH, MGMT) to fit. Choose the best category. If the business MAKES/produces/fabricates physical goods (e.g. "fabricación", "manufactura", "producción", "elaboración"), choose manufacturing EVEN IF it also sells them. Restaurants/hotels/catering/food (restaurante, hospedaje): accommodation. Shops/ecommerce/stores (tienda, venta al menudeo): retail. Renting/leasing (renta, arrendamiento): rental.',
           },
           {
             role: 'user',
@@ -258,7 +258,17 @@ async function categorizeBusinessPurposeForLine16(businessPurpose: string): Prom
       const result = JSON.parse(resultText);
       const category = result.category || 'other';
       const otherSpecify = result.otherSpecify ? truncateAtWordBoundary(result.otherSpecify.toUpperCase(), 35) : undefined;
-      
+
+      // Guard against the model defaulting to "other" when the purpose clearly
+      // maps to a concrete IRS category (esp. Spanish text like "fabricación").
+      // If GPT said "other" but the bilingual keyword classifier finds a real
+      // category, trust the keyword match — this is the "manufacturing checked
+      // as Other (specify)" bug from the 2026-06-23 review.
+      if (category === 'other') {
+        const kw = categorizeByKeywords(businessPurpose);
+        if (kw.category !== 'other') return kw;
+      }
+
       return { category, otherSpecify };
     } catch (parseError) {
       console.warn('⚠️ Failed to parse OpenAI response, using keyword matching');
@@ -275,45 +285,56 @@ async function categorizeBusinessPurposeForLine16(businessPurpose: string): Prom
  */
 function categorizeByKeywords(businessPurpose: string): { category: string; otherSpecify?: string } {
   const purposeLower = businessPurpose.toLowerCase();
-  
-  if (purposeLower.includes('construction') || purposeLower.includes('building') || purposeLower.includes('contractor')) {
+  const has = (...terms: string[]) => terms.some((t) => purposeLower.includes(t));
+
+  // Order matters: most-specific PRODUCING/SERVICE categories are tested BEFORE
+  // retail, because a maker who also sells ("fabricación y venta…") must check
+  // Manufacturing, not Retail (the IRS principal-activity rule). Keywords are
+  // bilingual (EN + ES) — the questionnaire is Spanish, so a purpose like
+  // "fabricación de muebles" previously fell through to "other".
+  if (has('construction', 'building', 'contractor', 'construcción', 'construccion', 'obra', 'edificación', 'edificacion', 'contratista')) {
     return { category: 'construction' };
   }
-  if (purposeLower.includes('rental') || purposeLower.includes('leasing') || purposeLower.includes('lease')) {
-    return { category: 'rental' };
-  }
-  if (purposeLower.includes('transportation') || purposeLower.includes('warehousing') || purposeLower.includes('logistics') || purposeLower.includes('shipping')) {
-    return { category: 'transportation' };
-  }
-  if (purposeLower.includes('health') || purposeLower.includes('medical') || purposeLower.includes('hospital') || purposeLower.includes('clinic')) {
-    return { category: 'healthcare' };
-  }
-  if (purposeLower.includes('restaurant') || purposeLower.includes('hotel') || purposeLower.includes('accommodation') || purposeLower.includes('food service') || purposeLower.includes('catering')) {
-    return { category: 'accommodation' };
-  }
-  if (purposeLower.includes('wholesale') && (purposeLower.includes('broker') || purposeLower.includes('agent'))) {
-    return { category: 'wholesale_broker' };
-  }
-  if (purposeLower.includes('wholesale')) {
-    return { category: 'wholesale_other' };
-  }
-  if (purposeLower.includes('retail') || purposeLower.includes('store') || purposeLower.includes('shop') ||
-      purposeLower.includes('sale of') || purposeLower.includes('sell') || purposeLower.includes('selling') ||
-      purposeLower.includes('consumer') || purposeLower.includes('customer') || purposeLower.includes('e-commerce') ||
-      purposeLower.includes('ecommerce') || purposeLower.includes('online sales') ||
-      purposeLower.includes('venta') || purposeLower.includes('consumidor') || purposeLower.includes('tienda')) {
-    return { category: 'retail' };
-  }
-  if (purposeLower.includes('real estate') || purposeLower.includes('realty') || purposeLower.includes('property')) {
-    return { category: 'real_estate' };
-  }
-  if (purposeLower.includes('manufacturing') || purposeLower.includes('production') || purposeLower.includes('factory')) {
+  if (has('manufactur', 'production', 'producing', 'factory', 'fabrication', 'assembly',
+          'manufactura', 'fabricación', 'fabricacion', 'fabrica', 'fábrica', 'producción', 'produccion',
+          'elaboración', 'elaboracion', 'ensamble', 'ensamblaje', 'maquila', 'industria')) {
     return { category: 'manufacturing' };
   }
-  if (purposeLower.includes('finance') || purposeLower.includes('financial') || purposeLower.includes('insurance') || purposeLower.includes('banking') || purposeLower.includes('investment')) {
+  if (has('transportation', 'transport', 'warehousing', 'logistics', 'shipping', 'freight',
+          'transporte', 'logística', 'logistica', 'almacenaje', 'almacenamiento', 'envío', 'envio', 'carga', 'flete', 'paquetería', 'paqueteria')) {
+    return { category: 'transportation' };
+  }
+  if (has('health', 'medical', 'hospital', 'clinic', 'dental',
+          'salud', 'médic', 'medic', 'clínica', 'clinica', 'dentista', 'enfermería', 'enfermeria')) {
+    return { category: 'healthcare' };
+  }
+  if (has('restaurant', 'hotel', 'accommodation', 'food service', 'catering', 'cafe', 'café',
+          'restaurante', 'hospedaje', 'alojamiento', 'cafetería', 'cafeteria', 'comida', 'gastronom')) {
+    return { category: 'accommodation' };
+  }
+  if (has('wholesale', 'mayoreo', 'mayorista', 'al por mayor') && has('broker', 'agent', 'corredor', 'agente', 'comisión', 'comision')) {
+    return { category: 'wholesale_broker' };
+  }
+  if (has('wholesale', 'mayoreo', 'mayorista', 'al por mayor', 'distribución', 'distribucion', 'distributor', 'distribuidor')) {
+    return { category: 'wholesale_other' };
+  }
+  if (has('real estate', 'realty', 'property', 'bienes raíces', 'bienes raices', 'inmobiliaria', 'inmueble')) {
+    return { category: 'real_estate' };
+  }
+  if (has('rental', 'leasing', 'lease', 'renta', 'arrendamiento', 'alquiler')) {
+    return { category: 'rental' };
+  }
+  if (has('finance', 'financial', 'insurance', 'banking', 'investment',
+          'finanzas', 'financ', 'seguros', 'banca', 'inversión', 'inversion', 'crédito', 'credito')) {
     return { category: 'finance' };
   }
-  
+  // Retail LAST among concrete categories — broad "sell/venta" signals would
+  // otherwise pre-empt the more-specific producing categories above.
+  if (has('retail', 'store', 'shop', 'sale of', 'sell', 'selling', 'consumer', 'customer',
+          'e-commerce', 'ecommerce', 'online sales', 'venta', 'consumidor', 'tienda', 'minorista', 'menudeo', 'al por menor', 'comercio')) {
+    return { category: 'retail' };
+  }
+
   // Default to "other" with truncated business purpose
   const otherSpecify = truncateAtWordBoundary(businessPurpose.toUpperCase(), 35);
   return { category: 'other', otherSpecify };
