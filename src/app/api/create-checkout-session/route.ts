@@ -9,19 +9,31 @@ import { saveFormDataSnapshot } from '@/lib/s3-vault';
 // Initialize Stripe from env ONLY. No hardcoded fallback: silently falling back
 // to a test key in production would let "successful" checkouts collect no real
 // money. Fail loudly if the key is missing so misconfiguration is obvious.
-const stripeKey = process.env.STRIPE_SECRET_KEY;
-if (!stripeKey) {
-  throw new Error('STRIPE_SECRET_KEY is not set');
+//
+// IMPORTANT: do this LAZILY, not at module scope. `next build` collects page
+// data by importing every route module; a module-scope throw on a missing env
+// var breaks the build on any environment (e.g. Vercel Preview) where the key
+// isn't present at build time. Throwing inside the handler keeps the fail-loud
+// behavior at request time while letting the build succeed.
+let _stripe: Stripe | null = null;
+function getStripe(): Stripe {
+  if (_stripe) return _stripe;
+  const stripeKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeKey) {
+    throw new Error('STRIPE_SECRET_KEY is not set');
+  }
+  console.log('Stripe key starts with:', stripeKey.substring(0, 8)); // sk_test_ / sk_live_
+  _stripe = new Stripe(stripeKey, {
+    apiVersion: '2025-09-30.clover',
+  });
+  return _stripe;
 }
-
-console.log('Stripe key starts with:', stripeKey.substring(0, 8)); // sk_test_ / sk_live_
-
-const stripe = new Stripe(stripeKey, {
-  apiVersion: '2025-09-30.clover',
-});
 
 export async function POST(request: NextRequest) {
   try {
+    // Initialize Stripe (fail loud at request time if misconfigured).
+    const stripe = getStripe();
+
     // Get the authenticated session
     const session = await getServerSession(authOptions);
     
