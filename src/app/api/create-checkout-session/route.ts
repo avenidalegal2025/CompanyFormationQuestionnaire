@@ -140,14 +140,27 @@ export async function POST(request: NextRequest) {
     // whole cart to a single $1.00 line item so a real (live-mode) charge can
     // be run end-to-end for ~$1 instead of the full formation price. Off by
     // default; fail-safe (full price) if the flag is set but email not listed.
-    // DEMO_DOLLAR_EMAILS = comma-separated allowlist, or "*" for any signed-in user.
+    // DEMO_DOLLAR_EMAILS = comma-separated allowlist. Each entry is either a full
+    // address (exact match), a domain pattern "*@example.com" (matches every
+    // address at that domain, incl. plus-addressed UAT signups such as
+    // info+123@example.com), or "*" for ANY signed-in user. "*" is for
+    // short-lived testing only — leaving it set in production charges every
+    // real customer $1.
+    // NOTE: do not write a domain entry as a bare "@example.com" — the Vercel
+    // CLI reads a leading "@" as a legacy secret reference and stores it empty.
     const demoDollarOn = process.env.DEMO_DOLLAR === '1';
     let demoDollarApplied = false;
     if (demoDollarOn) {
       const allow = (process.env.DEMO_DOLLAR_EMAILS || '')
         .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
       const email = (session.user.email || '').toLowerCase();
-      const allowed = allow.includes('*') || allow.includes(email);
+      const atIdx = email.lastIndexOf('@');
+      const emailDomain = atIdx === -1 ? '' : email.slice(atIdx);
+      const allowed =
+        allow.includes('*') ||
+        allow.includes(email) ||
+        (emailDomain !== '' &&
+          (allow.includes('*' + emailDomain) || allow.includes(emailDomain)));
       if (allowed) {
         lineItems.length = 0;
         lineItems.push({
