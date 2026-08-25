@@ -5680,6 +5680,14 @@ function renumberSectionsToCloseGaps(xml: string): string {
     // one, duplicating §14.1.
     const m = text.match(/^\s*(\d+)\.(\d+)(?!\d)/);
     if (!m) continue;
+    // A members/shareholders table cell such as "33.33% of the MPI" also
+    // starts with "N.M", but it is an ownership PERCENTAGE, not a section
+    // heading. Left unguarded this pass reads it as "Article 33, §33",
+    // sees Article 33 as a one-section article with a gap, and rewrites the
+    // owner's stake to "33.1" — a substantive defect (2026-06-30 client
+    // review: stakes stopped summing to 100%). A real heading is always
+    // followed by its title text, never by "%".
+    if (/^\s*\d+\.\d+\s*%/.test(text)) continue;
     headings.push({
       article: parseInt(m[1], 10),
       section: parseInt(m[2], 10),
@@ -5737,7 +5745,7 @@ function renumberSectionsToCloseGaps(xml: string): string {
     // — explicit lookbehind/lookahead is more reliable.
     out = out.replace(
       new RegExp(
-        `(<w:t[^>]*>)([^<]*?)(?<!\\d)${r.from.replace(".", "\\.")}(?!\\d)`,
+        `(<w:t[^>]*>)([^<]*?)(?<!\\d)${r.from.replace(".", "\\.")}(?!\\d)(?!\\s*%)`,
         "g",
       ),
       (_full, openTag, before) => `${openTag}${before}${r.to}`,
