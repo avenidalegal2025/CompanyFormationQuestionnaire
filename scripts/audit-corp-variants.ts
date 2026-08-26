@@ -36,6 +36,13 @@ const SAVE_DIR = process.env.USERPROFILE
 const NAMES = ['Roberto Mendez', 'Ana Garcia', 'Carlos Lopez', 'Maria Torres', 'Pedro Ramirez', 'Sofia Flores'];
 const OWNER_COUNTS = QUICK ? [2, 3] : [1, 2, 3, 4, 5, 6];
 const VOTING_PROFILES = QUICK ? ['majority'] : ['majority', 'unanimous', 'supermajority'];
+// Board composition, decoupled from owner count. 'full' seats every owner (up
+// to 3) as a director and an officer; 'lean' is the common real-world case
+// where e.g. three shareholders appoint only two directors and two officers.
+// Only meaningful at 3+ owners -- below that the two profiles are identical.
+const BOARD_PROFILES = ['full', 'lean'] as const;
+type BoardProfile = (typeof BOARD_PROFILES)[number];
+const OFFICER_TITLES = ['President', 'Vice-President', 'Treasurer'];
 // 8 covenant + ROFR combinations cover all toggle interactions
 const COVENANT_MATRIX = QUICK
   ? [{ rofr: true, drag: true, tag: true, nc: true, ns: true, conf: true }]
@@ -55,6 +62,7 @@ function buildAnswers(
   ownerCount: number,
   voting: string,
   cov: { rofr: boolean; drag: boolean; tag: boolean; nc: boolean; ns: boolean; conf: boolean },
+  board: BoardProfile,
 ) {
   const owners = Array.from({ length: ownerCount }, (_, i) => ({
     full_name: NAMES[i],
@@ -63,14 +71,14 @@ function buildAnswers(
       : Math.floor(100 / ownerCount),
     capital_contribution: 50000,
   }));
-  const officers = [
-    { name: NAMES[0], title: 'President' },
-    ...(ownerCount >= 2 ? [{ name: NAMES[1], title: 'Vice-President' }] : []),
-    ...(ownerCount >= 3 ? [{ name: NAMES[2], title: 'Treasurer' }] : []),
-  ];
+  const seats = Math.min(board === 'lean' ? 2 : 3, ownerCount);
+  const officers = OFFICER_TITLES.slice(0, seats).map((title, i) => ({
+    name: NAMES[i],
+    title,
+  }));
   return {
     entity_type: 'CORP',
-    entity_name: `Corp ${ownerCount}o ${voting}`,
+    entity_name: `Corp ${ownerCount}o ${voting} ${board}`,
     state_of_formation: 'Florida',
     date_of_formation: '2026-04-08T00:00:00Z',
     principal_address: '100 Test St, Miami, FL 33131',
@@ -79,7 +87,7 @@ function buildAnswers(
     total_authorized_shares: 10000,
     par_value: 0.01,
     management_type: 'manager',
-    directors_managers: owners.slice(0, Math.min(3, ownerCount)).map((o) => ({ name: o.full_name })),
+    directors_managers: owners.slice(0, seats).map((o) => ({ name: o.full_name })),
     officers,
     tax_matters_partner: '',
     additional_capital_voting: voting,
@@ -125,6 +133,9 @@ const startTime = Date.now();
 
 let total = 0;
 for (const ownerCount of OWNER_COUNTS) {
+  for (const board of BOARD_PROFILES) {
+    // At 1-2 owners 'lean' collapses onto 'full'; don't run it twice.
+    if (board === 'lean' && ownerCount < 3) continue;
   for (const voting of VOTING_PROFILES) {
     for (const cov of COVENANT_MATRIX) {
       total++;
@@ -136,9 +147,9 @@ for (const ownerCount of OWNER_COUNTS) {
         cov.ns ? 'S' : '-',
         cov.conf ? 'C' : '-',
       ].join('');
-      const label = `corp-${ownerCount}o-${voting.padEnd(13, '.')}-${flags}`;
+      const label = `corp-${ownerCount}o-${board}-${voting.padEnd(13, '.')}-${flags}`;
       try {
-        const answers = buildAnswers(ownerCount, voting, cov);
+        const answers = buildAnswers(ownerCount, voting, cov, board);
         const result = await generateDocument(answers as any);
         const zip = new PizZip(result.buffer);
         const xml = zip.file('word/document.xml')!.asText();
@@ -173,6 +184,7 @@ for (const ownerCount of OWNER_COUNTS) {
         process.stdout.write('E');
       }
     }
+  }
   }
 }
 
