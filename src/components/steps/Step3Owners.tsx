@@ -73,6 +73,11 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
 
   const remainingPercentage = 100 - totalPercentage;
 
+  // A cap table must total exactly 100%. Previously only >100 was blocked, so
+  // a table summing to e.g. 99.97% generated documents with a missing stake.
+  // Tolerance covers float error from the 0.01-step inputs.
+  const ownershipIsBalanced = Math.abs(remainingPercentage) < 0.005;
+
   // For S-Corp, automatically set all owners as US citizens/residents (required for SSN)
   useEffect(() => {
     if (isSCorp) {
@@ -748,15 +753,20 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
 
             <button
               type="button"
-              className={`btn ${totalPercentage > 100 ? 'btn-disabled opacity-50 cursor-not-allowed' : 'btn-primary'}`}
+              className={`btn ${!ownershipIsBalanced ? 'btn-disabled opacity-50 cursor-not-allowed' : 'btn-primary'}`}
               onClick={() => {
-                if (totalPercentage > 100) {
-                  alert(`No puede continuar. El total de porcentajes excede 100% por ${Math.abs(remainingPercentage)}%. Por favor, ajuste los porcentajes para que sumen exactamente 100%.`);
+                if (!ownershipIsBalanced) {
+                  const off = Math.abs(remainingPercentage).toFixed(2).replace(/\.?0+$/, '');
+                  alert(
+                    totalPercentage > 100
+                      ? `No puede continuar. El total de porcentajes excede 100% por ${off}%. Por favor, ajuste los porcentajes para que sumen exactamente 100%.`
+                      : `No puede continuar. Al total de porcentajes le falta ${off}% para llegar a 100%. Por favor, ajuste los porcentajes para que sumen exactamente 100%.`,
+                  );
                   return;
                 }
                 onNext ? void onNext() : setStep(3);
               }}
-              disabled={totalPercentage > 100}
+              disabled={!ownershipIsBalanced}
             >
               Continuar
             </button>

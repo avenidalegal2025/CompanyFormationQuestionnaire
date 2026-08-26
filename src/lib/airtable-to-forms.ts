@@ -1,3 +1,4 @@
+import { VIRTUAL_OFFICE } from './virtual-office';
 /**
  * Shared utility functions to convert Airtable records to form data format
  * Used by SS-4, 2848, and 8821 generation endpoints
@@ -82,7 +83,7 @@ export function getResponsiblePartyFromAirtable(fields: any): {
         }
         
         let ownershipPercent = fields[`Owner ${i} Ownership %`] || 0;
-        if (ownershipPercent < 1 && ownershipPercent > 0) {
+        if (ownershipPercent > 0 && ownershipPercent <= 1) {
           ownershipPercent = ownershipPercent * 100;
         }
         
@@ -119,7 +120,7 @@ export function getResponsiblePartyFromAirtable(fields: any): {
             const ownerSSN = fields[`Owner ${j} SSN`] || '';
             
             let ownershipPercent = fields[`Owner ${j} Ownership %`] || 0;
-            if (ownershipPercent < 1 && ownershipPercent > 0) {
+            if (ownershipPercent > 0 && ownershipPercent <= 1) {
               ownershipPercent = ownershipPercent * 100;
             }
             
@@ -232,7 +233,7 @@ export function getResponsiblePartyFromAirtable(fields: any): {
       if (!ownerName || ownerName.trim() === '') continue;
       
       let ownershipPercent = fields[`Owner ${i} Ownership %`] || 0;
-      if (ownershipPercent < 1 && ownershipPercent > 0) {
+      if (ownershipPercent > 0 && ownershipPercent <= 1) {
         ownershipPercent = ownershipPercent * 100;
       }
       
@@ -354,11 +355,11 @@ export function parseCompanyAddress(fields: any): {
   // Default to virtual office if no address
   if (!companyAddress || companyAddress.trim() === '') {
     return {
-      street: '12550 Biscayne Blvd Ste 110',
-      addressLine2: '',
-      city: 'North Miami',
-      state: 'FL',
-      zip: '33181',
+      street: VIRTUAL_OFFICE.line1,
+      addressLine2: VIRTUAL_OFFICE.line2,
+      city: VIRTUAL_OFFICE.city,
+      state: VIRTUAL_OFFICE.state,
+      zip: VIRTUAL_OFFICE.zip,
     };
   }
   

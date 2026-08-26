@@ -478,7 +478,7 @@ async function mapAirtableToSS4(record: any): Promise<any> {
             
         // Get ownership percentage
         let ownershipPercent = fields[`Owner ${i} Ownership %`] || 0;
-        if (ownershipPercent < 1 && ownershipPercent > 0) {
+        if (ownershipPercent > 0 && ownershipPercent <= 1) {
           ownershipPercent = ownershipPercent * 100;
         }
         
@@ -512,7 +512,7 @@ async function mapAirtableToSS4(record: any): Promise<any> {
             
             // Get ownership percentage
             let ownershipPercent = fields[`Owner ${j} Ownership %`] || 0;
-            if (ownershipPercent < 1 && ownershipPercent > 0) {
+            if (ownershipPercent > 0 && ownershipPercent <= 1) {
               ownershipPercent = ownershipPercent * 100;
             }
             
@@ -661,7 +661,7 @@ async function mapAirtableToSS4(record: any): Promise<any> {
       
       // Get ownership percentage
         let ownershipPercent = fields[`Owner ${i} Ownership %`] || 0;
-        if (ownershipPercent < 1 && ownershipPercent > 0) {
+        if (ownershipPercent > 0 && ownershipPercent <= 1) {
           ownershipPercent = ownershipPercent * 100;
         }
         
