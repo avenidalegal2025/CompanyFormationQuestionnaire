@@ -1,4 +1,5 @@
 import Airtable from 'airtable';
+import { VIRTUAL_OFFICE_FULL } from './virtual-office';
 
 // Initialize Airtable
 const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY?.trim() || '';
@@ -756,7 +757,7 @@ export function mapQuestionnaireToAirtable(
     'Company Address': (company.hasUsaAddress === 'No' || company.hasUsAddress === 'No' || 
                         company.hasUsaAddress === false || company.hasUsAddress === false ||
                         stripeSession.metadata?.hasUsAddress === 'false')
-      ? '12550 Biscayne Blvd Ste 110, North Miami, FL 33181'
+      ? VIRTUAL_OFFICE_FULL
       : (() => {
           // Build full address from components
           const street = company.addressLine1 || company.address || company.fullAddress || '';

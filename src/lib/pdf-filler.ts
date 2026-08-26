@@ -7,6 +7,7 @@
 
 import { uploadDocument } from './s3-vault';
 import { formatCompanyFileName } from './document-names';
+import { VIRTUAL_OFFICE } from './virtual-office';
 
 // Lambda function URLs
 const LAMBDA_SS4_URL = process.env.LAMBDA_SS4_URL || 'https://sk5p2uuxrdubzaf2uh7vvqc2bu0kcaoz.lambda-url.us-west-1.on.aws/';
@@ -378,10 +379,10 @@ function transformDataFor2848(formData: QuestionnaireData): any {
   
   if (!hasUsAddress) {
     // Use virtual office address (same as saved in Airtable)
-    companyAddress = '12550 Biscayne Blvd Ste 110';
-    companyCity = 'North Miami';
-    companyState = 'FL';
-    companyZip = '33181';
+    companyAddress = VIRTUAL_OFFICE.line1;
+    companyCity = VIRTUAL_OFFICE.city;
+    companyState = VIRTUAL_OFFICE.state;
+    companyZip = VIRTUAL_OFFICE.zip;
   } else {
     // Use user's actual address
     companyAddress = company.address || company.addressLine1 || company.fullAddress || '';
@@ -655,10 +656,10 @@ function transformDataFor8821(formData: QuestionnaireData): any {
   
   if (!hasUsAddress) {
     // Use virtual office address (same as saved in Airtable)
-    companyAddress = '12550 Biscayne Blvd Ste 110';
-    companyCity = 'North Miami';
-    companyState = 'FL';
-    companyZip = '33181';
+    companyAddress = VIRTUAL_OFFICE.line1;
+    companyCity = VIRTUAL_OFFICE.city;
+    companyState = VIRTUAL_OFFICE.state;
+    companyZip = VIRTUAL_OFFICE.zip;
   } else {
     // Use user's actual address
     companyAddress = company.address || company.addressLine1 || company.fullAddress || '';

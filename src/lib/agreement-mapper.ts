@@ -5,6 +5,7 @@
 
 import type { QuestionnaireAnswers } from "./agreement-docgen";
 import { resolveCounty } from "./county-lookup";
+import { VIRTUAL_OFFICE, VIRTUAL_OFFICE_FULL } from './virtual-office';
 
 /**
  * Convert an UPPER-CASE county name ("MIAMI-DADE", "PALM BEACH") to
@@ -305,11 +306,11 @@ export async function mapFormToDocgenAnswers(
     addr.hasUsaAddress === false ||
     addr.hasUsAddress === false;
   const AVENIDA_LEGAL_ADDRESS = {
-    line1: "12550 Biscayne Blvd Ste 110",
-    city: "North Miami",
-    state: "FL",
-    zip: "33181",
-    full: "12550 Biscayne Blvd Ste 110, North Miami, FL 33181",
+    line1: VIRTUAL_OFFICE.line1,
+    city: VIRTUAL_OFFICE.city,
+    state: VIRTUAL_OFFICE.state,
+    zip: VIRTUAL_OFFICE.zip,
+    full: VIRTUAL_OFFICE_FULL,
   };
   const userAddress = [
     addr.addressLine1,
