@@ -120,3 +120,6 @@ next-env.d.ts
 Downloads/
 _verify_out/
 scripts/__verify_out__/
+
+# TypeScript incremental build cache (regenerated on every build)
+*.tsbuildinfo
