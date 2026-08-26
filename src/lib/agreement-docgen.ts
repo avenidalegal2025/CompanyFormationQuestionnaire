@@ -1147,6 +1147,15 @@ function removeLLCConditionalSections(
     ]);
   }
 
+  // Drag Along ships as "(i)" and Tag Along as "(ii)". If Drag Along was
+  // removed but Tag Along kept, Tag Along is the only remaining sub-item and
+  // must be promoted to "(i)" — otherwise relabelLLCRomanSubitems faithfully
+  // renders a list that starts at "ii." with no "i.". Corp already handles the
+  // same case for its letter-labelled sub-items; this is the roman counterpart.
+  if (!answers.drag_along && answers.tag_along) {
+    xml = relabelLLCTagAlongToFirst(xml);
+  }
+
   // When BOTH drag and tag are off, the §12.x "Approved Sale" section exists
   // only to host them — its intro paragraph must disappear too, otherwise it
   // dangles as "…(an "Approved Sale"):" with a colon and no body. (2026-05-19
@@ -1380,6 +1389,32 @@ function removeLLCConditionalSections(
   xml = relabelLLCRomanSubitems(xml);
 
   return xml;
+}
+
+/**
+ * Promote the Tag Along sub-item's paren-roman label from "(ii)" to "(i)".
+ *
+ * Only used when Drag Along — normally "(i)" — has been removed, leaving Tag
+ * Along as the sole sub-item under the LLC's §12.x Approved Sale section.
+ * Runs before relabelLLCRomanSubitems, which converts the parens to the house
+ * "i." form. Idempotent: a paragraph already labeled "(i)" is left alone.
+ */
+function relabelLLCTagAlongToFirst(xml: string): string {
+  return xml.replace(/<w:p\b[^>]*>[\s\S]*?<\/w:p>/g, (para) => {
+    const text = (para.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+      .map((t) => t.replace(/<[^>]+>/g, ""))
+      .join("");
+    if (!/^\s*\(ii\)/.test(text) || !text.includes("Tag Along")) return para;
+    let done = false;
+    return para.replace(
+      /(<w:t[^>]*>)([^<]*)(<\/w:t>)/g,
+      (full, open, content, close) => {
+        if (done || !/^\s*\(ii\)/.test(content)) return full;
+        done = true;
+        return open + content.replace(/^(\s*)\(ii\)/, "$1(i)") + close;
+      },
+    );
+  });
 }
 
 /**
