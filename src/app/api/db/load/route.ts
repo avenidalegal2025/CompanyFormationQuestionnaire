@@ -1,20 +1,34 @@
 import { NextResponse } from "next/server";
 import { GetCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, TABLE_NAME } from "@/lib/dynamo";
+import { draftOwner, LEGACY_DRAFT_PK } from "@/lib/draft-owner";
 
 function errMsg(err: unknown) {
   return err instanceof Error ? err.message : String(err);
 }
 
 async function fetchDraft(draftId: string) {
-  const owner = "ANON"; // TODO: session user
+  const owner = await draftOwner(draftId);
+  if (!owner) return undefined;
+
   const result = await ddb.send(
     new GetCommand({
       TableName: TABLE_NAME,
       Key: { pk: owner, sk: `DRAFT#${draftId}` },
     })
   );
-  return result.Item;
+  if (result.Item) return result.Item;
+
+  // Drafts saved before per-owner scoping still sit under the shared legacy
+  // key. Reading one still requires the exact draft UUID, so this grants the
+  // caller nothing they did not already hold.
+  const legacy = await ddb.send(
+    new GetCommand({
+      TableName: TABLE_NAME,
+      Key: { pk: LEGACY_DRAFT_PK, sk: `DRAFT#${draftId}` },
+    })
+  );
+  return legacy.Item;
 }
 
 export async function GET(req: Request) {

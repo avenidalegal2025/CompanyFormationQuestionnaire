@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { GetCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb, TABLE_NAME } from '@/lib/dynamo';
+import { shareOwner, LEGACY_DRAFT_PK } from '@/lib/draft-owner';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
@@ -36,14 +37,27 @@ export async function GET(request: NextRequest) {
     let expanded: unknown;
     if ('draftId' in decoded) {
       // Load from DynamoDB directly by draftId
-      const owner = 'ANON';
+      // Access is authorized by the signed token above, not by the caller's
+      // identity — the recipient is usually not the author.
       const result = await ddb.send(
         new GetCommand({
           TableName: TABLE_NAME,
-          Key: { pk: owner, sk: `DRAFT#${decoded.draftId}` },
+          Key: { pk: shareOwner(decoded.draftId), sk: `DRAFT#${decoded.draftId}` },
         })
       );
-      expanded = (result.Item as { data?: unknown } | undefined)?.data ?? {};
+      let item = result.Item as { data?: unknown } | undefined;
+      if (!item) {
+        // Shares created before per-share partitioning still live under the
+        // legacy key; a valid token is still required to get here.
+        const legacy = await ddb.send(
+          new GetCommand({
+            TableName: TABLE_NAME,
+            Key: { pk: LEGACY_DRAFT_PK, sk: `DRAFT#${decoded.draftId}` },
+          })
+        );
+        item = legacy.Item as { data?: unknown } | undefined;
+      }
+      expanded = item?.data ?? {};
       return NextResponse.json({
         success: true,
         formData: expanded as unknown,

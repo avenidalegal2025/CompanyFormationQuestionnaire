@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { PutCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, TABLE_NAME } from "@/lib/dynamo";
+import { draftOwner } from "@/lib/draft-owner";
 
 type SaveBody = {
   draftId?: string | null;
@@ -28,7 +29,17 @@ export async function POST(req: Request) {
       ? String(body.draftId).trim()
       : crypto.randomUUID();
 
-    const owner = "ANON"; // TODO: swap for session user id/email later
+    // Scoped per owner: signed-in users get their own partition, anonymous
+    // users get one keyed by their unguessable draft id. Previously every
+    // draft shared the literal pk "ANON", which made the whole table
+    // enumerable by anyone.
+    const owner = await draftOwner(id);
+    if (!owner) {
+      return NextResponse.json(
+        { ok: false, error: "Sign in or supply a draftId" },
+        { status: 401 }
+      );
+    }
     const now = Date.now();
 
     await ddb.send(

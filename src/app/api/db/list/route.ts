@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { QueryCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, TABLE_NAME } from "@/lib/dynamo";
+import { draftOwner } from "@/lib/draft-owner";
 
 // Force Node.js runtime (AWS SDK v3 needs Node)
 export const runtime = "nodejs";
@@ -29,8 +30,19 @@ function errMsg(err: unknown): string {
 async function doList(params: ListBody) {
   const limit = Math.max(1, Math.min(Number(params.limit ?? 20) || 20, 100));
 
-  // TODO: replace with authenticated user id (e.g., sub/email) once auth is wired in
-  const pk = "ANON";
+  // Listing is signed-in only. Every draft used to share the literal pk
+  // "ANON", so this query returned every anonymous user's questionnaire --
+  // SSNs and passport references included -- to any caller, with a cursor to
+  // page through the rest. There is deliberately no anonymous branch and no
+  // legacy fallback: enumeration IS the vulnerability. Anonymous users read
+  // their own draft by id through /api/db/load.
+  const pk = await draftOwner(null);
+  if (!pk) {
+    return NextResponse.json(
+      { ok: false, error: "Authentication required" },
+      { status: 401 }
+    );
+  }
 
   const ExclusiveStartKey =
     params.cursor ? ({ pk, sk: params.cursor } as KeyShape) : undefined;

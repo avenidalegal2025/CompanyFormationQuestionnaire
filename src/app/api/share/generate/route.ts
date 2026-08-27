@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { PutCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb, TABLE_NAME } from '@/lib/dynamo';
+import { shareOwner } from '@/lib/draft-owner';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
@@ -16,7 +17,9 @@ export async function POST(request: NextRequest) {
 
     // Persist draft to DynamoDB directly and return a link with draftId and permissions
     const draftId = (typeof incomingDraftId === 'string' && incomingDraftId.trim()) ? incomingDraftId.trim() : crypto.randomUUID();
-    const owner = 'ANON';
+    // Own partition per share, rather than the shared 'ANON' bucket that made
+    // every draft enumerable.
+    const owner = shareOwner(draftId);
     const now = Date.now();
     await ddb.send(
       new PutCommand({
