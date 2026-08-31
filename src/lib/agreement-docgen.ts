@@ -1090,6 +1090,36 @@ function applyLLCBankAccountText(
       "the signature of any two Members or Managers of the Company"
     );
   }
+
+  // Single-signer LLCs: the template's Sec 10 language assumes a plural body.
+  // "designated by the Manager or the Members (by Majority)" and "without the
+  // presence of the other Managers or Members" are both incoherent when there
+  // is exactly one person — there is no body to take a majority of, and no
+  // "other" to be absent. Reported by the client on 2026-06-30.
+  const managerCount = (answers.directors_managers || []).filter(
+    (d) => d && d.name
+  ).length;
+  const ownerCount = (answers.owners_list || []).filter(
+    (o) => o && o.full_name
+  ).length;
+  if (ownerCount === 1 && managerCount <= 1) {
+    const role = answers.management_type === "member" ? "Member" : "Manager";
+    xml = xmlTextReplace(
+      xml,
+      "designated by the Manager or the Members (by Majority)",
+      `designated by the ${role}`
+    );
+    xml = xmlTextReplace(
+      xml,
+      "any Manager or Member may individually open a bank account without the presence of the other Managers or Members",
+      `the ${role} may open a bank account for the Company`
+    );
+    xml = xmlTextReplace(
+      xml,
+      "the signature of any Member or Manager of the Company",
+      `the signature of the ${role}`
+    );
+  }
   return xml;
 }
 

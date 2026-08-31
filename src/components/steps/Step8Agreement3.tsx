@@ -262,17 +262,12 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
               )}
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
                 <div>
-                  <label className="label flex items-center gap-2">¿Incluir cláusula de confidencialidad / NDA?
-                    <InfoTooltip title="Confidencialidad" body="Protege la información confidencial de la compañía durante y después de la participación de los socios." />
+                  <label className="label flex items-center gap-2">Cláusula de confidencialidad / NDA
+                    <InfoTooltip title="Confidencialidad" body="Protege la información confidencial de la compañía durante y después de la participación de los socios. Se incluye siempre, por política de Avenida Legal." />
                   </label>
                 </div>
                 <div className="md:col-start-2 md:justify-self-end">
-                  <Controller name="agreement.corp_confidentiality" control={control}
-                    render={({ field }) => (
-                      <SegmentedToggle value={field.value || "Yes"} onChange={field.onChange}
-                        options={[{ value: "Yes", label: "Sí" }, { value: "No", label: "No" }]}
-                        ariaLabel="Confidentiality NDA" name={field.name} />
-                    )} />
+                  <span className="text-base font-medium text-gray-700">Incluida siempre</span>
                 </div>
               </div>
             </>
@@ -538,17 +533,12 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
               )}
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
                 <div>
-                  <label className="label flex items-center gap-2">¿Incluir cláusula de confidencialidad / NDA?
-                    <InfoTooltip title="Confidencialidad" body="Protege la información confidencial de la compañía durante y después de la participación de los socios." />
+                  <label className="label flex items-center gap-2">Cláusula de confidencialidad / NDA
+                    <InfoTooltip title="Confidencialidad" body="Protege la información confidencial de la compañía durante y después de la participación de los socios. Se incluye siempre, por política de Avenida Legal." />
                   </label>
                 </div>
                 <div className="md:col-start-2 md:justify-self-end">
-                  <Controller name="agreement.llc_confidentiality" control={control}
-                    render={({ field }) => (
-                      <SegmentedToggle value={field.value || "Yes"} onChange={field.onChange}
-                        options={[{ value: "Yes", label: "Sí" }, { value: "No", label: "No" }]}
-                        ariaLabel="LLC confidentiality NDA" name={field.name} />
-                    )} />
+                  <span className="text-base font-medium text-gray-700">Incluida siempre</span>
                 </div>
               </div>
             </>
