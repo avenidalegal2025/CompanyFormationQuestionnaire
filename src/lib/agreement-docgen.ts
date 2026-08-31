@@ -281,6 +281,7 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
   // a duplicate "Super Majority Defined". The body uses the chosen term; the
   // definitions stay as written.
   xml = applyLLCBankAccountText(xml, answers);
+  xml = applyGoverningStateText(xml, answers);
   // Strip / rewrite §6.1 Member Loans body when llc_memberLoans === "No".
   xml = applyLLCMemberLoansToggle(xml, answers);
   xml = removeLLCConditionalSections(xml, answers);
@@ -1072,6 +1073,41 @@ function applyLLCVotingReplacements(
   return xml;
 }
 
+// ─── Governing state / venue ─────────────────────────────────────────
+//
+// Both templates hardcode "State of Florida" in their governing-law,
+// escrow, incorporation and venue clauses, while the preamble
+// interpolates {{full_state}}. A Delaware or Wyoming entity therefore
+// produced an agreement that named Delaware in the recitals and Florida
+// in the clause that actually controls. The Corp template also fixes
+// venue to Miami-Dade County.
+//
+// This pass rewrites those literals from state_of_formation. It is a
+// no-op for Florida entities, which is the overwhelming majority, so
+// existing output is unaffected.
+function applyGoverningStateText(
+  xml: string,
+  answers: QuestionnaireAnswers
+): string {
+  const state = (answers.state_of_formation || "").trim();
+  if (!state || state.toLowerCase() === "florida") return xml;
+
+  // Longest phrase first: the venue sentence contains "State of Florida",
+  // so rewriting the bare state literal first would strand "Miami-Dade".
+  const county = (answers.county || "").trim().replace(/\s+County$/i, "");
+  const venue = county
+    ? `${county} County in the State of ${state}`
+    : `the State of ${state}`;
+  xml = xmlTextReplace(
+    xml,
+    "Miami-Dade County in the State of Florida",
+    venue,
+    true
+  );
+
+  xml = xmlTextReplace(xml, "State of Florida", `State of ${state}`, true);
+  return xml;
+}
 // ─── LLC Bank Account Text ───────────────────────────────────────────
 
 function applyLLCBankAccountText(
@@ -1588,6 +1624,7 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
 
   // Bank account text (additional replacements beyond the template var)
   xml = applyCorpBankAccountText(xml, answers);
+  xml = applyGoverningStateText(xml, answers);
 
   // Swap hardcoded "quarterly" wording in §4.1.B.ii / §5.1.D / §6.1 / §11.6
   // to match the user-selected distribution_frequency (issue tracked
