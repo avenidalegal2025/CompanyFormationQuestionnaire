@@ -30,6 +30,13 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
   const llcNCDuration = watch("agreement.llc_nonCompeteDuration");
   const llcNCScope = watch("agreement.llc_nonCompeteScope");
 
+  // The major/minor decision labels quote the spending threshold the user just
+  // entered above, falling back to the placeholder amount until they type one.
+  const majorSpendingThresholdRaw = String(watch("agreement.llc_majorSpendingThreshold") ?? "").replace(/,/g, "");
+  const majorSpendingThresholdLabel = majorSpendingThresholdRaw && !Number.isNaN(Number(majorSpendingThresholdRaw))
+    ? Number(majorSpendingThresholdRaw).toLocaleString("en-US")
+    : "10,000";
+
   useEffect(() => {
     if (corpNC === "Yes") {
       if (corpNCDuration === undefined || corpNCDuration === null) {
@@ -420,8 +427,26 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
               </div>
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
+                <div>
+                  <label className="label flex items-center gap-2">Monto umbral para gastos importantes ($)
+                    <InfoTooltip title="Umbral de Gastos" body="Decisiones que involucren montos iguales o superiores a esta cantidad requieren aprobación de los miembros. Por debajo, el gerente puede decidir independientemente." />
+                  </label>
+                </div>
+                <div className="md:col-start-2 md:justify-self-end">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500">$</span>
+                    <Controller name="agreement.llc_majorSpendingThreshold" control={control}
+                      render={({ field }) => (
+                        <input type="text" className="input w-40" placeholder="15,000"
+                          value={field.value ? Number(String(field.value).replace(/,/g, '')).toLocaleString('en-US') : ''}
+                          onChange={(e) => { const raw = e.target.value.replace(/,/g, ''); if (/^\d*$/.test(raw)) field.onChange(raw); }} />
+                      )} />
+                  </div>
+                </div>
+              </div>
+              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
               <div>
-                  <label className="label flex items-center gap-2">Decisiones mayores (ej. &gt; $10,000):
+                  <label className="label flex items-center gap-2">Decisiones mayores (ej. &gt; ${majorSpendingThresholdLabel}):
                     <InfoTooltip
                       title="Decisiones Mayores"
                       body="Decisiones de alto impacto financiero u operativo (por ejemplo, gastos superiores a un umbral, contratación/despido clave, endeudamiento). Especifique si requieren unanimidad o mayoría y, de ser mayoría, el porcentaje requerido."
@@ -450,7 +475,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
               <div>
-                  <label className="label flex items-center gap-2">Decisiones menores (&lt; $10,000):
+                  <label className="label flex items-center gap-2">Decisiones menores (&lt; ${majorSpendingThresholdLabel}):
                     <InfoTooltip
                       title="Decisiones Menores"
                       body="Asuntos operativos cotidianos con menor impacto económico. Especifique si requieren unanimidad o mayoría y, de ser mayoría, el porcentaje requerido."
@@ -475,24 +500,6 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                       />
                   )}
                 />
-                </div>
-              </div>
-              <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
-                <div>
-                  <label className="label flex items-center gap-2">Monto umbral para gastos importantes ($)
-                    <InfoTooltip title="Umbral de Gastos" body="Decisiones que involucren montos iguales o superiores a esta cantidad requieren aprobación de los miembros. Por debajo, el gerente puede decidir independientemente." />
-                  </label>
-                </div>
-                <div className="md:col-start-2 md:justify-self-end">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500">$</span>
-                    <Controller name="agreement.llc_majorSpendingThreshold" control={control}
-                      render={({ field }) => (
-                        <input type="text" className="input w-40" placeholder="15,000"
-                          value={field.value ? Number(String(field.value).replace(/,/g, '')).toLocaleString('en-US') : ''}
-                          onChange={(e) => { const raw = e.target.value.replace(/,/g, ''); if (/^\d*$/.test(raw)) field.onChange(raw); }} />
-                      )} />
-                  </div>
                 </div>
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">

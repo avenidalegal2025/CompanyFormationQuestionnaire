@@ -14,6 +14,17 @@ interface Step6Agreement1Props extends StepProps {
   anonymousId: string;
 }
 
+// Prefer the owner's real name everywhere it is shown; fall back to "Socio N"
+// only when nothing has been entered yet.
+function getOwnerName(owner: any, idx: number): string {
+  const o = owner || {};
+  const composed = [o.firstName, o.middleName, o.lastName]
+    .map((part: unknown) => String(part ?? "").trim())
+    .filter(Boolean)
+    .join(" ");
+  return String(o.fullName ?? "").trim() || composed || `Socio ${idx + 1}`;
+}
+
 export default function Step6Agreement1({ form, setStep, onSave, onNext, session, anonymousId }: Step6Agreement1Props) {
   const { register, watch, control } = form;
   const entityType = watch("company.entityType");
@@ -162,7 +173,7 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext, session
                     <tbody>
                       {Array.from({ length: ownersCount }).map((_, idx) => {
                         const owner = ownersData[idx] || {};
-                        const ownerName = owner.fullName || [owner.firstName, owner.lastName].filter(Boolean).join(' ') || `Socio ${idx + 1}`;
+                        const ownerName = getOwnerName(owner, idx);
                         const pct = Number(owner.ownership || 0);
                         return (
                           <tr key={idx} className="border border-gray-200">
@@ -220,7 +231,7 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext, session
                     <label className="label">Seleccionar miembros administradores:</label>
                     <div className="space-y-2">
                       {Array.from({ length: ownersCount }).map((_, idx) => {
-                        const ownerName = ownersData[idx]?.fullName || `Socio ${idx + 1}`;
+                        const ownerName = getOwnerName(ownersData[idx], idx);
                         return (
                           <label key={idx} className="flex items-center gap-2">
                             <input
@@ -264,7 +275,7 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext, session
                 {watch("agreement.llc_hasSpecificRoles") === "Yes" && (
                   <div className="mt-4 md:col-span-2 space-y-4">
                   {Array.from({ length: ownersCount }).map((_, idx) => {
-                    const ownerName = ownersData[idx]?.fullName || `Socio ${idx + 1}`;
+                    const ownerName = getOwnerName(ownersData[idx], idx);
                     return (
                       <div key={idx} className="bg-gray-50/40 rounded-xl p-5 space-y-3">
                         <div className="text-sm font-semibold text-gray-800">{ownerName}</div>

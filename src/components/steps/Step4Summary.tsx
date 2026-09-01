@@ -256,7 +256,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                 <p className="text-gray-900">
                   {[companyData?.addressLine1, companyData?.addressLine2, companyData?.city, companyData?.state, companyData?.postalCode, companyData?.country]
                     .filter(Boolean)
-                    .join(", ") || "No especificado"}
+                    .join(", ") || "Servicio de Oficina virtual"}
                 </p>
               )}
             </div>
