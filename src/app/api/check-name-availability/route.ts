@@ -113,6 +113,31 @@ export async function POST(request: NextRequest) {
 
     let result = await invokeNameSearch(payload);
 
+    // Fail closed: the Sunbiz search must actually succeed. If the Lambda returns an
+    // error envelope (e.g. Sunbiz 403s the scraper) or no entity list at all, we must
+    // NOT fall through to "no entities found" and report the name as available.
+    const lambdaFailed =
+      !result ||
+      typeof result !== "object" ||
+      result.error ||
+      (typeof result.statusCode === "number" && result.statusCode >= 400) ||
+      result.success === false ||
+      !Array.isArray(result.existing_entities);
+
+    if (lambdaFailed) {
+      console.error("❌ Sunbiz name search did not return a usable result:", JSON.stringify(result));
+      return NextResponse.json(
+        {
+          success: false,
+          available: null,
+          status: "error",
+          message:
+            "No pudimos verificar la disponibilidad del nombre en este momento. Por favor, inténtalo de nuevo en unos minutos.",
+        },
+        { status: 503 }
+      );
+    }
+
     // Fallback searches for single-token names (e.g., "Avenidalegal")
     const stripEntitySuffix = (name: string): string => {
       let cleaned = name.trim();
@@ -439,7 +464,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { 
         error: 'Failed to check name availability',
-        details: error.message,
+        message:
+          'No pudimos verificar la disponibilidad del nombre en este momento. Por favor, inténtalo de nuevo en unos minutos.',
       },
       { status: 500 }
     );
