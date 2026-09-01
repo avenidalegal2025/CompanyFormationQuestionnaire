@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Airtable from 'airtable';
 import { formatCompanyFileName } from '@/lib/document-names';
 import { categorizeByKeywords, truncateAtWordBoundary, stripDanglingWords } from '@/lib/ss4-line16';
+import { requireInternalAuth } from '@/lib/internal-auth';
 
 // Airtable configuration
 const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY?.trim() || '';
@@ -1161,6 +1162,13 @@ async function callSS4Lambda(formData: any, s3Bucket: string, s3Key: string): Pr
  * - updateAirtable: Whether to update Airtable with SS-4 URL (default: true)
  */
 export async function POST(request: NextRequest) {
+  // These routes return filled IRS forms keyed by Airtable recordId; the SS-4
+  // and 2848/8821 carry the owner SSN. Every caller is server-to-server, so
+  // the credential is the shared INTERNAL_API_KEY header (admin sessions also
+  // pass). Previously there was no inbound check at all.
+  const deny = await requireInternalAuth(request);
+  if (deny) return deny;
+
   try {
     const body = await request.json();
     const { recordId, updateAirtable = true } = body;

@@ -10,6 +10,7 @@ import { mapFormToDocgenAnswers } from '@/lib/agreement-mapper';
 import { generateDocument } from '@/lib/agreement-docgen';
 import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { sendEmailWithMultipleAttachments, sendHtmlEmail } from '@/lib/ses-email';
+import { internalAuthHeaders } from '@/lib/internal-auth';
 
 // Vercel Pro default is 300s but be explicit — heavy 6-owner Corp flows
 // touch ~6 Lambdas + 4 S3 template copies sequentially.
@@ -904,6 +905,9 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              // /api/airtable/generate-* now require this; without it the
+              // post-payment document regeneration 401s silently.
+              ...internalAuthHeaders(),
             },
             body: JSON.stringify({
               recordId: airtableRecordId,

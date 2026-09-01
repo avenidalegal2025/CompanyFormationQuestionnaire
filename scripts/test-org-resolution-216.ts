@@ -149,7 +149,8 @@ if (recordId) {
   console.log(`\nCalling ${url} with recordId=${recordId}...`);
   fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json',
+      'x-internal-key': process.env.INTERNAL_API_KEY || '', },
     body: JSON.stringify({ recordId, updateAirtable: false }),
   })
     .then(async (res) => {

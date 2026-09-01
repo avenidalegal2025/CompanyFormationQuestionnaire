@@ -97,7 +97,8 @@ async function main() {
   try {
     const mrRes = await fetch(membershipUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json',
+      'x-internal-key': process.env.INTERNAL_API_KEY || '', },
       body: JSON.stringify({ recordId, updateAirtable: true }),
     });
     const mrData = await mrRes.json().catch(() => ({}));
@@ -114,7 +115,8 @@ async function main() {
   try {
     const orRes = await fetch(orgResolutionUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json',
+      'x-internal-key': process.env.INTERNAL_API_KEY || '', },
       body: JSON.stringify({ recordId, updateAirtable: true }),
     });
     const orData = await orRes.json().catch(() => ({}));

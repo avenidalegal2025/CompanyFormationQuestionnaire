@@ -4,6 +4,7 @@ import { formatCompanyFileName } from '@/lib/document-names';
 import { mapAirtableTo2848 } from '@/lib/airtable-to-forms';
 import { getFormData } from '@/lib/dynamo';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { requireInternalAuth } from '@/lib/internal-auth';
 
 // Airtable configuration
 const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY?.trim() || '';
@@ -89,6 +90,13 @@ async function call2848Lambda(formData: any, s3Bucket: string, s3Key: string): P
  * - updateAirtable: Whether to update Airtable with 2848 URL (default: true)
  */
 export async function POST(request: NextRequest) {
+  // These routes return filled IRS forms keyed by Airtable recordId; the SS-4
+  // and 2848/8821 carry the owner SSN. Every caller is server-to-server, so
+  // the credential is the shared INTERNAL_API_KEY header (admin sessions also
+  // pass). Previously there was no inbound check at all.
+  const deny = await requireInternalAuth(request);
+  if (deny) return deny;
+
   try {
     const body = await request.json();
     const { recordId, updateAirtable = true } = body;

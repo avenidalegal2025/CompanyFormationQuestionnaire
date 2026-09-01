@@ -5,6 +5,7 @@ import { formatCompanyFileName, formatCompanyDocumentTitle } from '@/lib/documen
 import { convertDocxToPdf } from '@/lib/docx-to-pdf';
 import { getUserCompanyDocuments, saveUserCompanyDocuments } from '@/lib/dynamo';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { requireInternalAuth } from '@/lib/internal-auth';
 
 // Airtable configuration
 const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY?.trim() || '';
@@ -113,6 +114,13 @@ async function callOrganizationalResolutionLambda(formData: any, s3Bucket: strin
  * - updateAirtable: Whether to update Airtable with Organizational Resolution URL (default: true)
  */
 export async function POST(request: NextRequest) {
+  // These routes return filled IRS forms keyed by Airtable recordId; the SS-4
+  // and 2848/8821 carry the owner SSN. Every caller is server-to-server, so
+  // the credential is the shared INTERNAL_API_KEY header (admin sessions also
+  // pass). Previously there was no inbound check at all.
+  const deny = await requireInternalAuth(request);
+  if (deny) return deny;
+
   try {
     const body = await request.json();
     const { recordId, updateAirtable = true } = body;

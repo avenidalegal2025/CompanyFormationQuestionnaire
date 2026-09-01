@@ -5,6 +5,7 @@ import Airtable from 'airtable';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getUserCompanyDocuments } from '@/lib/dynamo';
 import { sendEmailWithMultipleAttachments } from '@/lib/ses-email';
+import { internalAuthHeaders } from '@/lib/internal-auth';
 
 const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY?.trim() || '';
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID?.trim() || '';
@@ -88,13 +89,13 @@ export async function POST(request: NextRequest) {
     if (isLLC) {
       await fetch(`${baseUrl}/api/airtable/generate-membership-registry`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...internalAuthHeaders() },
         body: JSON.stringify({ recordId, updateAirtable: true }),
       });
     }
     await fetch(`${baseUrl}/api/airtable/generate-organizational-resolution`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...internalAuthHeaders() },
       body: JSON.stringify({ recordId, updateAirtable: true }),
     });
 

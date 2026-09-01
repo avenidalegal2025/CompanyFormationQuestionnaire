@@ -87,7 +87,8 @@ async function regenerateFormationDocs(recordId: string): Promise<void> {
   console.log('Regenerating Membership Registry and Organizational Resolution...');
   const mrRes = await fetch(`${BASE_URL}/api/airtable/generate-membership-registry`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json',
+      'x-internal-key': process.env.INTERNAL_API_KEY || '', },
     body: JSON.stringify({ recordId, updateAirtable: true }),
   });
   if (!mrRes.ok) {
@@ -98,7 +99,8 @@ async function regenerateFormationDocs(recordId: string): Promise<void> {
 
   const orRes = await fetch(`${BASE_URL}/api/airtable/generate-organizational-resolution`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json',
+      'x-internal-key': process.env.INTERNAL_API_KEY || '', },
     body: JSON.stringify({ recordId, updateAirtable: true }),
   });
   if (!orRes.ok) {
