@@ -32,6 +32,39 @@ export async function GET(request: NextRequest) {
     // Retrieve the checkout session from Stripe
     const session = await stripe.checkout.sessions.retrieve(sessionId);
 
+    // This route cannot require a session: its only caller is the checkout
+    // success page, reached straight off the Stripe redirect, where the buyer
+    // is usually not signed in yet. So instead of authenticating the caller we
+    // narrow what a bare session_id is worth.
+    //
+    // Stripe ids are high entropy and not guessable, but they persist in URLs,
+    // browser history, Referer headers and logs. Without these two checks any
+    // id that ever leaked stayed a permanent email-lookup oracle.
+
+    // 1. Only completed purchases. An abandoned or still-open checkout has no
+    //    business disclosing the email that was typed into it.
+    const paid =
+      session.payment_status === 'paid' ||
+      session.payment_status === 'no_payment_required';
+    if (!paid) {
+      return NextResponse.json(
+        { error: 'Session is not complete' },
+        { status: 403 }
+      );
+    }
+
+    // 2. Only recently created sessions. The success page reads this within
+    //    seconds of the redirect, so a day is already far wider than the real
+    //    use. After that the id stops resolving to an email at all.
+    const MAX_AGE_SECONDS = 24 * 60 * 60;
+    const ageSeconds = Math.floor(Date.now() / 1000) - (session.created || 0);
+    if (ageSeconds > MAX_AGE_SECONDS) {
+      return NextResponse.json(
+        { error: 'Session has expired' },
+        { status: 403 }
+      );
+    }
+
     const email = session.customer_details?.email || session.customer_email || '';
 
     if (!email) {
@@ -51,12 +84,12 @@ export async function GET(request: NextRequest) {
       entityType,
     });
   } catch (error: any) {
+    // Logged server-side, not echoed: Stripe's message distinguishes "no such
+    // session" from other failures, which is exactly the signal an enumerator
+    // wants.
     console.error('Error fetching session email:', error);
     return NextResponse.json(
-      {
-        error: 'Failed to fetch session email',
-        details: error.message,
-      },
+      { error: 'Failed to fetch session email' },
       { status: 500 }
     );
   }

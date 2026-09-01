@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { saveBusinessPhone } from '@/lib/dynamo';
+import { requireInternalAuth, internalAuthHeaders } from '@/lib/internal-auth';
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
     // Call the provision endpoint
     const resp = await fetch(`${baseUrl}/api/phone/provision`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...internalAuthHeaders() },
       body: JSON.stringify({ formationState, forwardToE164 })
     });
 

@@ -850,7 +850,7 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
           }
           const resp = await fetch(`${phoneBaseUrl}/api/phone/provision`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...internalAuthHeaders() },
             body: JSON.stringify({ formationState: state, forwardToE164: forwardPhoneE164 || undefined }),
           });
           if (resp.ok) {

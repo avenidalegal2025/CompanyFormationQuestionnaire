@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import twilio from 'twilio';
+import { requireInternalAuth, internalAuthHeaders } from '@/lib/internal-auth';
 
 const ACCOUNT_SID = (process.env.TWILIO_ACCOUNT_SID || process.env.TWILIO_TEST_ACCOUNT_SID || '').trim();
 const AUTH_TOKEN = (process.env.TWILIO_AUTH_TOKEN || process.env.TWILIO_TEST_AUTH_TOKEN || '').trim();
@@ -35,6 +36,13 @@ const STATE_TO_REGION: Record<string, string> = {
 };
 
 export async function POST(req: NextRequest) {
+  // This route buys a Twilio number, i.e. it spends money on every call, and
+  // it had no inbound auth at all. Both real callers are server-side (the
+  // Stripe webhook post-payment, and /api/phone/provision-manual, which does
+  // its own session check first), so the shared internal key is the right
+  // credential here rather than a user session.
+  const deny = await requireInternalAuth(req);
+  if (deny) return deny;
   try {
     const { formationState, forwardToE164 } = await req.json();
     // forwardToE164 is OPTIONAL: a number must always be provisioned (the SS-4 /
