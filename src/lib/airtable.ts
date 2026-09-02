@@ -759,16 +759,28 @@ export function mapQuestionnaireToAirtable(
                         stripeSession.metadata?.hasUsAddress === 'false')
       ? VIRTUAL_OFFICE_FULL
       : (() => {
-          // Build full address from components
-          const street = company.addressLine1 || company.address || company.fullAddress || '';
+          // Build full address from components.
+          // addressLine2 carries the suite/unit number. It was never read here,
+          // so "Ste 405" was dropped on the way into Airtable and therefore
+          // missing from every document generated from the record -- SS-4,
+          // 2848 and 8821 all showed the building without the unit.
+          const line1 = company.addressLine1 || company.address || company.fullAddress || '';
+          const line2 = String(company.addressLine2 || '').trim();
+          const street = [line1, line2].filter(Boolean).join(', ');
           const city = company.city || '';
           const state = company.state || '';
           const zip = company.postalCode || company.zipCode || '';
           const cityStateZip = [city, state, zip].filter(Boolean).join(' ');
           const rawFullAddress = company.fullAddress || company.address || '';
           
-          // If we already have a full address and it includes city/state/zip, use it
-          if (rawFullAddress && (!cityStateZip || rawFullAddress.includes(cityStateZip))) {
+          // If we already have a full address and it includes city/state/zip, use it.
+          // Only when it already carries the suite, though: rawFullAddress is
+          // often just line 1, and returning it here is what dropped line 2.
+          if (
+            rawFullAddress &&
+            (!cityStateZip || rawFullAddress.includes(cityStateZip)) &&
+            (!line2 || rawFullAddress.includes(line2))
+          ) {
             return rawFullAddress;
           }
           

@@ -329,6 +329,12 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
   // §12 ships with 5 empty paragraphs between heading and §12.1; collapse
   // any heading-followed-by-multiple-empties down to one separator.
   xml = collapseEmptiesAfterLLCHeadings(xml);
+  // Sit each signature name under its own rule. This has to run here in
+  // generateLLC rather than in addExtraLLCMembers, where it started: that
+  // helper only handles members 3-6, so a one- or two-member LLC -- the
+  // common case -- never reached it and still rendered every name a line
+  // low and three inches right of its rule.
+  xml = alignSignatureNamesUnderRules(xml);
   // Drop trailing empty paragraphs after the last signature line so the
   // PDF doesn't end with a blank page.
   xml = stripTrailingEmptyParagraphs(xml);
@@ -771,8 +777,6 @@ function addExtraLLCMembers(
       }
     }
   }
-
-  xml = alignSignatureNamesUnderRules(xml);
 
   return xml;
 }

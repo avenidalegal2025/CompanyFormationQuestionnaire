@@ -44,6 +44,31 @@ function parseCurrency(val: string | number | undefined): number {
   return parseFloat(String(val).replace(/[,$]/g, "")) || 0;
 }
 
+/**
+ * The display name for an owner, person or entity.
+ *
+ * Step 3 offers a "persona"/"empresa" toggle, and an empresa owner stores its
+ * name in `companyName` -- it has no fullName/firstName/lastName at all. Every
+ * name lookup in this file read only the person fields, so an entity member
+ * reached the agreement as the literal placeholder "Owner 2", and was dropped
+ * outright from the manager and officer lists. Read companyName too.
+ *
+ * Returns "" when there is no name, so callers can distinguish "no owner here"
+ * from "an owner we failed to name" -- buildOwnersList is the only place that
+ * substitutes a positional placeholder, and only as a last resort.
+ */
+function ownerDisplayName(owner: any): string {
+  if (!owner) return "";
+  if (owner.ownerType === "empresa") {
+    return String(owner.companyName || "").trim();
+  }
+  const person =
+    String(owner.fullName || "").trim() ||
+    [owner.firstName, owner.lastName].filter(Boolean).join(" ").trim();
+  // An older draft may carry companyName without the ownerType toggle set.
+  return person || String(owner.companyName || "").trim();
+}
+
 /** Build owners list from the indexed owners fields */
 function buildOwnersList(
   data: FormData,
@@ -62,10 +87,7 @@ function buildOwnersList(
 
   for (let i = 0; i < ownerCount; i++) {
     const owner = data.owners?.[i] || {};
-    const fullName =
-      owner.fullName ||
-      [owner.firstName, owner.lastName].filter(Boolean).join(" ") ||
-      `Owner ${i + 1}`;
+    const fullName = ownerDisplayName(owner) || `Owner ${i + 1}`;
 
     // Capital contribution from agreement step (indexed field)
     const capitalKey = isCorp
@@ -116,10 +138,7 @@ function buildDirectorsManagers(
       const ownerCount = data.ownersCount || 1;
       for (let i = 0; i < ownerCount; i++) {
         const o = data.owners?.[i];
-        const name =
-          o?.fullName ||
-          [o?.firstName, o?.lastName].filter(Boolean).join(" ") ||
-          "";
+        const name = ownerDisplayName(o);
         if (name) list.push({ name });
       }
     } else {
@@ -146,10 +165,7 @@ function buildDirectorsManagers(
       const ownerCount = data.ownersCount || 1;
       for (let i = 0; i < ownerCount; i++) {
         const o = data.owners?.[i];
-        const name =
-          o?.fullName ||
-          [o?.firstName, o?.lastName].filter(Boolean).join(" ") ||
-          "";
+        const name = ownerDisplayName(o);
         if (name) list.push({ name });
       }
     } else {
@@ -194,10 +210,7 @@ function buildOfficers(data: FormData): QuestionnaireAnswers["officers"] {
     ];
     for (let i = 0; i < ownerCount; i++) {
       const o = data.owners?.[i];
-      const name =
-        o?.fullName ||
-        [o?.firstName, o?.lastName].filter(Boolean).join(" ") ||
-        "";
+      const name = ownerDisplayName(o);
       if (!name) continue;
       const explicit = data.admin?.[`shareholderOfficer${i + 1}Role`];
       const role = explicit || POSITION_DEFAULTS[i] || "";
@@ -265,7 +278,14 @@ export async function mapFormToDocgenAnswers(
   const declaredCount = Number(data.ownersCount) || 0;
   const ownerEntries = (data.owners || {}) as Record<
     string,
-    { fullName?: string; firstName?: string; lastName?: string; ownership?: unknown } | undefined
+    | {
+        fullName?: string;
+        firstName?: string;
+        lastName?: string;
+        companyName?: string;
+        ownership?: unknown;
+      }
+    | undefined
   >;
   const populatedOwnerCount = Object.keys(ownerEntries).filter((k) => {
     const o = ownerEntries[k];
@@ -274,6 +294,9 @@ export async function mapFormToDocgenAnswers(
       (!!o.fullName ||
         !!o.firstName ||
         !!o.lastName ||
+        // An empresa owner has only companyName; without this it does not
+        // count as populated and the owner count silently comes up short.
+        !!o.companyName ||
         (o.ownership !== undefined && o.ownership !== null && o.ownership !== ""))
     );
   }).length;
