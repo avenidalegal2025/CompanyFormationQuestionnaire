@@ -421,11 +421,18 @@ export async function POST(request: NextRequest) {
     let finalMessage: string;
     
     if (blockingEntities.length > 0) {
-      const entityNames = blockingEntities.map((e: any) => `${e.name} (${e.status})`).join(', ');
+      // Sunbiz returns the status in English ("Active", "Inactive"); the rest
+      // of this message is Spanish, so translate it rather than showing the
+      // user one English word in the middle of the sentence.
+      const statusText = (status: string) =>
+        /^inact/i.test(status) ? 'inactiva' : /^act/i.test(status) ? 'activa' : status;
+      const entityNames = blockingEntities
+        .map((e: any) => `${e.name} (${statusText(String(e.status || ''))})`)
+        .join(', ');
       const matchType = blockingEntities[0].matchType;
-      const matchTypeText = matchType === 'exact' ? 'coincidencia exacta' : 
-                           matchType === 'normalized' ? 'coincidencia normalizada' : 
-                           'coincidencia similar';
+      const matchTypeText = matchType === 'exact' ? 'Coincidencia exacta' : 
+                           matchType === 'normalized' ? 'Coincidencia normalizada' : 
+                           'Coincidencia similar';
       finalMessage = `❌ Nombre no disponible. ${matchTypeText}: ${entityNames}`;
     } else if (entities.length > 0) {
       // Entities found but none are blocking (all INACT >2 years)
