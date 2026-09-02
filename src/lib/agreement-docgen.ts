@@ -772,7 +772,42 @@ function addExtraLLCMembers(
     }
   }
 
+  xml = alignSignatureNamesUnderRules(xml);
+
   return xml;
+}
+
+/**
+ * The template lays the signature block out as two columns: the "By: ____"
+ * rule at the left margin and the name pushed ~3" right by six leading
+ * <w:tab/> elements. They are separate paragraphs, though, so the name never
+ * lands on its rule's line — it renders one line lower and three inches over,
+ * reading as if it belonged to nothing. That is Antonio's "the names are a
+ * little off".
+ *
+ * Drop the leading tabs so each name sits directly under its own rule, which
+ * is both the conventional execution block and what the organizational
+ * resolution already produces. Scoped to the region after "IN WITNESS" so the
+ * tab-indented text elsewhere in the agreement is left alone.
+ */
+function alignSignatureNamesUnderRules(xml: string): string {
+  const witnessIdx = xml.indexOf("IN WITNESS");
+  if (witnessIdx < 0) return xml;
+  const head = xml.substring(0, witnessIdx);
+  const tail = xml.substring(witnessIdx).replace(
+    /<w:p[\s>][\s\S]*?<\/w:p>/g,
+    (para) => {
+      const text = (para.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [])
+        .map((t) => t.replace(/<[^>]+>/g, ""))
+        .join("");
+      if (!/^Name:/.test(text.trim())) return para;
+      // Only the run that carries the "Name:" label holds the indent tabs;
+      // strip them there rather than everywhere, so a tab inside the name
+      // itself would survive.
+      return para.replace(/(?:<w:tab\/>)+(?=<w:t[^>]*>\s*Name:)/g, "");
+    }
+  );
+  return head + tail;
 }
 
 // ─── LLC Voting Replacements ─────────────────────────────────────────
