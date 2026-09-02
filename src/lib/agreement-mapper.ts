@@ -411,9 +411,17 @@ export async function mapFormToDocgenAnswers(
     shareholder_loans_voting: isCorp
       ? votingCode(agreement.corp_shareholderLoansVoting)
       : votingCode(agreement.llc_memberLoansVoting),
+    // Both loan toggles render as `field.value || "No"`, so an untouched
+    // control SHOWS "No" but leaves the field undefined. `!== "No"` therefore
+    // read that undefined as a Yes and shipped the permissive clause, while
+    // airtable.ts writes the same undefined as "No" -- the column and the
+    // agreement contradicted each other on every formation where the customer
+    // left the default (AVENIDA LEGALIXA LLC, 2026-09-02: Airtable "LLC Member
+    // Loans: No", agreement 6.1 "shall only accept ... loans"). Match the
+    // screen and Airtable: only an explicit "Yes" includes the clause.
     include_loans: isCorp
-      ? agreement.corp_shareholderLoans !== "No"
-      : agreement.llc_memberLoans !== "No",
+      ? agreement.corp_shareholderLoans === "Yes"
+      : agreement.llc_memberLoans === "Yes",
 
     // Distributions
     distribution_frequency: (() => {
