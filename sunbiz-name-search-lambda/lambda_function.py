@@ -16,7 +16,7 @@ import os
 import re
 from urllib.parse import urljoin
 
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import Error as PlaywrightError, sync_playwright
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -67,7 +67,13 @@ MAX_DETAIL_FETCHES = 5
 CHALLENGE_MARKERS = ("just a moment", "attention required", "checking your browser")
 
 
-def wait_out_challenge(page, timeout_ms: int = 45000) -> str:
+# Per-attempt challenge budget, and how many fresh-proxy-session attempts to
+# make. Kept so the worst case stays inside the caller's patience: three
+# attempts at ~22s plus page loads lands well under the Lambda's 300s timeout.
+CHALLENGE_ATTEMPTS = 3
+
+
+def wait_out_challenge(page, timeout_ms: int = 22000) -> str:
     """The interstitial clears itself once the JS challenge completes."""
     waited = 0
     title = page.title()
@@ -133,19 +139,38 @@ def search_sunbiz(company_name: str, entity_type: str) -> dict:
     input_signature = signature(company_name)
 
     with sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=True, args=CHROMIUM_ARGS, proxy=proxy_config())
+        browser = None
         try:
-            context = browser.new_context(
-                user_agent=USER_AGENT,
-                viewport={"width": 1440, "height": 900},
-                locale="en-US",
-            )
-            context.add_init_script(STEALTH_INIT)
-            page = context.new_page()
+            # The challenge clears on most attempts but occasionally never does on
+            # a given proxy exit IP. Relaunching gets a fresh proxy session, which
+            # clears far more often than waiting longer on the stuck one does.
+            # The whole browser is relaunched, not just the context: closing the
+            # only context of a proxied Chromium tears the browser down with it.
+            page = None
+            for attempt in range(1, CHALLENGE_ATTEMPTS + 1):
+                if browser is not None:
+                    browser.close()
+                browser = pw.chromium.launch(
+                    headless=True, args=CHROMIUM_ARGS, proxy=proxy_config()
+                )
+                context = browser.new_context(
+                    user_agent=USER_AGENT,
+                    viewport={"width": 1440, "height": 900},
+                    locale="en-US",
+                )
+                context.add_init_script(STEALTH_INIT)
+                page = context.new_page()
 
-            logger.info("Opening Sunbiz search page")
-            page.goto(SEARCH_URL, timeout=60000, wait_until="domcontentloaded")
-            title = wait_out_challenge(page)
+                logger.info("Opening Sunbiz search page (attempt %d)", attempt)
+                try:
+                    page.goto(SEARCH_URL, timeout=60000, wait_until="domcontentloaded")
+                    title = wait_out_challenge(page)
+                    break
+                except (RuntimeError, PlaywrightError) as exc:
+                    logger.warning("Attempt %d failed: %s", attempt, exc)
+                    page = None
+                    if attempt == CHALLENGE_ATTEMPTS:
+                        raise
 
             logger.info("Searching for base name: %r (from %r)", search_term, company_name)
             page.fill("#SearchTerm", search_term)
@@ -209,7 +234,8 @@ def search_sunbiz(company_name: str, entity_type: str) -> dict:
                 "existing_entities": entities,
             }
         finally:
-            browser.close()
+            if browser is not None:
+                browser.close()
 
 
 def _extract_input(event):
