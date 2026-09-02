@@ -18,11 +18,21 @@ const CRLF = '\r\n';
 const DEFAULT_FROM_NAME = 'Avenida Legal';
 const DEFAULT_FROM_EMAIL = 'avenidalegal.2024@gmail.com';
 
+/**
+ * Strip anything that could terminate or forge a header line. These values come
+ * from configuration, and a stray CR/LF — a trailing newline on an env var, say —
+ * would otherwise inject arbitrary headers into the raw MIME message.
+ */
+function sanitizeHeaderValue(value: string): string {
+  return value.replace(/[\r\n]+/g, ' ').trim();
+}
+
 /** Format a From header with display name: "Avenida Legal" <email@example.com> */
 function formatFrom(from: string): string {
+  const clean = sanitizeHeaderValue(from);
   // If already formatted with angle brackets, return as-is
-  if (from.includes('<')) return from;
-  return `"${DEFAULT_FROM_NAME}" <${from}>`;
+  if (clean.includes('<')) return clean;
+  return `"${DEFAULT_FROM_NAME}" <${clean}>`;
 }
 
 /** Generate RFC 2822 formatted date string */
@@ -32,9 +42,10 @@ function rfc2822Date(): string {
 
 /** Common email headers for improved deliverability (spam prevention) */
 function getDeliverabilityHeaders(from: string): string[] {
-  const replyEmail = from.includes('<')
-    ? from.match(/<(.+?)>/)?.[1] || DEFAULT_FROM_EMAIL
-    : from;
+  const cleanFrom = sanitizeHeaderValue(from);
+  const replyEmail = cleanFrom.includes('<')
+    ? cleanFrom.match(/<(.+?)>/)?.[1] || DEFAULT_FROM_EMAIL
+    : cleanFrom;
   const messageId = `<${randomUUID()}@avenida-legal.com>`;
   return [
     `Message-ID: ${messageId}`,

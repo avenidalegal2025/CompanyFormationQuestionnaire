@@ -3,7 +3,8 @@ import { authOptions } from "@/lib/auth";
 
 const clientId = process.env.AUTH0_CLIENT_ID;
 const clientSecret = process.env.AUTH0_CLIENT_SECRET;
-const issuer = process.env.AUTH0_ISSUER_BASE_URL || process.env.AUTH0_ISSUER;
+// Trimmed: a trailing newline on the env var silently breaks OIDC discovery.
+const issuer = (process.env.AUTH0_ISSUER_BASE_URL || process.env.AUTH0_ISSUER)?.trim();
 const secret = process.env.AUTH_SECRET;
 
 // Debug logging
