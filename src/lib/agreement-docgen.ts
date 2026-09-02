@@ -7592,11 +7592,31 @@ function addKeepNextToHeadings(xml: string): string {
       .map((t: string) => t.replace(/<[^>]+>/g, "")).join("").trim();
 
     // Check if this is a heading:
-    // "5.   Capital Contributions" or "ARTICLE I" or "11.4Notwithstanding"
+    // "5.   Capital Contributions" or "ARTICLE I" or a title-only "11.9 Meetings."
+    //
+    // The §N.M test used to be `/^\d+\.\d+\s*[A-Z][a-z]/` with no length
+    // bound. In these templates the title is INLINE with the clause body
+    // ("14.4 Successor's Interest. The Successor shall have the option to..."),
+    // and plenty of clauses have no title at all ("12.3 Notwithstanding
+    // anything contained herein, ..."), so that pattern matched essentially
+    // every body paragraph in the agreement -- 83 of them. keepNext on a
+    // full-length body paragraph glues it to its trailing empty separator and
+    // on to the next clause, so when the following clause does not fit, Word
+    // pushes the whole chain to the next page and leaves a third of a page
+    // blank (Antonio 2026-06-23: "hay un gran espacio", around §11.9).
+    //
+    // keepNext is only ever needed to stop a heading orphaning above its body,
+    // which requires the heading to be a heading: a paragraph that is JUST a
+    // title. The real title-only §N.M headings in both templates top out at 43
+    // characters ("11.9 Meetings.", "12.1 Right of First Refusal.", "8.2
+    // Delivery to Shareholder and Inspection."), so bound it at 80 -- generous
+    // enough for a longer title, far short of any clause body.
+    const TITLE_ONLY_MAX_CHARS = 80;
     const isHeading =
       /^\d+\.\s{2,}[A-Z]/.test(texts) ||       // "5.   Capital Contributions"
       /^ARTICLE\s+[IVXLC]/i.test(texts) ||      // "ARTICLE I: DEFINITIONS"
-      /^\d+\.\d+\s*[A-Z][a-z]/.test(texts);     // "5.1The initial..." (sub-section start)
+      (/^\d+\.\d+\s*[A-Z][a-z]/.test(texts) &&
+        texts.length <= TITLE_ONLY_MAX_CHARS);  // "11.9 Meetings." (title only)
 
     if (!isHeading) return fullMatch;
 
@@ -7681,6 +7701,13 @@ function chainKeepNextThroughEmpties(xml: string): string {
     // their own keepNext (already in a chain we should extend).
     const looksLikeCaption =
       ARTICLE_RE.test(curText) ||
+      // Whole-number section captions: "7.   Allocations and Distributions".
+      // These are always title-only -- the body lives in §7.1 -- so they carry
+      // the same orphan risk as an ARTICLE caption, but were not listed here,
+      // so the chain stopped at the heading and the empty separator below it
+      // stayed breakable. "7.   Allocations and Distributions" then sat alone
+      // at the foot of page 2 with §7.1 overleaf.
+      /^\d+\.\s+[A-Z]/.test(curText) ||
       /^\d+\.\d+\s+[A-Z][\w\s'’,&-]*\.?\s*$/.test(curText) ||
       curText === "";
     if (!looksLikeCaption) continue;
