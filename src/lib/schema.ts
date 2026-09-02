@@ -298,6 +298,9 @@ export const AgreementSchema = z
     llc_transferToRelativesMajority: z.number().min(50.01).max(99.99).optional(),
     llc_divorceBuyoutPolicy: z.enum(["Yes", "No"]).optional(),
     llc_tagDragRights: z.enum(["Yes", "No"]).optional(),
+    // Legacy: this was the Step 9 duplicate of llc_newMembersAdmission (same
+    // question, "socios" instead of "miembros"). The question was removed; the
+    // fields stay so drafts saved before that still validate.
     llc_newPartnersAdmission: z.enum(["Decisión Unánime", "Supermayoría", "Mayoría"]).optional(),
     llc_newPartnersMajority: z.number().min(50.01).max(99.99).optional(),
     llc_dissolutionDecision: z.enum(["Decisión Unánime", "Supermayoría", "Mayoría"]).optional(),

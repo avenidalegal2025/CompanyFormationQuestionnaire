@@ -423,7 +423,12 @@ export async function mapFormToDocgenAnswers(
       if (freq === "Discreción de la Junta") return "discretion";
       return "quarterly";
     })(),
-    min_tax_distribution: agreement.llc_minTaxDistribution || 30,
+    // No template -- LLC or Corp -- has a tax-distribution clause, and no step
+    // asks for this. The old "|| 30" therefore did not set anything in the
+    // agreement; it only wrote a fabricated 30% into the Airtable "Min Tax
+    // Distribution %" column that Antonio audits against. Pass through what the
+    // user actually gave, so the column is empty when nothing was asked.
+    min_tax_distribution: agreement.llc_minTaxDistribution,
 
     // Governance
     majority_threshold: agreement.majorityThreshold || 50,

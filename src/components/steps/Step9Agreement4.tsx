@@ -274,34 +274,6 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
                 <label className="label inline-flex items-start gap-5 max-w-prose">
-                  La admisión de nuevos socios: ¿Será por decisión unánime o por mayoría?
-                  <InfoTooltip
-                    title="Admisión de Nuevos Socios"
-                    body="Esta cláusula establece el proceso para añadir nuevos socios a la LLC. Puede requerir decisión unánime o mayoría con un porcentaje específico."
-                  />
-                </label>
-                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[500px]">
-                  <Controller
-                    name="agreement.llc_newPartnersAdmission"
-                    control={control}
-                    render={({ field }) => (
-                      <SegmentedToggle
-                        value={field.value || "Decisión Unánime"}
-                        onChange={field.onChange}
-                        options={[
-                          { value: "Decisión Unánime", label: "Unánime" },
-                          { value: "Supermayoría", label: "Supermayoría" },
-                          { value: "Mayoría", label: "Mayoría" },
-                        ]}
-                        ariaLabel="LLC new partners admission"
-                        name={field.name}
-                      />
-                    )}
-                  />
-                </div>
-              </div>
-              <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
-                <label className="label inline-flex items-start gap-5 max-w-prose">
                   La disolución de la LLC: ¿Será por decisión unánime o por mayoría?
                   <InfoTooltip
                     title="Disolución de la LLC"

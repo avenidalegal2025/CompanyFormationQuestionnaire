@@ -197,6 +197,29 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                   </div>
                 )}
               </div>
+              <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
+                <label className="label inline-flex items-start gap-3 max-w-prose">
+                  ¿Con qué frecuencia se repartirán los dividendos a los accionistas?
+                  <InfoTooltip
+                    title="Frecuencia de Dividendos"
+                    body="Determina cada cuánto la Junta se reúne para decidir y pagar dividendos. El acuerdo se redacta con la frecuencia que elija aquí; si no elige, se redacta trimestral."
+                  />
+                </label>
+                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
+                  <Controller
+                    name="agreement.distributionFrequency"
+                    control={control}
+                    render={({ field }) => (
+                      <select className="input w-full min-w-0 text-sm" {...field} value={field.value || "Trimestral"}>
+                        <option value="Trimestral">Trimestral</option>
+                        <option value="Semestral">Semestral</option>
+                        <option value="Anual">Anual</option>
+                        <option value="Discreción de la Junta">A discreción de la Junta</option>
+                      </select>
+                    )}
+                  />
+                </div>
+              </div>
             </>
           ) : (
             <>

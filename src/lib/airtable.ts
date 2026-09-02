@@ -1129,8 +1129,13 @@ export function mapQuestionnaireToAirtable(
     record['LLC Dispute Resolution'] = agreement.llc_disputeResolution;
     record['LLC ROFR'] = agreement.llc_rofr === 'Yes' ? 'Yes' : 'No';
     record['LLC Incapacity Heirs Policy'] = (agreement.llc_heirsForcedToSell ?? agreement.llc_incapacityHeirsPolicy) === 'Yes' ? 'Yes' : 'No';
-    record['LLC New Partners Admission'] = agreement.llc_newPartnersAdmission;
-    record['LLC New Partners Majority %'] = agreement.llc_newPartnersMajority ? agreement.llc_newPartnersMajority / 100 : undefined;
+    // "New Partners" and "New Members" were the same question asked twice in
+    // different words (Step 7 "nuevos miembros", Step 9 "nuevos socios"). Only
+    // the Step 7 answer ever reached the agreement, so the Step 9 duplicate was
+    // removed. These two columns are kept and fed from the surviving answer so
+    // the Airtable view does not go blank and the two never disagree.
+    record['LLC New Partners Admission'] = agreement.llc_newMembersAdmission;
+    record['LLC New Partners Majority %'] = agreement.llc_newMembersMajority ? agreement.llc_newMembersMajority / 100 : undefined;
     record['LLC Dissolution Decision'] = agreement.llc_dissolutionDecision;
     record['LLC Dissolution Decision Majority %'] = agreement.llc_dissolutionDecisionMajority ? agreement.llc_dissolutionDecisionMajority / 100 : undefined;
     record['LLC Specific Terms'] = agreement.llc_specificTerms;
