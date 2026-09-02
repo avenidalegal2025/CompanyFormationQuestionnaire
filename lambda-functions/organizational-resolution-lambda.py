@@ -75,7 +75,13 @@ def format_percentage(value):
     else:
         return "0%"
     
-    if 0 <= num <= 1:
+    # Only a true fraction gets scaled. "<= 1" also caught the integer 1, so a
+    # member holding 1% was documented as owning 100% of the company -- in the
+    # recitals, the signature block and the ownership table. Callers in this
+    # app send percent units (33.33), so the fraction path is a legacy
+    # fallback; values under 1 remain ambiguous (0.5 could be a half percent)
+    # and are still read as fractions.
+    if 0 < num < 1:
         num = num * 100
     
     if num == int(num):
@@ -1030,7 +1036,11 @@ def post_process_org_resolution(doc):
                 remove_next_if_empty = True
 
         # Remove "XX% Owner" lines (e.g. "60% Owner", "100% Owner, President and Director")
-        elif re.match(r'^\d+%?\s*Owner', stripped):
+        # The fraction is required: "\d+" alone stops at "33" and leaves
+        # ".33% Owner", so a 3-way 33.33/33.33/33.34 split kept three stray
+        # "33.33% Owner of the Company" lines under the signature block that a
+        # whole-number split deletes. Same template, different visible output.
+        elif re.match(r'^\d+(?:\.\d+)?%?\s*Owner', stripped):
             sig_paras_to_remove.append(paragraph)
 
         # Remove "Owner of the Company" lines

@@ -80,7 +80,11 @@ def format_percentage(value):
         return "0%"
     
     # If value is between 0 and 1, multiply by 100 (Airtable stores as decimal)
-    if 0 <= num <= 1:
+    # Only a true fraction gets scaled. Catching the integer 1 meant a member
+    # holding 1% was documented as owning 100% of the company. Callers in this
+    # app send percent units (33.33), so the fraction path is a legacy
+    # fallback; values under 1 stay ambiguous and are still read as fractions.
+    if 0 < num < 1:
         num = num * 100
     
     # Format without trailing zeros - pixel perfect
