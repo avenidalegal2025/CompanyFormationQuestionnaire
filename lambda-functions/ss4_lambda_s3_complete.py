@@ -29,6 +29,7 @@ FIELD_COORDS = {
     "Line 7b": (342, 570),    # Responsible party SSN
     "8b": (500, 542),        # Number of LLC members (if LLC) or date business started (if non-LLC)
     "9a_sole_ssn": (164, 509), # Sole proprietor SSN (100 pixels to the right of 9a_sole checkbox at 64)
+    "9a_other_specify": (150, 437),  # 9a "Other (specify)" text -- same baseline as the 9a_other checkbox
     "9b": (290, 414),        # Closing month / State of incorporation
     "16_other_specify": (400, 196),  # Other (specify) text field - same position as healthcare checkbox (where the category description goes)
     "10": (65, 375),         # Reason for applying - text field (summarized business purpose)
@@ -56,6 +57,7 @@ CHECK_COORDS = {
     "9a_corp": [64, 483],     # Corporation (non-sole proprietor) - 24px up from previous position (459 + 24 = 483)
     "9a_sole": [64, 509],     # Entity type checkbox (sole proprietor) - 13 pixels up (496 + 13 = 509)
     "9a_corp_sole": [64, 484], # Corporation checkbox (sole proprietor) - 25 pixels below Partnership sole (509 - 25 = 484)
+    "9a_other": [64, 437],  # 9a "Other (specify)" -- last row of the left column, just above 9b
     "9a_corp_form_number": (244, 485),  # Form number input field (1120 or 1120-S) - X: 244, Y: 485
     "9a_corp_sole_form_number": (244, 485),  # Form number input field for sole proprietor (1120 or 1120-S) - X: 244, Y: 485
     "10": [63, 388],
@@ -1610,9 +1612,16 @@ def map_data_to_ss4_fields(form_data):
         # For LLCs, check if it's a single-member LLC (owner_count == 1 or llc_member_count == 1)
         is_single_member_llc = (owner_count == 1) or (llc_member_count == 1) or is_sole_proprietor
         if is_single_member_llc:
-            # Single-member LLC: check "Sole proprietor" checkbox
-            mapped_data["Checks"]["9a_sole"] = CHECK_COORDS["9a_sole"]
-            print(f"===> Single-member LLC (sole proprietor), checking 9a_sole at {CHECK_COORDS['9a_sole']}")
+            # Single-member LLC: the IRS SS-4 instructions for line 9a say a
+            # single-member LLC that has not elected corporate treatment checks
+            # "Other" and writes "disregarded entity". Checking "Sole proprietor"
+            # (what this did until 2026-09-02, e.g. AVENIDA LEGALIXA LLC) tells
+            # the IRS the applicant is an individual doing business under their
+            # own SSN, which contradicts line 1 naming an LLC and line 8a "Yes",
+            # and it forced an SSN into 9a for foreign members who have none.
+            mapped_data["Checks"]["9a_other"] = CHECK_COORDS["9a_other"]
+            mapped_data["9a_other_specify"] = "DISREGARDED ENTITY"
+            print(f"===> Single-member LLC, checking 9a_other (disregarded entity) at {CHECK_COORDS['9a_other']}")
             print(f"===>   owner_count: {owner_count}, llc_member_count: {llc_member_count}, is_sole_proprietor: {is_sole_proprietor}")
         else:
             # Multi-member LLC: check LLC checkbox
@@ -1629,8 +1638,8 @@ def map_data_to_ss4_fields(form_data):
         print(f"===> True sole proprietorship, checking 9a_sole at {CHECK_COORDS['9a_sole']}")
     else:
         # Other entity type
-        mapped_data["Checks"]["9a_other"] = CHECK_COORDS["9a"]
-        print(f"===> Other entity type, checking 9a_other at {CHECK_COORDS['9a']}")
+        mapped_data["Checks"]["9a_other"] = CHECK_COORDS["9a_other"]
+        print(f"===> Other entity type, checking 9a_other at {CHECK_COORDS['9a_other']}")
     
     # Line 9a: If sole proprietor (true sole proprietorship OR single-member LLC),
     # add SSN to the field next to the "Sole proprietor" checkbox
