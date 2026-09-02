@@ -581,7 +581,11 @@ def replace_placeholders(doc, data):
         #   "Name: …" — member/shareholder name
         #   "Title: …" — title line
         needs_norm = False
-        if re.match(r'^\d+%\s*Owner', txt):
+        # Decimal splits are the common case for 3 members (33.33/33.33/33.34),
+        # so the percentage pattern must accept a fraction — "\d+%" alone
+        # silently skipped those lines and left them at the template's own
+        # indentation while every sibling line got re-tabbed.
+        if re.match(r'^\d+(?:\.\d+)?%\s*Owner', txt):
             needs_norm = True
         elif re.match(r'^Owner\s+of\s+the\s+Company', txt):
             needs_norm = True
@@ -597,6 +601,24 @@ def replace_placeholders(doc, data):
             raw = first_run.text
             stripped = raw.lstrip()
             if stripped:
+                # Templates are inconsistent about the gap after the label —
+                # member 1 has "Name: X", members 2+ have "Name:  X". Antonio
+                # reads that as the names being "a little off", so collapse the
+                # run of spaces after Name:/Title: to exactly one.
+                stripped = re.sub(r'^(Name:|Title:)\s+', r'\1 ', stripped)
+                # Same story for the signature rule: templates vary between
+                # "By: ____" and "By:______" with different underscore counts,
+                # so the rules came out ragged down the page. Fix the label gap
+                # and the rule length so the block reads as one column.
+                if re.match(r'^By:\s*_', stripped):
+                    # The rule is often split across several runs, so rewriting
+                    # only the first run appends to the leftovers and the line
+                    # wraps. Rebuild the whole paragraph from its joined text
+                    # and blank the trailing runs.
+                    joined = ''.join(r.text for r in paragraph.runs).strip()
+                    stripped = re.sub(r'^By:\s*_+', 'By: ' + '_' * 30, joined)
+                    for extra in paragraph.runs[1:]:
+                        extra.text = ''
                 # First run has the content — always re-write to force
                 # consistent <w:tab/> elements via python-docx.
                 first_run.text = SIG_LINE_TAB_COUNT + stripped
