@@ -1468,7 +1468,14 @@ def map_data_to_ss4_fields(form_data):
         "Line 7b": format_ssn(responsible_ssn) if responsible_ssn and responsible_ssn.upper() not in ['N/A-FOREIGN', 'N/A', ''] else "N/A-FOREIGN",  # Responsible party SSN/ITIN/EIN - formatted as XXX-XX-XXXX
         "8b": "",  # Will be set to member count if LLC, or date if not LLC
         "8b_date": date_business_started,  # Date business started (for non-LLC)
-        "9b": to_upper(formation_state or "FL"),  # Closing month / State of incorporation - ALL CAPS
+        # Line 9b: state where incorporated. The form reads "If a CORPORATION,
+        # name the state ... where incorporated", and the IRS instructions say to
+        # complete it only when the Corporation box is checked on line 9a. This
+        # filled it unconditionally, so every LLC went out with a state printed on
+        # a corporation-only line while 9a said Partnership or Sole proprietor --
+        # the wrong state selection Antonio flagged. Start it blank; the is_corp
+        # branch below sets it for the entities the line actually applies to.
+        "9b": "",
         # Line 10: Reason for applying (text next to the "Started new business" checkbox).
         # The checkbox itself is handled further below; this text should describe
         # the TYPE of business, not just repeat "Started new business".
