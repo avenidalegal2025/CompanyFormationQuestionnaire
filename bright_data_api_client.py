@@ -1,3 +1,4 @@
+import os
 #!/usr/bin/env python3
 """
 Bright Data API Client
@@ -11,7 +12,7 @@ import random
 from bs4 import BeautifulSoup
 
 # Your Bright Data API key
-BRIGHT_DATA_API_KEY = "f5f4ffcfb1755077eb3a27f809ab8b4985160d0dedbc4de11405a43b8c4d0b4a"
+BRIGHT_DATA_API_KEY = os.environ["BRIGHT_DATA_API_KEY"]
 BRIGHT_DATA_API_URL = "https://api.brightdata.com/request"
 
 def test_bright_data_api():

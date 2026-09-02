@@ -124,8 +124,8 @@ def deploy_lambda():
             MemorySize=2048,
             Environment={
                 'Variables': {
-                    'SCRAPEOPS_API_KEY': 'b3a2e586-8c39-4115-8ffb-590ad8750116',
-                    'CAPTCHA_API_KEY': 'f70e8ca44204cc56c23f32925064ee93'
+                    'SCRAPEOPS_API_KEY': os.environ["SCRAPEOPS_API_KEY"],
+                    'CAPTCHA_API_KEY': os.environ["CAPTCHA_API_KEY"]
                 }
             }
         )
@@ -147,8 +147,8 @@ def deploy_lambda():
             Description='Delaware company name search with Playwright and 2captcha',
             Environment={
                 'Variables': {
-                    'SCRAPEOPS_API_KEY': 'b3a2e586-8c39-4115-8ffb-590ad8750116',
-                    'CAPTCHA_API_KEY': 'f70e8ca44204cc56c23f32925064ee93'
+                    'SCRAPEOPS_API_KEY': os.environ["SCRAPEOPS_API_KEY"],
+                    'CAPTCHA_API_KEY': os.environ["CAPTCHA_API_KEY"]
                 }
             }
         )

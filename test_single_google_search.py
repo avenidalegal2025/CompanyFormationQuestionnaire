@@ -1,3 +1,4 @@
+import os
 #!/usr/bin/env python3
 """
 Single Test for Google LLC (Mobile Proxy)
@@ -11,7 +12,7 @@ from bs4 import BeautifulSoup
 
 # ScrapeOps Residential & Mobile Proxy Aggregator (docs: https://scrapeops.io/docs/residential-mobile-proxy-aggregator/overview/)
 # Proxy format: http://scrapeops:YOUR_API_KEY@residential-proxy.scrapeops.io:8181
-SCRAPEOPS_API_KEY = "b3a2e586-8c39-4115-8ffb-590ad8750116"
+SCRAPEOPS_API_KEY = os.environ["SCRAPEOPS_API_KEY"]
 SCRAPEOPS_PROXY = f"http://scrapeops:{SCRAPEOPS_API_KEY}@residential-proxy.scrapeops.io:8181"
 
 # Realistic mobile user agents

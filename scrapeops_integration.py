@@ -1,3 +1,4 @@
+import os
 #!/usr/bin/env python3
 """
 ScrapeOps Proxy Integration for Delaware Name Search
@@ -11,7 +12,7 @@ import random
 from bs4 import BeautifulSoup
 
 # ScrapeOps API configuration
-SCRAPEOPS_API_KEY = "b3a2e586-8c39-4115-8ffb-590ad8750116"  # Your actual API key
+SCRAPEOPS_API_KEY = os.environ["SCRAPEOPS_API_KEY"]  # Your actual API key
 SCRAPEOPS_PROXY_URL = "https://proxy.scrapeops.io/v1/"  # Proxy API endpoint
 
 def test_scrapeops_connection():

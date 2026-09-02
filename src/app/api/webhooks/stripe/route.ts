@@ -166,7 +166,17 @@ function getStripe(): Stripe {
 }
 
 const NAMECHEAP_PROXY_URL = 'http://3.149.156.19:8000';
-const PROXY_TOKEN = process.env.NAMECHEAP_PROXY_TOKEN || 'super-secret-32char-token-12345';
+// No fallback: a literal default here is public in this repo and would be a
+// working credential on the Namecheap proxy. Missing config must fail, not
+// silently authenticate with a known-public token.
+const PROXY_TOKEN = process.env.NAMECHEAP_PROXY_TOKEN;
+
+function proxyToken(): string {
+  if (!PROXY_TOKEN) {
+    throw new Error('NAMECHEAP_PROXY_TOKEN is not configured');
+  }
+  return PROXY_TOKEN;
+}
 
 export async function POST(request: NextRequest) {
   const body = await request.text();
@@ -1359,7 +1369,7 @@ async function registerDomain(domain: string, customerEmail: string, customerNam
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-proxy-token': PROXY_TOKEN,
+      'x-proxy-token': proxyToken(),
     },
     body: JSON.stringify({
       domain: domain,

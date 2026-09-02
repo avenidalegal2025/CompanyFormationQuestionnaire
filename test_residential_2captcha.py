@@ -1,3 +1,4 @@
+import os
 #!/usr/bin/env python3
 """
 Test Residential Proxy and 2captcha Integration
@@ -11,11 +12,11 @@ import base64
 from bs4 import BeautifulSoup
 
 # ScrapeOps Residential Proxy configuration
-SCRAPEOPS_API_KEY = "b3a2e586-8c39-4115-8ffb-590ad8750116"
+SCRAPEOPS_API_KEY = os.environ["SCRAPEOPS_API_KEY"]
 SCRAPEOPS_RESIDENTIAL_PROXY = f"http://scrapeops:{SCRAPEOPS_API_KEY}@residential-proxy.scrapeops.io:8181"
 
 # 2captcha configuration
-CAPTCHA_API_KEY = "f70e8ca44204cc56c23f32925064ee93"
+CAPTCHA_API_KEY = os.environ["CAPTCHA_API_KEY"]
 CAPTCHA_SOLVE_URL = "http://2captcha.com/in.php"
 CAPTCHA_RESULT_URL = "http://2captcha.com/res.php"
 

@@ -1,3 +1,4 @@
+import os
 """
 Delaware Proxy Configuration
 This file contains configuration for various proxy services that can be used
@@ -21,7 +22,7 @@ PROXY_SERVICES = {
         'protocol': 'http',
         'sticky_session': True,  # Keep same IP for session duration
         'rotation': 'session',  # Rotate IP per session
-        'api_key': 'f5f4ffcfb1755077eb3a27f809ab8b4985160d0dedbc4de11405a43b8c4d0b4a'  # Your API key
+        'api_key': os.environ["BRIGHT_DATA_API_KEY"]  # Your API key
     },
     
     # Bright Data Residential Proxies (Alternative endpoint)

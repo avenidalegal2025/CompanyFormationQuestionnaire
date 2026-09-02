@@ -1,3 +1,4 @@
+import os
 #!/usr/bin/env python3
 """
 Debug ScrapeOps Search
@@ -10,7 +11,7 @@ import time
 import random
 
 # ScrapeOps configuration
-SCRAPEOPS_API_KEY = "b3a2e586-8c39-4115-8ffb-590ad8750116"
+SCRAPEOPS_API_KEY = os.environ["SCRAPEOPS_API_KEY"]
 SCRAPEOPS_PROXY = f"http://scrapeops.headless_browser_mode=true:{SCRAPEOPS_API_KEY}@proxy.scrapeops.io:5353"
 
 def debug_scrapeops_search(company_name="Google LLC"):

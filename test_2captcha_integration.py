@@ -1,3 +1,4 @@
+import os
 #!/usr/bin/env python3
 """
 Test 2captcha Integration
@@ -10,7 +11,7 @@ import base64
 from bs4 import BeautifulSoup
 
 # 2captcha configuration
-CAPTCHA_API_KEY = "f70e8ca44204cc56c23f32925064ee93"
+CAPTCHA_API_KEY = os.environ["CAPTCHA_API_KEY"]
 CAPTCHA_SOLVE_URL = "http://2captcha.com/in.php"
 CAPTCHA_RESULT_URL = "http://2captcha.com/res.php"
 
@@ -125,7 +126,7 @@ def test_delaware_captcha_detection():
     
     try:
         # ScrapeOps configuration
-        SCRAPEOPS_API_KEY = "b3a2e586-8c39-4115-8ffb-590ad8750116"
+        SCRAPEOPS_API_KEY = os.environ["SCRAPEOPS_API_KEY"]
         SCRAPEOPS_PROXY = f"http://scrapeops.headless_browser_mode=true:{SCRAPEOPS_API_KEY}@proxy.scrapeops.io:5353"
         
         session = requests.Session()

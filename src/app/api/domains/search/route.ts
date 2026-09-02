@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const NAMECHEAP_PROXY_URL = 'http://3.149.156.19:8000';
-const PROXY_TOKEN = process.env.NAMECHEAP_PROXY_TOKEN || 'super-secret-32char-token-12345';
+// No fallback: a literal default here is public in this repo and would be a
+// working credential on the Namecheap proxy. Missing config must fail, not
+// silently authenticate with a known-public token.
+const PROXY_TOKEN = process.env.NAMECHEAP_PROXY_TOKEN;
 
 async function searchDomains(baseDomain: string) {
   if (!baseDomain) {

@@ -1,3 +1,4 @@
+import os
 #!/usr/bin/env python3
 """
 One-off Playwright run: Google LLC on Delaware with mobile proxy + 2captcha.
@@ -18,12 +19,12 @@ try:
 except Exception:
     stealth_sync = None
 
-SCRAPEOPS_API_KEY = "b3a2e586-8c39-4115-8ffb-590ad8750116"
+SCRAPEOPS_API_KEY = os.environ["SCRAPEOPS_API_KEY"]
 PROXY_SERVER = "http://residential-proxy.scrapeops.io:8181"  # ScrapeOps Residential & Mobile Proxy Aggregator
 PROXY_USERNAME = "scrapeops"
 PROXY_PASSWORD = SCRAPEOPS_API_KEY
 
-CAPTCHA_API_KEY = "f70e8ca44204cc56c23f32925064ee93"
+CAPTCHA_API_KEY = os.environ["CAPTCHA_API_KEY"]
 CAPTCHA_SOLVE_URL = "http://2captcha.com/in.php"
 CAPTCHA_RESULT_URL = "http://2captcha.com/res.php"
 

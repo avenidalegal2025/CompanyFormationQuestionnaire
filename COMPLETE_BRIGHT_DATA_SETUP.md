@@ -2,7 +2,7 @@
 
 ## 🎯 **Current Status**
 
-✅ **API Key Valid**: `f5f4ffcfb1755077eb3a27f809ab8b4985160d0dedbc4de11405a43b8c4d0b4a`  
+✅ **API Key Valid**: `<BRIGHT_DATA_API_KEY>`  
 ❌ **Zone Missing**: You need to create a zone for proxy/API access  
 ❌ **Proxy Credentials**: You need separate proxy credentials  
 
@@ -61,7 +61,7 @@ PROXY_SERVICES = {
         'protocol': 'http',
         'sticky_session': True,
         'rotation': 'session',
-        'api_key': 'f5f4ffcfb1755077eb3a27f809ab8b4985160d0dedbc4de11405a43b8c4d0b4a',
+        'api_key': '<BRIGHT_DATA_API_KEY>',
         'zone_id': 'your_zone_id_here'  # Add your zone ID
     }
 }

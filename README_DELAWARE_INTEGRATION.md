@@ -41,8 +41,8 @@ Vercel App → API Route → AWS Lambda → Playwright → Delaware Website
 The Lambda function uses these hardcoded values (should be moved to environment variables in production):
 
 ```python
-SCRAPEOPS_API_KEY = "b3a2e586-8c39-4115-8ffb-590ad8750116"
-CAPTCHA_API_KEY = "f70e8ca44204cc56c23f32925064ee93"
+SCRAPEOPS_API_KEY = "<SCRAPEOPS_API_KEY>"
+CAPTCHA_API_KEY = "<CAPTCHA_API_KEY>"
 ```
 
 ### AWS Resources

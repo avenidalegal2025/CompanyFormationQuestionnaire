@@ -2,7 +2,7 @@
 
 ## 🔑 **Understanding Your API Key**
 
-The API key you provided (`f5f4ffcfb1755077eb3a27f809ab8b4985160d0dedbc4de11405a43b8c4d0b4a`) is for the **Bright Data API**, not for proxy authentication.
+The API key you provided (`<BRIGHT_DATA_API_KEY>`) is for the **Bright Data API**, not for proxy authentication.
 
 ## 🚀 **Getting Proxy Credentials**
 
@@ -51,14 +51,14 @@ https://api.brightdata.com/request
 
 ### **Authentication**
 ```bash
-Authorization: Bearer f5f4ffcfb1755077eb3a27f809ab8b4985160d0dedbc4de11405a43b8c4d0b4a
+Authorization: Bearer <BRIGHT_DATA_API_KEY>
 ```
 
 ### **Example Request**
 ```bash
 curl --request POST \
   --url https://api.brightdata.com/request \
-  --header 'Authorization: Bearer f5f4ffcfb1755077eb3a27f809ab8b4985160d0dedbc4de11405a43b8c4d0b4a' \
+  --header 'Authorization: Bearer <BRIGHT_DATA_API_KEY>' \
   --header 'Content-Type: application/json' \
   --data '{
     "zone": "your_zone_name",
@@ -85,7 +85,7 @@ PROXY_SERVICES = {
         'protocol': 'http',
         'sticky_session': True,
         'rotation': 'session',
-        'api_key': 'f5f4ffcfb1755077eb3a27f809ab8b4985160d0dedbc4de11405a43b8c4d0b4a'
+        'api_key': '<BRIGHT_DATA_API_KEY>'
     }
 }
 ```

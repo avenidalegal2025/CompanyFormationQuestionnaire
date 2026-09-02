@@ -25,13 +25,13 @@ import boto3
 from datetime import datetime
 
 # Configuration
-SCRAPEOPS_API_KEY = os.environ.get("SCRAPEOPS_API_KEY", "b3a2e586-8c39-4115-8ffb-590ad8750116")
+SCRAPEOPS_API_KEY = os.environ.get("SCRAPEOPS_API_KEY", os.environ["SCRAPEOPS_API_KEY"])
 # Force ScrapeOps mobile/residential aggregator proxy
 PROXY_SERVER = os.environ.get("SCRAPEOPS_PROXY", "http://residential-proxy.scrapeops.io:8181")
 PROXY_USERNAME = os.environ.get("SCRAPEOPS_USER", "scrapeops")
 PROXY_PASSWORD = os.environ.get("SCRAPEOPS_PASSWORD", SCRAPEOPS_API_KEY)
 
-CAPTCHA_API_KEY = os.environ.get("TWO_CAPTCHA_API_KEY", "f70e8ca44204cc56c23f32925064ee93")
+CAPTCHA_API_KEY = os.environ.get("TWO_CAPTCHA_API_KEY", os.environ["CAPTCHA_API_KEY"])
 CAPTCHA_SOLVE_URL = "http://2captcha.com/in.php"
 CAPTCHA_RESULT_URL = "http://2captcha.com/res.php"
 

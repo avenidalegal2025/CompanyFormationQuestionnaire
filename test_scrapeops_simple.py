@@ -1,3 +1,4 @@
+import os
 #!/usr/bin/env python3
 """
 Simple ScrapeOps Test
@@ -8,7 +9,7 @@ import requests
 import json
 
 # Your ScrapeOps API key
-API_KEY = "b3a2e586-8c39-4115-8ffb-590ad8750116"
+API_KEY = os.environ["SCRAPEOPS_API_KEY"]
 BASE_URL = "https://proxy.scrapeops.io/v1/"
 
 def test_basic_connection():
