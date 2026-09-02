@@ -147,10 +147,18 @@ def truncate_at_word_boundary(text, max_length):
 
     return strip_dangling_words(result)
 
-def translate_to_english(text):
+def translate_to_english(text, force=False):
     """
     Translate Spanish text to English using AWS Translate.
     Returns the original text if translation fails or if text is already in English.
+
+    force=True skips the Spanish-detection heuristic below and lets AWS Translate
+    auto-detect the source language. Use it for free-text business descriptions
+    (lines 10, 16 "other", 17). The heuristic only fires on accented characters
+    or a short stopword list, so a single unaccented Spanish word slipped
+    straight through: SAIGON SWING LLC (2026-09-02) shipped an SS-4 reading
+    "RESTAURANTE" on both line 10 and line 17. Never force it on names or
+    addresses -- translating "CASA BLANCA LLC" would corrupt the filing.
     """
     if not text or not isinstance(text, str) or len(text.strip()) == 0:
         return text
@@ -169,12 +177,18 @@ def translate_to_english(text):
     
     has_spanish = any(re.search(pattern, text_clean, re.IGNORECASE) for pattern in spanish_indicators)
     
-    if not has_spanish:
+    if not has_spanish and not force:
         # Likely already in English
         return text
     
     try:
-        # Use AWS Translate to translate from Spanish to English
+        # Always declare Spanish as the source. SourceLanguageCode='auto' is
+        # NOT available to this function -- AWS Translate answers
+        # "Autodetect language is not supported" (it needs Comprehend), the
+        # except below swallowed it, and the forced call silently returned the
+        # untranslated text. The questionnaire is Spanish-language, so 'es' is
+        # the right assumption for these free-text business fields, and AWS
+        # returns English input essentially unchanged.
         response = translate_client.translate_text(
             Text=text_clean,
             SourceLanguageCode='es',
@@ -1468,14 +1482,13 @@ def map_data_to_ss4_fields(form_data):
         "Line 7b": format_ssn(responsible_ssn) if responsible_ssn and responsible_ssn.upper() not in ['N/A-FOREIGN', 'N/A', ''] else "N/A-FOREIGN",  # Responsible party SSN/ITIN/EIN - formatted as XXX-XX-XXXX
         "8b": "",  # Will be set to member count if LLC, or date if not LLC
         "8b_date": date_business_started,  # Date business started (for non-LLC)
-        # Line 9b: state where incorporated. The form reads "If a CORPORATION,
-        # name the state ... where incorporated", and the IRS instructions say to
-        # complete it only when the Corporation box is checked on line 9a. This
-        # filled it unconditionally, so every LLC went out with a state printed on
-        # a corporation-only line while 9a said Partnership or Sole proprietor --
-        # the wrong state selection Antonio flagged. Start it blank; the is_corp
-        # branch below sets it for the entities the line actually applies to.
-        "9b": "",
+        # Line 9b: state of organization. Blanking this for non-corporations was
+        # an over-correction: the 2026-06-23 note is "seleccion de estado
+        # incorrecta" -- the state VALUE was wrong, not the line itself -- and
+        # Avenida files 9b for every entity so the IRS sees the state of
+        # organization. Fill it from the formation state for all entity types;
+        # the is_corp branch below re-asserts the same value.
+        "9b": (formation_state or "FL").upper(),
         # Line 10: Reason for applying (text next to the "Started new business" checkbox).
         # The checkbox itself is handled further below; this text should describe
         # the TYPE of business, not just repeat "Started new business".
@@ -1489,7 +1502,7 @@ def map_data_to_ss4_fields(form_data):
             "Other": "0"
         },
         "15": "N/A",  # First date wages paid - always N/A
-        "17": truncate_at_word_boundary(to_upper(translate_to_english(form_data.get("line17PrincipalMerchandise", ""))), 80),  # Smart summary from API, never cuts words
+        "17": truncate_at_word_boundary(to_upper(translate_to_english(form_data.get("line17PrincipalMerchandise", ""), force=True)), 80),  # Smart summary from API, never cuts words
         "Designee Name": format_designee_name(form_data, entity_type),  # ALL CAPS - includes officer title for C-Corp only
         "Designee Address": "10634 NE 11 AVE, MIAMI, FL, 33138",  # ALL CAPS
         "Designee Phone": format_phone("(786) 512-0434"),  # Updated phone number - formatted as xxx-xxx-xxxx
@@ -1502,7 +1515,8 @@ def map_data_to_ss4_fields(form_data):
 
     # --- Refine Line 10 text now that mapped_data has been initialized ---
     raw_reason = translate_to_english(
-        form_data.get("summarizedBusinessPurpose", business_purpose or "General business operations")
+        form_data.get("summarizedBusinessPurpose", business_purpose or "General business operations"),
+        force=True,
     )
     raw_reason = (raw_reason or "").strip()
 
@@ -1515,7 +1529,7 @@ def map_data_to_ss4_fields(form_data):
             or business_purpose
             or "GENERAL BUSINESS"
         )
-        normalized = normalize_business_description(translate_to_english(fallback_source or ""))
+        normalized = normalize_business_description(translate_to_english(fallback_source or "", force=True))
     else:
         normalized = normalize_business_description(raw_reason or "")
 
@@ -1674,7 +1688,7 @@ def map_data_to_ss4_fields(form_data):
             mapped_data["Checks"]["16_other"] = CHECK_COORDS["16_other"]
             if line16_other_specify:
                 # Max 42 chars so "Other (specify)" fits full phrase (e.g. "WE MAKE MOVIES AND PRODUCTION")
-                translated = translate_to_english(line16_other_specify)
+                translated = translate_to_english(line16_other_specify, force=True)
                 mapped_data["16_other_specify"] = to_upper(truncate_at_word_boundary(translated, 42))
             else:
                 translated = translate_to_english(business_purpose or "GENERAL BUSINESS")
@@ -1682,7 +1696,7 @@ def map_data_to_ss4_fields(form_data):
         else:
             mapped_data["Checks"]["16_other"] = CHECK_COORDS["16_other"]
             if line16_other_specify:
-                translated = translate_to_english(line16_other_specify)
+                translated = translate_to_english(line16_other_specify, force=True)
             else:
                 translated = translate_to_english(business_purpose or "GENERAL BUSINESS")
             cleaned = normalize_business_description(translated or "")
@@ -1691,7 +1705,7 @@ def map_data_to_ss4_fields(form_data):
             )
     elif line16_other_specify:
         mapped_data["Checks"]["16_other"] = CHECK_COORDS["16_other"]
-        translated = translate_to_english(line16_other_specify)
+        translated = translate_to_english(line16_other_specify, force=True)
         cleaned = normalize_business_description(translated or "")
         mapped_data["16_other_specify"] = to_upper(
             truncate_at_word_boundary(cleaned, 42)
