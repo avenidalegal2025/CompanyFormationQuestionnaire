@@ -262,6 +262,18 @@ function mapFamilyTransfer(val: string | undefined): string {
  * Async because the county resolver may need to hit the Google Maps
  * Geocoding API as a fallback when the city isn't in our local map.
  */
+/**
+ * Numbers that come back from a saved draft can be strings ("50.01"), and the
+ * document builder does arithmetic on them (majorityPct.toFixed(2)). Coerce
+ * once, here, so a restored draft cannot crash document generation.
+ * Returns undefined for blank/unparseable, so callers keep their own default.
+ */
+function num(value: unknown): number | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  const n = typeof value === "number" ? value : Number(String(value).replace(/[, ]/g, ""));
+  return Number.isFinite(n) ? n : undefined;
+}
+
 export async function mapFormToDocgenAnswers(
   data: FormData,
 ): Promise<QuestionnaireAnswers> {
@@ -436,14 +448,14 @@ export async function mapFormToDocgenAnswers(
     // agreement; it only wrote a fabricated 30% into the Airtable "Min Tax
     // Distribution %" column that Antonio audits against. Pass through what the
     // user actually gave, so the column is empty when nothing was asked.
-    min_tax_distribution: agreement.llc_minTaxDistribution,
+    min_tax_distribution: num(agreement.llc_minTaxDistribution),
 
     // Governance
     // Defaults match the numbers the questionnaire shows (50.01 / 75). Older
     // drafts saved neither, and an undefined super-majority threshold dropped
     // the "Super Majority Defined" clause from agreements that use the term.
-    majority_threshold: agreement.majorityThreshold || 50.01,
-    supermajority_threshold: agreement.supermajorityThreshold || 75,
+    majority_threshold: num(agreement.majorityThreshold) ?? 50.01,
+    supermajority_threshold: num(agreement.supermajorityThreshold) ?? 75,
     sale_of_company_voting: isCorp
       ? votingCode(agreement.corp_saleDecisionThreshold)
       : votingCode(agreement.llc_companySaleDecision),
@@ -481,8 +493,8 @@ export async function mapFormToDocgenAnswers(
       ? agreement.corp_rofr === "Yes"
       : agreement.llc_rofr === "Yes",
     rofr_offer_period: isCorp
-      ? agreement.corp_rofrOfferPeriod || 60
-      : agreement.llc_rofrOfferPeriod || 60,
+      ? num(agreement.corp_rofrOfferPeriod) ?? 60
+      : num(agreement.llc_rofrOfferPeriod) ?? 60,
     death_incapacity_forced_sale: isCorp
       ? (agreement.corp_heirsForcedToSell ?? agreement.corp_incapacityHeirsPolicy) === "Yes"
       : (agreement.llc_heirsForcedToSell ?? agreement.llc_incapacityHeirsPolicy) === "Yes",
@@ -501,8 +513,8 @@ export async function mapFormToDocgenAnswers(
       ? agreement.corp_nonCompete === "Yes"
       : agreement.llc_nonCompete === "Yes",
     noncompete_duration: isCorp
-      ? agreement.corp_nonCompeteDuration || 2
-      : agreement.llc_nonCompeteDuration || 2,
+      ? num(agreement.corp_nonCompeteDuration) ?? 2
+      : num(agreement.llc_nonCompeteDuration) ?? 2,
     noncompete_scope: isCorp
       ? agreement.corp_nonCompeteScope || ""
       : agreement.llc_nonCompeteScope || "",

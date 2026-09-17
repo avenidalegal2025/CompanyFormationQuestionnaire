@@ -10,7 +10,16 @@ if (!AIRTABLE_API_KEY || !AIRTABLE_BASE_ID) {
   console.warn('⚠️ Airtable credentials not configured');
 }
 
-const base = new Airtable({ apiKey: AIRTABLE_API_KEY }).base(AIRTABLE_BASE_ID);
+// Built on first use, not on import: the mapping functions below are pure and
+// are exercised by scripts/tests that have no Airtable credentials, and the
+// client constructor throws without an API key.
+let _base: ReturnType<ReturnType<typeof Airtable.prototype.base>> | null = null;
+function base(tableName: string) {
+  if (!_base) {
+    _base = new Airtable({ apiKey: AIRTABLE_API_KEY }).base(AIRTABLE_BASE_ID) as any;
+  }
+  return (_base as any)(tableName);
+}
 
 /**
  * Parse a full name into first and last name components
@@ -493,7 +502,6 @@ export interface AirtableFormationRecord {
   'LLC Minor Decisions %'?: number;
   'LLC Manager Restrictions'?: string;
   'LLC Deadlock Resolution'?: string;
-  'LLC Key Man Insurance'?: string;
   'LLC Dispute Resolution'?: string;
   'LLC ROFR'?: 'Yes' | 'No';
   'LLC Incapacity Heirs Policy'?: 'Yes' | 'No';
@@ -547,10 +555,32 @@ export interface AirtableFormationRecord {
 }
 
 /**
+ * Airtable stores "no answer" as an empty cell. Columns whose value is
+ * undefined are dropped so an unanswered question never reaches the audit
+ * sheet as a real answer.
+ */
+function dropUndefined(fields: Record<string, any>): Record<string, any> {
+  for (const key of Object.keys(fields)) {
+    if (fields[key] === undefined) delete fields[key];
+  }
+  return fields;
+}
+
+/**
+ * Yes/No columns. An unanswered question is undefined — NOT 'No'. Writing 'No'
+ * was how an untouched "¿Ambos dueños van a operar el negocio como miembros
+ * administradores?" showed up in Antonio's sheet as a deliberate No.
+ */
+function yesNo(value: unknown): 'Yes' | 'No' | undefined {
+  if (value === undefined || value === null || value === '') return undefined;
+  return value === 'Yes' || value === true ? 'Yes' : 'No';
+}
+
+/**
  * Create a new formation record in Airtable
  */
 export async function createFormationRecord(data: AirtableFormationRecord): Promise<string> {
-  const fields = { ...(data as any) };
+  const fields = dropUndefined({ ...(data as any) });
   // Bumped from 5 → 50: each retry strips ONE unknown field. For 6-owner
   // Corp the loop needed to strip "Officer N SSN" for N=1..6 plus other
   // schema-missing fields, blowing past the prior 5-retry cap and throwing
@@ -606,7 +636,7 @@ export async function updateFormationRecord(
   recordId: string,
   data: Partial<AirtableFormationRecord>
 ): Promise<void> {
-  const fields = { ...(data as any) };
+  const fields = dropUndefined({ ...(data as any) });
   // Bumped from 5 → 50: each retry strips ONE unknown field. For 6-owner
   // Corp the loop needed to strip "Officer N SSN" for N=1..6 plus other
   // schema-missing fields, blowing past the prior 5-retry cap and throwing
@@ -797,7 +827,7 @@ export function mapQuestionnaireToAirtable(
     'Vault Path': vaultPath,
     
     // Phone & Contact
-    'Has US Phone': company.hasUsPhone === 'Yes' ? 'Yes' : 'No',
+    'Has US Phone': yesNo(company.hasUsPhone),
     'Business Phone': company.usPhoneNumber || '', // Phone number user already has (when hasUsPhone === 'Yes')
     'Forward Phone': company.forwardPhoneE164 || '', // Forwarding number for provisioned phone (when hasUsPhone === 'No')
     
@@ -828,7 +858,7 @@ export function mapQuestionnaireToAirtable(
       : '',
     
     // Agreement
-    'Want Agreement': admin.wantAgreement === 'Yes' ? 'Yes' : 'No',
+    'Want Agreement': yesNo(admin.wantAgreement),
     
     // Admin
     'Internal Status': 'New',
@@ -1088,7 +1118,7 @@ export function mapQuestionnaireToAirtable(
     }
     
     // Managing members
-    record['LLC Managing Members'] = agreement.llc_managingMembers === 'Yes' ? 'Yes' : 'No';
+    record['LLC Managing Members'] = yesNo(agreement.llc_managingMembers);
     
     // Managing member flags (stored as llc_managingMember_0, llc_managingMember_1, etc.)
     for (let i = 0; i < Math.min(owners.length, 6); i++) {
@@ -1113,11 +1143,11 @@ export function mapQuestionnaireToAirtable(
     record['LLC Additional Contributions Decision'] = agreement.llc_additionalContributionsDecision;
     record['LLC Additional Contributions Majority %'] = agreement.llc_additionalContributionsMajority ? agreement.llc_additionalContributionsMajority / 100 : undefined;
     record['LLC Withdraw Contributions'] = agreement.llc_withdrawContributions;
-    record['LLC Member Loans'] = agreement.llc_memberLoans === 'Yes' ? 'Yes' : 'No';
+    record['LLC Member Loans'] = yesNo(agreement.llc_memberLoans);
     record['LLC Company Sale Decision'] = agreement.llc_companySaleDecision;
     record['LLC Company Sale Decision Majority %'] = agreement.llc_companySaleDecisionMajority ? agreement.llc_companySaleDecisionMajority / 100 : undefined;
     record['LLC Tax Partner'] = agreement.llc_taxPartner;
-    record['LLC Non Compete'] = agreement.llc_nonCompete === 'Yes' ? 'Yes' : 'No';
+    record['LLC Non Compete'] = yesNo(agreement.llc_nonCompete);
     record['LLC Bank Signers'] = agreement.llc_bankSigners;
     record['LLC Major Decisions'] = agreement.llc_majorDecisions;
     record['LLC Major Decisions %'] = agreement.llc_majorDecisionsMajority ? agreement.llc_majorDecisionsMajority / 100 : undefined;
@@ -1125,10 +1155,9 @@ export function mapQuestionnaireToAirtable(
     record['LLC Minor Decisions %'] = agreement.llc_minorDecisionsMajority ? agreement.llc_minorDecisionsMajority / 100 : undefined;
     record['LLC Manager Restrictions'] = agreement.llc_managerRestrictions;
     record['LLC Deadlock Resolution'] = agreement.llc_deadlockResolution;
-    record['LLC Key Man Insurance'] = agreement.llc_keyManInsurance;
     record['LLC Dispute Resolution'] = agreement.llc_disputeResolution;
-    record['LLC ROFR'] = agreement.llc_rofr === 'Yes' ? 'Yes' : 'No';
-    record['LLC Incapacity Heirs Policy'] = (agreement.llc_heirsForcedToSell ?? agreement.llc_incapacityHeirsPolicy) === 'Yes' ? 'Yes' : 'No';
+    record['LLC ROFR'] = yesNo(agreement.llc_rofr);
+    record['LLC Incapacity Heirs Policy'] = yesNo((agreement.llc_heirsForcedToSell ?? agreement.llc_incapacityHeirsPolicy));
     // "New Partners" and "New Members" were the same question asked twice in
     // different words (Step 7 "nuevos miembros", Step 9 "nuevos socios"). Only
     // the Step 7 answer ever reached the agreement, so the Step 9 duplicate was
@@ -1172,15 +1201,15 @@ export function mapQuestionnaireToAirtable(
     record['Corp Bank Signers'] = agreement.corp_bankSigners;
     record['Corp Major Decision Threshold'] = agreement.corp_majorDecisionThreshold;
     record['Corp Major Decision Majority %'] = agreement.corp_majorDecisionMajority ? agreement.corp_majorDecisionMajority / 100 : undefined;
-    record['Corp Shareholder Loans'] = agreement.corp_shareholderLoans === 'Yes' ? 'Yes' : 'No';
+    record['Corp Shareholder Loans'] = yesNo(agreement.corp_shareholderLoans);
     record['Corp Tax Owner'] = agreement.corp_taxOwner;
-    record['Corp Non Compete'] = agreement.corp_nonCompete === 'Yes' ? 'Yes' : 'No';
-    record['Corp ROFR'] = agreement.corp_rofr === 'Yes' ? 'Yes' : 'No';
+    record['Corp Non Compete'] = yesNo(agreement.corp_nonCompete);
+    record['Corp ROFR'] = yesNo(agreement.corp_rofr);
     record['Corp Transfer To Relatives'] = agreement.corp_transferToRelatives;
     record['Corp Transfer To Relatives Majority %'] = agreement.corp_transferToRelativesMajority ? agreement.corp_transferToRelativesMajority / 100 : undefined;
-    record['Corp Incapacity Heirs Policy'] = (agreement.corp_heirsForcedToSell ?? agreement.corp_incapacityHeirsPolicy) === 'Yes' ? 'Yes' : 'No';
-    record['Corp Divorce Buyout Policy'] = agreement.corp_divorceBuyoutPolicy === 'Yes' ? 'Yes' : 'No';
-    record['Corp Tag Drag Rights'] = agreement.corp_tagDragRights === 'Yes' ? 'Yes' : 'No';
+    record['Corp Incapacity Heirs Policy'] = yesNo((agreement.corp_heirsForcedToSell ?? agreement.corp_incapacityHeirsPolicy));
+    record['Corp Divorce Buyout Policy'] = yesNo(agreement.corp_divorceBuyoutPolicy);
+    record['Corp Tag Drag Rights'] = yesNo(agreement.corp_tagDragRights);
     record['Corp Additional Clauses'] = agreement.corp_additionalClauses;
   }
   
