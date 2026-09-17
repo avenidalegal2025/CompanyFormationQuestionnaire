@@ -123,6 +123,62 @@ const VOTES: Array<[string, string]> = [
   check("No unused Super Majority definition when nothing uses it",
     !/Super Majority Defined/.test(llcNoSuper));
 
+  // C. The effective date. The Corp template used to supply the ordinal and the
+  //    year itself ("{{effective_date}}th, 2026"), so the generator filled in
+  //    only "September 17": every 1st/2nd/3rd/21st/22nd/23rd/31st came out as
+  //    "1th", and every agreement signed after 2026 was dated 2026.
+  console.log("\nEffective date:");
+  const today = new Date();
+  const day = today.getUTCDate();
+  const suffix = [1, 21, 31].includes(day) ? "st" : [2, 22].includes(day) ? "nd" : [3, 23].includes(day) ? "rd" : "th";
+  const expectedDate = `${today.toLocaleString("en-US", { month: "long", timeZone: "UTC" })} ${day}${suffix}, ${today.getUTCFullYear()}`;
+  for (const [base, label] of [[LLC, "LLC"], [CORP, "Corp"]] as const) {
+    const t = await text(payload(base, {}));
+    const dates = [...t.matchAll(/([A-Z][a-z]+ \d{1,2}(?:st|nd|rd|th), \d{4})/g)].map((m) => m[1]);
+    check(`${label} dates itself "${expectedDate}"`, dates.includes(expectedDate), dates.slice(0, 3).join(" | ") || "no date found");
+    check(`${label} has no malformed ordinal`, !/\b(1th|2th|3th|21th|22th|23th|31th|\d+st,|\d+nd,)\b/.test(t.replace(/\b(1st|21st|31st|2nd|22nd|3rd|23rd),/g, "")),
+      t.match(/\b\d+(?:th|st|nd|rd),? \d{4}/g)?.slice(0, 3).join(" | ") || "");
+  }
+
+  // The document is dated "today", so today's run only exercises one ordinal.
+  // Freeze the clock on the days that used to come out wrong, and on a year
+  // after the one the template hardcoded.
+  console.log("\nEffective date on the days that used to break:");
+  const RealDate = Date;
+  const freeze = (iso: string) => {
+    class Frozen extends RealDate {
+      constructor(...args: unknown[]) {
+        // @ts-expect-error — passthrough for `new Date(x)`, frozen for `new Date()`
+        super(...(args.length ? args : [iso]));
+      }
+      static now() { return new RealDate(iso).getTime(); }
+    }
+    (globalThis as { Date: DateConstructor }).Date = Frozen as unknown as DateConstructor;
+  };
+  const CASES: Array<[string, string]> = [
+    ["2027-01-01T12:00:00.000Z", "January 1st, 2027"],
+    ["2026-11-02T12:00:00.000Z", "November 2nd, 2026"],
+    ["2026-11-03T12:00:00.000Z", "November 3rd, 2026"],
+    ["2026-12-21T12:00:00.000Z", "December 21st, 2026"],
+    ["2026-12-31T12:00:00.000Z", "December 31st, 2026"],
+  ];
+  try {
+    for (const [iso, expected] of CASES) {
+      for (const [base, label] of [[LLC, "LLC"], [CORP, "Corp"]] as const) {
+        freeze(iso);
+        const t = await text(payload(base, {}));
+        (globalThis as { Date: DateConstructor }).Date = RealDate;
+        // …and nothing left over from the template after it: the Corp template
+        // used to supply ", 2026" itself, which produced "January 1st, 2027, 2026".
+        const dates = [...t.matchAll(/([A-Z][a-z]+ \d{1,2}(?:st|nd|rd|th)?,? \d{4}(?:, \d{4})?)/g)].map((m) => m[1]);
+        check(`${label} ${expected}`, t.includes(expected) && !/\d{4}, \d{4}/.test(t),
+          dates.slice(0, 3).join(" | ") || "no date found");
+      }
+    }
+  } finally {
+    (globalThis as { Date: DateConstructor }).Date = RealDate;
+  }
+
   console.log(failures.length ? `\n🔴 FAIL: ${failures.length} check(s) failed.` : "\n✅ PASS");
   process.exit(failures.length ? 1 : 0);
 })();

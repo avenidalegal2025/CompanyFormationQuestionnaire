@@ -120,15 +120,6 @@ function formatDate(isoDate: string): string {
   return `${months[d.getUTCMonth()]} ${day}${suffix}, ${d.getUTCFullYear()}`;
 }
 
-/** Corp template expects just "Month Day" (e.g., "March 24") — template adds "th, YYYY" */
-function formatDateForCorpTemplate(isoDate: string): string {
-  const d = new Date(isoDate);
-  const months = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December",
-  ];
-  return `${months[d.getUTCMonth()]} ${d.getUTCDate()}`;
-}
 
 function formatCurrency(amount: number): string {
   return amount.toLocaleString("en-US", {
@@ -1632,7 +1623,7 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   doc.render({
     corp_name: entityNameWithSuffix.toUpperCase(),
     corp_name_short: entityNameWithSuffix.replace(SUFFIX_RE, "").toUpperCase(),
-    effective_date: formatDateForCorpTemplate(effectiveIso),
+    effective_date: formatDate(effectiveIso),
     principal_address: answers.principal_address,
     county: answers.county,
     state: answers.state_of_formation,
