@@ -31,6 +31,21 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
+      - name: No pre-selected answers
+        # Every agreement question starts empty and must be answered before
+        # Continue. A pre-selected option is shown but never saved, so the
+        # document silently uses a different default (fixed 2026-09-17).
+        run: npx tsx scripts/test-required-answers.ts
+      - name: Answer fidelity (votes, thresholds, dates)
+        # The document must repeat the customer's answer: both sentences of
+        # LLC 5.1 / Corp 4.5, the voting percentages, and the effective date on
+        # the days whose ordinal or year used to come out wrong.
+        run: npx tsx scripts/test-answer-fidelity.ts
+      - name: Airtable column guard
+        # Airtable rejects the whole record on one unknown column name, which
+        # loses the formation silently. Checked against a committed snapshot of
+        # the Formations table — no credentials needed.
+        run: npx tsx scripts/test-airtable-columns.ts
       - name: Toggle-coverage guard
         run: npx tsx scripts/audit-toggle-coverage.ts
       - name: Document snapshot regression
