@@ -8,6 +8,7 @@ import RequiredHint from "@/components/RequiredHint";
 import type { StepProps } from "./types";
 import { Session } from "next-auth";
 import { handleSaveWithAuth } from "@/lib/auth-helpers";
+import { useSeededDefaults } from "@/lib/use-seeded-defaults";
 
 interface Step7Agreement2Props extends StepProps {
   session: Session | null;
@@ -17,6 +18,14 @@ interface Step7Agreement2Props extends StepProps {
 export default function Step7Agreement2({ form, setStep, onSave, onNext, session, anonymousId }: Step7Agreement2Props) {
   const { register, watch, control } = form;
   const isCorp = watch("company.entityType") === "C-Corp" || watch("company.entityType") === "S-Corp";
+
+  // Store the thresholds shown in the boxes below; an untouched 50.01 used to
+  // save nothing and the agreement fell back to 50% / no Super Majority
+  // definition at all.
+  useSeededDefaults(form, {
+    "agreement.majorityThreshold": 50.01,
+    "agreement.supermajorityThreshold": 75,
+  });
 
   const handleContinue = async () => {
     await onNext?.();
@@ -38,7 +47,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                 <InfoTooltip title="Mayoría" body="Porcentaje mínimo de votos necesario para aprobar una decisión por mayoría. Por defecto es 50.01%." />
               </label>
               <div className="flex items-center gap-2 mt-1">
-                <input type="number" min="50.01" max="99.99" step="0.01" className="input w-28" defaultValue={50.01}
+                <input type="number" min="50.01" max="99.99" step="0.01" className="input w-28" 
                   {...register("agreement.majorityThreshold", { valueAsNumber: true })} />
                 <span className="text-sm text-gray-500">%</span>
               </div>
@@ -48,7 +57,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                 <InfoTooltip title="Supermayoría" body="Porcentaje necesario para decisiones que requieren una aprobación superior a la mayoría simple. Por defecto es 75%." />
               </label>
               <div className="flex items-center gap-2 mt-1">
-                <input type="number" min="51" max="99.99" step="0.01" className="input w-28" defaultValue={75}
+                <input type="number" min="51" max="99.99" step="0.01" className="input w-28" 
                   {...register("agreement.supermajorityThreshold", { valueAsNumber: true })} />
                 <span className="text-sm text-gray-500">%</span>
               </div>

@@ -187,6 +187,24 @@ function familyTransferClause(entity: "LLC" | "CORP", mode: string): string {
   );
 }
 
+/**
+ * The templates hard-code "50.1%" wherever a Majority is expressed as a number
+ * (the LLC drag-along trigger, the Majority definitions, the Corp §13.3
+ * Approved Sale trigger). Rewrite them to the threshold the customer set, so
+ * the percentages in the text match the "Majority Defined" clause.
+ *
+ * Corp must call this LATE: several passes anchor on the literal "…at least
+ * 50.1%" text.
+ */
+function applyMajorityPercent(xml: string, answers: QuestionnaireAnswers): string {
+  if (!answers.majority_threshold) return xml;
+  const majPct =
+    typeof answers.majority_threshold === "number"
+      ? answers.majority_threshold.toFixed(2).replace(/\.?0+$/, "")
+      : String(answers.majority_threshold);
+  return xmlTextReplace(xml, "50.1%", `${majPct}%`, true);
+}
+
 // ─── LLC Document Generation ──────────────────────────────────────────
 
 function generateLLC(answers: QuestionnaireAnswers): Buffer {
@@ -1044,14 +1062,8 @@ function applyLLCVotingReplacements(
     },
   );
 
-  // Replace majority threshold percentage in Sec 19.7
-  // Template has "50.1%" — replace with user's threshold (e.g., "50.01%")
-  if (answers.majority_threshold) {
-    const majPct = typeof answers.majority_threshold === 'number'
-      ? answers.majority_threshold.toFixed(2).replace(/\.?0+$/, '')
-      : String(answers.majority_threshold);
-    xml = xmlTextReplace(xml, "50.1%", `${majPct}%`, true);
-  }
+  // Majority percentages in the text follow the threshold the customer set.
+  xml = applyMajorityPercent(xml, answers);
 
   // Add Super Majority definition for LLC (between Sec 19.7 and 19.8)
   // LLC template has "19.7 Majority Defined" then "19.8 INDEMNIFICATION"
@@ -2139,6 +2151,8 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   // (templates leave it inherited and our paragraph-walk can't tell
   // them apart from other paragraphs without the explicit marker).
   xml = expandSignatureBlockSpacing(xml);
+  // Late, so the passes above can still anchor on the template's "50.1%".
+  xml = applyMajorityPercent(xml, answers);
   xml = repairXml(xml);
 
   renderedZip.file("word/document.xml", xml);

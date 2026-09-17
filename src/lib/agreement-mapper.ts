@@ -439,8 +439,11 @@ export async function mapFormToDocgenAnswers(
     min_tax_distribution: agreement.llc_minTaxDistribution,
 
     // Governance
-    majority_threshold: agreement.majorityThreshold || 50,
-    supermajority_threshold: agreement.supermajorityThreshold || undefined,
+    // Defaults match the numbers the questionnaire shows (50.01 / 75). Older
+    // drafts saved neither, and an undefined super-majority threshold dropped
+    // the "Super Majority Defined" clause from agreements that use the term.
+    majority_threshold: agreement.majorityThreshold || 50.01,
+    supermajority_threshold: agreement.supermajorityThreshold || 75,
     sale_of_company_voting: isCorp
       ? votingCode(agreement.corp_saleDecisionThreshold)
       : votingCode(agreement.llc_companySaleDecision),
