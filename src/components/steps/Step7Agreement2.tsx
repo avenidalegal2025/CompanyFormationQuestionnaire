@@ -4,6 +4,7 @@ import { Controller } from "react-hook-form";
 import HeroVideo from "@/components/HeroVideo";
 import SegmentedToggle from "@/components/SegmentedToggle";
 import InfoTooltip from "@/components/InfoTooltip";
+import RequiredHint from "@/components/RequiredHint";
 import type { StepProps } from "./types";
 import { Session } from "next-auth";
 import { handleSaveWithAuth } from "@/lib/auth-helpers";
@@ -72,7 +73,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                   control={control}
                   render={({ field }) => (
                     <SegmentedToggle
-                      value={field.value || "Decisión Unánime"}
+                      value={field.value || ""}
                       onChange={field.onChange}
                       options={[
                         { value: "Decisión Unánime", label: "Unánime" },
@@ -84,6 +85,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                     />
                   )}
                 />
+                <RequiredHint form={form} name="agreement.corp_newShareholdersAdmission" />
                 </div>
               </div>
               <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
@@ -100,7 +102,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                   control={control}
                   render={({ field }) => (
                     <SegmentedToggle
-                      value={field.value || "Sí, Pro-Rata"}
+                      value={field.value || ""}
                       onChange={field.onChange}
                       options={[
                         { value: "Sí, Pro-Rata", label: "Sí, Pro-Rata" },
@@ -111,13 +113,13 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                     />
                   )}
                 />
+                <RequiredHint form={form} name="agreement.corp_moreCapitalProcess" />
                 </div>
-                {watch("agreement.corp_moreCapitalProcess") === "No" && (
-                  <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[420px]">
-                    <label className="label flex items-center gap-2">¿Cómo se decidiría la proporción de las aportaciones?
+                <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[420px]">
+                    <label className="label flex items-center gap-2">¿Qué aprobación se requiere para pedir aportaciones de capital adicionales?
                       <InfoTooltip
-                        title="Decisión sobre Aportaciones"
-                        body="Si no es Pro-Rata, especifique si las aportaciones adicionales se deciden por unanimidad o por mayoría y, de ser mayoría, el porcentaje requerido."
+                        title="Aprobación de Aportaciones"
+                        body="Votación necesaria para aprobar que los accionistas aporten capital adicional. Aplica sea o no Pro-Rata."
                       />
                     </label>
                     <Controller
@@ -125,7 +127,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                       control={control}
                       render={({ field }) => (
                         <SegmentedToggle
-                          value={field.value || "Decisión Unánime"}
+                          value={field.value || ""}
                           onChange={field.onChange}
                           options={[
                         { value: "Decisión Unánime", label: "Unánime" },
@@ -137,8 +139,8 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                         />
                       )}
                     />
+                    <RequiredHint form={form} name="agreement.corp_moreCapitalDecision" />
               </div>
-                )}
               </div>
               <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
                 <label className="label inline-flex items-start gap-3 max-w-prose">
@@ -154,7 +156,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                   control={control}
                   render={({ field }) => (
                     <SegmentedToggle
-                      value={field.value || "No"}
+                      value={field.value || ""}
                       onChange={field.onChange}
                       options={[
                         { value: "Yes", label: "Sí" },
@@ -165,6 +167,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                     />
                   )}
                 />
+                <RequiredHint form={form} name="agreement.corp_shareholderLoans" />
                 </div>
                 {watch("agreement.corp_shareholderLoans") === "Yes" && (
                   <div className="mt-3 md:col-span-2 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
@@ -181,7 +184,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                         control={control}
                         render={({ field }) => (
                           <SegmentedToggle
-                            value={field.value || "Mayoría"}
+                            value={field.value || ""}
                             onChange={field.onChange}
                             options={[
                               { value: "Decisión Unánime", label: "Unánime" },
@@ -193,6 +196,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                           />
                         )}
                       />
+                      <RequiredHint form={form} name="agreement.corp_shareholderLoansVoting" />
                     </div>
                   </div>
                 )}
@@ -202,7 +206,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                   ¿Con qué frecuencia se repartirán los dividendos a los accionistas?
                   <InfoTooltip
                     title="Frecuencia de Dividendos"
-                    body="Determina cada cuánto la Junta se reúne para decidir y pagar dividendos. El acuerdo se redacta con la frecuencia que elija aquí; si no elige, se redacta trimestral."
+                    body="Determina cada cuánto la Junta se reúne para decidir y pagar dividendos. El acuerdo se redacta con la frecuencia que elija aquí."
                   />
                 </label>
                 <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
@@ -210,7 +214,8 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                     name="agreement.distributionFrequency"
                     control={control}
                     render={({ field }) => (
-                      <select className="input w-full min-w-0 text-sm" {...field} value={field.value || "Trimestral"}>
+                      <select className="input w-full min-w-0 text-sm" {...field} value={field.value || ""}>
+                        <option value="">Seleccionar opción</option>
                         <option value="Trimestral">Trimestral</option>
                         <option value="Semestral">Semestral</option>
                         <option value="Anual">Anual</option>
@@ -218,6 +223,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                       </select>
                     )}
                   />
+                  <RequiredHint form={form} name="agreement.distributionFrequency" />
                 </div>
               </div>
             </>
@@ -237,7 +243,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                     control={control}
                     render={({ field }) => (
                       <SegmentedToggle
-                        value={field.value || "Decisión Unánime"}
+                        value={field.value || ""}
                         onChange={field.onChange}
                         options={[
                         { value: "Decisión Unánime", label: "Unánime" },
@@ -249,6 +255,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                       />
                     )}
                   />
+                  <RequiredHint form={form} name="agreement.llc_newMembersAdmission" />
                 </div>
               </div>
               <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
@@ -265,7 +272,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                   control={control}
                   render={({ field }) => (
                     <SegmentedToggle
-                      value={field.value || "Sí, Pro-Rata"}
+                      value={field.value || ""}
                       onChange={field.onChange}
                       options={[
                         { value: "Sí, Pro-Rata", label: "Sí, Pro-Rata" },
@@ -276,13 +283,13 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                     />
                   )}
                 />
+                <RequiredHint form={form} name="agreement.llc_additionalContributions" />
                 </div>
-                {watch("agreement.llc_additionalContributions") === "No" && (
-                  <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[420px]">
-                    <label className="label flex items-center gap-2">¿Cómo se decidiría la proporción de las aportaciones?
+                <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[420px]">
+                    <label className="label flex items-center gap-2">¿Qué aprobación se requiere para pedir aportaciones de capital adicionales?
                       <InfoTooltip
-                        title="Decisión sobre Aportaciones"
-                        body="Si no es Pro-Rata, especifique si las aportaciones adicionales se deciden por unanimidad o por mayoría y, de ser mayoría, el porcentaje requerido."
+                        title="Aprobación de Aportaciones"
+                        body="Votación necesaria para aprobar que los socios aporten capital adicional. Aplica sea o no Pro-Rata."
                       />
                     </label>
                       <Controller
@@ -290,7 +297,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                         control={control}
                         render={({ field }) => (
                           <SegmentedToggle
-                            value={field.value || "Decisión Unánime"}
+                            value={field.value || ""}
                             onChange={field.onChange}
                             options={[
                             { value: "Decisión Unánime", label: "Unánime" },
@@ -302,8 +309,8 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                           />
                         )}
                       />
+                      <RequiredHint form={form} name="agreement.llc_additionalContributionsDecision" />
               </div>
-                )}
               </div>
               <div className="mt-8 pt-8 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
                 <label className="label inline-flex items-start gap-3 max-w-prose">
@@ -319,7 +326,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                   control={control}
                   render={({ field }) => (
                     <SegmentedToggle
-                      value={field.value || "No"}
+                      value={field.value || ""}
                       onChange={field.onChange}
                       options={[
                         { value: "Yes", label: "Sí" },
@@ -330,6 +337,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                     />
                   )}
                 />
+                <RequiredHint form={form} name="agreement.llc_memberLoans" />
                 </div>
                 {watch("agreement.llc_memberLoans") === "Yes" && (
                   <div className="mt-3 md:col-span-2 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
@@ -346,7 +354,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                         control={control}
                         render={({ field }) => (
                           <SegmentedToggle
-                            value={field.value || "Mayoría"}
+                            value={field.value || ""}
                             onChange={field.onChange}
                             options={[
                               { value: "Decisión Unánime", label: "Unánime" },
@@ -358,6 +366,7 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                           />
                         )}
                       />
+                      <RequiredHint form={form} name="agreement.llc_memberLoansVoting" />
                     </div>
                   </div>
                 )}

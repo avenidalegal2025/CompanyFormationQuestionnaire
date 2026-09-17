@@ -4,6 +4,7 @@ import { Controller } from "react-hook-form";
 import HeroMiami3 from "@/components/HeroMiami3";
 import SegmentedToggle from "@/components/SegmentedToggle";
 import InfoTooltip from "@/components/InfoTooltip";
+import RequiredHint from "@/components/RequiredHint";
 import type { StepProps } from "./types";
 import { Session } from "next-auth";
 import { handleSaveWithAuth } from "@/lib/auth-helpers";
@@ -43,7 +44,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                     control={control}
                     render={({ field }) => (
                       <SegmentedToggle
-                        value={field.value || "No"}
+                        value={field.value || ""}
                         onChange={field.onChange}
                         options={[
                           { value: "Yes", label: "Sí" },
@@ -54,6 +55,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                       />
                     )}
                   />
+                  <RequiredHint form={form} name="agreement.corp_rofr" />
                 </div>
                 {watch("agreement.corp_rofr") === "Yes" && (
                   <div className="mt-3 md:col-span-2 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
@@ -101,6 +103,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                       </select>
                     )}
                   />
+                  <RequiredHint form={form} name="agreement.corp_transferToRelatives" />
                 </div>
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
@@ -117,7 +120,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                     control={control}
                     render={({ field }) => (
                       <SegmentedToggle
-                        value={field.value || "No"}
+                        value={field.value || ""}
                         onChange={field.onChange}
                         options={[
                           { value: "Yes", label: "Sí" },
@@ -128,6 +131,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                       />
                     )}
                   />
+                  <RequiredHint form={form} name="agreement.corp_heirsForcedToSell" />
                 </div>
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
@@ -144,7 +148,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                     control={control}
                     render={({ field }) => (
                       <SegmentedToggle
-                        value={field.value || "No"}
+                        value={field.value || ""}
                         onChange={field.onChange}
                         options={[
                           { value: "Yes", label: "Sí" },
@@ -155,6 +159,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                       />
                     )}
                   />
+                  <RequiredHint form={form} name="agreement.corp_divorceBuyoutPolicy" />
                 </div>
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
@@ -171,7 +176,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                     control={control}
                     render={({ field }) => (
                       <SegmentedToggle
-                        value={field.value || "No"}
+                        value={field.value || ""}
                         onChange={field.onChange}
                         options={[
                           { value: "Yes", label: "Sí" },
@@ -182,6 +187,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                       />
                     )}
                   />
+                  <RequiredHint form={form} name="agreement.corp_tagDragRights" />
                 </div>
               </div>
             </>
@@ -201,7 +207,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                     control={control}
                     render={({ field }) => (
                       <SegmentedToggle
-                        value={field.value || "No"}
+                        value={field.value || ""}
                         onChange={field.onChange}
                         options={[
                           { value: "Yes", label: "Sí" },
@@ -212,6 +218,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                       />
                     )}
                   />
+                  <RequiredHint form={form} name="agreement.llc_rofr" />
                 </div>
                 {watch("agreement.llc_rofr") === "Yes" && (
                   <div className="mt-3 md:col-span-2 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
@@ -242,7 +249,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                     control={control}
                     render={({ field }) => (
                       <SegmentedToggle
-                        value={field.value || "No"}
+                        value={field.value || ""}
                         onChange={field.onChange}
                         options={[
                           { value: "Yes", label: "Sí" },
@@ -253,6 +260,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                       />
                     )}
                   />
+                  <RequiredHint form={form} name="agreement.llc_heirsForcedToSell" />
                 </div>
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
@@ -270,6 +278,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                         <option value="Sí, si la decisión de la mayoría de los socios.">Sí, si la decisión de la mayoría de los socios.</option>
                       </select>
                     )} />
+                  <RequiredHint form={form} name="agreement.llc_transferToRelatives" />
                 </div>
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
@@ -286,7 +295,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                     control={control}
                     render={({ field }) => (
                       <SegmentedToggle
-                        value={field.value || "Decisión Unánime"}
+                        value={field.value || ""}
                         onChange={field.onChange}
                         options={[
                           { value: "Decisión Unánime", label: "Unánime" },
@@ -298,6 +307,7 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                       />
                     )}
                   />
+                  <RequiredHint form={form} name="agreement.llc_dissolutionDecision" />
                 </div>
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
@@ -308,10 +318,11 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                 <div className="mt-3 md:mt-0 md:justify-self-end md:w-[500px]">
                   <Controller name="agreement.llc_divorceBuyoutPolicy" control={control}
                     render={({ field }) => (
-                      <SegmentedToggle value={field.value || "No"} onChange={field.onChange}
+                      <SegmentedToggle value={field.value || ""} onChange={field.onChange}
                         options={[{ value: "Yes", label: "Sí" }, { value: "No", label: "No" }]}
                         ariaLabel="LLC divorce buyout" name={field.name} />
                     )} />
+                  <RequiredHint form={form} name="agreement.llc_divorceBuyoutPolicy" />
                 </div>
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
@@ -322,10 +333,11 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
                 <div className="mt-3 md:mt-0 md:justify-self-end md:w-[500px]">
                   <Controller name="agreement.llc_tagDragRights" control={control}
                     render={({ field }) => (
-                      <SegmentedToggle value={field.value || "No"} onChange={field.onChange}
+                      <SegmentedToggle value={field.value || ""} onChange={field.onChange}
                         options={[{ value: "Yes", label: "Sí" }, { value: "No", label: "No" }]}
                         ariaLabel="LLC tag drag rights" name={field.name} />
                     )} />
+                  <RequiredHint form={form} name="agreement.llc_tagDragRights" />
                 </div>
               </div>
             </>

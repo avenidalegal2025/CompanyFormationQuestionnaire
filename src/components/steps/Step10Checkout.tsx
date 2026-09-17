@@ -16,9 +16,11 @@ function hasOwnerWithSSN(owners: any[] | undefined): boolean {
 interface Step10CheckoutProps extends StepProps {
   session: Session | null;
   anonymousId: string;
+  /** Marks unanswered required questions and navigates to them; true blocks checkout. */
+  hasMissingAnswers?: () => boolean;
 }
 
-export default function Step10Checkout({ form, setStep, onSave, onNext, session, anonymousId }: Step10CheckoutProps) {
+export default function Step10Checkout({ form, setStep, onSave, onNext, session, anonymousId, hasMissingAnswers }: Step10CheckoutProps) {
   const [showCheckout, setShowCheckout] = useState(false);
   const formData = form.getValues();
   
@@ -58,6 +60,7 @@ export default function Step10Checkout({ form, setStep, onSave, onNext, session,
   const agreementName = (entityType === 'C-Corp' || entityType === 'S-Corp') ? 'Acuerdo de Accionistas' : 'Acuerdo Operativo';
 
   const handleStartCheckout = () => {
+    if (hasMissingAnswers?.()) return;
     setShowCheckout(true);
   };
 

@@ -5,6 +5,7 @@ import { Controller } from "react-hook-form";
 import HeroMiami3 from "@/components/HeroMiami3";
 import SegmentedToggle from "@/components/SegmentedToggle";
 import InfoTooltip from "@/components/InfoTooltip";
+import RequiredHint from "@/components/RequiredHint";
 import type { StepProps } from "./types";
 import { Session } from "next-auth";
 import { handleSaveWithAuth } from "@/lib/auth-helpers";
@@ -31,11 +32,11 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
   const llcNCScope = watch("agreement.llc_nonCompeteScope");
 
   // The major/minor decision labels quote the spending threshold the user just
-  // entered above, falling back to the placeholder amount until they type one.
+  // entered above, falling back to neutral wording until they type one.
   const majorSpendingThresholdRaw = String(watch("agreement.llc_majorSpendingThreshold") ?? "").replace(/,/g, "");
   const majorSpendingThresholdLabel = majorSpendingThresholdRaw && !Number.isNaN(Number(majorSpendingThresholdRaw))
-    ? Number(majorSpendingThresholdRaw).toLocaleString("en-US")
-    : "10,000";
+    ? "$" + Number(majorSpendingThresholdRaw).toLocaleString("en-US")
+    : "el monto indicado";
 
   useEffect(() => {
     if (corpNC === "Yes") {
@@ -86,7 +87,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                   control={control}
                   render={({ field }) => (
                     <SegmentedToggle
-                      value={field.value || "Decisión Unánime"}
+                      value={field.value || ""}
                       onChange={field.onChange}
                       options={[
                           { value: "Decisión Unánime", label: "Unánime" },
@@ -98,6 +99,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                     />
                   )}
                 />
+                <RequiredHint form={form} name="agreement.corp_saleDecisionThreshold" />
                 </div>
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
@@ -115,7 +117,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                   control={control}
                   render={({ field }) => (
                     <SegmentedToggle
-                      value={field.value || "Un firmante"}
+                      value={field.value || ""}
                       onChange={field.onChange}
                       options={[
                         { value: "Un firmante", label: "Un firmante" },
@@ -126,6 +128,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                     />
                   )}
                 />
+                <RequiredHint form={form} name="agreement.corp_bankSigners" />
               </div>
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
@@ -143,7 +146,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                   control={control}
                   render={({ field }) => (
                     <SegmentedToggle
-                      value={field.value || "Decisión Unánime"}
+                      value={field.value || ""}
                       onChange={field.onChange}
                       options={[
                           { value: "Decisión Unánime", label: "Unánime" },
@@ -155,6 +158,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                     />
                   )}
                 />
+                <RequiredHint form={form} name="agreement.corp_majorDecisionThreshold" />
                 </div>
               </div>
               {/* Tax Owner removed for C-Corp per attorney review — only applies to LLC */}
@@ -173,7 +177,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                   control={control}
                   render={({ field }) => (
                     <SegmentedToggle
-                      value={field.value || "No"}
+                      value={field.value || ""}
                       onChange={field.onChange}
                       options={[
                         { value: "Yes", label: "Sí" },
@@ -184,6 +188,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                     />
                   )}
                 />
+                <RequiredHint form={form} name="agreement.corp_nonCompete" />
                 </div>
                 {watch("agreement.corp_nonCompete") === "Yes" && (
                   <>
@@ -224,11 +229,12 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                     <span className="text-sm text-gray-500">$</span>
                     <Controller name="agreement.corp_majorSpendingThreshold" control={control}
                       render={({ field }) => (
-                        <input type="text" className="input w-40" placeholder="5,000"
+                        <input type="text" className="input w-40" placeholder="Monto"
                           value={field.value ? Number(String(field.value).replace(/,/g, '')).toLocaleString('en-US') : ''}
                           onChange={(e) => { const raw = e.target.value.replace(/,/g, ''); if (/^\d*$/.test(raw)) field.onChange(raw); }} />
                       )} />
                   </div>
+                    <RequiredHint form={form} name="agreement.corp_majorSpendingThreshold" />
                 </div>
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
@@ -240,7 +246,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                 <div className="md:col-start-2 md:justify-self-end">
                   <Controller name="agreement.corp_officerRemovalVoting" control={control}
                     render={({ field }) => (
-                      <SegmentedToggle value={field.value || "Mayoría"} onChange={field.onChange}
+                      <SegmentedToggle value={field.value || ""} onChange={field.onChange}
                         options={[
                           { value: "Decisión Unánime", label: "Unánime" },
                           { value: "Supermayoría", label: "Supermayoría" },
@@ -248,6 +254,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                         ]}
                         ariaLabel="Officer removal voting" name={field.name} />
                     )} />
+                  <RequiredHint form={form} name="agreement.corp_officerRemovalVoting" />
                 </div>
               </div>
               {watch("agreement.corp_nonCompete") !== "Yes" && (
@@ -260,10 +267,11 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                 <div className="md:col-start-2 md:justify-self-end">
                   <Controller name="agreement.corp_nonSolicitation" control={control}
                     render={({ field }) => (
-                      <SegmentedToggle value={field.value || "Yes"} onChange={field.onChange}
+                      <SegmentedToggle value={field.value || ""} onChange={field.onChange}
                         options={[{ value: "Yes", label: "Sí" }, { value: "No", label: "No" }]}
                         ariaLabel="Non solicitation" name={field.name} />
                     )} />
+                  <RequiredHint form={form} name="agreement.corp_nonSolicitation" />
                 </div>
               </div>
               )}
@@ -295,7 +303,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                   control={control}
                   render={({ field }) => (
                     <SegmentedToggle
-                      value={field.value || "Decisión Unánime"}
+                      value={field.value || ""}
                       onChange={field.onChange}
                       options={[
                           { value: "Decisión Unánime", label: "Unánime" },
@@ -307,6 +315,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                     />
                   )}
                 />
+                <RequiredHint form={form} name="agreement.llc_companySaleDecision" />
                 </div>
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
@@ -341,6 +350,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                     );
                   }}
                 />
+                <RequiredHint form={form} name="agreement.llc_taxPartner" />
               </div>
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
@@ -358,7 +368,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                   control={control}
                   render={({ field }) => (
                     <SegmentedToggle
-                      value={field.value || "No"}
+                      value={field.value || ""}
                       onChange={field.onChange}
                       options={[
                         { value: "Yes", label: "Sí" },
@@ -369,6 +379,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                     />
                   )}
                 />
+                <RequiredHint form={form} name="agreement.llc_nonCompete" />
               </div>
                 {watch("agreement.llc_nonCompete") === "Yes" && (
                   <>
@@ -413,7 +424,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                   control={control}
                   render={({ field }) => (
                     <SegmentedToggle
-                      value={field.value || "Un firmante"}
+                      value={field.value || ""}
                       onChange={field.onChange}
                       options={[
                         { value: "Un firmante", label: "Un firmante" },
@@ -424,6 +435,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                     />
                   )}
                 />
+                <RequiredHint form={form} name="agreement.llc_bankSigners" />
               </div>
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
@@ -437,16 +449,17 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                     <span className="text-sm text-gray-500">$</span>
                     <Controller name="agreement.llc_majorSpendingThreshold" control={control}
                       render={({ field }) => (
-                        <input type="text" className="input w-40" placeholder="15,000"
+                        <input type="text" className="input w-40" placeholder="Monto"
                           value={field.value ? Number(String(field.value).replace(/,/g, '')).toLocaleString('en-US') : ''}
                           onChange={(e) => { const raw = e.target.value.replace(/,/g, ''); if (/^\d*$/.test(raw)) field.onChange(raw); }} />
                       )} />
                   </div>
+                    <RequiredHint form={form} name="agreement.llc_majorSpendingThreshold" />
                 </div>
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
               <div>
-                  <label className="label flex items-center gap-2">Decisiones mayores (ej. &gt; ${majorSpendingThresholdLabel}):
+                  <label className="label flex items-center gap-2">Decisiones mayores (ej. &gt; {majorSpendingThresholdLabel}):
                     <InfoTooltip
                       title="Decisiones Mayores"
                       body="Decisiones de alto impacto financiero u operativo (por ejemplo, gastos superiores a un umbral, contratación/despido clave, endeudamiento). Especifique si requieren unanimidad o mayoría y, de ser mayoría, el porcentaje requerido."
@@ -459,7 +472,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                   control={control}
                   render={({ field }) => (
                       <SegmentedToggle
-                        value={field.value || "Decisión Unánime"}
+                        value={field.value || ""}
                         onChange={field.onChange}
                         options={[
                           { value: "Decisión Unánime", label: "Unánime" },
@@ -471,11 +484,12 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                       />
                   )}
                 />
+                <RequiredHint form={form} name="agreement.llc_majorDecisions" />
                 </div>
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
               <div>
-                  <label className="label flex items-center gap-2">Decisiones menores (&lt; ${majorSpendingThresholdLabel}):
+                  <label className="label flex items-center gap-2">Decisiones menores (&lt; {majorSpendingThresholdLabel}):
                     <InfoTooltip
                       title="Decisiones Menores"
                       body="Asuntos operativos cotidianos con menor impacto económico. Especifique si requieren unanimidad o mayoría y, de ser mayoría, el porcentaje requerido."
@@ -488,7 +502,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                   control={control}
                   render={({ field }) => (
                       <SegmentedToggle
-                        value={field.value || "Decisión Unánime"}
+                        value={field.value || ""}
                         onChange={field.onChange}
                         options={[
                           { value: "Decisión Unánime", label: "Unánime" },
@@ -500,6 +514,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                       />
                   )}
                 />
+                <RequiredHint form={form} name="agreement.llc_minorDecisions" />
                 </div>
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[minmax(420px,1fr)_minmax(420px,auto)] md:gap-8 md:items-start">
@@ -511,7 +526,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                 <div className="md:col-start-2 md:justify-self-end">
                   <Controller name="agreement.llc_officerRemovalVoting" control={control}
                     render={({ field }) => (
-                      <SegmentedToggle value={field.value || "Mayoría"} onChange={field.onChange}
+                      <SegmentedToggle value={field.value || ""} onChange={field.onChange}
                         options={[
                           { value: "Decisión Unánime", label: "Unánime" },
                           { value: "Supermayoría", label: "Supermayoría" },
@@ -519,6 +534,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                         ]}
                         ariaLabel="LLC officer removal voting" name={field.name} />
                     )} />
+                  <RequiredHint form={form} name="agreement.llc_officerRemovalVoting" />
                 </div>
               </div>
               {watch("agreement.llc_nonCompete") !== "Yes" && (
@@ -531,10 +547,11 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                 <div className="md:col-start-2 md:justify-self-end">
                   <Controller name="agreement.llc_nonSolicitation" control={control}
                     render={({ field }) => (
-                      <SegmentedToggle value={field.value || "Yes"} onChange={field.onChange}
+                      <SegmentedToggle value={field.value || ""} onChange={field.onChange}
                         options={[{ value: "Yes", label: "Sí" }, { value: "No", label: "No" }]}
                         ariaLabel="LLC non solicitation" name={field.name} />
                     )} />
+                  <RequiredHint form={form} name="agreement.llc_nonSolicitation" />
                 </div>
               </div>
               )}

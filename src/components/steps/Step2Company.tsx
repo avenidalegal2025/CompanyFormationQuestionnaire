@@ -631,7 +631,7 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
                 className="input"
                 value={sharesDisplay}
                 onChange={onSharesChange}
-                placeholder="10,000"
+                placeholder="Número"
               />
             </div>
             <p className="help">

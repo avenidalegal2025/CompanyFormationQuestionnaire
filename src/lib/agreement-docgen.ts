@@ -853,6 +853,13 @@ function applyLLCVotingReplacements(
       replace: `agreed by ${VT("additional_capital_voting")} to the incurrence`,
       votingKey: "additional_capital_voting",
     },
+    // Sec 5.1 - second sentence; without this the global Majority sweep
+    // rewrote it to the major-decisions voting instead of the capital vote.
+    {
+      find: "solely upon the Majority vote of the Members",
+      replace: `solely upon the ${VT("additional_capital_voting")} vote of the Members`,
+      votingKey: "additional_capital_voting",
+    },
     // Sec 6.1 - Shareholder loans
     {
       find: "Majority consent of the Members",

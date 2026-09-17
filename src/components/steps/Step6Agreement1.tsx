@@ -5,6 +5,7 @@ import HeroVideo from "@/components/HeroVideo";
 import CurrencyInput from "@/components/CurrencyInput";
 import SegmentedToggle from "@/components/SegmentedToggle";
 import InfoTooltip from "@/components/InfoTooltip";
+import RequiredHint from "@/components/RequiredHint";
 import type { StepProps } from "./types";
 import { Session } from "next-auth";
 import { handleSaveWithAuth } from "@/lib/auth-helpers";
@@ -106,7 +107,7 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext, session
                     control={control}
                     render={({ field }) => (
                       <SegmentedToggle
-                        value={field.value || "No"}
+                        value={field.value || ""}
                         onChange={field.onChange}
                         options={[
                           { value: "Yes", label: "Sí" },
@@ -117,6 +118,7 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext, session
                       />
                     )}
                   />
+                  <RequiredHint form={form} name="agreement.corp_hasSpecificResponsibilities" />
                 </div>
                 {watch("agreement.corp_hasSpecificResponsibilities") === "Yes" && (
                   <div className="mt-4 md:col-span-2 space-y-4">
@@ -214,7 +216,7 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext, session
                   control={control}
                   render={({ field }) => (
                     <SegmentedToggle
-                      value={field.value || "Yes"}
+                      value={field.value || ""}
                       onChange={field.onChange}
                       options={[
                         { value: "Yes", label: "Sí" },
@@ -225,6 +227,7 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext, session
                     />
                   )}
                 />
+                <RequiredHint form={form} name="agreement.llc_managingMembers" />
                 </div>
                 {watch("agreement.llc_managingMembers") === "No" && (
                   <div className="mt-3 md:col-start-2 md:justify-self-end md:w-[420px]">
@@ -260,7 +263,7 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext, session
                     control={control}
                     render={({ field }) => (
                       <SegmentedToggle
-                        value={field.value || "No"}
+                        value={field.value || ""}
                         onChange={field.onChange}
                         options={[
                           { value: "Yes", label: "Sí" },
@@ -271,6 +274,7 @@ export default function Step6Agreement1({ form, setStep, onSave, onNext, session
                       />
                     )}
                   />
+                  <RequiredHint form={form} name="agreement.llc_hasSpecificRoles" />
                 </div>
                 {watch("agreement.llc_hasSpecificRoles") === "Yes" && (
                   <div className="mt-4 md:col-span-2 space-y-4">

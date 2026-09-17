@@ -2,7 +2,7 @@ OPERATING AGREEMENT
 OF
 PFX09 LLC
 A Florida Limited Liability Company
-This Agreement is entered into effective as of the <DATE> by Roberto Mendez, Ana Garcia, Carlos Lopez, Maria Torres, Pedro Ramirez, and Sofia Flores (each, a “Member” and collectively, the “Members”), concerning the management and ownership of PFX09 LLC, a Florida limited liability company (the “Company”).
+This Agreement is entered into effective as of <DATE> by Roberto Mendez, Ana Garcia, Carlos Lopez, Maria Torres, Pedro Ramirez, and Sofia Flores (each, a “Member” and collectively, the “Members”), concerning the management and ownership of PFX09 LLC, a Florida limited liability company (the “Company”).
 WITNESSETH:
 WHEREAS, the parties hereto desire to form a limited liability company pursuant to the laws of the State of Florida for the purposes hereinafter set forth, and to establish their respective rights and obligations in connection with the limited liability company.
 NOW, THEREFORE, in consideration of the mutual covenants set forth herein and other valuable consideration, the receipt and sufficiency of which are hereby acknowledged, the Members agree as follows:

@@ -21,6 +21,7 @@ import ProgressSidebar, { type ProgressItem } from "@/components/ProgressSidebar
 
 import type { AllSteps } from "@/lib/schema";
 import { saveDraft, loadDraft, type DraftItem } from "@/lib/drafts";
+import { missingAgreementAnswers, missingCompanyAnswers, requiredMessageFor } from "@/lib/required-answers";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -557,10 +558,52 @@ function QuestionnaireContent() {
     }
   };
 
+  // Questions start unanswered (no pre-selected options), so "Continuar" and
+  // checkout check the required answers themselves. Returns true when something
+  // is missing: marks each missing question, moves to the earliest step with a
+  // gap and scrolls to its first hint. `step` limits the check to one step.
+  const flagMissingAnswers = (onlyStep?: number): boolean => {
+    const values = form.getValues();
+    const missing =
+      onlyStep === 1
+        ? missingCompanyAnswers(values)
+        : wantsAgreement && (onlyStep === undefined || (onlyStep >= 5 && onlyStep <= 8))
+          ? missingAgreementAnswers(values, onlyStep)
+          : [];
+    if (missing.length === 0) return false;
+    for (const q of missing) {
+      form.setError(q.name as never, { type: "required", message: requiredMessageFor(q.name) });
+    }
+    const firstStep = Math.min(...missing.map((q) => q.step));
+    if (firstStep !== step) setStep(firstStep);
+    window.setTimeout(() => {
+      document.querySelector("[data-required-hint], .help:not(:empty)")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 100);
+    return true;
+  };
+
+  // Clear a "Selecciona una opción" hint as soon as that question is answered.
+  useEffect(() => {
+    const sub = form.watch((_values, { name }) => {
+      if (name && form.getFieldState(name as never).error?.type === "required") {
+        form.clearErrors(name as never);
+      }
+    });
+    return () => sub.unsubscribe();
+  }, [form]);
+
   const onContinuar = async () => {
     try {
       const isValid = await form.trigger(undefined, { shouldFocus: true });
       if (!isValid) {
+        return;
+      }
+      if (flagMissingAnswers(step)) {
+        return;
+      }
+      // Last agreement step: make sure no earlier agreement step was skipped
+      // (the sidebar lets people jump ahead).
+      if (wantsAgreement && step === 8 && flagMissingAnswers()) {
         return;
       }
       await doSave();
@@ -668,10 +711,10 @@ function QuestionnaireContent() {
           )}
           {/* Checkout step: when user wants the agreement, it's step 9; when they skip it, it's step 5 */}
           {(!wantsAgreement && step === 5) && (
-            <Step10Checkout form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} session={session} anonymousId={anonymousId} />
+            <Step10Checkout form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} session={session} anonymousId={anonymousId} hasMissingAnswers={() => flagMissingAnswers(1) || flagMissingAnswers()} />
           )}
           {(wantsAgreement && step === 9) && (
-            <Step10Checkout form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} session={session} anonymousId={anonymousId} />
+            <Step10Checkout form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} session={session} anonymousId={anonymousId} hasMissingAnswers={() => flagMissingAnswers(1) || flagMissingAnswers()} />
           )}
         </form>
       </main>
