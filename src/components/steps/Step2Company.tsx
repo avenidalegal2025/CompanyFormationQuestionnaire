@@ -311,7 +311,7 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
                 return (
                   <div className="w-fit">
                     <SegmentedToggle
-                      value={(field.value as string) ?? "LLC"}
+                      value={(field.value as string)}
                       onChange={(v) => {
                         if (v === "S-Corp") {
                           // Don't update form value yet - wait for modal confirmation
@@ -407,7 +407,7 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
               control={control}
               render={({ field }) => (
                 <SegmentedToggle
-                  value={(field.value as string) ?? "No"}
+                  value={(field.value as string)}
                   onChange={(v) => {
                     field.onChange(v);
                     if (v === "Yes") {
@@ -548,7 +548,7 @@ export default function Step2Company({ form, setStep, onSave, onNext, session, a
               control={control}
               render={({ field }) => (
                 <SegmentedToggle
-                  value={(field.value as string) ?? "No"}
+                  value={(field.value as string)}
                   onChange={field.onChange}
                   options={[
                     { value: "Yes", label: "Sí" },

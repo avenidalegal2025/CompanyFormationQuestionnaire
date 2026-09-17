@@ -31,6 +31,13 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
+      - name: No invented answers at render time
+        # `value={field.value ?? "Yes"}` paints an answer the form never stores:
+        # the customer agrees with what they see, saves nothing, and every
+        # consumer testing `=== "Yes"` takes the other branch. This shipped as
+        # an LLC Operating Agreement with no Managers designated (2026-09-17).
+        # Defaults belong in defaultFormValues, where they are actually saved.
+        run: npx tsx scripts/test-display-defaults.ts
       - name: No pre-selected answers
         # Every agreement question starts empty and must be answered before
         # Continue. A pre-selected option is shown but never saved, so the

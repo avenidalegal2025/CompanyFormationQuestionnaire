@@ -90,6 +90,20 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
     }
   }, [isSCorp, ownersCount, w, setValue]);
 
+  // An owner that is a company must declare its members holding >15%, and the
+  // count box was rendered as `field.value ?? 1` -- the screen said 1 while the
+  // form held undefined, so a company owner left at the default reached the
+  // documents with no beneficial owners at all. The minimum is genuinely 1, so
+  // the default is kept, but it is STORED here instead of painted at render.
+  useEffect(() => {
+    Array.from({ length: ownersCount }).forEach((_, i) => {
+      if (w(`owners.${i}.ownerType`) !== "empresa") return;
+      if (w(`owners.${i}.nestedOwnersCount`) === undefined) {
+        setValue(`owners.${i}.nestedOwnersCount` as never, 1 as never);
+      }
+    });
+  }, [ownersCount, w, setValue]);
+
   // Handle passport file upload (supports both regular owners and nested owners)
   const handlePassportUpload = async (ownerIndex: number, file: File, nestedIndex?: number) => {
     try {
@@ -256,7 +270,7 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
                       render={({ field }) => (
                         <div className="w-fit">
                           <SegmentedToggle
-                            value={(field.value as string) ?? "persona"}
+                            value={(field.value as string)}
                             onChange={field.onChange}
                             options={[
                               { value: "persona", label: "Persona" },
@@ -348,7 +362,7 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
                       control={control}
                       render={({ field }) => (
                         <SegmentedToggle
-                          value={(field.value as string) ?? "No"}
+                          value={(field.value as string)}
                           onChange={field.onChange}
                           options={[
                             { value: "Yes", label: "Sí" },
@@ -650,7 +664,7 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
                                 control={control}
                                 render={({ field }) => (
                                   <SegmentedToggle
-                                    value={(field.value as string) ?? "No"}
+                                    value={(field.value as string)}
                                     onChange={field.onChange}
                                     options={[
                                       { value: "Yes", label: "Sí" },

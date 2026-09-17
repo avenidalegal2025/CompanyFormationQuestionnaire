@@ -63,12 +63,27 @@ function QuestionnaireContent() {
       entityType: "LLC",
       entitySuffix: "LLC",
       formationState: "Florida",
+      // These two toggles used to render `field.value ?? "No"`: the screen said
+      // "No" while the form held undefined. A customer who agreed with what
+      // they saw and pressed Continue saved nothing, and every consumer that
+      // tests `=== "No"` (airtable.ts:787, agreement-mapper.ts:339) then took
+      // the other branch. Any option shown as chosen must be stored, so the
+      // default lives here -- one place -- and the toggle renders state only.
+      hasUsaAddress: "No",
+      hasUsPhone: "No",
     },
     owners: [],
     ownersCount: undefined, // Start empty, will default to 1 for rendering
     admin: {
       officersAllOwners: "Yes", // Default to "Yes" so role assignment section shows on load
       directorsAllOwners: "Yes", // Default to "Yes" for consistency
+      // Same defect, worst consequence found: Step5Admin showed "Yes" from a
+      // `?? "Yes"` render default that was never saved. buildManagers reads
+      // `managersAllOwners === "Yes"` (agreement-mapper.ts:163), so undefined
+      // fell to the explicit-manager branch with managersCount = 0 and the LLC
+      // Operating Agreement went out with NO Managers designated at all --
+      // verified by generating both documents from llc-base.payload.json.
+      managersAllOwners: "Yes",
     },
     banking: {},
     attachments: {},

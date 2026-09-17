@@ -367,7 +367,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                           render={({ field }) => (
                             <div className="mt-2 w-fit">
                               <SegmentedToggle
-                                value={(field.value as string) ?? "persona"}
+                                value={(field.value as string)}
                                 onChange={field.onChange}
                                 options={[
                                   { value: "persona", label: "Persona" },
@@ -607,7 +607,7 @@ export default function Step4Summary({ form, setStep, onSave, onNext, setWantsAg
                                 min={1} 
                                 max={6} 
                                 className="input mt-1 w-24" 
-                                value={field.value ?? 1}
+                                value={(field.value as number) ?? ""}
                                 onChange={(e) => {
                                   const val = Number(e.target.value);
                                   if (!isNaN(val) && val >= 1 && val <= 6) {

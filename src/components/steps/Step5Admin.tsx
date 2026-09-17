@@ -424,7 +424,7 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
                   control={control}
                   render={({ field }) => (
                     <SegmentedToggle
-                      value={(field.value as string) ?? "Yes"}
+                      value={(field.value as string)}
                       onChange={(value) => {
                         field.onChange(value);
                         if (value === "Yes") {
@@ -598,7 +598,7 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
                 control={control}
                 render={({ field }) => (
                   <SegmentedToggle
-                    value={(field.value as string) ?? "Yes"}
+                    value={(field.value as string)}
                     onChange={(value) => {
                       field.onChange(value);
                       if (value === "Yes") {
@@ -715,7 +715,7 @@ export default function Step5Admin({ form, setStep, onSave, onNext, session, ano
                 control={control}
                 render={({ field }) => (
                   <SegmentedToggle
-                    value={(field.value as string) ?? "Yes"}
+                    value={(field.value as string)}
                     onChange={(value) => {
                       field.onChange(value);
                       if (value === "Yes") {

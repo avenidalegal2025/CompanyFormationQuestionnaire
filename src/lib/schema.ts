@@ -96,7 +96,18 @@ export const NestedOwnerSchema = z.object({
   isUsCitizen: z.enum(["Yes", "No"]).optional(),
   passportImage: z.string().optional(), // For non-US citizens (filename only)
   passportS3Key: z.string().optional(), // S3 key for uploaded passport
-});
+})
+  // Same rule as OwnerSchema: a nested owner is always a natural person, and
+  // their citizenship drives SSN-vs-ITIN handling, so it is asked, not assumed.
+  .superRefine((data, ctx) => {
+    if (!data.isUsCitizen) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Indique si es ciudadano o residente de los Estados Unidos",
+        path: ["isUsCitizen"],
+      });
+    }
+  });
 
 /** ------------ Owners (Step 3) ------------ */
 export const OwnerSchema = z.object({
@@ -119,7 +130,31 @@ export const OwnerSchema = z.object({
   companyAddress: z.string().optional(), // Dirección de la empresa
   nestedOwnersCount: z.number().int().min(1).max(6).optional(), // Number of owners with >15% participation
   nestedOwners: z.array(NestedOwnerSchema).optional(), // Array of nested owners (1-6)
-});
+})
+  // Both toggles used to render a default the form never stored
+  // (`field.value ?? "persona"`, `?? "No"`), so an owner who matched the
+  // default saved nothing and reached the documents as undefined. Unlike the
+  // company add-ons, these are assertions about a specific person -- whether
+  // they are a company, and whether they are a US citizen or resident, which
+  // decides SSN vs ITIN handling on the SS-4. We must not answer them on the
+  // customer's behalf, so nothing is pre-selected and both must be answered.
+  .superRefine((data, ctx) => {
+    if (!data.ownerType) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Indique si es una persona o una empresa",
+        path: ["ownerType"],
+      });
+    }
+    // A company has no citizenship; only ask it of a persona.
+    if (data.ownerType === "persona" && !data.isUsCitizen) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Indique si es ciudadano o residente de los Estados Unidos",
+        path: ["isUsCitizen"],
+      });
+    }
+  });
 
 export const OwnersSchema = z.array(OwnerSchema);
 
