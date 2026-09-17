@@ -46,6 +46,12 @@ jobs:
         # loses the formation silently. Checked against a committed snapshot of
         # the Formations table — no credentials needed.
         run: npx tsx scripts/test-airtable-columns.ts
+      - name: SS-4 translation routing
+        # The questionnaire is Spanish; the SS-4 goes to the IRS in English. A
+        # single unaccented Spanish noun used to slip through the language sniff
+        # and print "RESTAURANTE" on the principal-activity line. Company names
+        # and addresses must NOT be translated. Offline — AWS Translate stubbed.
+        run: python3 scripts/test-ss4-translation.py
       - name: Toggle-coverage guard
         run: npx tsx scripts/audit-toggle-coverage.ts
       - name: Document snapshot regression

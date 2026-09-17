@@ -23,12 +23,26 @@ import types
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "lambda-functions"))
 
-# The Lambda imports PyPDF2 for the merge step, which this test never reaches
-# and which is not installed outside the deployment zip.
-if "PyPDF2" not in sys.modules:
-    stub = types.ModuleType("PyPDF2")
-    stub.PdfReader = stub.PdfWriter = object
-    sys.modules["PyPDF2"] = stub
+# The Lambda imports PyPDF2, reportlab and boto3 for drawing and uploading the
+# PDF. This test never reaches any of that -- it stops at the field mapping --
+# and those packages live in the deployment zip, not in CI. Stub whichever are
+# missing so the test runs anywhere python does.
+def _stub(name, **attrs):
+    try:
+        __import__(name)
+        return
+    except ImportError:
+        pass
+    mod = types.ModuleType(name)
+    for k, v in attrs.items():
+        setattr(mod, k, v)
+    sys.modules[name] = mod
+
+
+_stub("PyPDF2", PdfReader=object, PdfWriter=object)
+_stub("reportlab")
+_stub("reportlab.pdfgen", canvas=types.SimpleNamespace(Canvas=object))
+_stub("boto3", client=lambda *a, **k: None)
 
 import ss4_lambda_s3_complete as ss4  # noqa: E402
 
