@@ -200,8 +200,12 @@ def translate_to_english(text, force=False):
         print(f"===> Translated: '{text_clean[:50]}...' -> '{translated[:50]}...'")
         return translated
     except Exception as e:
-        # If translation fails, return original text
-        print(f"===> Translation failed for '{text_clean[:50]}...': {e}")
+        # Returning the original text keeps the filing from failing outright,
+        # but on a forced call the original is Spanish by construction -- this
+        # is the path that puts "RESTAURANTE" on an IRS form, and it is silent.
+        # SS4_TRANSLATION_FAILED is a stable token so a CloudWatch metric filter
+        # can alarm on it; nothing alarms on it today.
+        print(f"===> SS4_TRANSLATION_FAILED (force={force}) for '{text_clean[:50]}...': {e}")
         return text
 
 def map_data_to_ss4_fields(form_data):
@@ -267,7 +271,13 @@ def map_data_to_ss4_fields(form_data):
     
     company_name_base = translate_to_english(form_data.get("companyNameBase", company_name))
     entity_type = form_data.get("entityType", "")  # Entity type codes don't need translation
-    business_purpose = translate_to_english(form_data.get("businessPurpose", ""))
+    # force=True: the questionnaire asks for the business purpose in Spanish, so
+    # this field is Spanish by construction. Without force, the accent/stopword
+    # sniff in translate_to_english lets a single unaccented word through --
+    # "RESTAURANTE" reached line 16 of a filed SS-4 that way (SAIGON SWING LLC,
+    # 2026-09-02). Forced here rather than at each use, so every consumer of
+    # business_purpose (lines 10, 16 and 17) gets English.
+    business_purpose = translate_to_english(form_data.get("businessPurpose", ""), force=True)
     formation_state = form_data.get("formationState", "")  # State names are usually in English
     
     # Company address - parse from Company Address field (should include full address: street, city, state, zip)
