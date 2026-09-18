@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
 """Is the code running in AWS the code that is in this repo?
 
-The document Lambdas (SS-4, 2848, 8821, bylaws, registries, DOCX->PDF) are
-deployed by hand, so a merged fix can sit in main for weeks without reaching a
-customer's document. This downloads each deployed function and compares its
-handler file byte-for-byte with the matching file under lambda-functions/.
+A merged fix can sit in main for weeks without reaching a customer's document.
+This downloads each deployed function and compares its handler file with the
+matching file under lambda-functions/, and checks that the function's handler,
+runtime and architecture in AWS are what the manifest says they should be.
 
     python3 scripts/check-lambda-drift.py
 
+Which function runs which file comes from lambda-functions/deploy-manifest.json
+— the same file .github/workflows/deploy-lambdas.yml builds from, so the two
+cannot disagree about what is deployed where.
+
 Read-only: list-functions + get-function (a presigned download URL). Needs
 AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY in .env.local, account 043206426879.
-Exit code 1 if anything has drifted.
+Exit code 1 if anything has drifted or is misconfigured.
 """
 import difflib
 import hashlib
@@ -38,31 +42,15 @@ def aws_env():
     return e
 
 
-# Several functions were deployed with their entry file renamed to the CDK
-# default (lambda_function.py), so the handler name alone cannot find the
-# source. Established 2026-09-17 by downloading each zip and diffing it against
-# every file in lambda-functions/ — each pair below was a >98% match with no
-# close second. Add a line here when a new function is deployed by hand.
-RENAMED = {
-    "BylawsLambda": "bylaws_lambda.py",
-    "Fill2848Lambda-arm64": "2848_lambda_s3.py",
-    "Fill8821Lambda-arm64": "8821_lambda_s3_complete.py",
-    "ShareholderRegistryLambda": "shareholder_registry_lambda.py",
-    "OrganizationalResolutionS-OrganizationalResolution-LB7obOUKKQ8R":
-        "organizational-resolution-lambda.py",
-}
-
-# No file under lambda-functions/ corresponds to these; they are older stacks or
-# experiments, not the document pipeline. Listed so the report says "out of
-# scope" rather than implying the check silently skipped something that matters.
-OUT_OF_SCOPE = {
-    "Fill2848Lambda": "superseded by Fill2848Lambda-arm64",
-    "SS4LLCStack-SS4LLC-arm64": "older SS-4 stack; live SS-4 is ss4-lambda-s3-complete",
-    "SS4LLCStack-SS4LLC6A7F87A7-yMWn8SfPv77e": "older SS-4 stack",
-    "LlcLambdaCdkStack-LLCTriggerLambda2135A790-8vjIJ4nWdxYt": "trigger shim, not in this repo",
-    "layer-diagnostics": "diagnostic",
-    "simple-sunbiz-check": "not in this repo",
-}
+# Which function runs which file, and which functions are deliberately out of
+# scope, both come from the deploy manifest — the same file the deploy workflow
+# builds from. This script used to carry its own copy of both maps, which is
+# the same fact written down twice and free to rot: a function could be
+# renamed in the workflow and still be compared against the old source here.
+MANIFEST = json.load(open(os.path.join(SRC, "deploy-manifest.json")))
+DEPLOYABLE = {f["function_name"]: f for f in MANIFEST["functions"]}
+OUT_OF_SCOPE = {k: v for k, v in MANIFEST["not_deployed"].items()
+                if not k.startswith("$")}
 
 
 def aws(env, *args):
@@ -89,23 +77,40 @@ def main():
              for f in os.listdir(SRC) if f.endswith(".py")}
     by_hash = {hashlib.md5(v.encode()).hexdigest(): k for k, v in local.items()}
 
-    drifted, matched, unknown = [], [], []
+    drifted, matched, unknown, misconfigured = [], [], [], []
     for fn in funcs:
         name = fn["FunctionName"]
-        if not str(fn.get("Runtime", "")).startswith("python"):
-            unknown.append((name, f"not a python function ({fn.get('Runtime') or 'image'})"))
+        spec = DEPLOYABLE.get(name)
+        if spec is None:
+            why = OUT_OF_SCOPE.get(name)
+            if why is None:
+                why = ("not in lambda-functions/deploy-manifest.json — add it to "
+                       "functions[] if it should deploy, or to not_deployed")
+            unknown.append((name, why))
             continue
+
         # Compare ONLY the file this function actually runs. A CDK bundle can
         # carry stale copies of unrelated handlers (the airtable-fields zip
         # ships six of them), and comparing those reported drift for functions
         # that are in fact current.
-        handler = fn.get("Handler", "")           # "ss4_lambda_s3_complete.lambda_handler"
-        module = handler.rsplit(".", 1)[0]        # "ss4_lambda_s3_complete"
-        entry = module.replace(".", "/") + ".py"  # "ss4_lambda_s3_complete.py"
-        base = RENAMED.get(name) or os.path.basename(entry)
+        entry = spec["target_filename"]
+        base = spec["source_file"]
+
+        # Configuration drift, not just code drift. On 2026-04-07 five
+        # functions kept working code but had their Handler rewritten to
+        # lambda_function.lambda_handler, and every invoke 5xx'd for 12 days
+        # while the zips still looked right. The manifest says what these
+        # three values must be, so say so when AWS disagrees.
+        for field, actual, want in (
+            ("handler", fn.get("Handler"), spec["handler"]),
+            ("runtime", fn.get("Runtime"), spec["runtime"]),
+            ("architecture", (fn.get("Architectures") or ["x86_64"])[0], spec["architecture"]),
+        ):
+            if actual != want:
+                misconfigured.append((name, field, actual, want))
+
         if base not in local:
-            why = OUT_OF_SCOPE.get(name) or f"handler {entry} has no counterpart in lambda-functions/"
-            unknown.append((name, why))
+            unknown.append((name, f"manifest points at lambda-functions/{base}, which is missing"))
             continue
         try:
             url = aws(env, "lambda", "get-function", "--function-name", name,
@@ -140,12 +145,17 @@ def main():
     for name, base, when, changed, other in sorted(drifted):
         note = f" — deployed copy is {other}" if other else ""
         print(f"  🔴 {name:<52} {base:<38} DIFFERS by {changed} line(s) (deployed {when}){note}")
+    for name, field, actual, want in sorted(misconfigured):
+        print(f"  🔴 {name:<52} {field} is {actual!r}, manifest says {want!r}")
 
-    print(f"\n{len(matched)} identical · {len(drifted)} drifted · {len(unknown)} not compared")
+    print(f"\n{len(matched)} identical · {len(drifted)} drifted · "
+          f"{len(misconfigured)} misconfigured · {len(unknown)} not compared")
     if drifted:
         print("\n🔴 A fix merged to main is not what customers are getting from these functions.")
-        return 1
-    return 0
+    if misconfigured:
+        print("\n🔴 AWS configuration does not match the manifest. A handler that does not "
+              "match the zip returns an import error on every invoke.")
+    return 1 if (drifted or misconfigured) else 0
 
 
 if __name__ == "__main__":

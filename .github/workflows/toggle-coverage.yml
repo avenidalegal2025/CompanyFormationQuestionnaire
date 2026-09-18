@@ -59,6 +59,11 @@ jobs:
         # and print "RESTAURANTE" on the principal-activity line. Company names
         # and addresses must NOT be translated. Offline — AWS Translate stubbed.
         run: python3 scripts/test-ss4-translation.py
+      - name: Lambda deploy manifest is complete
+        # A new lambda-functions/*.py with no manifest entry would never
+        # deploy and nobody would notice -- which is how the membership
+        # registry ended up 38 lines behind main. Offline, no AWS needed.
+        run: python3 scripts/test-lambda-manifest.py
       - name: Toggle-coverage guard
         run: npx tsx scripts/audit-toggle-coverage.ts
       - name: Document snapshot regression

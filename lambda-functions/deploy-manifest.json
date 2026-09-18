@@ -1,0 +1,165 @@
+{
+  "$comment": [
+    "Every deployable Lambda, in one place. Two things read this file and must",
+    "never disagree:",
+    "",
+    "  .github/workflows/deploy-lambdas.yml   — builds and ships each function",
+    "  scripts/check-lambda-drift.py          — asks whether AWS runs what main says",
+    "",
+    "Why it exists. Deploying used to mean hand-copying a whole workflow file",
+    "per function, each with its own hardcoded `paths:` filter. Only 2 of the 7",
+    "deployable functions ever got one, so the rest could only be deployed by",
+    "hand -- and the membership registry duly sat 38 lines behind main until",
+    "2026-09-17. Separately, the drift checker carried its own hand-maintained",
+    "map of function -> source file, which is the SAME fact as `target_filename`",
+    "below, written down twice and free to rot.",
+    "",
+    "Adding a function is now one entry here. Nothing else.",
+    "",
+    "Fields:",
+    "  function_name    exact AWS Lambda name (us-west-1, account 043206426879)",
+    "  source_file      file under lambda-functions/ that is the truth",
+    "  target_filename  what that file is called INSIDE the zip. Several",
+    "                   functions were deployed with the entry renamed to the",
+    "                   CDK default lambda_function.py; that rename is a deploy",
+    "                   fact, so it lives here and the drift checker derives it.",
+    "  handler          must equal '<target_filename minus .py>.lambda_handler'",
+    "  runtime          python3.9 / python3.11 -- must match what AWS has",
+    "  architecture     x86_64 / arm64 -- must match what AWS has",
+    "  deps             space-separated pip packages VENDORED INTO THE ZIP.",
+    "                   Empty when the dependency arrives via a layer instead.",
+    "                   Getting this wrong is not cosmetic: on 2026-04-07 five",
+    "                   functions were overwritten with source-only zips and",
+    "                   every generator 5xx'd for 12 days.",
+    "  stub_pil         reportlab imports PIL; the stub keeps the zip small",
+    "  layer            informational. update-function-code does not touch",
+    "                   layers, so this records what the function relies on",
+    "                   being attached. The smoke test catches it if it is not.",
+    "  verified         when a human last confirmed this row against live AWS"
+  ],
+
+  "region": "us-west-1",
+  "account": "043206426879",
+
+  "functions": [
+    {
+      "function_name": "ss4-lambda-s3-complete",
+      "source_file": "ss4_lambda_s3_complete.py",
+      "target_filename": "ss4_lambda_s3_complete.py",
+      "handler": "ss4_lambda_s3_complete.lambda_handler",
+      "runtime": "python3.9",
+      "architecture": "x86_64",
+      "deps": "reportlab PyPDF2 typing_extensions",
+      "stub_pil": true,
+      "layer": null,
+      "verified": "2026-09-17",
+      "note": "IRS SS-4. 4.6 MB, ~465 vendored entries -- deps are in the zip, not a layer."
+    },
+    {
+      "function_name": "Fill8821Lambda-arm64",
+      "source_file": "8821_lambda_s3_complete.py",
+      "target_filename": "lambda_function.py",
+      "handler": "lambda_function.lambda_handler",
+      "runtime": "python3.11",
+      "architecture": "arm64",
+      "deps": "reportlab PyPDF2 typing_extensions",
+      "stub_pil": true,
+      "layer": "ss4-reportlab-layer-all-arm64-fixed:1",
+      "verified": "2026-09-17",
+      "note": "IRS 8821. Vendors its own reportlab despite the layer; left as deployed."
+    },
+    {
+      "function_name": "Fill2848Lambda-arm64",
+      "source_file": "2848_lambda_s3.py",
+      "target_filename": "lambda_function.py",
+      "handler": "lambda_function.lambda_handler",
+      "runtime": "python3.11",
+      "architecture": "arm64",
+      "deps": "reportlab PyPDF2 typing_extensions",
+      "stub_pil": true,
+      "layer": "ss4-reportlab-layer-all-arm64-fixed:1",
+      "verified": "2026-09-17",
+      "note": "IRS 2848. Drifted 20 lines behind main as of 2026-09-17. Its function URL is absent from .env.local, so whether production actually calls it is unconfirmed -- confirm before relying on a deploy here."
+    },
+    {
+      "function_name": "BylawsLambda",
+      "source_file": "bylaws_lambda.py",
+      "target_filename": "lambda_function.py",
+      "handler": "lambda_function.lambda_handler",
+      "runtime": "python3.11",
+      "architecture": "x86_64",
+      "deps": "",
+      "stub_pil": false,
+      "layer": "python-docx-layer:4",
+      "verified": "2026-09-17",
+      "note": "python-docx comes from the layer; the zip is source only (6.6 KB live)."
+    },
+    {
+      "function_name": "ShareholderRegistryLambda",
+      "source_file": "shareholder_registry_lambda.py",
+      "target_filename": "lambda_function.py",
+      "handler": "lambda_function.lambda_handler",
+      "runtime": "python3.11",
+      "architecture": "x86_64",
+      "deps": "",
+      "stub_pil": false,
+      "layer": "python-docx-layer:4",
+      "verified": "2026-09-17",
+      "note": "Source-only zip (5.0 KB live); python-docx from the layer."
+    },
+    {
+      "function_name": "OrganizationalResolutionS-OrganizationalResolution-LB7obOUKKQ8R",
+      "source_file": "organizational-resolution-lambda.py",
+      "target_filename": "lambda_function.py",
+      "handler": "lambda_function.lambda_handler",
+      "runtime": "python3.11",
+      "architecture": "x86_64",
+      "deps": "",
+      "stub_pil": false,
+      "layer": "python-docx-layer:8",
+      "verified": "2026-09-17",
+      "note": "Source-only zip (13 KB live); python-docx from the layer."
+    },
+    {
+      "function_name": "MembershipRegistryStack-MembershipRegistryLambda8D-YpxTIUIqd2m2",
+      "source_file": "membership-registry-lambda.py",
+      "target_filename": "membership-registry-lambda.py",
+      "handler": "membership-registry-lambda.lambda_handler",
+      "runtime": "python3.11",
+      "architecture": "x86_64",
+      "deps": "",
+      "stub_pil": false,
+      "layer": "python-docx-layer:8",
+      "verified": "2026-09-17",
+      "note": "Imports lxml as well as docx; python-docx-layer:8 bundles python-docx 1.2.0 + lxml 6.0.2. This is the function that proved the point -- 38 lines behind main because no workflow covered it."
+    }
+  ],
+
+  "not_deployed": {
+    "$comment": "Listed so a report can say 'out of scope, because X' instead of silently skipping something that might matter. Keyed by AWS function name where one exists, otherwise by source file.",
+
+    "AirtableFieldsStack-EnsureAirtableFieldsLambda8462-ub0vIuYf7eRi":
+      "Live and in use, but deliberately NOT auto-deployed: its 95 KB zip is a CDK bundle carrying six handler files, and this workflow builds a fresh zip from one source file, which would drop the other five. Deploy via CDK, or move it to its own zip first.",
+
+    "sunbiz-lambda-latest":
+      "Container-image Lambda (PackageType Image, from ECR), not a zip — this workflow cannot deploy it. Live: the company-name check (src/app/api/check-name/route.ts) uses it. Rebuild and push the image to deploy.",
+    "sunbiz-lambda":
+      "Container-image Lambda from ECR; last modified 2025-10-03 and superseded by sunbiz-lambda-latest.",
+
+    "Fill2848Lambda": "superseded by Fill2848Lambda-arm64",
+    "SS4LLCStack-SS4LLC-arm64": "older SS-4 stack; live SS-4 is ss4-lambda-s3-complete",
+    "SS4LLCStack-SS4LLC6A7F87A7-yMWn8SfPv77e": "older SS-4 stack",
+    "LlcLambdaCdkStack-LLCTriggerLambda2135A790-8vjIJ4nWdxYt": "trigger shim, not in this repo",
+    "membership-registry-lambda":
+      "Orphan. Same name as the source file but a different function from the MembershipRegistryStack one that production calls; nothing points at it. 6 lines behind main. Delete once confirmed unused.",
+    "layer-diagnostics": "diagnostic",
+    "simple-sunbiz-check": "not in this repo",
+
+    "ensure-airtable-fields-lambda.py":
+      "Source for AirtableFieldsStack-EnsureAirtableFieldsLambda8462-ub0vIuYf7eRi above; excluded for the same reason (CDK bundle of six handlers).",
+    "8821_lambda_s3.py": "superseded by 8821_lambda_s3_complete.py",
+    "ss4_lambda_s3.py": "superseded by ss4_lambda_s3_complete.py",
+    "docx_to_pdf_lambda.py": "no live function runs this file",
+    "shareholder_agreement_lambda.py": "no live function runs this file; the shareholder agreement is generated in-app"
+  }
+}

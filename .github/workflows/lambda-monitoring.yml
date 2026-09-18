@@ -1,8 +1,27 @@
 name: Lambda Health Check
 
+# Probes every function in lambda-functions/deploy-manifest.json and the
+# Vercel app.
+#
+# This used to be seven hardcoded Lambda URLs maintained by hand. Two things
+# were wrong with that on 2026-09-17:
+#
+#  * It probed `membership-registry-lambda`, an orphan function nothing calls,
+#    and never probed MembershipRegistryStack-... which is the one .env.local
+#    points production at. The check was green because it asked the wrong
+#    function. Names now come from the manifest, so "deployed" implies
+#    "monitored" and the two cannot drift apart.
+#
+#  * Those URLs are AuthType NONE and this repository is public, so the list
+#    published seven unauthenticated document-generating endpoints. They are
+#    now resolved from AWS at run time instead of living in the source tree.
+#
+# Resolving URLs needs AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY (read-only
+# lambda:GetFunctionUrlConfig is enough). Without them the job reports that it
+# could not check rather than passing silently.
+
 on:
   schedule:
-    # Run every 6 hours
     - cron: '0 */6 * * *'
   workflow_dispatch:
 
@@ -10,52 +29,48 @@ jobs:
   health-check:
     name: Check Lambda Functions
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-
+    timeout-minutes: 10
     steps:
-      # Reusable function: $1=name, $2=url, fails the job on non-2xx/3xx or total unreachability.
-      #
-      # Prior version only alerted on HTTP 000 (unreachable) — SS-4 Lambda returned
-      # 502 for 12 days (2026-04-07 to 2026-04-19) and was never flagged because
-      # 502 != 000. New logic fails on any 5xx and treats 4xx as warning.
-      - name: Check all Lambdas
+      - uses: actions/checkout@v4
+
+      - name: Manifest is honest
+        run: python3 scripts/test-lambda-manifest.py
+
+      - name: Configure AWS credentials
+        id: creds
+        continue-on-error: true
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-1
+
+      - name: Probe every deployed Lambda
+        if: steps.creds.outcome == 'success'
+        run: python3 scripts/check-lambda-health.py
+
+      - name: Is AWS running what main says?
+        # Answering is not the same as being current. The membership registry
+        # answered happily for weeks while 38 lines behind main. Runs even if
+        # the probe failed, because "crashing" and "stale" are different
+        # questions and both are worth the answer.
+        if: steps.creds.outcome == 'success' && !cancelled()
+        run: python3 scripts/check-lambda-drift.py
+
+      - name: Say so when nothing was checked
+        if: steps.creds.outcome != 'success'
         run: |
-          check_lambda() {
-            local name="$1"
-            local url="$2"
-            # Send a harmless health_check payload and capture the HTTP status.
-            local status
-            status=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
-              "$url" \
-              -H 'Content-Type: application/json' \
-              -d '{"health_check": true}' \
-              --max-time 30 || echo "000")
-            echo "${name}: HTTP ${status}"
-            case "$status" in
-              000)  echo "::error title=${name}::Unreachable (HTTP 000)"; return 1 ;;
-              2*|3*) return 0 ;;
-              4*)  echo "::warning title=${name}::HTTP ${status} (client error — may be expected for bare health_check payload)"; return 0 ;;
-              5*)  echo "::error title=${name}::HTTP ${status} — SERVER ERROR, Lambda likely crashing on invoke"; return 1 ;;
-              *)   echo "::error title=${name}::Unexpected HTTP ${status}"; return 1 ;;
-            esac
-          }
-
-          # Accumulate failures so every Lambda is probed even if one fails
-          fails=0
-          check_lambda "SS-4 Lambda"                 "https://sk5p2uuxrdubzaf2uh7vvqc2bu0kcaoz.lambda-url.us-west-1.on.aws/" || fails=$((fails+1))
-          check_lambda "Org Resolution Lambda"       "https://yo54tsr37rcs3kjqsxt2ecvi2y0zjnli.lambda-url.us-west-1.on.aws/" || fails=$((fails+1))
-          check_lambda "Bylaws Lambda"               "https://5jzjjp7fgbcsa24vnaxkkngwlm0jnfkz.lambda-url.us-west-1.on.aws/" || fails=$((fails+1))
-          check_lambda "Shareholder Registry Lambda" "https://gfwa6pqqesmrdfnm23snygybyq0gguah.lambda-url.us-west-1.on.aws/" || fails=$((fails+1))
-          check_lambda "Form 2848 Lambda"            "https://z246mmg5ojst6boxjy53ilekii0yualo.lambda-url.us-west-1.on.aws/" || fails=$((fails+1))
-          check_lambda "Form 8821 Lambda"            "https://ql6ufztnwlohsqexpkm7wu44mu0xovla.lambda-url.us-west-1.on.aws/" || fails=$((fails+1))
-          check_lambda "Membership Registry Lambda"  "https://rbkwy3w6jltg47gr5q7v543wci0mwxcw.lambda-url.us-west-1.on.aws/" || fails=$((fails+1))
-
-          if [ "$fails" -gt 0 ]; then
-            echo "::error::${fails} lambda(s) failing health check"
-            exit 1
-          fi
+          {
+            echo "### :warning: Lambda health check did not run"
+            echo
+            echo "No AWS credentials on this repo, so no function was probed."
+            echo "A green tick here does **not** mean the Lambdas are healthy."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::AWS credentials missing — no Lambda was probed"
+          exit 1
 
       - name: Check Vercel app
+        if: always()
         run: |
           STATUS=$(curl -sf -o /dev/null -w '%{http_code}' \
             'https://company-formation-questionnaire.vercel.app/' || echo "000")

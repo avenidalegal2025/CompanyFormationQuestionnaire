@@ -1,0 +1,108 @@
+name: Deploy Lambdas
+
+# One workflow for every deployable Lambda, driven by
+# lambda-functions/deploy-manifest.json.
+#
+# It replaces deploy-ss4-lambda.yml and deploy-8821-lambda.yml, which were
+# hand-copied files with their own hardcoded `paths:` filters. That shape is
+# why only 2 of 7 functions were ever covered: adding a function meant
+# remembering to write a whole workflow, and nobody did -- the membership
+# registry sat 38 lines behind main until it was deployed by hand on
+# 2026-09-17. Now adding a function is one entry in the manifest, and
+# scripts/test-lambda-manifest.py fails the build if a source file is added
+# without one.
+#
+# On push to main: deploys only the functions whose source file changed. If
+# the manifest or either workflow file changes, every function is deployed,
+# because the thing that decides HOW to build them just moved.
+#
+# Requires repo secrets AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY. Until those
+# exist every run fails at the credentials step -- which is exactly what has
+# happened on every run to date. The deploy job is skipped, loudly, when they
+# are absent, so a green tick never means "shipped" when nothing shipped.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'lambda-functions/**'
+      - '.github/workflows/deploy-lambdas.yml'
+      - '.github/workflows/deploy-lambda-reusable.yml'
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "Function name to deploy, or 'all'. Default: only what changed."
+        required: false
+        default: 'all'
+
+jobs:
+  plan:
+    name: Which functions changed?
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.pick.outputs.matrix }}
+      count: ${{ steps.pick.outputs.count }}
+      have_creds: ${{ steps.creds.outputs.have }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Manifest is honest
+        # Cheap, offline, and the reason this cannot rot: every source file
+        # must be either deployable or explicitly declared not-deployed.
+        run: python3 scripts/test-lambda-manifest.py
+
+      - name: Pick functions
+        id: pick
+        env:
+          ONLY: ${{ inputs.only }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        run: python3 .github/workflows/pick-lambdas.py >> "$GITHUB_OUTPUT"
+
+      - name: Credentials present?
+        id: creds
+        env:
+          KEY: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        run: |
+          if [ -n "$KEY" ]; then
+            echo "have=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "have=no" >> "$GITHUB_OUTPUT"
+            {
+              echo "### :lock: Lambda deploy skipped — no AWS credentials"
+              echo
+              echo "\`AWS_ACCESS_KEY_ID\` / \`AWS_SECRET_ACCESS_KEY\` are not set on this repo,"
+              echo "so nothing was deployed. The code in \`lambda-functions/\` is **not** live."
+              echo "Add the two repo secrets (Settings → Secrets → Actions) and re-run."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Say what will happen
+        run: |
+          echo "### Lambda deploy plan" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo '${{ steps.pick.outputs.matrix }}' | python3 -c "import json,sys; [print(' -', f['function_name']) for f in json.load(sys.stdin)] or print(' (nothing to deploy)')" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    needs: plan
+    if: needs.plan.outputs.count != '0' && needs.plan.outputs.have_creds == 'yes'
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        fn: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    name: ${{ matrix.fn.function_name }}
+    uses: ./.github/workflows/deploy-lambda-reusable.yml
+    secrets: inherit
+    with:
+      function_name: ${{ matrix.fn.function_name }}
+      source_file: ${{ matrix.fn.source_file }}
+      target_filename: ${{ matrix.fn.target_filename }}
+      handler: ${{ matrix.fn.handler }}
+      runtime: ${{ matrix.fn.runtime }}
+      architecture: ${{ matrix.fn.architecture }}
+      deps: ${{ matrix.fn.deps }}
+      stub_pil: ${{ matrix.fn.stub_pil }}

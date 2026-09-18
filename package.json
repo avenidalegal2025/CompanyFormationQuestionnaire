@@ -24,10 +24,13 @@
     "test-required-answers": "tsx scripts/test-required-answers.ts",
     "test-answer-fidelity": "tsx scripts/test-answer-fidelity.ts",
     "test-toggles": "tsx scripts/audit-toggle-coverage.ts",
-    "test": "npm run test-display-defaults && npm run test-required-answers && npm run test-answer-fidelity && npm run test-toggles && npm run test-docgen-snapshots && npm run test-airtable-columns && npm run test-ss4-translation",
+    "test": "npm run test-display-defaults && npm run test-required-answers && npm run test-answer-fidelity && npm run test-toggles && npm run test-docgen-snapshots && npm run test-airtable-columns && npm run test-ss4-translation && npm run test-lambda-manifest",
     "test-airtable-columns": "tsx scripts/test-airtable-columns.ts",
     "test-ss4-translation": "python3 scripts/test-ss4-translation.py",
-    "test-display-defaults": "tsx scripts/test-display-defaults.ts"
+    "test-display-defaults": "tsx scripts/test-display-defaults.ts",
+    "test-lambda-manifest": "python3 scripts/test-lambda-manifest.py",
+    "check-lambda-drift": "python3 scripts/check-lambda-drift.py",
+    "check-lambda-health": "python3 scripts/check-lambda-health.py"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.700.0",
