@@ -146,12 +146,12 @@
     "sunbiz-lambda":
       "Container-image Lambda from ECR; last modified 2025-10-03 and superseded by sunbiz-lambda-latest.",
 
-    "Fill2848Lambda": "superseded by Fill2848Lambda-arm64",
+    "Fill2848Lambda": "DELETED 2026-09-23 (was superseded by Fill2848Lambda-arm64; 0 invocations in 30d, unreferenced). Zip backup in scripts/__verify_out__/lambda-graveyard-2026-09-23/.",
     "SS4LLCStack-SS4LLC-arm64": "older SS-4 stack; live SS-4 is ss4-lambda-s3-complete",
     "SS4LLCStack-SS4LLC6A7F87A7-yMWn8SfPv77e": "older SS-4 stack",
     "LlcLambdaCdkStack-LLCTriggerLambda2135A790-8vjIJ4nWdxYt": "trigger shim, not in this repo",
     "membership-registry-lambda":
-      "Orphan. Same name as the source file but a different function from the MembershipRegistryStack one that production calls; nothing points at it. 6 lines behind main. Delete once confirmed unused.",
+      "DELETED 2026-09-23. Was an orphan: unreferenced in the repo, no triggers; its 30d traffic was leftover 6-hourly monitor pings plus QA batch generations (08-31/09-02, s3 keys under test/). Production membership registry is the MembershipRegistryStack function. Zip backup in scripts/__verify_out__/lambda-graveyard-2026-09-23/.",
     "layer-diagnostics": "diagnostic",
     "simple-sunbiz-check": "not in this repo",
 
