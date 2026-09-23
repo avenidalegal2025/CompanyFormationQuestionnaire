@@ -182,7 +182,11 @@ function payload(c: Cfg) {
       ["agreed by Majority to the incurrence", 0, "additional_capital §5.2"],
       ["personal loans from any Member of the Company with the Majority consent of the Members", 1, "loans §6.1"],
       ["Company's assets requires the Majority consent of the Members", 2, "sale §8"],
-      ["The Majority Approval of the Members shall be required", 3, "major §11.4.i"],
+      // "required to" (not just "required") — §11.4.ii minor-decisions item
+      // (added 2026-09-23) legitimately reads "The Majority Approval of the
+      // Members shall be required FOR all other decisions…" at the default
+      // minor voting; the stale-anchor guard targets only the (i) major item.
+      ["The Majority Approval of the Members shall be required to", 3, "major §11.4.i"],
       ["shall admit new Members (or transferees of any interests of existing Members) to the Company by the Majority vote or consent", 4, "new_member §13.1"],
       ["unless the Members by Majority agree otherwise", 4, "new_member §13.1-alt"],
       ["Majority vote or consent of all other Members of the Company", 6, "officer_removal §14.6"],
@@ -245,6 +249,13 @@ function payload(c: Cfg) {
       ]) {
         if (has(bad)) errs.push(`LLC §14.4 successor-buyout threshold wrongly swept: '${bad}…' (must stay Majority)`);
       }
+      // §11.4.ii minor-decisions item (added 2026-09-23 when llc_minorDecisions
+      // was wired): the matrix never sets llc_minorDecisions, so it must ALWAYS
+      // render at the default "Majority" — this doubles as proof the
+      // major-decisions sweep can't elevate the token-protected minor item even
+      // for unanimous/supermajority major profiles.
+      if (!has("The Majority Approval of the Members shall be required for all other decisions of the Company not listed in this Section 11.4"))
+        errs.push("LLC §11.4.ii minor-decisions item missing or wrongly swept (must stay Majority at the default)");
     }
 
     const anchors = c.entity === "LLC" ? llcAnchors : corpAnchors;
