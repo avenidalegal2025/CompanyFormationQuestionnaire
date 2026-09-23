@@ -123,6 +123,94 @@ const VOTES: Array<[string, string]> = [
   check("No unused Super Majority definition when nothing uses it",
     !/Super Majority Defined/.test(llcNoSuper));
 
+  // D. Additional-capital pro-rata toggle. Answering "No" must rewrite the
+  //    templates' mandatory pro-rata clauses (LLC §5.1 + Article 7, Corp §4.5)
+  //    into voluntary-contribution wording; "Sí, Pro-Rata" keeps them.
+  console.log("\nAdditional-capital pro-rata (LLC §5.1 / Art. 7, Corp §4.5):");
+  {
+    const llcYes = await text(payload(LLC, { llc_additionalContributions: "Sí, Pro-Rata" }));
+    check('LLC "Sí, Pro-Rata" keeps the pro-rata basis clause',
+      llcYes.includes("all future capital contributions shall be made on a pro-rata basis"));
+    check('LLC "Sí, Pro-Rata" keeps the MPI dilution penalty',
+      llcYes.includes("MPI reduced in pro-rata proportion to their ownership interest"));
+
+    const llcNo = await text(payload(LLC, { llc_additionalContributions: "No" }));
+    check('LLC "No" drops the pro-rata basis clause',
+      !llcNo.includes("pro-rata basis"));
+    check('LLC "No" makes additional contributions voluntary',
+      llcNo.includes("shall be voluntary; no Member shall be obligated"));
+    check('LLC "No" drops the MPI dilution penalty',
+      !llcNo.includes("MPI reduced in pro-rata proportion"));
+    check('LLC "No" rewrites Article 7 to opt-in contributions',
+      llcNo.includes("may, but shall not be obligated to, contribute"));
+
+    const corpYes = await text(payload(CORP, { corp_moreCapitalProcess: "Sí, Pro-Rata" }));
+    check('Corp "Sí, Pro-Rata" keeps the pro-rata expense clause',
+      corpYes.includes("pro-rata proportion equal to their percentage interest"));
+
+    const corpNo = await text(payload(CORP, { corp_moreCapitalProcess: "No" }));
+    check('Corp "No" drops the pro-rata expense clause',
+      !corpNo.includes("pro-rata proportion equal to their percentage interest"));
+    check('Corp "No" makes additional capital opt-in',
+      corpNo.includes("no Shareholder shall be obligated to contribute additional capital"));
+  }
+
+  // E. LLC §7.6 distribution frequency — the same answer the Corp already
+  //    honored must cadence the LLC distribution clause.
+  console.log("\nLLC §7.6 distribution frequency:");
+  {
+    const FREQ: Array<[string, string]> = [
+      ["Trimestral", "on a quarterly basis, at such times within each quarter"],
+      ["Semestral", "on a semi-annual basis, at such times within each six-month period"],
+      ["Anual", "on an annual basis, at such times within each year"],
+    ];
+    for (const [answer, phrase] of FREQ) {
+      const t = await text(payload(LLC, { distributionFrequency: answer }));
+      check(`LLC ${answer} → "${phrase}"`,
+        t.includes(phrase) && !t.includes("from time to time at such times"));
+    }
+    const llcDisc = await text(payload(LLC, { distributionFrequency: "Discreción de los Miembros" }));
+    check("LLC Discreción de los Miembros → template cadence retained",
+      llcDisc.includes("from time to time at such times as the Members shall determine"));
+    // The inserted bare "Majority" must be swept with the rest of §7.6 when
+    // the major-decisions vote is elevated (pass runs before the sweep).
+    const llcSuperFreq = await text(payload(LLC, {
+      distributionFrequency: "Anual", llc_majorDecisions: "Supermayoría",
+    }));
+    check("LLC Anual + Supermayoría → cadence clause swept to Super Majority",
+      llcSuperFreq.includes("within each year as the Members shall determine by Super Majority"));
+  }
+
+  // F. LLC §11.4(ii) minor decisions — the same voting answer that drives the
+  //    major-decisions clause must also set the regime for below-threshold
+  //    decisions; the template ships no minor-decisions clause without it.
+  console.log("\nLLC §11.4 minor decisions:");
+  {
+    const MINOR = /The ([A-Za-z ]+?) Approval of the Members shall be required for all other decisions of the Company not listed in this Section 11\.4/;
+    for (const [answer, expected] of VOTES) {
+      // The base fixture answers major=Decisión Unánime, so the Majority case
+      // also proves the major-decisions sweep cannot elevate a lower
+      // minor-decisions vote to the major term.
+      const t = await text(payload(LLC, { llc_minorDecisions: answer }));
+      const got = t.match(MINOR)?.[1]?.trim();
+      check(`${answer} → "${expected}" for minor decisions`, got === expected, `got="${got}"`);
+    }
+    // "Mayoría" with a custom % renders that % (same majority_threshold
+    // mechanism the major-decisions "Majority" definition uses).
+    const t60 = await text(payload(LLC, { llc_minorDecisions: "Mayoría", majorityThreshold: 66.67 }));
+    check('Mayoría at a custom 66.67% renders the custom %',
+      t60.match(MINOR)?.[1]?.trim() === "Majority" && t60.includes("66.67%") && !t60.includes("50.1%"));
+    // Minor-only Supermayoría must still DEFINE the term it uses.
+    const tSup = await text(payload(LLC, {
+      llc_minorDecisions: "Supermayoría",
+      llc_majorDecisions: "Mayoría", llc_companySaleDecision: "Mayoría", llc_dissolutionDecision: "Mayoría",
+      llc_newMembersAdmission: "Mayoría", llc_officerRemovalVoting: "Mayoría",
+      llc_memberLoansVoting: "Mayoría", llc_additionalContributionsDecision: "Mayoría",
+    }, DROP));
+    check("minor-only Supermayoría still defines Super Majority",
+      /Super Majority Defined/.test(tSup) && tSup.match(MINOR)?.[1]?.trim() === "Super Majority");
+  }
+
   // C. The effective date. The Corp template used to supply the ordinal and the
   //    year itself ("{{effective_date}}th, 2026"), so the generator filled in
   //    only "September 17": every 1st/2nd/3rd/21st/22nd/23rd/31st came out as

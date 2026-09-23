@@ -19,6 +19,7 @@ function base(): QuestionnaireAnswers {
     majority_threshold: 51,
     sale_of_company_voting: "Majority",
     major_decisions_voting: "Majority",
+    minor_decisions_voting: "Majority",
     major_spending_threshold: 10000,
     bank_signees: "one",
     new_member_admission_voting: "Majority",

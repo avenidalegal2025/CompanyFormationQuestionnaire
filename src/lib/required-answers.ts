@@ -46,7 +46,9 @@ export const AGREEMENT_REQUIRED_ANSWERS: RequiredAnswer[] = [
   { name: "agreement.corp_moreCapitalDecision", step: 6, when: corp },
   { name: "agreement.corp_shareholderLoans", step: 6, when: corp },
   { name: "agreement.corp_shareholderLoansVoting", step: 6, when: (v) => corp(v) && a(v).corp_shareholderLoans === "Yes" },
-  { name: "agreement.distributionFrequency", step: 6, when: corp },
+  // Shown for both entities (Corp: dividendos a los accionistas; LLC:
+  // distribuciones a los miembros), so no `when` predicate.
+  { name: "agreement.distributionFrequency", step: 6 },
   { name: "agreement.llc_newMembersAdmission", step: 6, when: llc },
   { name: "agreement.llc_additionalContributions", step: 6, when: llc },
   { name: "agreement.llc_additionalContributionsDecision", step: 6, when: llc },

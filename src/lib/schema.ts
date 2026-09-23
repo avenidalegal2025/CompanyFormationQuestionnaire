@@ -344,7 +344,7 @@ export const AgreementSchema = z
     // Shared fields (both entity types)
     majorityThreshold: z.number().min(50).max(100).optional(),
     supermajorityThreshold: z.number().min(51).max(99).optional(),
-    distributionFrequency: z.enum(["Trimestral", "Semestral", "Anual", "Discreción de la Junta"]).optional(),
+    distributionFrequency: z.enum(["Trimestral", "Semestral", "Anual", "Discreción de la Junta", "Discreción de los Miembros"]).optional(),
     llc_minTaxDistribution: z.number().min(0).max(100).optional(),
   })
   .and(z.record(z.string(), z.unknown()).optional());

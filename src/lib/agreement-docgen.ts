@@ -75,12 +75,19 @@ export interface QuestionnaireAnswers {
   shareholder_loans_voting: string;
   /** Whether the agreement permits loans from owners to the company at all. */
   include_loans?: boolean;
+  /**
+   * Whether additional capital contributions are made pro-rata
+   * (llc_additionalContributions / corp_moreCapitalProcess). Undefined (old
+   * drafts) means pro-rata, preserving the templates' original clauses.
+   */
+  additional_capital_prorata?: boolean;
   distribution_frequency: string;
   min_tax_distribution?: number;
   majority_threshold: number;
   supermajority_threshold?: number;
   sale_of_company_voting: string;
   major_decisions_voting: string;
+  minor_decisions_voting: string;
   major_spending_threshold: number;
   bank_signees: string; // "one" | "two"
   new_member_admission_voting: string;
@@ -145,7 +152,7 @@ function votingText(value: string): string {
 // entry (LLC §19.8 / Corp §1.7) must be omitted. ("Majority" stays defined.)
 const SUPERMAJORITY_VOTING_KEYS: Array<keyof QuestionnaireAnswers> = [
   "additional_capital_voting", "shareholder_loans_voting", "sale_of_company_voting",
-  "major_decisions_voting", "new_member_admission_voting", "dissolution_voting",
+  "major_decisions_voting", "minor_decisions_voting", "new_member_admission_voting", "dissolution_voting",
   "officer_removal_voting",
 ];
 function supermajorityIsUsed(answers: QuestionnaireAnswers): boolean {
@@ -279,7 +286,11 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
   // manager — cleanupSingleOwnerLLC doesn't run for those).
   xml = stripDanglingManagerAndForSingleManager(xml, answers);
 
-  // Post-processing: voting text, bank accounts, conditional sections
+  // Post-processing: voting text, bank accounts, conditional sections.
+  // §7.6 distribution frequency MUST run before applyLLCVotingReplacements so
+  // the inserted bare "Majority" is swept consistently with the rest of §7.6
+  // when major_decisions_voting is Super Majority / Unanimous.
+  xml = applyLLCDistributionFrequency(xml, answers);
   xml = applyLLCVotingReplacements(xml, answers);
   // NOTE: §19.7 "Majority Defined" (50.01%) and §19.8 "Super Majority Defined"
   // (75%) are now kept as FIXED glossary definitions for every voting choice,
@@ -293,6 +304,9 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
   xml = applyGoverningStateText(xml, answers);
   // Strip / rewrite §6.1 Member Loans body when llc_memberLoans === "No".
   xml = applyLLCMemberLoansToggle(xml, answers);
+  // Rewrite §5.1 / Article 7 pro-rata capital clauses when the customer
+  // answered "No" to pro-rata additional contributions.
+  xml = applyLLCAdditionalCapitalProrata(xml, answers);
   xml = removeLLCConditionalSections(xml, answers);
 
   // Specific Responsibilities (per-member title + desc from Step 6).
@@ -931,6 +945,29 @@ function applyLLCVotingReplacements(
     // Escape for XML context - the text might contain XML entities
     xml = xmlTextReplace(xml, r.find, r.replace);
   }
+
+  // Sec 11.4(ii) - Minor decisions. The template ships only the MAJOR-decisions
+  // list in 11.4(i); the questionnaire also asks how MINOR (below-threshold)
+  // decisions are made (llc_minorDecisions, Step 8) but the answer never
+  // reached the agreement. Append a minor-decisions item as its own paragraph
+  // after the (i) list, mirroring the (i) sentence pattern (the house relabel
+  // pass turns the leading "(ii)" into "ii.", matching "i."). A VT token — not
+  // the literal term — keeps the major-decisions sweep below from elevating a
+  // lower minor-decisions threshold to the major term (same reason the
+  // per-decision clauses above use tokens).
+  const llcMinorFmt = extractFormatting(
+    xml,
+    "change the nature or character of the business"
+  );
+  xml = xmlTextReplace(
+    xml,
+    "change the nature or character of the business of the limited liability company.",
+    `change the nature or character of the business of the limited liability company.${closeParagraphAndInsert(
+      `(ii) The ${VT("minor_decisions_voting")} Approval of the Members shall be required for all other decisions of the Company not listed in this Section 11.4.`,
+      llcMinorFmt.pPr, llcMinorFmt.rPr
+    )}`,
+    false
+  );
 
   // Comprehensive "remaining Majority" sweep — the per-phrase list above
   // covers ~8 specific section anchors, but variants surface ~5-7 more
@@ -1683,6 +1720,10 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   // Strip / rewrite §7.3 Shareholder Loans body when the user opted out
   // of allowing shareholder loans (corp_shareholderLoans === "No").
   xml = applyCorpShareholderLoansToggle(xml, answers);
+
+  // Rewrite §4.5 pro-rata additional-capital sentence when the customer
+  // answered "No" to pro-rata (corp_moreCapitalProcess).
+  xml = applyCorpMoreCapitalProrata(xml, answers);
 
   // Template bug: after {{principal_address}} the template has a stray
   // superscripted "th" run (left over from when that placeholder was a date).
@@ -2733,6 +2774,92 @@ function applyLLCMemberLoansToggle(
     "The Company shall not accept loans from any Member. The Members may revisit this restriction by the"
   );
   return xml;
+}
+
+// ─── Additional-capital pro-rata toggle ──────────────────────────────
+//
+// Step 7 asks whether additional capital contributions are made pro-rata
+// (llc_additionalContributions / corp_moreCapitalProcess: "Sí, Pro-Rata" /
+// "No"), mapped to answers.additional_capital_prorata. When the customer
+// answers "No", the templates' mandatory pro-rata contribution — and the
+// LLC's dilution penalty for not paying — directly contradict the answer,
+// so the clauses are rewritten to make additional contributions voluntary.
+function applyLLCAdditionalCapitalProrata(
+  xml: string,
+  answers: QuestionnaireAnswers
+): string {
+  if (answers.additional_capital_prorata !== false) return xml;
+  // §5.1 — drop the mandatory pro-rata basis. Removing the clause leaves the
+  // original period, so the sentence collapses to "…shall be made solely
+  // upon the {voting} vote of the Members." (The voting term itself is set
+  // by the additional_capital_voting entry in applyLLCVotingReplacements.)
+  xml = xmlTextReplace(
+    xml,
+    "; all future capital contributions shall be made on a pro-rata basis",
+    ""
+  );
+  // §5.1 — replace the dilution penalty (MPI reduction for declining to pay)
+  // with an explicit voluntary-contribution rule.
+  xml = xmlTextReplace(
+    xml,
+    "In the event that any Member shall fail or decline to pay any such additional capital contribution within 30 days from notice thereof, such Member shall have their MPI reduced in pro-rata proportion to their ownership interest.",
+    "Any such additional capital contribution shall be voluntary; no Member shall be obligated to contribute, and a Member's decision not to contribute shall not affect such Member's MPI."
+  );
+  // Article 7 — mandatory contribution in proportion to MPI becomes opt-in.
+  // The "Additionally, the MPI is subject to change…" tail stays untouched.
+  xml = xmlTextReplace(
+    xml,
+    "the Members agree to each contribute the required amount in proportion to their respective MPI.",
+    "the Members may, but shall not be obligated to, contribute the required amount in such proportions as the contributing Members shall agree."
+  );
+  return xml;
+}
+
+function applyCorpMoreCapitalProrata(
+  xml: string,
+  answers: QuestionnaireAnswers
+): string {
+  if (answers.additional_capital_prorata !== false) return xml;
+  // §4.5 Additional Capital Contributions — the mandatory pro-rata
+  // expense-sharing sentence becomes an opt-in regime. The
+  // right-of-first-refusal tail of the paragraph stays untouched.
+  xml = xmlTextReplace(
+    xml,
+    "each Shareholder shall pay his or her portion of expenses in a pro-rata proportion equal to their percentage interest in the Corporation, unless otherwise agreed to herein.",
+    "no Shareholder shall be obligated to contribute additional capital to the Corporation; any additional capital contributions shall be made in such amounts and proportions as the contributing Shareholders shall mutually agree."
+  );
+  return xml;
+}
+
+// ─── Distribution frequency (LLC) ────────────────────────────────────
+//
+// Mirror of applyCorpDistributionFrequency for the LLC template's §7.6,
+// which hardcodes "from time to time at such times as the Members shall
+// determine by Majority". quarterly / semi_annual / annual rewrite the
+// cadence; "discretion" keeps the template text. MUST run before
+// applyLLCVotingReplacements so the inserted bare "Majority" is swept
+// consistently with the rest of §7.6 when major_decisions_voting is
+// Super Majority / Unanimous.
+function applyLLCDistributionFrequency(
+  xml: string,
+  answers: QuestionnaireAnswers
+): string {
+  const freq = answers.distribution_frequency || "quarterly";
+  const cadence: Record<string, string> = {
+    quarterly:
+      "on a quarterly basis, at such times within each quarter as the Members shall determine by Majority",
+    semi_annual:
+      "on a semi-annual basis, at such times within each six-month period as the Members shall determine by Majority",
+    annual:
+      "on an annual basis, at such times within each year as the Members shall determine by Majority",
+  };
+  const replacement = cadence[freq];
+  if (!replacement) return xml; // "discretion" → template text retained
+  return xmlTextReplace(
+    xml,
+    "from time to time at such times as the Members shall determine by Majority",
+    replacement
+  );
 }
 
 /**
@@ -5060,9 +5187,9 @@ function closeArticleXIIIGap(xml: string): string {
   return xml.replace(/<w:t[^>]*>([^<]*)<\/w:t>/g, (full, text) => {
     let t = text;
     // Article-level (do XV first so we don't double-shift)
-    t = t.replace(/ARTICLE XV\b/g, " ARTXIV ");
+    t = t.replace(/ARTICLE XV\b/g, "\u0000ARTXIV\u0000");
     t = t.replace(/ARTICLE XIV\b/g, "ARTICLE XIII");
-    t = t.replace(/ ARTXIV /g, "ARTICLE XIV");
+    t = t.replace(/\u0000ARTXIV\u0000/g, "ARTICLE XIV");
     // Section-level §14.N / §15.N (in headings AND any cross-refs).
     // Do 15→14 first via sentinel so we don't shift twice.
     t = t.replace(/(?<!\d)15\.(\d+)/g, "15.$1");

@@ -44,6 +44,7 @@ function buildAnswers(ownerCount: number): QuestionnaireAnswers {
     supermajority_threshold: 75,
     sale_of_company_voting: "majority",
     major_decisions_voting: "majority",
+    minor_decisions_voting: "majority",
     major_spending_threshold: 25000,
     bank_signees: "one",
     new_member_admission_voting: "majority",

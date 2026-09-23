@@ -66,8 +66,11 @@ const CASES: Case[] = [
   { name: "LLC Tag/Drag", base: LLC_BASE, field: "llc_tagDragRights", a: "Yes", b: "No" },
   { name: "LLC Incapacity→forced sale", base: LLC_BASE, field: "llc_heirsForcedToSell", a: "Yes", b: "No" },
   { name: "LLC Major-decisions voting", base: LLC_BASE, field: "llc_majorDecisions", a: "Mayoría", b: "Decisión Unánime" },
+  { name: "LLC Minor-decisions voting", base: LLC_BASE, field: "llc_minorDecisions", a: "Mayoría", b: "Decisión Unánime" },
   { name: "LLC Transfer-to-relatives", base: LLC_BASE, field: "llc_transferToRelatives", a: FREE, b: UNANIMOUS },
   { name: "LLC Divorce buyout", base: LLC_BASE, field: "llc_divorceBuyoutPolicy", a: "Yes", b: "No" },
+  { name: "LLC Capital Pro-Rata", base: LLC_BASE, field: "llc_additionalContributions", a: "Sí, Pro-Rata", b: "No" },
+  { name: "LLC Distribution frequency", base: LLC_BASE, field: "distributionFrequency", a: "Trimestral", b: "Anual" },
   // ── Corp ─────────────────────────────────────────────────────────
   { name: "Corp RoFR", base: CORP_BASE, field: "corp_rofr", a: "Yes", b: "No" },
   { name: "Corp Non-compete", base: CORP_BASE, field: "corp_nonCompete", a: "Yes", b: "No" },
@@ -77,6 +80,7 @@ const CASES: Case[] = [
   { name: "Corp Major-decisions voting", base: CORP_BASE, field: "corp_majorDecisionThreshold", a: "Mayoría", b: "Decisión Unánime" },
   { name: "Corp Transfer-to-relatives", base: CORP_BASE, field: "corp_transferToRelatives", a: FREE, b: UNANIMOUS },
   { name: "Corp Divorce buyout", base: CORP_BASE, field: "corp_divorceBuyoutPolicy", a: "Yes", b: "No" },
+  { name: "Corp Capital Pro-Rata", base: CORP_BASE, field: "corp_moreCapitalProcess", a: "Sí, Pro-Rata", b: "No" },
 ];
 
 // Known-dead toggles awaiting Antonio's clause text/decision. Reported but not

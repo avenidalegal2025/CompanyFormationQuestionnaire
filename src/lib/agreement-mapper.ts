@@ -434,6 +434,12 @@ export async function mapFormToDocgenAnswers(
     include_loans: isCorp
       ? agreement.corp_shareholderLoans === "Yes"
       : agreement.llc_memberLoans === "Yes",
+    // "Sí, Pro-Rata"/"No" toggle for additional capital (Step 6). Undefined
+    // (old drafts, or a draft saved before the question existed) maps to true
+    // so the templates' original pro-rata clauses are preserved.
+    additional_capital_prorata: isCorp
+      ? agreement.corp_moreCapitalProcess !== "No"
+      : agreement.llc_additionalContributions !== "No",
 
     // Distributions
     distribution_frequency: (() => {
@@ -441,6 +447,7 @@ export async function mapFormToDocgenAnswers(
       if (freq === "Semestral") return "semi_annual";
       if (freq === "Anual") return "annual";
       if (freq === "Discreción de la Junta") return "discretion";
+      if (freq === "Discreción de los Miembros") return "discretion";
       return "quarterly";
     })(),
     // No template -- LLC or Corp -- has a tax-distribution clause, and no step
@@ -462,6 +469,8 @@ export async function mapFormToDocgenAnswers(
     major_decisions_voting: isCorp
       ? votingCode(agreement.corp_majorDecisionThreshold)
       : votingCode(agreement.llc_majorDecisions),
+    // LLC only — the Corp questionnaire has no minor-decisions question.
+    minor_decisions_voting: votingCode(agreement.llc_minorDecisions),
     major_spending_threshold: isCorp
       ? parseCurrency(agreement.corp_majorSpendingThreshold) || 5000
       : parseCurrency(agreement.llc_majorSpendingThreshold) || 10000,

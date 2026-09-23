@@ -380,6 +380,31 @@ export default function Step7Agreement2({ form, setStep, onSave, onNext, session
                   </div>
                 )}
               </div>
+              <div className="mt-12 pt-10 border-t border-gray-100 md:grid md:grid-cols-[minmax(420px,1fr)_minmax(320px,auto)] md:gap-8 md:items-start">
+                <label className="label inline-flex items-start gap-3 max-w-prose">
+                  ¿Con qué frecuencia se repartirán las distribuciones a los miembros?
+                  <InfoTooltip
+                    title="Frecuencia de Distribuciones"
+                    body="Determina cada cuánto se reparten las distribuciones a los miembros. El acuerdo se redacta con la frecuencia que elija aquí."
+                  />
+                </label>
+                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[420px]">
+                  <Controller
+                    name="agreement.distributionFrequency"
+                    control={control}
+                    render={({ field }) => (
+                      <select className="input w-full min-w-0 text-sm" {...field} value={field.value || ""}>
+                        <option value="">Seleccionar opción</option>
+                        <option value="Trimestral">Trimestral</option>
+                        <option value="Semestral">Semestral</option>
+                        <option value="Anual">Anual</option>
+                        <option value="Discreción de los Miembros">A discreción de los Miembros</option>
+                      </select>
+                    )}
+                  />
+                  <RequiredHint form={form} name="agreement.distributionFrequency" />
+                </div>
+              </div>
             </>
           )}
         </div>
