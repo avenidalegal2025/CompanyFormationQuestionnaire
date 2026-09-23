@@ -78,8 +78,8 @@
       "deps": "reportlab PyPDF2 typing_extensions",
       "stub_pil": true,
       "layer": "ss4-reportlab-layer-all-arm64-fixed:1",
-      "verified": "2026-09-17",
-      "note": "IRS 2848. Drifted 20 lines behind main as of 2026-09-17. Its function URL is absent from .env.local, so whether production actually calls it is unconfirmed -- confirm before relying on a deploy here."
+      "verified": "2026-09-22",
+      "note": "IRS 2848. Deployed 2026-09-22: the address-line-2 improvement (fe46b9b8) is now live. Production ownership confirmed the same day: the hardcoded URL in src/app/api/airtable/generate-2848/route.ts resolves to THIS function. Verified by generating a real PDF through the production URL (explicit Address Line 2 rendered, city/state/zip fallback suppressed). Rollback zip of the 2026-01-09 deploy kept at scripts/__verify_out__/rollback-Fill2848Lambda-arm64-20260109.zip. No prod alias existed before; created prod -> v1 (the post-deploy version)."
     },
     {
       "function_name": "BylawsLambda",
