@@ -23,6 +23,13 @@ os.environ["DISPLAY"] = ":1"
 
 from pyairtable import Api
 
+from filing_utils import (
+    start_screen_recording,
+    stop_screen_recording,
+    upload_filing_video,
+    VIDEO_AIRTABLE_FIELD,
+)
+
 # Configuration - set these environment variables on EC2
 AIRTABLE_API_KEY = os.environ.get("AIRTABLE_API_KEY")
 AIRTABLE_BASE_ID = os.environ.get("AIRTABLE_BASE_ID")
@@ -138,6 +145,23 @@ def run_autofill(record_id):
     return result.returncode == 0
 
 
+def attach_filing_video(record_id, company_name, rec):
+    """Stop the screen recording, upload it, and link it on the Airtable
+    record. Evidence is valuable on failure too, so this runs either way.
+    Never lets a video problem affect the filing outcome."""
+    try:
+        path = stop_screen_recording(rec)
+        url = upload_filing_video(path, company_name.replace(' ', '_'),
+                                  dry_run=os.environ.get("DRY_RUN") == "1")
+        if url:
+            api = Api(AIRTABLE_API_KEY)
+            table = api.table(AIRTABLE_BASE_ID, AIRTABLE_TABLE_NAME)
+            table.update(record_id, {VIDEO_AIRTABLE_FIELD: url})
+            print(f"   \U0001f3ac Filing video linked on record ({VIDEO_AIRTABLE_FIELD})")
+    except Exception as e:
+        print(f"   \u26a0\ufe0f Filing video attach failed (non-fatal): {e}")
+
+
 def process_records(records, dry_run=False):
     """Process a list of records. Returns (success_count, fail_count)."""
     success = 0
@@ -161,7 +185,11 @@ def process_records(records, dry_run=False):
 
         try:
             mark_as_processing(record_id)
-            ok = run_autofill(record_id)
+            rec = start_screen_recording(company_name)
+            try:
+                ok = run_autofill(record_id)
+            finally:
+                attach_filing_video(record_id, company_name, rec)
 
             if ok:
                 # Disarm ONLY on success — a failed attempt stays armed so the

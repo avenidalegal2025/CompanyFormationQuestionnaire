@@ -9,6 +9,8 @@ import time
 import random
 import json
 import base64
+import shutil
+import subprocess
 import tempfile
 from datetime import datetime
 
@@ -142,6 +144,78 @@ def upload_file_to_s3(filepath, company_name, category):
         print(f"  \u2705 Uploaded {filename} to s3://{S3_BUCKET}/{key}")
     except Exception as e:
         print(f"  \u274c Failed to upload {filename}: {e}")
+
+
+# ===================== SCREEN RECORDING (evidence video) =====================
+
+VIDEO_AIRTABLE_FIELD = "Filing Video"
+
+
+def start_screen_recording(label):
+    """Record the Xvfb display for the duration of a filing run. Returns a
+    recording handle, or None if ffmpeg is unavailable (filing proceeds)."""
+    if shutil.which("ffmpeg") is None:
+        print("===> SCREEN_RECORDING_UNAVAILABLE (no ffmpeg on instance)")
+        return None
+    display = os.environ.get("DISPLAY", ":1")
+    size = "1920x1080"
+    try:
+        out = subprocess.run(["xdpyinfo", "-display", display],
+                             capture_output=True, text=True, timeout=10).stdout
+        m = re.search(r"dimensions:\s+(\d+x\d+)", out)
+        if m:
+            size = m.group(1)
+    except Exception:
+        pass
+    ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    safe = re.sub(r"[^A-Za-z0-9_-]", "_", label)[:40]
+    path = f"/tmp/filing_{safe}_{ts}.mp4"
+    proc = subprocess.Popen(
+        ["ffmpeg", "-y", "-f", "x11grab", "-video_size", size, "-i", display,
+         "-c:v", "libx264", "-preset", "veryfast", "-crf", "28", "-pix_fmt", "yuv420p", path],
+        stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    print(f"  \U0001f3ac Screen recording started ({size}, {path})")
+    return {"proc": proc, "path": path}
+
+
+def stop_screen_recording(rec):
+    """Stop ffmpeg gracefully ('q' finalizes the mp4) and return the path, or
+    None if the file is missing/suspiciously small."""
+    if not rec:
+        return None
+    proc = rec["proc"]
+    try:
+        proc.communicate(input=b"q", timeout=20)
+    except Exception:
+        proc.kill()
+        proc.wait()
+    path = rec["path"]
+    if os.path.exists(path) and os.path.getsize(path) > 10000:
+        return path
+    print("===> SCREEN_RECORDING_EMPTY (no usable video produced)")
+    return None
+
+
+def upload_filing_video(filepath, company_name, dry_run=False):
+    """Upload the run video under {company}/videos/ and return a 7-day
+    presigned URL for the Airtable 'Filing Video' field (None on failure).
+    Dry-run videos are prefixed DRYRUN_ so nobody mistakes one for a filing."""
+    if not filepath:
+        return None
+    s3 = boto3.client("s3", region_name=REGION)
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    prefix = "DRYRUN_" if dry_run else ""
+    key = f"{company_name}/videos/{timestamp}_{prefix}filing.mp4"
+    try:
+        s3.upload_file(filepath, S3_BUCKET, key)
+        url = s3.generate_presigned_url(
+            "get_object", Params={"Bucket": S3_BUCKET, "Key": key},
+            ExpiresIn=7 * 24 * 3600)
+        print(f"  \u2705 Uploaded filing video to s3://{S3_BUCKET}/{key}")
+        return url
+    except Exception as e:
+        print(f"  \u274c Failed to upload filing video: {e}")
+        return None
 
 
 def take_and_upload_screenshot(driver, label, company_name):
