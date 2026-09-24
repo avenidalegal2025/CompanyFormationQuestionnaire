@@ -316,6 +316,19 @@ def detect_country_code(address_str):
     return "US"
 
 
+def looks_spanish(text):
+    """Heuristic: accented chars or common uppercase Spanish business words."""
+    if not text:
+        return False
+    if re.search(r"[áéíóúñÁÉÍÓÚÑ¿¡]", text):
+        return True
+    WORDS = ("RESTAURANTE", "NEGOCIO", "SERVICIO", "SERVICIOS", "VENTA", "VENTAS",
+             "CONSULTORIA", "COMERCIO", "CONSTRUCCION", "TRANSPORTE", "IMPORTACION",
+             "EXPORTACION", "ALIMENTOS", "INMOBILIARIA", "PELUQUERIA", "TIENDA")
+    upper = text.upper()
+    return any(w in upper for w in WORDS)
+
+
 def translate_business_purpose(text):
     """Translate business purpose to English using OpenAI. Falls back to original."""
     if not text:
@@ -341,11 +354,18 @@ def translate_business_purpose(text):
             timeout=20,
         )
         if not res.ok:
+            # Stable token for a CloudWatch metric filter, mirroring
+            # SS4_TRANSLATION_FAILED. 2026-09-24: this fired as HTTP 429
+            # credit_balance_exhausted and 'RESTAURANTE' went on a SunBiz
+            # form untranslated — silently, until the dress rehearsal saw it.
+            print(f"===> PURPOSE_TRANSLATION_FAILED (HTTP {res.status_code}) for "
+                  f"'{str(text)[:50]}': {res.text[:160]}")
             return text
         data = res.json()
         translated = (data.get("choices") or [{}])[0].get("message", {}).get("content", "").strip()
         return translated or text
-    except Exception:
+    except Exception as e:
+        print(f"===> PURPOSE_TRANSLATION_FAILED (exception) for '{str(text)[:50]}': {e}")
         return text
 
 

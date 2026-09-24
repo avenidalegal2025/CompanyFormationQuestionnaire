@@ -30,6 +30,7 @@ from filing_utils import (
     parse_name,
     detect_country_code,
     translate_business_purpose,
+    looks_spanish,
     init_browser,
     accept_disclaimer_and_start,
     wait_for_form_field,
@@ -229,12 +230,22 @@ def fetch_llc_data_from_airtable(record_id=None):
 
     signer = authorized_persons[0]  # first manager signs the form
 
+    raw_purpose = fields.get('Business Purpose', 'Any lawful purpose')
+    purpose = translate_business_purpose(raw_purpose)
+    if purpose == raw_purpose and looks_spanish(raw_purpose):
+        # Fail-visible: never put Spanish text on a SunBiz filing because the
+        # translator was unavailable (2026-09-24: OpenAI 429 no-credits).
+        flag_needs_review(
+            record['id'],
+            f"Business Purpose '{raw_purpose[:60]}' looks Spanish and translation "
+            f"failed/unavailable — refusing to file it untranslated",
+        )
+        raise ValueError(f"Business Purpose untranslated Spanish: '{raw_purpose[:60]}'")
+
     llc_data = {
         "llc": {
             "name": fields.get('Company Name', ''),
-            "purpose": translate_business_purpose(
-                fields.get('Business Purpose', 'Any lawful purpose')
-            ),
+            "purpose": purpose,
             "principal_address": {
                 "line1": address_parts.get('line1', ''),
                 "line2": address_parts.get('line2', ''),

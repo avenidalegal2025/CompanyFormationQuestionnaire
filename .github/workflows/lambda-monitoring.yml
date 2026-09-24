@@ -61,22 +61,30 @@ jobs:
         # The EC2 watcher (i-0764ed6c3bda7a5c2) files paid Florida formations
         # flagged Autofill=Yes. Its systemd unit was silently deleted once
         # before (2026-02-17) and every "automatic" filing since was manual.
-        # A dead watcher must page before a client's formation sits unfiled.
+        # The unit is Type=simple wrapping a single-run script with
+        # Restart=always, so healthy = enabled AND a fresh run timestamp —
+        # the instantaneous state oscillates active/activating by design.
         if: steps.creds.outcome == 'success' && !cancelled()
         run: |
           IID=i-0764ed6c3bda7a5c2
           CID=$(aws ssm send-command --instance-ids "$IID" \
             --document-name AWS-RunShellScript \
-            --parameters 'commands=["systemctl is-active autofill-watcher"]' \
+            --parameters 'commands=["systemctl is-enabled autofill-watcher 2>&1; systemctl is-failed autofill-watcher 2>&1; systemctl show -p ActiveEnterTimestamp --value autofill-watcher"]' \
             --query 'Command.CommandId' --output text)
           sleep 20
           OUT=$(aws ssm get-command-invocation --command-id "$CID" --instance-id "$IID" \
-            --query 'StandardOutputContent' --output text | tr -d '[:space:]')
-          echo "autofill-watcher is-active: $OUT"
-          if [ "$OUT" != "active" ]; then
-            echo "::error title=autofill-watcher::watcher is '$OUT' — paid formations will NOT auto-file"
+            --query 'StandardOutputContent' --output text)
+          echo "$OUT"
+          ENABLED=$(echo "$OUT" | sed -n '1p' | tr -d '[:space:]')
+          FAILED=$(echo "$OUT" | sed -n '2p' | tr -d '[:space:]')
+          TS=$(echo "$OUT" | sed -n '3p')
+          AGE=99999
+          [ -n "$TS" ] && AGE=$(( $(date +%s) - $(date -d "$TS" +%s) ))
+          if [ "$ENABLED" != "enabled" ] || [ "$FAILED" = "failed" ] || [ "$AGE" -gt 300 ]; then
+            echo "::error title=autofill-watcher::enabled=$ENABLED failed=$FAILED last_run_age=${AGE}s — paid formations may NOT auto-file"
             exit 1
           fi
+          echo "autofill-watcher healthy: enabled, last run ${AGE}s ago"
 
       - name: Say so when nothing was checked
         if: steps.creds.outcome != 'success'

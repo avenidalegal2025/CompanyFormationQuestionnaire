@@ -41,6 +41,7 @@ from filing_utils import (
     parse_name,
     detect_country_code,
     translate_business_purpose,
+    looks_spanish,
     init_browser,
     accept_disclaimer_and_start,
     wait_for_form_field,
@@ -349,6 +350,15 @@ def fetch_corp_data_from_airtable(record_id=None):
     # ---- Business Purpose ----
     raw_purpose = fields.get('Business Purpose', 'Any and all lawful business')
     purpose = translate_business_purpose(raw_purpose)
+    if purpose == raw_purpose and looks_spanish(raw_purpose):
+        # Fail-visible: never put Spanish text on a SunBiz filing because the
+        # translator was unavailable (2026-09-24: OpenAI 429 no-credits).
+        flag_needs_review(
+            record['id'],
+            f"Business Purpose '{raw_purpose[:60]}' looks Spanish and translation "
+            f"failed/unavailable — refusing to file it untranslated",
+        )
+        raise ValueError(f"Business Purpose untranslated Spanish: '{raw_purpose[:60]}'")
     # Determine if we should check the "Any and all lawful business" checkbox
     purpose_is_generic = purpose.lower().strip() in [
         'any and all lawful business',

@@ -289,9 +289,9 @@ def validate_record(rep, record):
            any(w in purpose.upper() for w in
                ("RESTAURANTE", "NEGOCIO", "SERVICIO", "VENTA", "CONSULTORIA", "COMERCIO")):
             rep.warn("Business Purpose language",
-                     f"'{purpose}' looks Spanish — EC2 env has NO OPENAI_API_KEY "
-                     f"(confirmed via SSM 2026-09-23), so translate_business_purpose "
-                     f"(filing_utils.py:289-319) falls back and files it AS-IS")
+                     f"'{purpose}' looks Spanish — if OpenAI translation fails the filer "
+                     f"now refuses to file (Needs Review) instead of filing it as-is "
+                     f"(2026-09-24: OpenAI account had zero credits; verify balance before demo)")
         else:
             rep.ok("Business Purpose", purpose[:80])
     else:
@@ -563,13 +563,34 @@ def check_watcher(rep, env):
         enabled = lines[1] if len(lines) > 1 else "unknown"
         lastlog = lines[2] if len(lines) > 2 else ""
         proc = lines[3] if len(lines) > 3 else ""
-        if active == "active":
-            rep.ok(f"systemd {WATCHER_SERVICE}", f"active (enabled={enabled})")
+        # The unit is Type=simple wrapping a single-run script with
+        # Restart=always/RestartSec=10, so a healthy watcher oscillates
+        # active -> activating and its journal heartbeat is never old.
+        # The 2026-02-17 failure mode was: unit file gone / inactive /
+        # journal frozen. Judge that, not the instantaneous state.
+        import datetime as _dt
+        heartbeat_age = None
+        m = re.match(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})([+-]\d{4})?", lastlog)
+        if m:
+            try:
+                ts = _dt.datetime.strptime(m.group(1), "%Y-%m-%dT%H:%M:%S")
+                heartbeat_age = abs((_dt.datetime.utcnow() - ts).total_seconds())
+            except ValueError:
+                pass
+        fresh = heartbeat_age is not None and heartbeat_age < 180
+        if enabled != "enabled":
+            rep.fail(f"systemd {WATCHER_SERVICE} not enabled",
+                     f"is-enabled={enabled} — the 2026-02-17 failure mode (unit silently "
+                     f"gone). Reinstall from the repo: sudo cp autofill-watcher.service "
+                     f"/etc/systemd/system/ && sudo systemctl enable --now {WATCHER_SERVICE}")
+        elif active == "active" or (active == "activating" and fresh):
+            rep.ok(f"systemd {WATCHER_SERVICE}",
+                   f"{active} (restart-loop poll; journal heartbeat {int(heartbeat_age or -1)}s old, enabled={enabled})")
         else:
             rep.fail(f"systemd {WATCHER_SERVICE} is {active}",
-                     f"enabled={enabled}. The watcher polls Airtable for Autofill=Yes — "
-                     f"with the service down, paid formations are NEVER filed. "
-                     f"Start with: sudo systemctl start {WATCHER_SERVICE}")
+                     f"enabled={enabled}, heartbeat_age={int(heartbeat_age) if heartbeat_age is not None else 'unknown'}s. "
+                     f"The watcher polls Airtable for Autofill=Yes — with it down, paid "
+                     f"formations are NEVER filed. Start with: sudo systemctl start {WATCHER_SERVICE}")
         if lastlog:
             rep.info("Last watcher journal line", lastlog[:140])
         if proc and proc != "NO_FILING_PROCESS":
