@@ -46,6 +46,13 @@ aws ssm get-command-invocation --command-id <id-from-above> \
 Healthy signs: `Found 1 record(s)` → `Processing: <COMPANY>` → per-step screenshots
 upload lines → `Completed` → Airtable flips to `Filed`.
 
+**Evidence video:** every run is screen-recorded (ffmpeg on the Xvfb display) and
+uploaded to `s3://llc-filing-audit-trail-rodolfo/<COMPANY>/videos/`; the record's
+`Filing Video` column gets a 7-day presigned URL. This happens on success AND on
+failure (the video shows where a failed run broke). Dry-run videos carry a
+`DRYRUN_` prefix. If Antonio should keep a video past 7 days, download it — the
+S3 object itself does not expire, only the presigned link.
+
 ## If the watcher stalls
 
 Manual run for one record (safe to repeat; the form is idempotent until payment):
