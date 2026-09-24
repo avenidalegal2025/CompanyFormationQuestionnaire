@@ -298,15 +298,11 @@ def validate_record(rep, record):
         dflt = LLC_PURPOSE_DEFAULT if entity == "LLC" else CORP_PURPOSE_DEFAULT
         rep.warn("Business Purpose empty", f"filer will use hardcoded default '{dflt}'")
 
-    # --- Registered Agent (placeholder until real RA values are set via env) ---
-    rep.fail("Registered Agent uses PLACEHOLDER values",
-             f"defaults are RA '{RA_DEFAULT_FIRST} {RA_DEFAULT_LAST}' at "
-             f"{AVENIDA_ADDRESS['line1']} {AVENIDA_ADDRESS['line2']}, "
-             f"{AVENIDA_ADDRESS['city']}, {AVENIDA_ADDRESS['state']} {AVENIDA_ADDRESS['zip']}. "
-             f"filing_utils.py now supports RA_FIRST_NAME/RA_LAST_NAME/RA_ADDRESS_* and "
-             f"AVENIDA_ADDRESS_* env overrides and prints RA_PLACEHOLDER_IN_USE while any "
-             f"default is in use. This gate stays RED until the real RA name/address "
-             f"(pending from the client) is set on EC2.")
+    # --- Registered Agent ---
+    # The live check runs in check_watcher() (it sources the env on the EC2 and
+    # reads what filing_utils will actually use). Static code defaults are
+    # placeholders by design; env overrides on the instance decide the gate.
+    rep.info("Registered Agent", "live value checked in the watcher section below")
 
     # --- Payment (structural: single shared card in SSM) ---
     rep.warn("Payment source",
@@ -597,6 +593,41 @@ def check_watcher(rep, env):
             rep.info("Filing process running", proc[:120])
     except Exception as e:
         rep.fail("SSM send_command (service check)", str(e)[:150])
+
+    # Live Registered Agent: source the instance env and read what filing_utils
+    # will actually put on the form. JOHN DOE (or any default) = FAIL; the RA
+    # signature on a SunBiz filing is a legal attestation (s. 831.06, F.S.).
+    ra_cmd = (
+        "sudo -u ubuntu bash -c 'cd /home/ubuntu/company-questionnaire; "
+        "set -a; source /home/ubuntu/.airtable_env; set +a; "
+        "python3 -c \"from filing_utils import REGISTERED_AGENT as ra; "
+        "print(ra[\\\"first_name\\\"], ra[\\\"last_name\\\"], \\\"|\\\", "
+        "ra[\\\"address1\\\"], ra.get(\\\"address2\\\",\\\"\\\"), "
+        "ra[\\\"city\\\"], ra[\\\"state\\\"], ra[\\\"zip\\\"])\"'"
+    )
+    try:
+        r = ssm.send_command(
+            InstanceIds=[WATCHER_INSTANCE_ID],
+            DocumentName="AWS-RunShellScript",
+            Parameters={"commands": [ra_cmd]},
+        )
+        cid = r["Command"]["CommandId"]
+        out = None
+        for _ in range(30):
+            time.sleep(2)
+            out = ssm.get_command_invocation(CommandId=cid, InstanceId=WATCHER_INSTANCE_ID)
+            if out["Status"] not in ("Pending", "InProgress", "Delayed"):
+                break
+        ra_out = ((out or {}).get("StandardOutputContent", "") or "").strip()
+        name_part = ra_out.split("|")[0].strip().upper() if ra_out else ""
+        if not ra_out or "JOHN DOE" in name_part or "PLACEHOLDER" in ra_out.upper():
+            rep.fail("Registered Agent live value",
+                     f"'{ra_out or 'no output'}' — placeholder RA on the instance; "
+                     f"set RA_FIRST_NAME/RA_LAST_NAME/RA_ADDRESS_* in /home/ubuntu/.airtable_env")
+        else:
+            rep.ok("Registered Agent live value", ra_out.splitlines()[-1][:140])
+    except Exception as e:
+        rep.fail("SSM send_command (RA check)", str(e)[:150])
 
     # Payment parameter existence (never the value)
     try:

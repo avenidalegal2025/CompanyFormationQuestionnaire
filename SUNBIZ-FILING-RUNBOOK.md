@@ -20,9 +20,11 @@ screenshots/logs in `s3://llc-filing-audit-trail-rodolfo/<COMPANY>/`.
    the RA signature on the form is a legal attestation (s. 831.06, F.S.).
 3. `systemctl is-enabled autofill-watcher` = enabled (harness checks this too).
    The 6-hourly GitHub monitor (`lambda-monitoring.yml`) now pages if the watcher dies.
-4. OpenAI credits: the account hit `credit_balance_exhausted` on 2026-09-24. If the demo
-   company's purpose is Spanish and credits are still empty, the filer will (by design)
-   flag the record `Needs Review` and refuse to file — top up credits or use an English purpose.
+4. Translation runs on AWS Bedrock (Nova Micro, us-east-1) billed to the Avenida Legal
+   AWS account — no OpenAI top-up needed (their account hit zero credits 2026-09-24;
+   OpenAI remains as fallback only). Verified on the instance: `RESTAURANTE → Restaurant`.
+   If translation ever fails, the filer logs `PURPOSE_TRANSLATION_FAILED`, flags the
+   record `Needs Review`, and refuses to file Spanish text.
 5. `/llc/payment` card: valid, headroom for $125 (LLC) / $70 (Corp). Last rotated 2025-12-04.
 6. Demo record data sanity: all managers have US addresses with state+zip (incomplete
    addresses now refuse to file by design), ownership sums to 100%, email valid.
