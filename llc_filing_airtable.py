@@ -398,7 +398,11 @@ def main(record_id=None):
     # real or Avenida-attributable data into Sunbiz \u2014 they abandon at payment, but
     # even abandoned data is best kept non-attributable. Replace every identifying
     # field with obviously-fake values.
-    if os.environ.get("TEST_CARD") == "1" or os.environ.get("DRY_RUN") == "1":
+    # Escape hatch: REAL_DATA_DRY_RUN=1 (with DRY_RUN=1) keeps the record's REAL
+    # data so a dress rehearsal verifies the actual wiring; it still stops before
+    # payment/submit and never writes Airtable status.
+    if (os.environ.get("TEST_CARD") == "1" or os.environ.get("DRY_RUN") == "1") \
+            and os.environ.get("REAL_DATA_DRY_RUN") != "1":
         _synthesize_test_data(data)
 
     llc = data["llc"]

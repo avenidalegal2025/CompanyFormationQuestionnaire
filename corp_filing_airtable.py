@@ -620,7 +620,10 @@ def main(record_id=None):
 
     # SAFETY: throwaway test runs (TEST_CARD / DRY_RUN) use only synthetic,
     # non-attributable data \u2014 never real or Avenida data in an abandoned filing.
-    if os.environ.get("TEST_CARD") == "1" or os.environ.get("DRY_RUN") == "1":
+    # REAL_DATA_DRY_RUN=1 (with DRY_RUN=1) keeps real data for dress rehearsals;
+    # the run still stops before payment/submit and never writes Airtable status.
+    if (os.environ.get("TEST_CARD") == "1" or os.environ.get("DRY_RUN") == "1") \
+            and os.environ.get("REAL_DATA_DRY_RUN") != "1":
         _synthesize_test_data(data)
 
     corp = data["corp"]
