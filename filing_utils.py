@@ -29,6 +29,11 @@ AIRTABLE_TABLE_NAME = os.environ.get("AIRTABLE_TABLE_NAME", "Formations")
 S3_BUCKET = 'llc-filing-audit-trail-rodolfo'
 REGION = 'us-west-1'
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+# Business-purpose translation runs on Bedrock by default so all spend lands on
+# the Avenida Legal AWS bill; OpenAI is the fallback (its account ran out of
+# credits on 2026-09-24 and 'RESTAURANTE' went on a SunBiz form untranslated).
+BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "amazon.nova-micro-v1:0")
+BEDROCK_REGION = os.environ.get("BEDROCK_REGION", "us-east-1")  # no Bedrock in us-west-1
 
 # Avenida Legal address (default RA address; override via AVENIDA_ADDRESS_* env)
 AVENIDA_LEGAL_ADDRESS = {
@@ -330,43 +335,66 @@ def looks_spanish(text):
 
 
 def translate_business_purpose(text):
-    """Translate business purpose to English using OpenAI. Falls back to original."""
+    """Translate business purpose to English. Bedrock first (Avenida AWS bill),
+    OpenAI as fallback, original text as last resort (logged, and the callers
+    refuse to file if it still looks Spanish)."""
     if not text:
         return "Any lawful purpose"
-    if not OPENAI_API_KEY:
-        return text
-    try:
-        payload = {
-            "model": "gpt-4o-mini",
-            "messages": [
-                {"role": "system", "content": "Translate to concise business-purpose English. Return only the translation."},
-                {"role": "user", "content": str(text)},
-            ],
-            "temperature": 0.2,
-        }
-        res = requests.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {OPENAI_API_KEY}",
-                "Content-Type": "application/json",
-            },
-            json=payload,
-            timeout=20,
-        )
-        if not res.ok:
+    prompt = ("Translate to concise business-purpose English. "
+              "Return only the translation.\n\n" + str(text))
+
+    if BEDROCK_MODEL_ID:
+        try:
+            brt = boto3.client("bedrock-runtime", region_name=BEDROCK_REGION)
+            body = {
+                "messages": [{"role": "user", "content": [{"text": prompt}]}],
+                "inferenceConfig": {"maxTokens": 120, "temperature": 0.2},
+            }
+            res = brt.invoke_model(modelId=BEDROCK_MODEL_ID, body=json.dumps(body))
+            out = json.loads(res["body"].read())
+            translated = (out["output"]["message"]["content"][0]["text"] or "").strip()
+            if translated:
+                return translated
+            print(f"===> PURPOSE_TRANSLATION_FAILED (bedrock empty) for '{str(text)[:50]}'")
+        except Exception as e:
             # Stable token for a CloudWatch metric filter, mirroring
-            # SS4_TRANSLATION_FAILED. 2026-09-24: this fired as HTTP 429
-            # credit_balance_exhausted and 'RESTAURANTE' went on a SunBiz
-            # form untranslated — silently, until the dress rehearsal saw it.
-            print(f"===> PURPOSE_TRANSLATION_FAILED (HTTP {res.status_code}) for "
-                  f"'{str(text)[:50]}': {res.text[:160]}")
-            return text
-        data = res.json()
-        translated = (data.get("choices") or [{}])[0].get("message", {}).get("content", "").strip()
-        return translated or text
-    except Exception as e:
-        print(f"===> PURPOSE_TRANSLATION_FAILED (exception) for '{str(text)[:50]}': {e}")
-        return text
+            # SS4_TRANSLATION_FAILED.
+            print(f"===> PURPOSE_TRANSLATION_FAILED (bedrock {BEDROCK_MODEL_ID} "
+                  f"@{BEDROCK_REGION}) for '{str(text)[:50]}': {str(e)[:160]}")
+
+    if OPENAI_API_KEY:
+        try:
+            payload = {
+                "model": "gpt-4o-mini",
+                "messages": [
+                    {"role": "system", "content": "Translate to concise business-purpose English. Return only the translation."},
+                    {"role": "user", "content": str(text)},
+                ],
+                "temperature": 0.2,
+            }
+            res = requests.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {OPENAI_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=20,
+            )
+            if res.ok:
+                data = res.json()
+                translated = (data.get("choices") or [{}])[0].get("message", {}).get("content", "").strip()
+                if translated:
+                    return translated
+            else:
+                # 2026-09-24: fired as HTTP 429 credit_balance_exhausted and
+                # 'RESTAURANTE' went on a SunBiz form untranslated — silently,
+                # until the dress rehearsal saw it.
+                print(f"===> PURPOSE_TRANSLATION_FAILED (openai HTTP {res.status_code}) for "
+                      f"'{str(text)[:50]}': {res.text[:160]}")
+        except Exception as e:
+            print(f"===> PURPOSE_TRANSLATION_FAILED (openai exception) for '{str(text)[:50]}': {e}")
+    return text
 
 
 # ===================== BROWSER =====================
