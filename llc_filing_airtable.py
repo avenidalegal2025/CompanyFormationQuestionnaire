@@ -16,7 +16,6 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 from filing_utils import (
-    AVENIDA_LEGAL_ADDRESS,
     REGISTERED_AGENT,
     human_typing,
     set_field,
@@ -26,6 +25,7 @@ from filing_utils import (
     fetch_payment_data_from_ssm,
     fetch_airtable_record,
     update_airtable_status,
+    flag_needs_review,
     parse_address,
     parse_name,
     detect_country_code,
@@ -47,6 +47,36 @@ from pyairtable import Api
 
 
 # ===================== DATA MAPPING =====================
+
+def _extract_managers_from_airtable(fields):
+    """
+    Extract managers (1-6) from Airtable fields.
+    Returns list of dicts: {first_name, last_name, name, address}
+    """
+    managers = []
+    for i in range(1, 7):
+        first = fields.get(f'Manager {i} First Name', '')
+        last = fields.get(f'Manager {i} Last Name', '')
+        name = fields.get(f'Manager {i} Name', '')
+        addr = fields.get(f'Manager {i} Address', '')
+
+        if not first and not last and name:
+            parts = parse_name(name)
+            first = parts.get('first', '')
+            last = parts.get('last', '')
+
+        if not first and not last:
+            continue  # Skip empty slots
+
+        managers.append({
+            "first_name": first,
+            "last_name": last,
+            "name": name or f"{first} {last}".strip(),
+            "address": addr,
+        })
+
+    return managers
+
 
 def fetch_llc_data_from_airtable(record_id=None):
     """
@@ -111,59 +141,93 @@ def fetch_llc_data_from_airtable(record_id=None):
     ]) and address_parts.get('country') != 'INT'
 
     if not has_complete_address:
-        print(f"\U0001f4cd Using Avenida Legal's address for Principal Address (original: {company_address})")
-        address_parts = AVENIDA_LEGAL_ADDRESS.copy()
+        # Fail-visible: never substitute Avenida Legal's address for the
+        # company's principal address — flag the record and skip filing.
+        flag_needs_review(
+            record['id'],
+            f"Company Address missing/unparseable: '{company_address or 'EMPTY'}' — "
+            f"cannot file without a real principal address",
+        )
+        raise ValueError(f"Company Address missing/unparseable: '{company_address or 'EMPTY'}'")
 
-    # ---- Manager / Authorized Person ----
-    manager_first_name = fields.get('Manager 1 First Name', '')
-    manager_last_name = fields.get('Manager 1 Last Name', '')
-    manager_name = fields.get('Manager 1 Name', '')
+    # ---- Managers / Authorized Persons (up to 6 Sunbiz slots) ----
+    managers = _extract_managers_from_airtable(fields)
 
-    if not manager_first_name and not manager_last_name and manager_name:
-        name_parts = parse_name(manager_name)
-        manager_first_name = name_parts.get('first', '')
-        manager_last_name = name_parts.get('last', '')
-
-    if not manager_name:
-        manager_name = f"{manager_first_name} {manager_last_name}".strip()
-
-    manager_address = fields.get('Manager 1 Address', '')
-
-    # Fallback to Owner 1 if manager fields missing
-    if not manager_name and not manager_first_name and not manager_last_name:
+    # Fallback to Owner 1 only when no manager columns are populated
+    if not managers:
         owner1_first = fields.get('Owner 1 First Name', '')
         owner1_last = fields.get('Owner 1 Last Name', '')
         owner1_name = fields.get('Owner 1 Name', '')
-        manager_first_name = owner1_first
-        manager_last_name = owner1_last
-        manager_name = owner1_name or f"{owner1_first} {owner1_last}".strip()
-    if not manager_address:
-        manager_address = fields.get('Owner 1 Address', '')
+        if not owner1_first and not owner1_last and owner1_name:
+            parts = parse_name(owner1_name)
+            owner1_first = parts.get('first', '')
+            owner1_last = parts.get('last', '')
+        if owner1_first or owner1_last:
+            managers = [{
+                "first_name": owner1_first,
+                "last_name": owner1_last,
+                "name": owner1_name or f"{owner1_first} {owner1_last}".strip(),
+                "address": fields.get('Owner 1 Address', ''),
+            }]
 
-    manager_addr_parts = parse_address(manager_address, is_international=True)
-    manager_country = detect_country_code(manager_address)
-    if manager_addr_parts.get('country') == 'INT' and manager_country == 'US':
-        manager_country = 'INT'
+    if not managers:
+        flag_needs_review(
+            record['id'],
+            "No Manager and no Owner on record — no authorized person to file",
+        )
+        raise ValueError("No Manager and no Owner on record — no authorized person to file")
 
-    # If manager address is empty/incomplete, use the principal address as fallback
-    manager_addr_line = (
-        manager_addr_parts.get('line1', '')
-        + (' ' + manager_addr_parts.get('line2', '') if manager_addr_parts.get('line2') else '')
-    ).strip()
-    manager_city = manager_addr_parts.get('city', '')
-    manager_state = manager_addr_parts.get('state', '')
-    manager_zip = manager_addr_parts.get('zip', '')
+    # Build one authorized-person entry per manager (title MGR = member-manager).
+    # A manager with no address of their own falls back to the company's
+    # principal address (the client's own data — never the Avenida address).
+    authorized_persons = []
+    for m in managers:
+        m_addr = parse_address(m['address'])
+        m_country = detect_country_code(m['address'])
+        if m_addr.get('country') == 'INT':
+            m_country = 'INT'
 
-    if not manager_addr_line:
-        print(f"\u26a0\ufe0f  Manager address missing — falling back to principal address")
-        manager_addr_line = address_parts.get('line1', AVENIDA_LEGAL_ADDRESS['line1'])
-        manager_city = address_parts.get('city', AVENIDA_LEGAL_ADDRESS['city'])
-        manager_state = address_parts.get('state', AVENIDA_LEGAL_ADDRESS['state'])
-        manager_zip = address_parts.get('zip', AVENIDA_LEGAL_ADDRESS['zip'])
-        manager_country = 'US'
+        m_line = (
+            m_addr.get('line1', '')
+            + (' ' + m_addr.get('line2', '') if m_addr.get('line2') else '')
+        ).strip()
+        m_city = m_addr.get('city', '')
+        m_state = m_addr.get('state', '')
+        m_zip = m_addr.get('zip', '')
 
-    print(f"\U0001f464 Manager: {manager_name} | Country: {manager_country}")
-    print(f"   Address: {manager_address or '(using principal address)'}")
+        if not m_line:
+            print(f"\u26a0\ufe0f  Manager '{m['name']}' address missing — falling back to principal address")
+            m_line = address_parts.get('line1', '')
+            m_city = address_parts.get('city', '')
+            m_state = address_parts.get('state', '')
+            m_zip = address_parts.get('zip', '')
+            m_country = 'US'
+
+        if m_country == 'US' and not (m_state and m_zip):
+            # Fail-visible: never invent state/zip (no FL/33181/00000/N-A substitutions)
+            flag_needs_review(
+                record['id'],
+                "Manager address incomplete (missing state/zip): "
+                f"'{m['address'] or 'EMPTY'}' for manager "
+                f"'{m['name']}'",
+            )
+            raise ValueError(f"Manager address incomplete for '{m['name']}': missing state/zip")
+
+        authorized_persons.append({
+            "title": "MGR",
+            "first_name": m['first_name'],
+            "last_name": m['last_name'],
+            "address": m_line,
+            "city": m_city,
+            "state": m_state,
+            "zip": m_zip,
+            "country": m_country,
+            "signature": m['name'],
+        })
+        print(f"\U0001f464 Manager: {m['name']} | Country: {m_country}")
+        print(f"   Address: {m['address'] or '(using principal address)'}")
+
+    signer = authorized_persons[0]  # first manager signs the form
 
     llc_data = {
         "llc": {
@@ -172,11 +236,11 @@ def fetch_llc_data_from_airtable(record_id=None):
                 fields.get('Business Purpose', 'Any lawful purpose')
             ),
             "principal_address": {
-                "line1": address_parts.get('line1', AVENIDA_LEGAL_ADDRESS['line1']),
-                "line2": address_parts.get('line2', AVENIDA_LEGAL_ADDRESS.get('line2', '')),
-                "city": address_parts.get('city', AVENIDA_LEGAL_ADDRESS['city']),
-                "state": address_parts.get('state', AVENIDA_LEGAL_ADDRESS['state']),
-                "zip": address_parts.get('zip', AVENIDA_LEGAL_ADDRESS['zip']),
+                "line1": address_parts.get('line1', ''),
+                "line2": address_parts.get('line2', ''),
+                "city": address_parts.get('city', ''),
+                "state": address_parts.get('state', ''),
+                "zip": address_parts.get('zip', ''),
                 "country": "US",
             },
         },
@@ -190,19 +254,10 @@ def fetch_llc_data_from_airtable(record_id=None):
             "zip": REGISTERED_AGENT['zip'],
             "signature": f"{REGISTERED_AGENT['first_name']} {REGISTERED_AGENT['last_name']}",
         },
-        "authorized_person": {
-            "title": "MGR",
-            "first_name": manager_first_name,
-            "last_name": manager_last_name,
-            "address": manager_addr_line,
-            "city": manager_city or 'N/A',
-            "state": manager_state or ('FL' if manager_country == 'US' else 'N/A'),
-            "zip": manager_zip or ('33181' if manager_country == 'US' else '00000'),
-            "country": manager_country,
-            "signature": manager_name,
-        },
+        "authorized_persons": authorized_persons,
+        "authorized_person": signer,
         "return_contact": {
-            "name": manager_name or fields.get('Owner 1 Name', '') or fields.get('Customer Name', ''),
+            "name": signer['signature'] or fields.get('Owner 1 Name', '') or fields.get('Customer Name', ''),
             "email": fields.get('Customer Email', ''),
         },
         "_airtable_record_id": record['id'],
@@ -266,22 +321,25 @@ def fill_llc_form(driver, wait, data, company_name):
         take_and_upload_screenshot(driver, "ERROR_correspondence", company_name)
         raise RuntimeError(f"Failed filling correspondence: {e}") from e
 
-    # --- Section 5: Authorized Person (Manager/Member) ---
+    # --- Section 5: Authorized Persons (ALL Managers/Members) ---
     try:
-        print("  \U0001f4dd Filling authorized person (Manager)...")
-        auth = data["authorized_person"]
-        human_typing(driver.find_element(By.ID, "off1_name_title"), auth["title"])
-        human_typing(driver.find_element(By.ID, "off1_name_last_name"), auth["last_name"])
-        human_typing(driver.find_element(By.ID, "off1_name_first_name"), auth["first_name"])
-        human_typing(driver.find_element(By.ID, "off1_name_addr1"), auth["address"])
-        human_typing(driver.find_element(By.ID, "off1_name_city"), auth["city"])
-        set_field(driver, "off1_name_st", auth["state"])
-        human_typing(driver.find_element(By.ID, "off1_name_zip"), auth["zip"])
-        set_field(driver, "off1_name_cntry", auth["country"])
+        persons = data.get("authorized_persons") or [data["authorized_person"]]
+        print(f"  \U0001f4dd Filling {len(persons)} authorized person(s) (Managers)...")
+        for idx, auth in enumerate(persons):
+            prefix = f"off{idx + 1}_name_"  # off1 through off6
+            human_typing(driver.find_element(By.ID, f"{prefix}title"), auth["title"])
+            human_typing(driver.find_element(By.ID, f"{prefix}last_name"), auth["last_name"])
+            human_typing(driver.find_element(By.ID, f"{prefix}first_name"), auth["first_name"])
+            human_typing(driver.find_element(By.ID, f"{prefix}addr1"), auth["address"])
+            human_typing(driver.find_element(By.ID, f"{prefix}city"), auth["city"])
+            set_field(driver, f"{prefix}st", auth["state"])
+            human_typing(driver.find_element(By.ID, f"{prefix}zip"), auth["zip"])
+            set_field(driver, f"{prefix}cntry", auth["country"])
+            print(f"    \u2705 Slot {idx + 1}: {auth['title']} - {auth['signature']}")
         take_and_upload_screenshot(driver, "08_manager_filled", company_name)
     except Exception as e:
         take_and_upload_screenshot(driver, "ERROR_authorized_person", company_name)
-        raise RuntimeError(f"Failed filling authorized person: {e}") from e
+        raise RuntimeError(f"Failed filling authorized person(s): {e}") from e
 
     # Full form screenshot before submission
     take_and_upload_screenshot(driver, "09_before_submit", company_name)
@@ -305,6 +363,7 @@ def _synthesize_test_data(data):
         "address": fake["line1"], "city": fake["city"],
         "state": fake["state"], "zip": fake["zip"], "country": "US",
     }
+    data["authorized_persons"] = [data["authorized_person"]]
     data["return_contact"] = {"name": "QA Tester", "email": "qa-noreply@example.com"}
     data["registered_agent"] = {
         "first_name": "QA", "last_name": "Agent",

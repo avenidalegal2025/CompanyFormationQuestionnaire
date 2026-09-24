@@ -10,6 +10,7 @@
     "setup-airtable": "ts-node --project tsconfig.scripts.json scripts/setup-airtable.ts",
     "create-airtable-table": "ts-node --project tsconfig.scripts.json scripts/create-airtable-table.ts",
     "add-airtable-fields": "ts-node --project tsconfig.scripts.json scripts/add-airtable-fields.ts",
+    "add-sunbiz-autofile-fields": "ts-node --project tsconfig.scripts.json scripts/add-sunbiz-autofile-fields.ts",
     "backfill-airtable": "ts-node --project tsconfig.scripts.json scripts/backfill-airtable.ts",
     "check-dynamo-company": "ts-node --project tsconfig.scripts.json scripts/check-dynamo-company.ts",
     "list-dynamo-companies": "ts-node --project tsconfig.scripts.json scripts/list-dynamo-companies.ts",
@@ -30,7 +31,8 @@
     "test-display-defaults": "tsx scripts/test-display-defaults.ts",
     "test-lambda-manifest": "python3 scripts/test-lambda-manifest.py",
     "check-lambda-drift": "python3 scripts/check-lambda-drift.py",
-    "check-lambda-health": "python3 scripts/check-lambda-health.py"
+    "check-lambda-health": "python3 scripts/check-lambda-health.py",
+    "verify-sunbiz-wiring": "python3 scripts/verify-sunbiz-wiring.py"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.700.0",

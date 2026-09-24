@@ -1172,14 +1172,29 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
     const autofileEnabled = (process.env.SUNBIZ_AUTOFILE || 'on').toLowerCase() !== 'off';
     if (airtableRecordId && state === 'Florida') {
       if (autofileEnabled) {
+        console.log(`🏛️ Arming Sunbiz auto-file: record=${airtableRecordId} state=${state} — setting Autofill=Yes`);
         await updateFormationRecord(airtableRecordId, { 'Autofill': 'Yes' });
         console.log(`🏛️ Sunbiz auto-file armed: Autofill=Yes on ${airtableRecordId} (EC2 watcher will file).`);
       } else {
         console.log('🏛️ Sunbiz auto-file disabled (SUNBIZ_AUTOFILE=off) — record left for manual review.');
       }
+    } else {
+      console.log(`🏛️ Sunbiz auto-file skipped: record=${airtableRecordId || 'NONE'} state=${state} (Florida + record required).`);
     }
-  } catch (err) {
-    console.error('Sunbiz auto-file (Autofill=Yes) error:', err);
+  } catch (err: any) {
+    // CRITICAL: arming failed — the EC2 watcher will NEVER pick this record up,
+    // so a paid formation would sit unfiled forever (this is exactly how
+    // recN2sAovpGkqCmV2 was lost: the error was logged and swallowed, the
+    // webhook returned 2xx, and Stripe never retried). Surface the failure:
+    // rethrow so the webhook returns non-2xx and Stripe retries the event.
+    console.error('❌ CRITICAL: Sunbiz auto-file arming failed (Autofill=Yes):', {
+      recordId: airtableRecordId,
+      state,
+      autofileEnabled: (process.env.SUNBIZ_AUTOFILE || 'on').toLowerCase() !== 'off',
+      error: err?.message || String(err),
+      statusCode: err?.statusCode,
+    });
+    throw err;
   }
 
   // Auto-provision Google Workspace if the package includes it

@@ -30,26 +30,40 @@ S3_BUCKET = 'llc-filing-audit-trail-rodolfo'
 REGION = 'us-west-1'
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
-# Avenida Legal address (used as default principal address and RA address)
+# Avenida Legal address (default RA address; override via AVENIDA_ADDRESS_* env)
 AVENIDA_LEGAL_ADDRESS = {
-    "line1": "12550 Biscayne Blvd",
-    "line2": "Ste 110",
-    "city": "North Miami",
-    "state": "FL",
-    "zip": "33181",
+    "line1": os.environ.get("AVENIDA_ADDRESS_LINE1", "12550 Biscayne Blvd"),
+    "line2": os.environ.get("AVENIDA_ADDRESS_LINE2", "Ste 110"),
+    "city": os.environ.get("AVENIDA_ADDRESS_CITY", "North Miami"),
+    "state": os.environ.get("AVENIDA_ADDRESS_STATE", "FL"),
+    "zip": os.environ.get("AVENIDA_ADDRESS_ZIP", "33181"),
     "country": "US",
 }
 
-# Registered Agent (placeholder — update with real RA for production)
+# Registered Agent — always Antonio/Avenida in production; the real name/address
+# come from env (RA_FIRST_NAME/RA_LAST_NAME/RA_ADDRESS_*). The built-in values
+# are placeholders so a misconfigured environment is loud, never silently wrong.
+RA_ENV_VARS = [
+    "RA_FIRST_NAME", "RA_LAST_NAME",
+    "RA_ADDRESS_LINE1", "RA_ADDRESS_LINE2", "RA_ADDRESS_CITY",
+    "RA_ADDRESS_STATE", "RA_ADDRESS_ZIP",
+]
 REGISTERED_AGENT = {
     "first_name": os.environ.get("RA_FIRST_NAME", "JOHN"),
     "last_name": os.environ.get("RA_LAST_NAME", "DOE"),
-    "address1": AVENIDA_LEGAL_ADDRESS["line1"],
-    "address2": AVENIDA_LEGAL_ADDRESS["line2"],
-    "city": AVENIDA_LEGAL_ADDRESS["city"],
-    "state": AVENIDA_LEGAL_ADDRESS["state"],
-    "zip": AVENIDA_LEGAL_ADDRESS["zip"],
+    "address1": os.environ.get("RA_ADDRESS_LINE1", AVENIDA_LEGAL_ADDRESS["line1"]),
+    "address2": os.environ.get("RA_ADDRESS_LINE2", AVENIDA_LEGAL_ADDRESS["line2"]),
+    "city": os.environ.get("RA_ADDRESS_CITY", AVENIDA_LEGAL_ADDRESS["city"]),
+    "state": os.environ.get("RA_ADDRESS_STATE", AVENIDA_LEGAL_ADDRESS["state"]),
+    "zip": os.environ.get("RA_ADDRESS_ZIP", AVENIDA_LEGAL_ADDRESS["zip"]),
 }
+
+_ra_missing = [v for v in RA_ENV_VARS if not os.environ.get(v)]
+if _ra_missing:
+    # RA_PLACEHOLDER_IN_USE is a stable token so a CloudWatch metric filter can
+    # alarm on it (mirrors SS4_TRANSLATION_FAILED in lambda-functions/ss4_lambda_s3_complete.py).
+    print(f"===> RA_PLACEHOLDER_IN_USE — placeholder Registered Agent value(s) in use; "
+          f"set env: {', '.join(_ra_missing)}")
 
 
 # ===================== UTILITIES =====================
@@ -168,6 +182,22 @@ def update_airtable_status(record_id, new_status, notes=None):
         update_fields["Notes"] = notes
     table.update(record_id, update_fields)
     print(f"\u2705 Updated Airtable status to: {new_status}")
+
+
+def flag_needs_review(record_id, message):
+    """Fail-visible gate: mark the record 'Needs Review' with an error note
+    naming the offending field, instead of silently substituting data.
+    Respects DRY_RUN (prints instead of writing)."""
+    print(f"\u274c NEEDS_REVIEW — {message}")
+    if os.environ.get("DRY_RUN") == "1":
+        print("\U0001f9ea DRY RUN — would set Formation Status = 'Needs Review' in Airtable.")
+        return
+    # typecast=True lets Airtable auto-create the 'Needs Review' select option
+    # if it doesn't exist yet (a plain update would 422 on the unknown choice).
+    api = Api(AIRTABLE_API_KEY)
+    table = api.table(AIRTABLE_BASE_ID, AIRTABLE_TABLE_NAME)
+    table.update(record_id, {"Formation Status": "Needs Review", "Notes": message}, typecast=True)
+    print("\u2705 Updated Airtable status to: Needs Review")
 
 
 # ===================== ADDRESS / NAME PARSING =====================

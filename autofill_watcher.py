@@ -36,6 +36,9 @@ if not AIRTABLE_API_KEY or not AIRTABLE_BASE_ID:
 # Poll interval in seconds (only used in --watch mode)
 POLL_INTERVAL = 30
 
+# After this many failed attempts a record is marked 'Needs Review' and disarmed
+MAX_AUTOFILL_ATTEMPTS = 3
+
 
 def get_pending_records():
     """Fetch records ready for autofill (LLC, C-Corp, S-Corp)."""
@@ -84,11 +87,38 @@ def mark_as_processing(record_id):
 
 
 def clear_autofill_flag(record_id):
-    """Set Autofill back to 'No' after processing so it doesn't re-run."""
+    """Set Autofill back to 'No' after a SUCCESSFUL filing so it doesn't re-run."""
     api = Api(AIRTABLE_API_KEY)
     table = api.table(AIRTABLE_BASE_ID, AIRTABLE_TABLE_NAME)
     table.update(record_id, {'Autofill': 'No'})
     print(f"   \U0001f6d1 Autofill flag cleared for {record_id}")
+
+
+def record_autofill_failure(record_id, record_fields, error_note):
+    """Record a failed attempt: increment 'Autofill Attempts', append an error
+    note, and leave the record ARMED (Autofill stays 'Yes') so the next poll
+    retries. After MAX_AUTOFILL_ATTEMPTS failures, set Formation Status to
+    'Needs Review' and disarm."""
+    api = Api(AIRTABLE_API_KEY)
+    table = api.table(AIRTABLE_BASE_ID, AIRTABLE_TABLE_NAME)
+    attempts = int(record_fields.get('Autofill Attempts') or 0) + 1
+    note_line = f"Autofill attempt {attempts} failed: {error_note}"
+    existing_notes = record_fields.get('Notes', '') or ''
+    notes = (existing_notes + "\n" + note_line).strip() if existing_notes else note_line
+
+    if attempts >= MAX_AUTOFILL_ATTEMPTS:
+        # typecast=True lets Airtable auto-create the 'Needs Review' select
+        # option if it doesn't exist yet (plain update would 422).
+        table.update(record_id, {
+            'Autofill': 'No',
+            'Autofill Attempts': attempts,
+            'Formation Status': 'Needs Review',
+            'Notes': notes,
+        }, typecast=True)
+        print(f"   \U0001f6ab {attempts} failed attempts — set 'Needs Review' and disarmed {record_id}")
+    else:
+        table.update(record_id, {'Autofill Attempts': attempts, 'Notes': notes})
+        print(f"   \U0001f501 Attempt {attempts}/{MAX_AUTOFILL_ATTEMPTS} failed — left armed for retry ({record_id})")
 
 
 def run_autofill(record_id):
@@ -133,22 +163,22 @@ def process_records(records, dry_run=False):
             mark_as_processing(record_id)
             ok = run_autofill(record_id)
 
-            # Always clear Autofill flag after attempt (success or fail)
-            # This prevents infinite re-runs
-            clear_autofill_flag(record_id)
-
             if ok:
+                # Disarm ONLY on success — a failed attempt stays armed so the
+                # next poll retries it (up to MAX_AUTOFILL_ATTEMPTS).
+                clear_autofill_flag(record_id)
                 print(f"[{timestamp}] \u2705 Completed: {company_name} ({entity_type})")
                 success += 1
             else:
                 print(f"[{timestamp}] \u26a0\ufe0f Autofill returned non-zero for: {company_name}")
+                record_autofill_failure(record_id, record['fields'], "filing dispatcher exited non-zero")
                 failed += 1
 
         except Exception as e:
             print(f"[{timestamp}] \u274c Error processing {company_name}: {e}")
-            # Still clear the flag to prevent infinite retries
+            # Same retry semantics: count the attempt, leave armed for retry
             try:
-                clear_autofill_flag(record_id)
+                record_autofill_failure(record_id, record['fields'], str(e)[:200])
             except Exception:
                 pass
             failed += 1

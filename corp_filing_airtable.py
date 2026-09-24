@@ -27,7 +27,6 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 from filing_utils import (
-    AVENIDA_LEGAL_ADDRESS,
     REGISTERED_AGENT,
     human_typing,
     set_field,
@@ -37,6 +36,7 @@ from filing_utils import (
     fetch_payment_data_from_ssm,
     fetch_airtable_record,
     update_airtable_status,
+    flag_needs_review,
     parse_address,
     parse_name,
     detect_country_code,
@@ -115,7 +115,12 @@ def _extract_officers_from_airtable(fields):
             continue  # Skip empty slots
 
         full_name = name or f"{first} {last}".strip()
-        sunbiz_title = ROLE_TO_SUNBIZ_TITLE.get(role, 'D')  # Default to Director if unknown
+        if role and role in ROLE_TO_SUNBIZ_TITLE:
+            sunbiz_title = ROLE_TO_SUNBIZ_TITLE[role]
+            role_defaulted = False
+        else:
+            sunbiz_title = 'D'  # Default to Director if missing/unknown
+            role_defaulted = True
 
         officers.append({
             "first_name": first,
@@ -124,6 +129,7 @@ def _extract_officers_from_airtable(fields):
             "address": addr,
             "role": role,
             "sunbiz_title": sunbiz_title,
+            "role_defaulted": role_defaulted,
         })
 
     return officers
@@ -243,11 +249,26 @@ def fetch_corp_data_from_airtable(record_id=None):
     fields = record['fields']
     entity_type = fields.get('Entity Type', 'C-Corp')
 
+    # Defaults that used to be applied silently are now logged
+    # (DEFAULT_IN_USED:<field>) and appended to the record's Notes.
+    default_notes = []
+
     # ---- Company Name (must include Corp/Inc suffix) ----
-    company_name = ensure_corp_suffix(fields.get('Company Name', ''))
+    raw_name = fields.get('Company Name', '')
+    company_name = ensure_corp_suffix(raw_name)
+    if company_name != raw_name:
+        print("===> DEFAULT_IN_USED:Company Name Suffix — no corp suffix on record, "
+              f"appended 'Inc.' ('{raw_name}' filed as '{company_name}')")
+        default_notes.append(f"Corp suffix appended: '{raw_name}' filed as '{company_name}'")
 
     # ---- Number of Shares ----
-    stock_shares = str(fields.get('Number of Shares', 1000))
+    raw_shares = fields.get('Number of Shares')
+    if raw_shares:
+        stock_shares = str(raw_shares)
+    else:
+        stock_shares = "1000"
+        print("===> DEFAULT_IN_USED:Number of Shares — empty on record, defaulting to 1000")
+        default_notes.append("Number of Shares empty on record — defaulted to 1000")
 
     # ---- Parse company address ----
     company_address = fields.get('Company Address', '')
@@ -261,13 +282,54 @@ def fetch_corp_data_from_airtable(record_id=None):
     ]) and address_parts.get('country') != 'INT'
 
     if not has_complete_address:
-        print(f"\U0001f4cd Using Avenida Legal's address for Principal Address (original: {company_address})")
-        address_parts = AVENIDA_LEGAL_ADDRESS.copy()
+        # Fail-visible: never substitute Avenida Legal's address for the
+        # company's principal address — flag the record and skip filing.
+        flag_needs_review(
+            record['id'],
+            f"Company Address missing/unparseable: '{company_address or 'EMPTY'}' — "
+            f"cannot file without a real principal address",
+        )
+        raise ValueError(f"Company Address missing/unparseable: '{company_address or 'EMPTY'}'")
 
     # ---- Officers & Directors ----
     officers = _extract_officers_from_airtable(fields)
     directors = _extract_directors_from_airtable(fields)
     all_people = _merge_officers_and_directors(officers, directors)
+
+    for off in officers:
+        if off.get("role_defaulted"):
+            print(f"===> DEFAULT_IN_USED:Officer Role — '{off['name']}' has no/unknown role, "
+                  f"defaulting to 'D' (Director)")
+            default_notes.append(f"Officer '{off['name']}' role missing/unknown — filed as 'D' (Director)")
+
+    # Fail-visible: an officer/director with a US address that is missing
+    # state/zip must be reviewed — never invent state/zip values.
+    # (An empty personal address still falls back to the principal address at
+    # form-fill time — the client's own data, not an invention.)
+    for person in all_people:
+        p_addr_raw = person.get("address", "")
+        if not p_addr_raw.strip():
+            continue
+        p_addr = parse_address(p_addr_raw)
+        p_country = detect_country_code(p_addr_raw)
+        if p_addr.get('country') == 'INT':
+            p_country = 'INT'
+        if p_country == 'US' and p_addr.get('line1') and not (p_addr.get('state') and p_addr.get('zip')):
+            flag_needs_review(
+                record['id'],
+                f"Officer/Director address incomplete (missing state/zip): "
+                f"'{p_addr_raw}' for '{person['name']}'",
+            )
+            raise ValueError(f"Officer/Director address incomplete for '{person['name']}': missing state/zip")
+
+    if default_notes:
+        note = "DEFAULT_IN_USED: " + "; ".join(default_notes)
+        if os.environ.get("DRY_RUN") == "1":
+            print(f"\U0001f9ea DRY RUN — would append to Airtable Notes: {note}")
+        else:
+            existing_notes = fields.get('Notes', '') or ''
+            combined = (existing_notes + "\n" + note).strip() if existing_notes else note
+            update_airtable_status(record['id'], fields.get('Formation Status', 'Pending'), combined)
 
     # Find the President (Officer 1) for Incorporator
     president = None
@@ -279,8 +341,10 @@ def fetch_corp_data_from_airtable(record_id=None):
         president = all_people[0]  # Fallback to first person
 
     # Parse president address for incorporator section
-    president_addr = parse_address(president["address"] if president else '', is_international=True)
+    president_addr = parse_address(president["address"] if president else '')
     president_country = detect_country_code(president["address"] if president else '')
+    if president_addr.get('country') == 'INT':
+        president_country = 'INT'
 
     # ---- Business Purpose ----
     raw_purpose = fields.get('Business Purpose', 'Any and all lawful business')
@@ -315,11 +379,11 @@ def fetch_corp_data_from_airtable(record_id=None):
             "purpose_is_generic": purpose_is_generic,
             "entity_type": entity_type,
             "principal_address": {
-                "line1": address_parts.get('line1', AVENIDA_LEGAL_ADDRESS['line1']),
-                "line2": address_parts.get('line2', AVENIDA_LEGAL_ADDRESS.get('line2', '')),
-                "city": address_parts.get('city', AVENIDA_LEGAL_ADDRESS['city']),
-                "state": address_parts.get('state', AVENIDA_LEGAL_ADDRESS['state']),
-                "zip": address_parts.get('zip', AVENIDA_LEGAL_ADDRESS['zip']),
+                "line1": address_parts.get('line1', ''),
+                "line2": address_parts.get('line2', ''),
+                "city": address_parts.get('city', ''),
+                "state": address_parts.get('state', ''),
+                "zip": address_parts.get('zip', ''),
                 "country": "US",
             },
         },
@@ -354,9 +418,10 @@ def fetch_corp_data_from_airtable(record_id=None):
 
 
 def _format_city_st_zip(addr_parts, country_code):
-    """Format city, state, zip into a single line for incorporator field (max 60 chars)."""
+    """Format city, state, zip into a single line for incorporator field (max 60 chars).
+    Never invents a state — only what was parsed from the record."""
     city = addr_parts.get('city', '') or ''
-    state = addr_parts.get('state', '') or ('FL' if country_code == 'US' else '')
+    state = addr_parts.get('state', '') or ''
     zipcode = addr_parts.get('zip', '') or ''
     parts = [p for p in [city, state, zipcode] if p]
     return ', '.join(parts)[:60]
@@ -459,9 +524,9 @@ def fill_corp_form(driver, wait, data, company_name):
             slot = idx + 1  # off1 through off6
             prefix = f"off{slot}_name_"
 
-            addr_parts = parse_address(person.get("address", ""), is_international=True)
+            addr_parts = parse_address(person.get("address", ""))
             country = detect_country_code(person.get("address", ""))
-            if addr_parts.get('country') == 'INT' and country == 'US':
+            if addr_parts.get('country') == 'INT':
                 country = 'INT'
 
             human_typing(driver.find_element(By.ID, f"{prefix}title"), person.get("sunbiz_title", "D"))
@@ -472,7 +537,8 @@ def fill_corp_form(driver, wait, data, company_name):
             # blank street address triggers "Address,City,State,Zip and Title are
             # required for name-N" on the review page. When the officer/director has
             # no address of their own, fall back to the corporation's principal
-            # address (mirrors the LLC manager fallback).
+            # address (the client's own data). Incomplete US addresses were already
+            # rejected as Needs Review during fetch — never invent state/zip here.
             if not addr_parts.get('line1', '').strip():
                 addr_parts = {
                     'line1': pa.get('line1', ''),
@@ -486,15 +552,9 @@ def fill_corp_form(driver, wait, data, company_name):
                 ' ' + addr_parts.get('line2', '') if addr_parts.get('line2') else ''
             )
             human_typing(driver.find_element(By.ID, f"{prefix}addr1"), addr_line)
-            human_typing(driver.find_element(By.ID, f"{prefix}city"), addr_parts.get('city', '') or 'N/A')
-            set_field(
-                driver, f"{prefix}st",
-                addr_parts.get('state', '') or ('FL' if country == 'US' else 'N/A')
-            )
-            human_typing(
-                driver.find_element(By.ID, f"{prefix}zip"),
-                addr_parts.get('zip', '') or ('33181' if country == 'US' else '00000')
-            )
+            human_typing(driver.find_element(By.ID, f"{prefix}city"), addr_parts.get('city', ''))
+            set_field(driver, f"{prefix}st", addr_parts.get('state', ''))
+            human_typing(driver.find_element(By.ID, f"{prefix}zip"), addr_parts.get('zip', ''))
             set_field(driver, f"{prefix}cntry", country)
 
             print(f"    \u2705 Slot {slot}: {person['sunbiz_title']} - {person.get('name', 'N/A')}")

@@ -551,6 +551,7 @@ export interface AirtableFormationRecord {
   'Notes'?: string;
   'Internal Status'?: 'New' | 'Contacted' | 'Documents Sent' | 'Filed' | 'Complete';
   'Autofill'?: 'Yes' | 'No';
+  'Virtual Office Used'?: 'Yes' | 'No';
   'Filing Images'?: string;
 }
 
@@ -765,6 +766,14 @@ export function mapQuestionnaireToAirtable(
     fullAddress: company.fullAddress,
   });
   
+  // If user doesn't have US address, assign Avenida Legal's virtual-office
+  // address as the principal address (product feature — see virtual-office.ts).
+  // The substitution is flagged on the record via 'Virtual Office Used' = Yes
+  // so it is visible on the filing rather than hidden.
+  const usesVirtualOffice = company.hasUsaAddress === 'No' || company.hasUsAddress === 'No' ||
+                            company.hasUsaAddress === false || company.hasUsAddress === false ||
+                            stripeSession.metadata?.hasUsAddress === 'false';
+
   // Build the record
   const record: AirtableFormationRecord = {
     // Core Information - prioritize formData (DynamoDB) over Stripe metadata for consistency
@@ -781,12 +790,8 @@ export function mapQuestionnaireToAirtable(
     'Stripe Payment ID': stripeSession.id,
     
     // Company Details
-    // If user doesn't have US address, assign Avenida Legal's address
-    // Check both hasUsaAddress and hasUsAddress for backward compatibility
     // Build full address including street, city, state, and zip
-    'Company Address': (company.hasUsaAddress === 'No' || company.hasUsAddress === 'No' || 
-                        company.hasUsaAddress === false || company.hasUsAddress === false ||
-                        stripeSession.metadata?.hasUsAddress === 'false')
+    'Company Address': usesVirtualOffice
       ? VIRTUAL_OFFICE_FULL
       : (() => {
           // Build full address from components.
@@ -822,6 +827,7 @@ export function mapQuestionnaireToAirtable(
           
           return parts.filter(Boolean).join(', ') || rawFullAddress || '';
         })(),
+    'Virtual Office Used': usesVirtualOffice ? 'Yes' : 'No',
     'Business Purpose': company.businessPurpose || '',
     'Number of Shares': (isCorp || entityType === 'S-Corp') ? (company.numberOfShares || 1000) : undefined,
     'Vault Path': vaultPath,
