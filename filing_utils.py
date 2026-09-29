@@ -10,6 +10,7 @@ import random
 import json
 import base64
 import shutil
+import signal
 import subprocess
 import tempfile
 from datetime import datetime
@@ -153,7 +154,10 @@ VIDEO_AIRTABLE_FIELD = "Filing Video"
 
 def start_screen_recording(label):
     """Record the Xvfb display for the duration of a filing run. Returns a
-    recording handle, or None if ffmpeg is unavailable (filing proceeds)."""
+    recording handle, or None if ffmpeg is unavailable (filing proceeds).
+    5 fps + 720p on purpose: a full-rate 1080p grab saturates the
+    single-threaded Xvfb and wedges Firefox/marionette (seen 2026-09-29 —
+    20 s per send_keys, then a dead driver and an un-finalizable video)."""
     if shutil.which("ffmpeg") is None:
         print("===> SCREEN_RECORDING_UNAVAILABLE (no ffmpeg on instance)")
         return None
@@ -171,29 +175,57 @@ def start_screen_recording(label):
     safe = re.sub(r"[^A-Za-z0-9_-]", "_", label)[:40]
     path = f"/tmp/filing_{safe}_{ts}.mp4"
     proc = subprocess.Popen(
-        ["ffmpeg", "-y", "-f", "x11grab", "-video_size", size, "-i", display,
+        ["ffmpeg", "-y", "-f", "x11grab", "-framerate", "5",
+         "-video_size", size, "-i", display,
+         "-vf", "scale=1280:-2",
          "-c:v", "libx264", "-preset", "veryfast", "-crf", "28", "-pix_fmt", "yuv420p", path],
         stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     print(f"  \U0001f3ac Screen recording started ({size}, {path})")
     return {"proc": proc, "path": path}
 
 
+def _is_valid_mp4(path):
+    """Integrity gate: ffprobe must parse the file and report a positive
+    duration. Catches truncated recordings — an ffmpeg that was killed (or
+    never saw 'q') leaves an mp4 with no moov atom, which looks fine by size
+    but is unplayable. If ffprobe is unavailable, don't block the evidence."""
+    if shutil.which("ffprobe") is None:
+        return True
+    try:
+        out = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "csv=p=0", path],
+            capture_output=True, text=True, timeout=15)
+        return out.returncode == 0 and float(out.stdout.strip() or 0) > 0
+    except Exception:
+        return False
+
+
 def stop_screen_recording(rec):
-    """Stop ffmpeg gracefully ('q' finalizes the mp4) and return the path, or
-    None if the file is missing/suspiciously small."""
+    """Stop ffmpeg gracefully and return the path, or None if the file is
+    missing/suspiciously small/not a playable mp4 (never upload a truncated
+    recording). SIGINT first — it takes the same finalize path as 'q' but
+    doesn't depend on ffmpeg reading stdin."""
     if not rec:
         return None
     proc = rec["proc"]
     try:
-        proc.communicate(input=b"q", timeout=20)
+        proc.send_signal(signal.SIGINT)
+        proc.wait(timeout=20)
     except Exception:
-        proc.kill()
-        proc.wait()
+        try:
+            proc.communicate(input=b"q", timeout=10)
+        except Exception:
+            proc.kill()
+            proc.wait()
     path = rec["path"]
-    if os.path.exists(path) and os.path.getsize(path) > 10000:
-        return path
-    print("===> SCREEN_RECORDING_EMPTY (no usable video produced)")
-    return None
+    if not os.path.exists(path) or os.path.getsize(path) <= 10000:
+        print("===> SCREEN_RECORDING_EMPTY (no usable video produced)")
+        return None
+    if not _is_valid_mp4(path):
+        print(f"===> SCREEN_RECORDING_INVALID (truncated/unplayable: {path})")
+        return None
+    return path
 
 
 def upload_filing_video(filepath, company_name, dry_run=False):
@@ -226,18 +258,19 @@ def take_and_upload_screenshot(driver, label, company_name):
 
 
 def fetch_payment_data_from_ssm(company_name):
-    """Fetch payment credentials from AWS SSM Parameter Store (base64-encoded JSON)."""
+    """Fetch payment credentials from AWS SSM Parameter Store (base64-encoded JSON).
+
+    SECURITY: never persist the card data — no local dump, no S3 upload. The
+    old "audit trail" dump sprayed full PAN/CVV into the audit bucket on every
+    run (purged 2026-09-29, ~1200 files). We log only a redacted fingerprint."""
     ssm = boto3.client("ssm", region_name=REGION)
     response = ssm.get_parameter(Name="/llc/payment", WithDecryption=True)
     encoded = response["Parameter"]["Value"]
     decoded = base64.b64decode(encoded).decode("utf-8")
     payment_data = json.loads(decoded)
 
-    # Save and upload for audit trail
-    dump_path = "ssm_payment_dump.json"
-    with open(dump_path, "w") as f:
-        json.dump(payment_data, f, indent=2)
-    upload_file_to_s3(dump_path, company_name, "payments")
+    number = str(payment_data.get("card_number") or payment_data.get("number") or "")
+    print(f"  \U0001f4b3 Payment card fetched from SSM (****{number[-4:] if number else '????'}, redacted)")
 
     return payment_data
 

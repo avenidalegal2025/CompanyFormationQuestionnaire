@@ -53,6 +53,16 @@ failure (the video shows where a failed run broke). Dry-run videos carry a
 `DRYRUN_` prefix. If Antonio should keep a video past 7 days, download it — the
 S3 object itself does not expire, only the presigned link.
 
+**Video validation:** `stop_screen_recording` (filing_utils.py) stops ffmpeg with
+SIGINT (same finalize path as `q`, but not dependent on ffmpeg reading stdin) and
+then ffprobe-checks the mp4 before upload. If the recording is empty or truncated
+(no `moov` atom — happens when ffmpeg is SIGKILLed or the shell/session dies
+mid-run), the log shows `SCREEN_RECORDING_EMPTY` / `SCREEN_RECORDING_INVALID` and
+nothing is uploaded or linked, so a broken video never lands on the Airtable
+record. Lesson from 2026-09-24: never launch a second manual (sudo) watcher run
+alongside the service — both record at once, and the orphaned one gets killed
+mid-write. One runner at a time.
+
 ## If the watcher stalls
 
 Manual run for one record (safe to repeat; the form is idempotent until payment):
