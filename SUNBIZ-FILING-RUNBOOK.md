@@ -48,10 +48,24 @@ upload lines → `Completed` → Airtable flips to `Filed`.
 
 **Evidence video:** every run is screen-recorded (ffmpeg on the Xvfb display) and
 uploaded to `s3://llc-filing-audit-trail-rodolfo/<COMPANY>/videos/`; the record's
-`Filing Video` column gets a 7-day presigned URL. This happens on success AND on
+`Filing Video` column gets a presigned URL. This happens on success AND on
 failure (the video shows where a failed run broke). Dry-run videos carry a
-`DRYRUN_` prefix. If Antonio should keep a video past 7 days, download it — the
-S3 object itself does not expire, only the presigned link.
+`DRYRUN_` prefix.
+
+**How long the link actually lasts.** A presigned URL dies with the credentials
+that signed it. On the EC2 the filer runs under an instance role, so it signs
+with temporary STS credentials (`ASIA...`) valid for hours — the old code asked
+for 7 days and produced links that returned `ExpiredToken` the same day
+(2026-09-29: the rehearsal link in Airtable was dead the next morning while the
+mp4 sat fine in S3). The filer now caps the link to the credentials' real
+remaining life and logs it: `Link valid Nh`, plus `VIDEO_LINK_SHORT_LIVED` when
+it is under 7 days. **Expect ~5 hours, not 7 days.**
+
+To get a real 7-day link, put long-lived signer keys in SSM
+`/llc/video_signer` (base64 JSON: `aws_access_key_id`, `aws_secret_access_key`,
+for a user with only `s3:GetObject` on this bucket); the filer picks them up
+automatically. Either way the S3 object never expires — only the link does, so
+download the mp4 if Antonio needs to keep it.
 
 **Video validation:** `stop_screen_recording` (filing_utils.py) stops ffmpeg with
 SIGINT (same finalize path as `q`, but not dependent on ffmpeg reading stdin) and

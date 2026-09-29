@@ -228,9 +228,77 @@ def stop_screen_recording(rec):
     return path
 
 
+VIDEO_URL_MAX_AGE = 7 * 24 * 3600
+VIDEO_SIGNER_PARAM = "/llc/video_signer"
+
+
+def _imds_credentials_remaining():
+    """Seconds left on the EC2 instance-role credentials, or None if we can't
+    tell (not on an EC2, IMDS blocked). IMDSv2, short timeouts — this must
+    never hold up a filing."""
+    import urllib.request
+
+    def _get(url, headers=None, method="GET"):
+        req = urllib.request.Request(url, headers=headers or {}, method=method)
+        return urllib.request.urlopen(req, timeout=2).read().decode()
+
+    try:
+        token = _get("http://169.254.169.254/latest/api/token",
+                     {"X-aws-ec2-metadata-token-ttl-seconds": "60"}, "PUT")
+        hdr = {"X-aws-ec2-metadata-token": token}
+        base = "http://169.254.169.254/latest/meta-data/iam/security-credentials/"
+        role = _get(base, hdr).strip().splitlines()[0]
+        doc = json.loads(_get(base + role, hdr))
+        expiry = datetime.strptime(doc["Expiration"], "%Y-%m-%dT%H:%M:%SZ")
+        return int((expiry - datetime.utcnow()).total_seconds())
+    except Exception:
+        return None
+
+
+def _video_url_signer():
+    """Return (s3_client, max_link_seconds) for signing the evidence link.
+
+    A presigned URL dies with the credentials that signed it. On the EC2 the
+    filer runs under an instance role, so boto3 signs with TEMPORARY STS
+    credentials (AWSAccessKeyId=ASIA...) good for hours — asking for
+    ExpiresIn=7 days produced links that returned <Code>ExpiredToken</Code>
+    the same day (caught 2026-09-29: the rehearsal link in Airtable was
+    already dead the next morning, while the mp4 sat fine in S3).
+
+    So: sign with the long-lived key in SSM when one is configured (a real 7
+    days), otherwise sign with the instance role and cap the link to what
+    those credentials can actually honor. Never promise longer than we can
+    sign for."""
+    try:
+        ssm = boto3.client("ssm", region_name=REGION)
+        raw = ssm.get_parameter(Name=VIDEO_SIGNER_PARAM,
+                                WithDecryption=True)["Parameter"]["Value"]
+        creds = json.loads(base64.b64decode(raw).decode("utf-8"))
+        signer = boto3.client(
+            "s3", region_name=REGION,
+            aws_access_key_id=creds["aws_access_key_id"],
+            aws_secret_access_key=creds["aws_secret_access_key"])
+        return signer, VIDEO_URL_MAX_AGE
+    except Exception:
+        pass
+
+    s3 = boto3.client("s3", region_name=REGION)
+    current = boto3.Session().get_credentials()
+    frozen = current.get_frozen_credentials() if current else None
+    if not frozen or not frozen.token:
+        return s3, VIDEO_URL_MAX_AGE          # long-lived key: full 7 days
+    remaining = _imds_credentials_remaining()
+    if remaining is None:
+        remaining = 3600                      # unknown: assume the short case
+    return s3, max(60, min(VIDEO_URL_MAX_AGE, remaining - 60))
+
+
 def upload_filing_video(filepath, company_name, dry_run=False):
-    """Upload the run video under {company}/videos/ and return a 7-day
-    presigned URL for the Airtable 'Filing Video' field (None on failure).
+    """Upload the run video under {company}/videos/ and return a presigned URL
+    for the Airtable 'Filing Video' field (None on failure). The link lasts up
+    to 7 days, or however long the signing credentials survive — the log prints
+    the real expiry and the durable s3:// URI, because the object itself never
+    expires even after the link does.
     Dry-run videos are prefixed DRYRUN_ so nobody mistakes one for a filing."""
     if not filepath:
         return None
@@ -240,10 +308,16 @@ def upload_filing_video(filepath, company_name, dry_run=False):
     key = f"{company_name}/videos/{timestamp}_{prefix}filing.mp4"
     try:
         s3.upload_file(filepath, S3_BUCKET, key)
-        url = s3.generate_presigned_url(
+        signer, link_age = _video_url_signer()
+        url = signer.generate_presigned_url(
             "get_object", Params={"Bucket": S3_BUCKET, "Key": key},
-            ExpiresIn=7 * 24 * 3600)
+            ExpiresIn=link_age)
         print(f"  \u2705 Uploaded filing video to s3://{S3_BUCKET}/{key}")
+        print(f"  \U0001f517 Link valid {link_age // 3600}h ({link_age}s); "
+              f"the S3 object itself does not expire")
+        if link_age < VIDEO_URL_MAX_AGE:
+            print("===> VIDEO_LINK_SHORT_LIVED (signed with temporary "
+                  f"credentials; set {VIDEO_SIGNER_PARAM} for a 7-day link)")
         return url
     except Exception as e:
         print(f"  \u274c Failed to upload filing video: {e}")
