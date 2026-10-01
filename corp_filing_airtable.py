@@ -40,8 +40,6 @@ from filing_utils import (
     parse_address,
     parse_name,
     detect_country_code,
-    translate_business_purpose,
-    looks_spanish,
     init_browser,
     accept_disclaimer_and_start,
     wait_for_form_field,
@@ -349,24 +347,9 @@ def fetch_corp_data_from_airtable(record_id=None):
         president_country = 'INT'
 
     # ---- Business Purpose ----
-    raw_purpose = fields.get('Business Purpose', 'Any and all lawful business')
-    purpose = translate_business_purpose(raw_purpose)
-    if purpose == raw_purpose and looks_spanish(raw_purpose):
-        # Fail-visible: never put Spanish text on a SunBiz filing because the
-        # translator was unavailable (2026-09-24: OpenAI 429 no-credits).
-        flag_needs_review(
-            record['id'],
-            f"Business Purpose '{raw_purpose[:60]}' looks Spanish and translation "
-            f"failed/unavailable — refusing to file it untranslated",
-        )
-        raise ValueError(f"Business Purpose untranslated Spanish: '{raw_purpose[:60]}'")
-    # Determine if we should check the "Any and all lawful business" checkbox
-    purpose_is_generic = purpose.lower().strip() in [
-        'any and all lawful business',
-        'any lawful purpose',
-        'any lawful business',
-        'any and all lawful purposes',
-    ]
+    # Articles never carry the client's own description: Sunbiz's "Any and all
+    # lawful business" box is always ticked (Avenida's standard, 2026-10-01).
+    # The description only feeds the questionnaire documents.
 
     # ---- Return Contact ----
     contact_name = ''
@@ -386,8 +369,6 @@ def fetch_corp_data_from_airtable(record_id=None):
         "corp": {
             "name": company_name,
             "stock_shares": stock_shares,
-            "purpose": purpose,
-            "purpose_is_generic": purpose_is_generic,
             "entity_type": entity_type,
             "principal_address": {
                 "line1": address_parts.get('line1', ''),
@@ -503,17 +484,11 @@ def fill_corp_form(driver, wait, data, company_name):
     # --- Section 5: Corporate Purpose ---
     try:
         print("  \U0001f4dd Filling corporate purpose...")
-        if corp["purpose_is_generic"]:
-            # Check the "Any and all lawful business" checkbox
-            try:
-                purpose_checkbox = driver.find_element(By.ID, "purpose_flag")
-                if not purpose_checkbox.is_selected():
-                    purpose_checkbox.click()
-            except Exception:
-                # If checkbox fails, fall back to typing in the textarea
-                human_typing(driver.find_element(By.ID, "purpose"), corp["purpose"])
-        else:
-            human_typing(driver.find_element(By.ID, "purpose"), corp["purpose"])
+        purpose_checkbox = driver.find_element(By.ID, "purpose_flag")
+        if not purpose_checkbox.is_selected():
+            purpose_checkbox.click()
+        if not purpose_checkbox.is_selected():
+            raise RuntimeError('"Any and all lawful business" box would not tick')
         take_and_upload_screenshot(driver, "06_purpose_filled", company_name)
     except Exception as e:
         take_and_upload_screenshot(driver, "ERROR_purpose", company_name)
