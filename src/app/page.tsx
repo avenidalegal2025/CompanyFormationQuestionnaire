@@ -23,6 +23,21 @@ import type { AllSteps } from "@/lib/schema";
 import { saveDraft, loadDraft, type DraftItem } from "@/lib/drafts";
 import { missingAgreementAnswers, missingCompanyAnswers, requiredMessageFor } from "@/lib/required-answers";
 
+/** Every error message in a react-hook-form errors tree, deduplicated. */
+function collectErrorMessages(errors: unknown): string[] {
+  const out = new Set<string>();
+  const walk = (node: unknown) => {
+    if (!node || typeof node !== "object") return;
+    const msg = (node as { message?: unknown }).message;
+    if (typeof msg === "string" && msg) out.add(msg);
+    for (const [key, child] of Object.entries(node as Record<string, unknown>)) {
+      if (key !== "ref" && key !== "message" && key !== "type") walk(child);
+    }
+  };
+  walk(errors);
+  return [...out];
+}
+
 type SaveState = "idle" | "saving" | "saved" | "error";
 
 function QuestionnaireContent() {
@@ -98,6 +113,9 @@ function QuestionnaireContent() {
   // We now have a 4-step flow (2, 3, 4, 5)
   const [step, setStep] = useState<number>(1);
   const [wantsAgreement, setWantsAgreement] = useState<boolean>(false);
+  // Validation errors that have no inline hint on the current step (see onContinuar).
+  const [unshownErrors, setUnshownErrors] = useState<string[]>([]);
+  useEffect(() => setUnshownErrors([]), [step]);
   const totalSteps = wantsAgreement ? 9 : 5;
   // Store the beforeunload handler so we can remove it before intentional navigation
   const beforeUnloadHandlerRef = useRef<((e: BeforeUnloadEvent) => void) | null>(null);
@@ -600,7 +618,8 @@ function QuestionnaireContent() {
   // Clear a "Selecciona una opción" hint as soon as that question is answered.
   useEffect(() => {
     const sub = form.watch((_values, { name }) => {
-      if (name && form.getFieldState(name as never).error?.type === "required") {
+      const type = name ? form.getFieldState(name as never).error?.type : undefined;
+      if (name && (type === "required" || type === "custom")) {
         form.clearErrors(name as never);
       }
     });
@@ -611,8 +630,21 @@ function QuestionnaireContent() {
     try {
       const isValid = await form.trigger(undefined, { shouldFocus: true });
       if (!isValid) {
+        // Never fail silently. Toggle questions are buttons, so shouldFocus can't
+        // reach them: scroll to the first red hint, and if some error has no
+        // hint on screen at all, list it in a banner by the buttons.
+        window.setTimeout(() => {
+          const hint = document.querySelector("[data-required-hint]");
+          if (hint) {
+            hint.scrollIntoView({ behavior: "smooth", block: "center" });
+            setUnshownErrors([]);
+            return;
+          }
+          setUnshownErrors(collectErrorMessages(form.formState.errors));
+        }, 100);
         return;
       }
+      setUnshownErrors([]);
       if (flagMissingAnswers(step)) {
         return;
       }
@@ -730,6 +762,14 @@ function QuestionnaireContent() {
           )}
           {(wantsAgreement && step === 9) && (
             <Step10Checkout form={form} setStep={setStep} onSave={onGuardarYContinuar} onNext={onContinuar} session={session} anonymousId={anonymousId} hasMissingAnswers={() => flagMissingAnswers(1) || flagMissingAnswers()} />
+          )}
+          {unshownErrors.length > 0 && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert">
+              <p className="font-medium">Revisa estas respuestas antes de continuar:</p>
+              <ul className="mt-1 list-disc pl-5">
+                {unshownErrors.map((m) => <li key={m}>{m}</li>)}
+              </ul>
+            </div>
           )}
         </form>
       </main>

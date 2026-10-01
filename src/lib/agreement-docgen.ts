@@ -346,6 +346,7 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
   xml = stripLLCBodyTabArtifacts(xml);
   // Label/body separator pass (same as Corp) — generic, low-risk.
   xml = fixLabelBodySpacing(xml);
+  xml = tabAfterInlineLabels(xml);
   // After conditional sections are stripped (§11.10 Non-disclosure when
   // confidentiality=No), close the numbering gap (§11.9 → §11.11 becomes
   // §11.9 → §11.10).
@@ -6068,6 +6069,64 @@ function fixLabelBodySpacing(xml: string): string {
       repl +
       full.substring(second.index! + second[0].length)
     );
+  });
+}
+
+/**
+ * Companion to fixLabelBodySpacing for labels that share a <w:t> with their
+ * body, so the run-pair check above never sees them. Siblings use
+ * LABEL<tab>Body; these shipped as:
+ *   "D.The Members hereby designate…"        (§11.1.D — glued)
+ *   "12.4Notwithstanding anything…"          (§12.4  — glued)
+ *   "ii. The Majority Approval…"             (§11.4  — space, not tab)
+ *   " i.<tab> The Unanimous Approval…"       (§11.4  — stray spaces)
+ * Only the label at the very start of a paragraph is touched, and
+ * abbreviations ("U.S.", "i.e.") are left alone.
+ */
+function tabAfterInlineLabels(xml: string): string {
+  const ROMAN = String.raw`(?:i|ii|iii|iv|v|vi|vii|viii|ix|x|xi|xii)\.`;
+  const LABEL = String.raw`(?:[A-Z]\.|${ROMAN}|\d{1,2}\.\d{1,2})`;
+  const glued = new RegExp(String.raw`^\s*(${LABEL})(?=[A-Za-z])`);
+  const romanSpaced = new RegExp(String.raw`^\s*(${ROMAN})[ \u00a0]+(?=\S)`);
+  const romanAlone = new RegExp(String.raw`^\s*(${ROMAN})\s*$`);
+  const TAB_THEN_T = '<w:tab/><w:t xml:space="preserve">';
+
+  return xml.replace(/<w:p\b[^>]*>[\s\S]*?<\/w:p>/g, (para) => {
+    const m = /(<w:t[^>]*>)([^<]*)(<\/w:t>)/.exec(para);
+    if (!m) return para;
+    const before = para.slice(0, m.index);
+    // The label must be the first text of the paragraph.
+    if (/<w:t[\s>]/.test(before)) return para;
+    const text = m[2];
+    const rest = (len: number) => text.slice(len);
+    const splice = (replacement: string, tail = para.slice(m.index + m[0].length)) =>
+      before + replacement + tail;
+
+    let g = glued.exec(text);
+    if (g && !/^[A-Za-z]\./.test(rest(g[0].length))) {
+      return splice(`<w:t xml:space="preserve">${g[1]}</w:t>${TAB_THEN_T}${rest(g[0].length)}${m[3]}`);
+    }
+    g = romanSpaced.exec(text);
+    if (g) {
+      return splice(`<w:t xml:space="preserve">${g[1]}</w:t>${TAB_THEN_T}${rest(g[0].length)}${m[3]}`);
+    }
+    g = romanAlone.exec(text);
+    if (g) {
+      const tail = para.slice(m.index + m[0].length);
+      // " i." + <w:tab/> + " The…" → "i." + <w:tab/> + "The…"
+      const t2 = /^(<w:tab\/>)(<w:t[^>]*>)[  ]+/.exec(tail);
+      if (t2) {
+        return splice(`<w:t xml:space="preserve">${g[1]}</w:t>`, t2[1] + t2[2] + tail.slice(t2[0].length));
+      }
+      // "i." alone in its run, body in the next run starting with a space
+      // (§12.9 "i." + " Drag Along") → "i." + <w:tab/>, space trimmed.
+      const next = /(<w:t[^>]*>)[  ]+(?=\S)/.exec(tail);
+      if (next && !/<w:tab\/>/.test(tail.slice(0, next.index))) {
+        const fixedTail = tail.slice(0, next.index) + next[1] + tail.slice(next.index + next[0].length);
+        return splice(`<w:t xml:space="preserve">${g[1]}</w:t><w:tab/>`, fixedTail);
+      }
+    }
+    return para;
   });
 }
 

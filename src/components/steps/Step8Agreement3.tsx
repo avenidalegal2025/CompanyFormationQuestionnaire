@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Controller } from "react-hook-form";
 import HeroMiami3 from "@/components/HeroMiami3";
 import SegmentedToggle from "@/components/SegmentedToggle";
@@ -38,25 +38,35 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
     ? "$" + Number(majorSpendingThresholdRaw).toLocaleString("en-US")
     : "el monto indicado";
 
+  // Fill the defaults only at the moment non-compete is switched ON (or a
+  // draft loads with it on and the fields empty) — never again afterwards.
+  // Re-filling "whenever empty" made the territory impossible to clear: the
+  // default came back on the first delete and the user's typing was appended
+  // to it ("Estado de FloridaEstado de Florida" in a generated agreement).
+  const prevCorpNC = useRef<string | undefined>(undefined);
+  const prevLlcNC = useRef<string | undefined>(undefined);
+
   useEffect(() => {
-    if (corpNC === "Yes") {
-      if (corpNCDuration === undefined || corpNCDuration === null) {
-        setValue("agreement.corp_nonCompeteDuration", 2, { shouldDirty: false });
-      }
-      if (!corpNCScope) {
-        setValue("agreement.corp_nonCompeteScope", `Estado de ${formationState}`, { shouldDirty: false });
-      }
+    const switchedOn = corpNC === "Yes" && prevCorpNC.current !== "Yes";
+    prevCorpNC.current = corpNC;
+    if (!switchedOn) return;
+    if (corpNCDuration === undefined || corpNCDuration === null) {
+      setValue("agreement.corp_nonCompeteDuration", 2, { shouldDirty: false });
+    }
+    if (!corpNCScope) {
+      setValue("agreement.corp_nonCompeteScope", `Estado de ${formationState}`, { shouldDirty: false });
     }
   }, [corpNC, formationState, corpNCDuration, corpNCScope, setValue]);
 
   useEffect(() => {
-    if (llcNC === "Yes") {
-      if (llcNCDuration === undefined || llcNCDuration === null) {
-        setValue("agreement.llc_nonCompeteDuration", 2, { shouldDirty: false });
-      }
-      if (!llcNCScope) {
-        setValue("agreement.llc_nonCompeteScope", `Estado de ${formationState}`, { shouldDirty: false });
-      }
+    const switchedOn = llcNC === "Yes" && prevLlcNC.current !== "Yes";
+    prevLlcNC.current = llcNC;
+    if (!switchedOn) return;
+    if (llcNCDuration === undefined || llcNCDuration === null) {
+      setValue("agreement.llc_nonCompeteDuration", 2, { shouldDirty: false });
+    }
+    if (!llcNCScope) {
+      setValue("agreement.llc_nonCompeteScope", `Estado de ${formationState}`, { shouldDirty: false });
     }
   }, [llcNC, formationState, llcNCDuration, llcNCScope, setValue]);
 

@@ -4,6 +4,7 @@
 import { Controller } from "react-hook-form";
 import { useState, useEffect } from "react";
 import SegmentedToggle from "@/components/SegmentedToggle";
+import RequiredHint from "@/components/RequiredHint";
 import SSNEINInput from "@/components/SSNEINInput";
 import HeroMiami2 from "@/components/HeroMiami2";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
@@ -282,6 +283,7 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
                         </div>
                       )}
                     />
+                    <RequiredHint form={form} name={`${base}.ownerType`} />
                   </div>
                 )}
 
@@ -373,6 +375,7 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
                         />
                       )}
                     />
+                    <RequiredHint form={form} name={residentKey} />
                   </div>
                 )}
 
@@ -675,6 +678,7 @@ export default function Step3Owners({ form, setStep, onSave, onNext, session, an
                                   />
                                 )}
                               />
+                              <RequiredHint form={form} name={nestedResidentKey} />
                             </div>
 
                             {/* SSN or Passport */}
