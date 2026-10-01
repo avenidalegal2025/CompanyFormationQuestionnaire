@@ -1,5 +1,6 @@
 import Airtable from 'airtable';
 import { VIRTUAL_OFFICE_FULL } from './virtual-office';
+import { floridaToday } from './florida-date';
 
 // Initialize Airtable
 const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY?.trim() || '';
@@ -786,7 +787,7 @@ export function mapQuestionnaireToAirtable(
     'Customer Name': stripeSession.customer_details?.name || formData.profile?.fullName || '',
     'Total Payment Amount': (stripeSession.amount_total || 0) / 100, // Convert cents to dollars
     'Products Purchased': stripeSession.metadata?.selectedServices || '',
-    'Payment Date': new Date().toISOString().split('T')[0],
+    'Payment Date': floridaToday(),
     'Stripe Payment ID': stripeSession.id,
     
     // Company Details

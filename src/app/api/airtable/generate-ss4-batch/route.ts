@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Airtable from 'airtable';
 import { formatCompanyFileName } from '@/lib/document-names';
 import { requireInternalAuth } from '@/lib/internal-auth';
+import { floridaToday } from '@/lib/florida-date';
 
 // Airtable configuration
 const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY?.trim() || '';
@@ -562,8 +563,8 @@ async function mapAirtableToSS4(record: any): Promise<any> {
     stateOfIncorporation: isCorp ? ((fields['Formation State'] || 'FL').toUpperCase()) : undefined,
     // Line 10: Summarized Business Purpose (will be set after OpenAI summarization)
     reasonForApplying: 'Started new business',
-    dateBusinessStarted: fields['Payment Date'] || new Date().toISOString().split('T')[0],
-    paymentDate: fields['Payment Date'] || new Date().toISOString().split('T')[0], // Also pass as paymentDate for Lambda fallback
+    dateBusinessStarted: fields['Payment Date'] || floridaToday(),
+    paymentDate: fields['Payment Date'] || floridaToday(), // Also pass as paymentDate for Lambda fallback
     closingMonth: 'December',
     expectedEmployees: { agricultural: '0', household: '0', other: '0' },
     firstWagesDate: 'N/A',

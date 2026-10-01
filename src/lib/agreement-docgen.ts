@@ -2,6 +2,7 @@ import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import fs from "fs";
 import path from "path";
+import { floridaToday } from "./florida-date";
 
 // ─── OOXML helpers ────────────────────────────────────────────────────
 // Plain `xml.lastIndexOf("<w:p", i)` also matches `<w:pPr>`, `<w:pStyle>`,
@@ -238,7 +239,7 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
   const data: Record<string, string> = {
     llc_name_text: llcNameWithSuffix,
     full_state: answers.state_of_formation,
-    Date_of_formation_LLC: formatDate(new Date().toISOString()),
+    Date_of_formation_LLC: formatDate(floridaToday()),
     full_llc_address: answers.principal_address,
     full_county: answers.county,
     Managed_type_plural: managedTypePlural,
@@ -1655,7 +1656,7 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   // Agreement effective date is the date the agreement is GENERATED
   // (i.e. today), NOT the corp's formation date. Formation date can
   // be days/weeks earlier; the agreement is dated when shareholders sign.
-  const effectiveIso = new Date().toISOString();
+  const effectiveIso = floridaToday();
 
   doc.render({
     corp_name: entityNameWithSuffix.toUpperCase(),

@@ -34,6 +34,7 @@ from filing_utils import (
     init_browser,
     accept_disclaimer_and_start,
     wait_for_form_field,
+    fill_effective_date,
     fill_registered_agent,
     fill_correspondence,
     fill_payment_and_submit,
@@ -290,6 +291,7 @@ def fill_llc_form(driver, wait, data, company_name):
     try:
         print("  \U0001f4dd Filling LLC information...")
         corp_name_el = wait_for_form_field(driver, "corp_name")
+        fill_effective_date(driver)
         human_typing(corp_name_el, llc["name"])
         human_typing(driver.find_element(By.ID, "princ_addr1"), llc["principal_address"]["line1"])
         human_typing(driver.find_element(By.ID, "princ_addr2"), llc["principal_address"]["line2"])

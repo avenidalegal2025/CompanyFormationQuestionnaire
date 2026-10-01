@@ -6,6 +6,7 @@
 import type { QuestionnaireAnswers } from "./agreement-docgen";
 import { resolveCounty } from "./county-lookup";
 import { VIRTUAL_OFFICE, VIRTUAL_OFFICE_FULL } from './virtual-office';
+import { floridaToday } from "./florida-date";
 
 /**
  * Convert an UPPER-CASE county name ("MIAMI-DADE", "PALM BEACH") to
@@ -396,7 +397,7 @@ export async function mapFormToDocgenAnswers(
     entity_type: isCorp ? "CORP" : "LLC",
     entity_name: entityName,
     state_of_formation: data.company?.formationState || "Florida",
-    date_of_formation: new Date().toISOString(),
+    date_of_formation: floridaToday(),
     principal_address: principalAddress,
     county: toTitleCaseCounty(countyResolution.county),
     business_purpose: data.company?.businessPurpose || "Any lawful purpose",

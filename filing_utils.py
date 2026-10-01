@@ -630,6 +630,32 @@ def accept_disclaimer_and_start(driver, wait, company_name):
     take_and_upload_screenshot(driver, "02_form_loaded", company_name)
 
 
+FILING_TIME_ZONE = "America/New_York"
+
+
+def florida_today():
+    """Today in Florida — the day SunBiz records the filing. Must match the
+    date the web app writes into the documents and Airtable's Payment Date
+    (src/lib/florida-date.ts)."""
+    from zoneinfo import ZoneInfo
+    return datetime.now(ZoneInfo(FILING_TIME_ZONE)).date()
+
+
+def fill_effective_date(driver):
+    """State the effective date explicitly as today's Florida date (MM/DD/YYYY)
+    instead of leaving it blank, so the Articles, the Operating Agreement and
+    the Payment Date all carry the same day. Same field IDs on the LLC and
+    Corp forms."""
+    d = florida_today()
+    for field_id, value in (("eff_date_mm", f"{d.month:02d}"),
+                            ("eff_date_dd", f"{d.day:02d}"),
+                            ("eff_date_yyyy", f"{d.year:04d}")):
+        el = driver.find_element(By.ID, field_id)
+        el.clear()
+        human_typing(el, value)
+    print(f"  📅 Effective date: {d:%m/%d/%Y} (today in Florida)")
+
+
 def wait_for_form_field(driver, field_id, timeout=25):
     """
     Wait for a form field to appear (handle possible iframes).

@@ -11,6 +11,7 @@ import { generateDocument } from '@/lib/agreement-docgen';
 import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { sendEmailWithMultipleAttachments, sendHtmlEmail } from '@/lib/ses-email';
 import { internalAuthHeaders } from '@/lib/internal-auth';
+import { floridaToday } from '@/lib/florida-date';
 
 // Vercel Pro default is 300s but be explicit — heavy 6-owner Corp flows
 // touch ~6 Lambdas + 4 S3 template copies sequentially.
@@ -397,7 +398,7 @@ async function handleCompanyFormation(session: Stripe.Checkout.Session) {
       'Stripe Payment ID': session.id,
       'Formation State': state,
       'Formation Status': 'Pending',
-      'Payment Date': new Date().toISOString().slice(0, 10),
+      'Payment Date': floridaToday(),
     } as any);
     console.log(`✅ Airtable stub created: ${airtableRecordId} — company visible in dashboard now`);
   } catch (stubError: any) {

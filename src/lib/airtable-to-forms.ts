@@ -1,4 +1,5 @@
 import { VIRTUAL_OFFICE } from './virtual-office';
+import { floridaToday } from './florida-date';
 /**
  * Shared utility functions to convert Airtable records to form data format
  * Used by SS-4, 2848, and 8821 generation endpoints
@@ -513,7 +514,7 @@ export function mapAirtableTo2848(record: any): any {
   const companyPhone = (fields['Business Phone'] || '').trim();
   
   // Get formation year
-  const paymentDate = fields['Payment Date'] || new Date().toISOString().split('T')[0];
+  const paymentDate = fields['Payment Date'] || floridaToday();
   const formationYear = new Date(paymentDate).getFullYear().toString();
   
   // Determine tax form number

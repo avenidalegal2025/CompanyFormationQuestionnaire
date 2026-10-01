@@ -3,6 +3,7 @@ import Airtable from 'airtable';
 import { formatCompanyFileName } from '@/lib/document-names';
 import { categorizeByKeywords, truncateAtWordBoundary, stripDanglingWords } from '@/lib/ss4-line16';
 import { requireInternalAuth } from '@/lib/internal-auth';
+import { floridaToday } from '@/lib/florida-date';
 
 // Airtable configuration
 const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY?.trim() || '';
@@ -929,8 +930,8 @@ async function mapAirtableToSS4(record: any): Promise<any> {
     // This will be set after OpenAI summarization
     
     // Line 11: Date business started (use Payment Date from Airtable)
-    dateBusinessStarted: fields['Payment Date'] || new Date().toISOString().split('T')[0],
-    paymentDate: fields['Payment Date'] || new Date().toISOString().split('T')[0], // Also pass as paymentDate for Lambda fallback
+    dateBusinessStarted: fields['Payment Date'] || floridaToday(),
+    paymentDate: fields['Payment Date'] || floridaToday(), // Also pass as paymentDate for Lambda fallback
     
     // Line 12: Closing month of accounting year (usually December)
     closingMonth: 'December',

@@ -45,6 +45,7 @@ from filing_utils import (
     init_browser,
     accept_disclaimer_and_start,
     wait_for_form_field,
+    fill_effective_date,
     fill_registered_agent,
     fill_correspondence,
     fill_payment_and_submit,
@@ -450,6 +451,7 @@ def fill_corp_form(driver, wait, data, company_name):
     try:
         print("  \U0001f4dd Filling Corporation information...")
         corp_name_el = wait_for_form_field(driver, "corp_name")
+        fill_effective_date(driver)
         human_typing(corp_name_el, corp["name"])
         human_typing(driver.find_element(By.ID, "stock_shares"), corp["stock_shares"])
         take_and_upload_screenshot(driver, "03_corp_name_shares", company_name)
