@@ -49,6 +49,8 @@ from filing_utils import (
     fill_payment_and_submit,
     click_continue_through_pages,
     validate_required_fields,
+    AVENIDA_SIGNER_NAME,
+    AVENIDA_CORRESPONDENCE_EMAIL,
     save_run_log,
     AIRTABLE_API_KEY,
     AIRTABLE_BASE_ID,
@@ -340,30 +342,16 @@ def fetch_corp_data_from_airtable(record_id=None):
     if not president and all_people:
         president = all_people[0]  # Fallback to first person
 
-    # Parse president address for incorporator section
-    president_addr = parse_address(president["address"] if president else '')
-    president_country = detect_country_code(president["address"] if president else '')
-    if president_addr.get('country') == 'INT':
-        president_country = 'INT'
-
     # ---- Business Purpose ----
     # Articles never carry the client's own description: Sunbiz's "Any and all
     # lawful business" box is always ticked (Avenida's standard, 2026-10-01).
     # The description only feeds the questionnaire documents.
 
-    # ---- Return Contact ----
-    contact_name = ''
-    if president:
-        contact_name = president.get("name", '')
-    if not contact_name:
-        contact_name = fields.get('Customer Name', '')
-    contact_email = fields.get('Customer Email', '')
-
     print(f"\U0001f3e2 Corporation: {company_name} ({entity_type})")
     print(f"   Shares: {stock_shares}")
     print(f"   Officers: {len(officers)}, Directors: {len(directors)}, Total slots: {len(all_people)}")
     if president:
-        print(f"   President/Incorporator: {president['name']}")
+        print(f"   President: {president['name']} (incorporator: {AVENIDA_SIGNER_NAME})")
 
     corp_data = {
         "corp": {
@@ -389,19 +377,18 @@ def fetch_corp_data_from_airtable(record_id=None):
             "zip": REGISTERED_AGENT['zip'],
             "signature": f"{REGISTERED_AGENT['first_name']} {REGISTERED_AGENT['last_name']}",
         },
+        # Antonio incorporates and signs every corporation at Avenida's office.
         "incorporator": {
-            "name": president["name"] if president else '',
-            "address": president_addr.get('line1', '') + (
-                ' ' + president_addr.get('line2', '') if president_addr.get('line2') else ''
-            ),
-            "suite": '',
-            "city_st_zip": _format_city_st_zip(president_addr, president_country),
-            "signature": president["name"] if president else '',
+            "name": AVENIDA_SIGNER_NAME,
+            "address": REGISTERED_AGENT['address1'],
+            "suite": REGISTERED_AGENT.get('address2', ''),
+            "city_st_zip": f"{REGISTERED_AGENT['city']}, {REGISTERED_AGENT.get('state', 'FL')} {REGISTERED_AGENT['zip']}",
+            "signature": AVENIDA_SIGNER_NAME,
         },
         "officers_directors": all_people,
         "return_contact": {
-            "name": contact_name,
-            "email": contact_email,
+            "name": AVENIDA_SIGNER_NAME,
+            "email": AVENIDA_CORRESPONDENCE_EMAIL,
         },
         "_airtable_record_id": record['id'],
     }

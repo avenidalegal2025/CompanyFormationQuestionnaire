@@ -66,6 +66,12 @@ REGISTERED_AGENT = {
     "zip": os.environ.get("RA_ADDRESS_ZIP", AVENIDA_LEGAL_ADDRESS["zip"]),
 }
 
+# Antonio (the RA) also signs every filing and is its correspondence contact;
+# Sunbiz's annual-report notices go to Avenida's inbox, not the client's
+# (Avenida's standard, 2026-10-01).
+AVENIDA_SIGNER_NAME = f"{REGISTERED_AGENT['first_name']} {REGISTERED_AGENT['last_name']}"
+AVENIDA_CORRESPONDENCE_EMAIL = "info@avenidalegal.com"
+
 _ra_missing = [v for v in RA_ENV_VARS if not os.environ.get(v)]
 if _ra_missing:
     # RA_PLACEHOLDER_IN_USE is a stable token so a CloudWatch metric filter can

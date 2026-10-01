@@ -38,6 +38,8 @@ from filing_utils import (
     fill_payment_and_submit,
     click_continue_through_pages,
     validate_required_fields,
+    AVENIDA_SIGNER_NAME,
+    AVENIDA_CORRESPONDENCE_EMAIL,
     save_run_log,
     AIRTABLE_API_KEY,
     AIRTABLE_BASE_ID,
@@ -265,8 +267,8 @@ def fetch_llc_data_from_airtable(record_id=None):
         "authorized_persons": authorized_persons,
         "authorized_person": signer,
         "return_contact": {
-            "name": signer['signature'] or fields.get('Owner 1 Name', '') or fields.get('Customer Name', ''),
-            "email": fields.get('Customer Email', ''),
+            "name": AVENIDA_SIGNER_NAME,
+            "email": AVENIDA_CORRESPONDENCE_EMAIL,
         },
         "_airtable_record_id": record['id'],
     }
@@ -325,7 +327,7 @@ def fill_llc_form(driver, wait, data, company_name):
         contact = data["return_contact"]
         fill_correspondence(driver, contact["name"], contact["email"], company_name)
         # Electronic signature of authorized person
-        human_typing(driver.find_element(By.ID, "signature"), data["authorized_person"]["signature"])
+        human_typing(driver.find_element(By.ID, "signature"), AVENIDA_SIGNER_NAME)
     except Exception as e:
         take_and_upload_screenshot(driver, "ERROR_correspondence", company_name)
         raise RuntimeError(f"Failed filling correspondence: {e}") from e
