@@ -201,7 +201,11 @@ function applyMajorityPercent(xml: string, answers: QuestionnaireAnswers): strin
     typeof answers.majority_threshold === "number"
       ? answers.majority_threshold.toFixed(2).replace(/\.?0+$/, "")
       : String(answers.majority_threshold);
-  return xmlTextReplace(xml, "50.1%", `${majPct}%`, true);
+  // Every template occurrence reads "at least 50.1%" / "at least a 50.1%".
+  // Match that phrase, not the bare figure, so an owner who holds 50.1% keeps
+  // "50.1% of the MPI".
+  xml = xmlTextReplace(xml, "at least 50.1%", `at least ${majPct}%`, true);
+  return xmlTextReplace(xml, "at least a 50.1%", `at least a ${majPct}%`, true);
 }
 
 // ─── LLC Document Generation ──────────────────────────────────────────
@@ -351,6 +355,9 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
   // confidentiality=No), close the numbering gap (§11.9 → §11.11 becomes
   // §11.9 → §11.10).
   xml = renumberSectionsToCloseGaps(xml);
+  xml = fixCovenantSeverabilityRange(xml);
+  xml = fixTenderOfferReference(xml);
+  xml = formatSuperMajorityDefinition(xml);
   // §12 ships with 5 empty paragraphs between heading and §12.1; collapse
   // any heading-followed-by-multiple-empties down to one separator.
   xml = collapseEmptiesAfterLLCHeadings(xml);
@@ -360,10 +367,16 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
   // common case -- never reached it and still rendered every name a line
   // low and three inches right of its rule.
   xml = alignSignatureNamesUnderRules(xml);
+  xml = layoutLLCSignatureGrid(xml);
   // Drop trailing empty paragraphs after the last signature line so the
   // PDF doesn't end with a blank page.
   xml = stripTrailingEmptyParagraphs(xml);
   xml = enablePaginationFlags(xml);
+  xml = stripBlankParagraphsBeforePageBreak(xml);
+  // Last word on pagination: earlier passes rewrite pPr.
+  xml = forceKeepNextBeforeTables(xml);
+  xml = keepSmallTablesTogether(xml);
+  xml = keepClosingLineWithLastClause(xml);
   xml = repairXml(xml);
 
   renderedZip.file("word/document.xml", xml);
@@ -617,6 +630,48 @@ function stripDanglingManagerAndForSingleManager(
  * 2. MPI percentages (Sec 7.4) — add rows after member_02's percentage
  * 3. Signature blocks — add "By:" / "Name:" / "% Owner" blocks
  */
+/**
+ * Turn "{n1} and {n2}" (each name in its own formatted run, e.g. bold) into
+ * the serial list "n1, n2, …, and nK" WITHOUT flattening the paragraph:
+ * the connector run becomes ", " and each extra name is a new run cloned
+ * from n2's run (same bold/underline), joined by plain ", " / ", and ".
+ * xmlTextReplace across runs dumps the whole paragraph into its first run,
+ * which stripped the bold names and underlined defined terms from the
+ * preamble and §11.1.D whenever an LLC had 3+ members.
+ * Returns null when the paragraph doesn't have that run shape (caller
+ * falls back to plain text replacement). Names must be XML-escaped.
+ */
+function serialNamesKeepingRuns(xml: string, anchor: string, names: string[]): string | null {
+  if (names.length < 3) return xml;
+  const [n1, n2] = names;
+  const runText = (r: string) => [...r.matchAll(/<w:t(?:>|\s[^>]*>)([^<]*)<\/w:t>/g)].map((m) => m[1]).join("");
+  const setText = (r: string, t: string) =>
+    r.replace(/(<w:t)(?:>|\s[^>]*>)[^<]*(<\/w:t>)/, `$1 xml:space="preserve">${t}$2`);
+  const paras = xml.match(/<w:p[ >][\s\S]*?<\/w:p>/g) || [];
+  for (const para of paras) {
+    const text = runText(para);
+    if (!text.includes(anchor) || !text.includes(`${n1} and ${n2}`)) continue;
+    const runs = para.match(/<w:r(?:\s[^>]*)?>[\s\S]*?<\/w:r>/g) || [];
+    for (let i = 0; i + 2 < runs.length; i++) {
+      if (runText(runs[i]!).trim() !== n1 || runText(runs[i + 1]!).trim() !== "and" || runText(runs[i + 2]!).trim() !== n2) continue;
+      const name2Run = runs[i + 2]!;
+      const plainRPr = (/<w:rPr>[\s\S]*?<\/w:rPr>/.exec(runs[i + 1]!) || [""])[0];
+      const trailing = /\s+$/.exec(runText(name2Run))?.[0] ?? "";
+      const extras = names.slice(2).map((nm, k, arr) =>
+        `<w:r>${plainRPr}<w:t xml:space="preserve">${k === arr.length - 1 ? ", and " : ", "}</w:t></w:r>` +
+        setText(name2Run, k === arr.length - 1 ? nm + trailing : nm));
+      const rebuilt =
+        setText(runs[i]!, n1!) +
+        setText(runs[i + 1]!, ", ") +
+        setText(name2Run, n2!) + extras.join("");
+      const original = runs[i]! + para.slice(para.indexOf(runs[i]!) + runs[i]!.length, para.indexOf(name2Run, para.indexOf(runs[i]!)) + name2Run.length);
+      if (!para.includes(original)) return null;
+      return xml.replace(para, para.replace(original, rebuilt));
+    }
+  }
+  return null;
+}
+
 function addExtraLLCMembers(
   xml: string,
   answers: QuestionnaireAnswers
@@ -627,15 +682,18 @@ function addExtraLLCMembers(
   const owner1 = answers.owners_list[0]?.full_name || "";
   const owner2 = answers.owners_list[1]?.full_name || "";
   if (owner1 && owner2) {
-    const allNames = answers.owners_list.map((o) => o.full_name);
+    // Names are stored escaped in document.xml (O'Connor -> O&apos;Connor):
+    // search and insert the escaped form or nothing matches.
+    const allNames = answers.owners_list.map((o) => xmlEscape(o.full_name));
     const preambleNames = allNames.length === 2
       ? `${allNames[0]} and ${allNames[1]}`
       : allNames.slice(0, -1).join(", ") + ", and " + allNames[allNames.length - 1];
     // The template renders "by {{member_01_full_name}} and {{member_02_full_name}}"
     // After docxtemplater, it becomes "by Ana Perfecta and Bruno Perfecto"
-    xml = xmlTextReplace(
+    const kept = serialNamesKeepingRuns(xml, "This Agreement is entered into", allNames);
+    xml = kept ?? xmlTextReplace(
       xml,
-      `${owner1} and ${owner2}`,
+      `${xmlEscape(owner1)} and ${xmlEscape(owner2)}`,
       preambleNames,
       false // only replace the first occurrence (preamble)
     );
@@ -698,7 +756,7 @@ function addExtraLLCMembers(
     let cloned = rowXml;
     // Replace name FIRST so we don't accidentally rewrite a substring of
     // the dollar amount if it happens to match.
-    cloned = cloned.replace(member2Name, owner.full_name);
+    cloned = cloned.replace(xmlEscape(member2Name), xmlEscape(owner.full_name));
     cloned = cloned.replace(
       capAmountText,
       `$${formatCurrency(owner.capital_contribution)}`,
@@ -709,7 +767,7 @@ function addExtraLLCMembers(
   // MPI percentages table (§7.4) — clone last row with new name + pct.
   xml = cloneLastRowPerOwner(xml, "Members Percentage Interests", (rowXml, owner) => {
     let cloned = rowXml;
-    cloned = cloned.replace(member2Name, owner.full_name);
+    cloned = cloned.replace(xmlEscape(member2Name), xmlEscape(owner.full_name));
     cloned = cloned.replace(member02Pct, `${owner.shares_or_percentage}%`);
     return cloned;
   });
@@ -753,7 +811,7 @@ function addExtraLLCMembers(
     // recital so we don't anchor on the preamble.
     const witnessIdx = xml.indexOf("IN WITNESS");
     const startFrom = witnessIdx >= 0 ? witnessIdx : 0;
-    const member2NameInSig = xml.indexOf(member2Name, startFrom);
+    const member2NameInSig = xml.indexOf(xmlEscape(member2Name), startFrom);
     if (member2NameInSig >= 0) {
       const ownerTagIdx = xml.indexOf(lastMember2Sig, member2NameInSig);
       if (ownerTagIdx >= 0) {
@@ -779,6 +837,14 @@ function addExtraLLCMembers(
       // extra was joined with " and ", producing "m1 and m2 and m3 and …".
       // Manager names are user-supplied and go straight into the XML via
       // xmlTextReplace, so escape `&`, `<`, `>` to keep document.xml valid.
+      // Keep each manager name in its own formatted run when the template
+      // has that shape; fall back to the text replacements below otherwise.
+      const keptManagers = serialNamesKeepingRuns(
+        xml,
+        "to serve as the Managers",
+        answers.directors_managers.map((m) => xmlEscape(m.name)),
+      );
+      if (keptManagers) { xml = keptManagers; return xml; }
       const extraManagerText = extraManagers
         .map((m, i) =>
           `${i === extraManagers.length - 1 ? ", and " : ", "}${xmlEscape(m.name)}`
@@ -786,8 +852,8 @@ function addExtraLLCMembers(
         .join("");
       xml = xmlTextReplace(
         xml,
-        manager2Name + " to serve as the Managers",
-        manager2Name + extraManagerText + " to serve as the Managers",
+        xmlEscape(manager2Name) + " to serve as the Managers",
+        xmlEscape(manager2Name) + extraManagerText + " to serve as the Managers",
         false
       );
       // Convert the template's "m1 and m2" → "m1, m2" so the full list reads
@@ -795,8 +861,8 @@ function addExtraLLCMembers(
       if (manager1Name) {
         xml = xmlTextReplace(
           xml,
-          manager1Name + " and " + manager2Name + ", ",
-          manager1Name + ", " + manager2Name + ", ",
+          xmlEscape(manager1Name) + " and " + xmlEscape(manager2Name) + ", ",
+          xmlEscape(manager1Name) + ", " + xmlEscape(manager2Name) + ", ",
           false
         );
       }
@@ -935,6 +1001,33 @@ function applyLLCVotingReplacements(
       replace: `${VT("dissolution_voting")} election of the Members to dissolve`,
       votingKey: "dissolution_voting",
     },
+    // Sentences that RESTATE a decision governed elsewhere must use that
+    // decision's vote, not the global major-decisions sweep — otherwise a mixed
+    // profile contradicts itself (e.g. §5.1 "Super Majority" vs §13.1
+    // "Unanimous" for the same admission). Found in the 2026-10-01 visual review.
+    // §5.1 / §12.x — admitting new Members (governed by §13.1)
+    {
+      find: "upon the Majority approval of the Members as set forth below in Section 13",
+      replace: `upon the ${VT("new_member_admission_voting")} approval of the Members as set forth below in Section 13`,
+      votingKey: "new_member_admission_voting",
+    },
+    {
+      find: "shall execute a joinder as approved by a Majority of the Members",
+      replace: `shall execute a joinder as approved by a ${VT("new_member_admission_voting")} of the Members`,
+      votingKey: "new_member_admission_voting",
+    },
+    {
+      find: "is admitted to the Company as a Member with the Majority vote of the",
+      replace: `is admitted to the Company as a Member with the ${VT("new_member_admission_voting")} vote of the`,
+      votingKey: "new_member_admission_voting",
+    },
+    // §12.x Approved Sale (drag/tag) and §15.1 dissolution-by-sale — the sale
+    // of the company/its assets (governed by §8)
+    {
+      find: "substantially all of the assets of the Company as determined by a Majority of the Members",
+      replace: `substantially all of the assets of the Company as determined by a ${VT("sale_of_company_voting")} of the Members`,
+      votingKey: "sale_of_company_voting",
+    },
     // Sec 11.1C - Manager removal
     {
       find: "Majority vote of the Members excluding",
@@ -947,6 +1040,18 @@ function applyLLCVotingReplacements(
     // Escape for XML context - the text might contain XML entities
     xml = xmlTextReplace(xml, r.find, r.replace);
   }
+
+  // §12.x Approved Sale (drag/tag) is the sale of the company (§8 vote). Its
+  // sentence is split across runs ("…approved by the " | "Majority " | "vote
+  // of…"), and a cross-run xmlTextReplace merges the paragraph's runs — which
+  // swallowed the section-number run and left Deadlock with a duplicate
+  // number. Replace just the "Majority " run inside that paragraph.
+  xml = xml.replace(/<w:p[ >][\s\S]*?<\/w:p>/g, (para) =>
+    // test the paragraph TEXT — the anchor itself is split across runs too
+    [...para.matchAll(/<w:t(?:>|\s[^>]*>)([^<]*)<\/w:t>/g)].map((m) => m[1]).join("").includes("desire to sell their entire MPI")
+      ? para.replace(/(<w:t(?:>|\s[^>]*>))Majority (<\/w:t>)/, `$1${VT("sale_of_company_voting")} $2`)
+      : para,
+  );
 
   // Sec 11.4(ii) - Minor decisions. The template ships only the MAJOR-decisions
   // list in 11.4(i); the questionnaire also asks how MINOR (below-threshold)
@@ -1144,8 +1249,15 @@ function applyLLCVotingReplacements(
   // Replace spending threshold in Sec 11.4
   if (answers.major_spending_threshold) {
     const threshold = formatCurrency(answers.major_spending_threshold);
-    // The LLC template has $5,000.00 in multiple sub-items of Sec 11.4
-    xml = xmlTextReplace(xml, "$5,000.00", `$${threshold}`, true);
+    // The LLC template's placeholder $5,000.00 appears (5x) only in §11.4(i).
+    // Replace it THERE only: a global replace also rewrote any member's
+    // capital contribution of exactly $5,000.00 into the threshold amount.
+    xml = xmlTextReplaceInParagraphsContaining(
+      xml,
+      "Approval of the Members shall be required to (1)",
+      "$5,000.00",
+      `$${threshold}`,
+    );
   }
 
   // Replace ROFR offer period (Sec 12.1) — template has "30 calendar days"
@@ -1603,6 +1715,30 @@ function relabelLLCRomanSubitems(xml: string): string {
 
 // ─── Corp Document Generation ─────────────────────────────────────────
 
+/**
+ * Whole-share allocation that always adds up to the authorized total
+ * (largest-remainder method). Rounding each owner independently left
+ * 33.33/33.33/33.34% as 333+333+333 = 999 shares — 0.1% of the company owned
+ * by nobody. Computed once per document and read by every place that prints
+ * a share count or percentage, so the table, signature block and extra rows
+ * always agree.
+ */
+const ALLOCATED_SHARES = new WeakMap<object, number>();
+function allocateShares(owners: Array<{ shares_or_percentage: number }>, totalShares: number): void {
+  const exact = owners.map((o) => ((Number(o.shares_or_percentage) || 0) / 100) * totalShares);
+  const floors = exact.map((x) => Math.floor(x + 1e-9));
+  const pctSum = owners.reduce((a, o) => a + (Number(o.shares_or_percentage) || 0), 0);
+  // Only distribute the remainder when the percentages really add up to 100.
+  let left = Math.abs(pctSum - 100) < 0.01 ? totalShares - floors.reduce((a, b) => a + b, 0) : 0;
+  const order = exact.map((x, i) => [x - floors[i]!, i] as const).sort((a, b) => b[0] - a[0]);
+  const shares = [...floors];
+  for (const [, i] of order) { if (left <= 0) break; shares[i]!++; left--; }
+  owners.forEach((o, i) => ALLOCATED_SHARES.set(o, shares[i]!));
+}
+function sharesOf(owner: { shares_or_percentage: number }, totalShares: number): number {
+  return ALLOCATED_SHARES.get(owner) ?? Math.round((owner.shares_or_percentage / 100) * totalShares);
+}
+
 function generateCorp(answers: QuestionnaireAnswers): Buffer {
   const templatePath = path.join(
     process.cwd(),
@@ -1614,6 +1750,7 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
 
   // ── 1. Use docxtemplater for {{}} variable replacement ──
   const totalShares = answers.total_authorized_shares || 1000;
+  allocateShares(answers.owners_list, totalShares);
   const directors = answers.directors_managers.map((d) => d.name);
 
   // Build shareholder data for template variables
@@ -1622,7 +1759,7 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
     const idx = i + 1;
     // owner.shares_or_percentage is the ownership %; calculate actual shares
     const pct = owner.shares_or_percentage;
-    const shares = Math.round((pct / 100) * totalShares);
+    const shares = sharesOf(owner, totalShares);
     const actualPct = ((shares / totalShares) * 100).toFixed(2);
     shareholderData[`shareholder_${idx}_name`] = owner.full_name;
     shareholderData[`shareholder_${idx}_shares`] = shares.toLocaleString();
@@ -1692,7 +1829,7 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   // because the target text was already removed.
   answers.owners_list.forEach((owner, i) => {
     const pct = owner.shares_or_percentage;
-    const actualPct = ((Math.round((pct / 100) * totalShares) / totalShares) * 100).toFixed(2);
+    const actualPct = ((sharesOf(owner, totalShares) / totalShares) * 100).toFixed(2);
     const hardcodedPcts = ["75%", "12.5%", "12.5%"];
     if (i < hardcodedPcts.length) {
       // Replace only the first remaining occurrence
@@ -2187,6 +2324,11 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   xml = expandSignatureBlockSpacing(xml);
   // Late, so the passes above can still anchor on the template's "50.1%".
   xml = applyMajorityPercent(xml, answers);
+  xml = stripBlankParagraphsBeforePageBreak(xml);
+  // Last word on pagination: earlier passes rewrite pPr.
+  xml = forceKeepNextBeforeTables(xml);
+  xml = keepSmallTablesTogether(xml);
+  xml = keepClosingLineWithLastClause(xml);
   xml = repairXml(xml);
 
   renderedZip.file("word/document.xml", xml);
@@ -2327,7 +2469,7 @@ function addExtraCorpShareholders(
     // Replace the 4 <w:t> text runs in order: name, shares, $contribution, pct%.
     // Stricter than `<w:t[^>]*>` so we don't accidentally match <w:tc>/<w:tr>/etc.
     const overflow = extraOwners.map((owner) => {
-      const shares = Math.round((owner.shares_or_percentage / 100) * totalShares);
+      const shares = sharesOf(owner, totalShares);
       const pct = ((shares / totalShares) * 100).toFixed(2);
       const cellTexts = [
         xmlEscape(owner.full_name),
@@ -2378,7 +2520,7 @@ function addExtraCorpShareholders(
       `</w:p>`;
     const extraSigs = extraOwners
       .map((owner) => {
-        const pct = ((Math.round((owner.shares_or_percentage / 100) * totalShares) / totalShares) * 100).toFixed(2);
+        const pct = ((sharesOf(owner, totalShares) / totalShares) * 100).toFixed(2);
         return `</w:t></w:r></w:p>` +
           sepPara +
           buildFormattedParagraph(`By: ______________________`, corpSigFmt.pPr, labelRPr) +
@@ -2482,6 +2624,16 @@ function applyCorpVotingReplacements(
     {
       find: "Majority vote of the Shareholders at a meeting",
       replace: `${VT("officer_removal_voting")} vote of the Shareholders at a meeting`,
+    },
+    // …and the same removal by written consent in the same sentence
+    {
+      find: "or by the written consent of a Majority of the",
+      replace: `or by the written consent of a ${VT("officer_removal_voting")} of the`,
+    },
+    // §13.3 Approved Sale (drag/tag) is the sale of the company (§9.1, §10.1)
+    {
+      find: "such sale has been approved by a Majority of the Shareholders",
+      replace: `such sale has been approved by a ${VT("sale_of_company_voting")} of the Shareholders`,
     },
     // Sec 13.8 (Failure to Purchase / Corp) — TWO anchors that approve a new
     // shareholder (post-divorce / post-failure-to-purchase third-party sale +
@@ -2954,10 +3106,11 @@ function removeCorpConditionalSections(
       "The Transferor shall deliver a notice",
       "Concurrence or Acceptance.  The Offerees shall respond",
       "In the event that a Shareholder has elected to sell its Shares",
-      // RoFR consummation step. Precise anchor — a bare "Bona Fide Offer" match
-      // also hit the §13.2 Deadlock buy-sell paragraph (which prices off a Bona
-      // Fide Offer), silently deleting the shotgun provision when RoFR was off.
-      "If a Bona Fide Offer (as defined above) has been accepted by the Acquired Shareholder",
+      // NOT "If a Bona Fide Offer (as defined above) has been accepted by the
+      // Acquired Shareholder…": that sentence occurs once in the template and
+      // it is item (i) of the Deadlock buy-sell (the 25% discount), not a RoFR
+      // step. Stripping it here deleted half the shotgun clause whenever RoFR
+      // was off.
     ]);
     // NOTE: the Deadlock buy-sell ("Purchase of Shareholder Interests upon
     // Deadlock") is INDEPENDENT of RoFR and must survive — it used to be in the
@@ -3018,18 +3171,12 @@ function removeCorpConditionalSections(
     ]);
   }
 
-  // If ARTICLE XIII ends up with NO §X.Y subsections (rofr=F drag=F
-  // tag=F), the heading itself is purposeless — remove "ARTICLE XIII:
-  // TRANSFERS AND ASSIGNMENTS" entirely.
-  if (
-    !answers.right_of_first_refusal &&
-    !answers.drag_along &&
-    !answers.tag_along
-  ) {
-    xml = removeXmlParagraphsContaining(xml, [
-      "ARTICLE XIII: TRANSFERS AND ASSIGNMENTS",
-    ]);
-  }
+  // ARTICLE XIII is never empty: the Deadlock buy-sell ("Purchase of
+  // Shareholder Interests upon Deadlock") is independent of RoFR/drag/tag and
+  // always survives. Removing the heading when those three were off left the
+  // Deadlock section numbered 12.2 under "ARTICLE XII: REMOVAL OF OFFICERS AND
+  // DIRECTORS" and shifted every later article reference (9.2.B "Section 14"
+  // landed on MISCELLANEOUS). Keep the heading.
 
   // Non-compete: insert "Covenant Against Competition" at the end of Article 10
   // and let the downstream renumberAndRemapSubsections pass assign the correct
@@ -5185,19 +5332,35 @@ function closeArticleXIIIGap(xml: string): string {
   if (xml.includes("ARTICLE XIII:")) return xml;
   if (!xml.includes("ARTICLE XIV:") || !xml.includes("ARTICLE XV:")) return xml;
 
-  // Operate on text content of <w:t> runs to avoid mangling XML structure.
-  return xml.replace(/<w:t[^>]*>([^<]*)<\/w:t>/g, (full, text) => {
-    let t = text;
-    // Article-level (do XV first so we don't double-shift)
-    t = t.replace(/ARTICLE XV\b/g, "\u0000ARTXIV\u0000");
-    t = t.replace(/ARTICLE XIV\b/g, "ARTICLE XIII");
-    t = t.replace(/\u0000ARTXIV\u0000/g, "ARTICLE XIV");
-    // Section-level §14.N / §15.N (in headings AND any cross-refs).
-    // Do 15→14 first via sentinel so we don't shift twice.
-    t = t.replace(/(?<!\d)15\.(\d+)/g, "15.$1");
-    t = t.replace(/(?<!\d)14\.(\d+)/g, (_m: string, n: string) => `13.${n}`);
-    t = t.replace(/15\.(\d+)/g, (_m: string, n: string) => `14.${n}`);
-    return full.replace(text, t);
+  // 1. References INTO the removed Article XIII (Transfers / RoFR) have no
+  //    target any more: drop the qualifying phrase rather than let it point
+  //    at whatever article becomes XIII (Death/Incapacity) after the shift.
+  xml = xmlTextReplace(xml, "Subject to the terms and conditions of Section 13 below, persons", "Persons", true);
+  xml = xmlTextReplace(xml, "Subject to Section 13 below, persons", "Persons", true);
+  xml = xmlTextReplace(xml, " and pursuant to Section 13 above", "", true);
+  xml = xmlTextReplace(xml, " per Section 13 below", "", true);
+
+  // 2. Shift XIV→XIII and XV→XIV in ONE pass (no double shift). Only real
+  //    section/article numbers are touched: a heading number at the start of
+  //    a run, or a number after "Section(s)/Paragraph(s)/§/Article(s)".
+  //    Amounts and percentages ("$1,415.00", "15.00%") must never change —
+  //    the previous version rewrote every "15.x" and printed a 15% owner as
+  //    "14.00%".
+  const shift = (n: string) => (n === "14" ? "13" : n === "15" ? "14" : n);
+  const shiftSec = (s: string) => s.replace(/\b(1[45])\.(\d{1,2})\b/g, (_m, a: string, b: string) => `${shift(a)}.${b}`);
+  return xml.replace(/<w:t([^>]*)>([^<]*)<\/w:t>/g, (full, attrs: string, text: string) => {
+    let t = text
+      .replace(/ARTICLE (XIV|XV)\b/g, (_m, r: string) => `ARTICLE ${r === "XV" ? "XIV" : "XIII"}`)
+      // heading number alone or leading its run: "14.3", "14.3\t", "14.3 Title"
+      .replace(/^(\s*)(1[45]\.\d{1,2})(?=\s|$)/, (_m, ws: string, sec: string) => ws + shiftSec(sec))
+      // cross-references, including lists/ranges: "Sections 14.2 and 14.5", "§15.1-15.3"
+      .replace(
+        /\b(Sections?|Paragraphs?|paragraphs?|§)(\s*)(1[45]\.\d{1,2})((?:\s*(?:,|-|–|through|to|and)\s*1[45]\.\d{1,2})*)(?![\d%])/g,
+        (_m, w: string, sp: string, first: string, rest: string) => `${w}${sp}${shiftSec(first)}${shiftSec(rest)}`,
+      )
+      // whole-article references: "Section 14 below", "Article 15"
+      .replace(/\b(Sections?|Articles?)\s+(1[45])\b(?!\.\d)/g, (_m, w: string, n: string) => `${w} ${shift(n)}`);
+    return t === text ? full : `<w:t${attrs}>${t}</w:t>`;
   });
 }
 
@@ -6073,6 +6236,163 @@ function fixLabelBodySpacing(xml: string): string {
 }
 
 /**
+ * Whitespace-only paragraphs right before a paragraph that forces a page
+ * break (pageBreakBefore — the signature page) do nothing useful, but when
+ * the preceding line ends a page they spill onto a page of their own and the
+ * forced break then adds another: a blank page before the signatures.
+ */
+function stripBlankParagraphsBeforePageBreak(xml: string): string {
+  const PB = /<w:pageBreakBefore(?: w:val="(?:1|true|on)")?\s*\/>/;
+  let changed = true;
+  while (changed) {
+    changed = false;
+    xml = xml.replace(/(<w:p[ >](?:(?!<w:p[ >])[\s\S])*?<\/w:p>)(\s*)(<w:p[ >](?:(?!<w:p[ >])[\s\S])*?<\/w:p>)/g, (full, a: string, ws: string, b: string) => {
+      if (!PB.test(b)) return full;
+      const text = [...a.matchAll(/<w:t(?:>|\s[^>]*>)([^<]*)<\/w:t>/g)].map((m) => m[1]).join("");
+      if (text.trim() || /<w:(drawing|pict|br)\b/.test(a)) return full;
+      changed = true;
+      return b;
+    });
+  }
+  return xml;
+}
+
+/**
+ * LLC signature table is two columns (member 1 | member 2) and members 3-6
+ * were appended inside member 2's cell, so with 3+ members one block sat
+ * alone on the left and the rest stacked down the right. Re-lay every
+ * "By: ___ / Name: X" block into the grid in reading order —
+ * 1 | 2, 3 | 4, 5 | 6 — reusing the template's own row and cell properties.
+ */
+function layoutLLCSignatureGrid(xml: string): string {
+  const witness = xml.indexOf("IN WITNESS");
+  if (witness < 0) return xml;
+  const tStart = xml.indexOf("<w:tbl>", witness);
+  const tEnd = xml.indexOf("</w:tbl>", tStart);
+  if (tStart < 0 || tEnd < 0) return xml;
+  const table = xml.slice(tStart, tEnd + "</w:tbl>".length);
+  if (!table.includes("Name:")) return xml;
+
+  const paras = table.match(/<w:p[ >][\s\S]*?<\/w:p>/g) || [];
+  const textOf = (p: string) => [...p.matchAll(/<w:t(?:>|\s[^>]*>)([^<]*)<\/w:t>/g)].map((m) => m[1]).join("");
+  const blocks: string[] = [];
+  for (let i = 0; i < paras.length - 1; i++) {
+    if (/^\s*By:/.test(textOf(paras[i]!)) && /^\s*Name:/.test(textOf(paras[i + 1]!))) {
+      blocks.push(paras[i]! + paras[i + 1]!);
+      i++;
+    }
+  }
+  if (blocks.length <= 2) return xml;                    // template layout is already right
+
+  const firstRow = /<w:tr[ >][\s\S]*?<\/w:tr>/.exec(table)?.[0];
+  if (!firstRow) return xml;
+  const trPr = (/<w:trPr>[\s\S]*?<\/w:trPr>/.exec(firstRow) || [""])[0];
+  const tcPr = (/<w:tcPr>[\s\S]*?<\/w:tcPr>/.exec(firstRow) || [""])[0];
+  const spacer = '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r></w:r></w:p>';
+  const cell = (block?: string) =>
+    // An empty cell still needs a paragraph; avoid self-closing <w:p/>, which
+    // later regex passes read as an opening tag.
+    `<w:tc>${tcPr}${block ? block + spacer + spacer : spacer}</w:tc>`;
+  let rows = "";
+  for (let r = 0; r < blocks.length; r += 2) rows += `<w:tr>${trPr}${cell(blocks[r])}${cell(blocks[r + 1])}</w:tr>`;
+
+  // End of the OUTER grid: the template nests
+  // <w:tblGridChange><w:tblGrid>…</w:tblGrid></w:tblGridChange> inside it,
+  // so the first "</w:tblGrid>" is the inner one.
+  const firstRowAt = table.search(/<w:tr[ >]/);
+  const gridEnd = table.lastIndexOf("</w:tblGrid>", firstRowAt) + "</w:tblGrid>".length;
+  const rebuilt = table.slice(0, gridEnd) + rows + "</w:tbl>";
+  return xml.slice(0, tStart) + rebuilt + xml.slice(tEnd + "</w:tbl>".length);
+}
+
+/**
+ * "19.8 Super Majority Defined." is inserted as one plain run, so it rendered
+ * flush left with no tab, no underlined caption and no separator — unlike
+ * every sibling. Rebuild it on the mould of the next section heading
+ * (19.9 INDEMNIFICATION): same pPr, "<tab>N.M<tab>" number run, underlined
+ * caption run, body run, and the same empty separator paragraph before it.
+ */
+function formatSuperMajorityDefinition(xml: string): string {
+  const paras = xml.match(/<w:p[ >][\s\S]*?<\/w:p>/g) || [];
+  const textOf = (p: string) => [...p.matchAll(/<w:t(?:>|\s[^>]*>)([^<]*)<\/w:t>/g)].map((m) => m[1]).join("");
+  const idx = paras.findIndex((p) => /^\s*\d+\.\d+ Super Majority Defined\. /.test(textOf(p)));
+  if (idx < 0) return xml;
+  const target = paras[idx];
+  const m = /^\s*(\d+\.\d+) Super Majority Defined\. ([\s\S]*)$/.exec(textOf(target))!;
+  // next numbered section heading = the mould
+  const mouldIdx = paras.findIndex((p, k) => k > idx && /^\s*\d+\.\d+\s*[A-Z]/.test(textOf(p)));
+  if (mouldIdx < 0) return xml;
+  const mould = paras[mouldIdx];
+  const pPr = (/<w:pPr>[\s\S]*?<\/w:pPr>/.exec(mould) || [""])[0];
+  const runs = mould.match(/<w:r>[\s\S]*?<\/w:r>|<w:r [\s\S]*?<\/w:r>/g) || [];
+  const [numMould = "", captionMould = ""] = runs;
+  if (!numMould || !captionMould) return xml;
+  const rPrOf = (r: string) => (/<w:rPr>[\s\S]*?<\/w:rPr>/.exec(r) || [""])[0];
+  const numRun = numMould.replace(/(<w:t[^>]*>)\s*\d+\.\d+\s*(<\/w:t>)/, `$1${m[1]}$2`);
+  const captionRun = `<w:r>${rPrOf(captionMould)}<w:t xml:space="preserve">Super Majority Defined</w:t></w:r>`;
+  const bodyRun = `<w:r>${rPrOf(numMould)}<w:t xml:space="preserve">.  ${m[2]}</w:t></w:r>`;
+  const rebuilt = `<w:p>${pPr}${numRun}${captionRun}${bodyRun}</w:p>`;
+  // separator: reuse the empty paragraph that precedes the mould, if any
+  const sep = mouldIdx > 0 && !textOf(paras[mouldIdx - 1]).trim() ? paras[mouldIdx - 1] : "";
+  const needSep = sep && textOf(paras[idx - 1] || "x").trim() !== "";
+  return xml.replace(target, (needSep ? sep : "") + rebuilt);
+}
+
+/**
+ * §8 "Any tender offer to acquire at least a 50.01% MPI … shall be governed by
+ * Paragraph 12.9 below." refers to the Approved Sale / drag-along section.
+ * Point it at that section's actual number; when drag/tag is off the section
+ * does not exist, so drop the sentence instead of leaving it pointing at
+ * whatever section took the number (it landed on "Deadlock").
+ */
+function fixTenderOfferReference(xml: string): string {
+  let target: string | null = null;
+  for (const p of xml.match(/<w:p[ >][\s\S]*?<\/w:p>/g) || []) {
+    const text = [...p.matchAll(/<w:t(?:>|\s[^>]*>)([^<]*)<\/w:t>/g)].map((m) => m[1]).join("").trim();
+    const m = /^(\d+\.\d+)(?!\d)/.exec(text);   // text has no tabs: "12.9In the event…" — no \b after the number
+    if (m && /Majority Selling Members/.test(text)) { target = m[1]; break; }
+  }
+  return xml.replace(/<w:p[ >][\s\S]*?<\/w:p>/g, (para) => {
+    if (!/tender offer/.test(para)) return para;
+    const text = [...para.matchAll(/<w:t(?:>|\s[^>]*>)([^<]*)<\/w:t>/g)].map((m) => m[1]).join("");
+    const m = /\s*Any tender offer to acquire.*?governed by Paragraph (\d+\.\d+) below\./.exec(text);
+    if (!m) return para;
+    return target
+      ? xmlTextReplace(para, `Paragraph ${m[1]} below.`, `Paragraph ${target} below.`)
+      : xmlTextReplace(para, m[0], "");
+  });
+}
+
+/**
+ * §11.10.D severability ("covenants included in Section 11.10-11.12") is
+ * hard-coded in the template, but the covenant block moves: non-compete and
+ * non-solicitation are inserted after it, and non-disclosure can be removed.
+ * Recompute the range from the covenant sections actually present, after
+ * all renumbering.
+ */
+function fixCovenantSeverabilityRange(xml: string): string {
+  const COVENANT = /^(\d+)\.(\d+)\s*(Non-disclosure|Intellectual Property|Non-competition|Non-Disparagement|Non-Solicitation)/i;
+  const nums: Array<[number, number]> = [];
+  for (const p of xml.match(/<w:p[ >][\s\S]*?<\/w:p>/g) || []) {
+    const text = [...p.matchAll(/<w:t(?:>|\s[^>]*>)([^<]*)<\/w:t>/g)].map((m) => m[1]).join("").trim();
+    const m = COVENANT.exec(text);
+    if (m) nums.push([+m[1], +m[2]]);
+  }
+  if (!nums.length) return xml;
+  const art = nums[0][0];
+  const subs = nums.filter(([a]) => a === art).map(([, b]) => b);
+  const range = `${art}.${Math.min(...subs)}-${art}.${Math.max(...subs)}`;
+  // The range is usually split across runs ("11.10", "-", "11.12"), so find
+  // it in the paragraph TEXT and replace through xmlTextReplace.
+  for (const p of xml.match(/<w:p[ >][\s\S]*?<\/w:p>/g) || []) {
+    const text = [...p.matchAll(/<w:t(?:>|\s[^>]*>)([^<]*)<\/w:t>/g)].map((m) => m[1]).join("");
+    const m = /covenants included in Section (\d+\.\d+\s*[-–]\s*\d+\.\d+)/.exec(text);
+    if (m && m[1] !== range) xml = xml.replace(p, xmlTextReplace(p, m[1], range, false));
+  }
+  return xml;
+}
+
+/**
  * Companion to fixLabelBodySpacing for labels that share a <w:t> with their
  * body, so the run-pair check above never sees them. Siblings use
  * LABEL<tab>Body; these shipped as:
@@ -6089,6 +6409,7 @@ function tabAfterInlineLabels(xml: string): string {
   const glued = new RegExp(String.raw`^\s*(${LABEL})(?=[A-Za-z])`);
   const romanSpaced = new RegExp(String.raw`^\s*(${ROMAN})[ \u00a0]+(?=\S)`);
   const romanAlone = new RegExp(String.raw`^\s*(${ROMAN})\s*$`);
+  const labelAlone = new RegExp(String.raw`^\s*([A-Z]\.|${ROMAN})\s*$`);
   const TAB_THEN_T = '<w:tab/><w:t xml:space="preserve">';
 
   return xml.replace(/<w:p\b[^>]*>[\s\S]*?<\/w:p>/g, (para) => {
@@ -6110,18 +6431,21 @@ function tabAfterInlineLabels(xml: string): string {
     if (g) {
       return splice(`<w:t xml:space="preserve">${g[1]}</w:t>${TAB_THEN_T}${rest(g[0].length)}${m[3]}`);
     }
-    g = romanAlone.exec(text);
+    g = labelAlone.exec(text);
     if (g) {
       const tail = para.slice(m.index + m[0].length);
-      // " i." + <w:tab/> + " The…" → "i." + <w:tab/> + "The…"
-      const t2 = /^(<w:tab\/>)(<w:t[^>]*>)[  ]+/.exec(tail);
+      // " A." / "A. " + <w:tab/> + " Member Meetings" -> "A." + <w:tab/> + "Member Meetings".
+      // The caption is often in the NEXT run (underlined), so allow a run
+      // boundary between the tab and the text.
+      const t2 = /^(<w:tab\/>)((?:<\/w:r>\s*<w:r(?:\s[^>]*)?>\s*(?:<w:rPr>[\s\S]*?<\/w:rPr>)?\s*)?<w:t[^>]*>)[  ]+/.exec(tail);
       if (t2) {
         return splice(`<w:t xml:space="preserve">${g[1]}</w:t>`, t2[1] + t2[2] + tail.slice(t2[0].length));
       }
-      // "i." alone in its run, body in the next run starting with a space
-      // (§12.9 "i." + " Drag Along") → "i." + <w:tab/>, space trimmed.
+      // Roman label alone in its run, body in the next run starting with a
+      // space (§12.9 "i." + " Drag Along") -> "i." + <w:tab/>, space trimmed.
+      // Letter labels without a tab keep their "A. Offer" spacing style.
       const next = /(<w:t[^>]*>)[  ]+(?=\S)/.exec(tail);
-      if (next && !/<w:tab\/>/.test(tail.slice(0, next.index))) {
+      if (romanAlone.test(text) && next && !/<w:tab\/>/.test(tail.slice(0, next.index))) {
         const fixedTail = tail.slice(0, next.index) + next[1] + tail.slice(next.index + next[0].length);
         return splice(`<w:t xml:space="preserve">${g[1]}</w:t><w:tab/>`, fixedTail);
       }
@@ -6524,6 +6848,64 @@ function splitCombinedNameTitleParagraph(xml: string): string {
  * heading → intro → empty → table only stays glued if every link
  * carries keepNext.
  */
+/**
+ * "[SIGNATURE PAGE TO FOLLOW]" / "[SIGNATURE PAGE BELOW]" must not end up
+ * alone on a page, and the last clause (the jury waiver) must not leave a
+ * single line behind: keep the paragraphs before it (through any empty
+ * separators, up to the first one with text) on the same page as the line,
+ * and keep that paragraph's own lines together.
+ */
+function keepClosingLineWithLastClause(xml: string): string {
+  // Paragraphs with their offsets: empty paragraphs are often byte-identical,
+  // so edits must go by position, not by string search.
+  const paras = [...xml.matchAll(/<w:p[ >][\s\S]*?<\/w:p>/g)].map((m) => ({ at: m.index!, xml: m[0] }));
+  const textOf = (p: string) => [...p.matchAll(/<w:t(?:>|\s[^>]*>)([^<]*)<\/w:t>/g)].map((m) => m[1]).join("").trim();
+  const idx = paras.findIndex((p) => /^\[SIGNATURE PAGE/i.test(textOf(p.xml)));
+  if (idx <= 0) return xml;
+  const addProps = (p: string, withLines: boolean) => {
+    let q = p.replace(/<w:keepNext\s+w:val="0"\s*\/>/, "");
+    const props = (/<w:keepNext(?:\s+w:val="(?:1|true|on)")?\s*\/>/.test(q) ? "" : "<w:keepNext/>") +
+      (withLines && !/<w:keepLines(?:\s+w:val="(?:1|true|on)")?\s*\/>/.test(q) ? "<w:keepLines/>" : "");
+    if (!props) return q;
+    if (withLines) q = q.replace(/<w:keepLines\s+w:val="0"\s*\/>/, "");
+    return /<w:pPr>/.test(q) ? q.replace("<w:pPr>", `<w:pPr>${props}`) : q.replace(/^(<w:p[^>]*>)/, `$1<w:pPr>${props}</w:pPr>`);
+  };
+  // Walk back from the closing line; edit from the highest offset down so the
+  // earlier offsets stay valid.
+  for (let k = idx - 1; k >= 0 && k >= idx - 4; k--) {
+    const p = paras[k]!;
+    const hasText = textOf(p.xml) !== "";
+    xml = xml.slice(0, p.at) + addProps(p.xml, hasText) + xml.slice(p.at + p.xml.length);
+    if (hasText) break;
+  }
+  return xml;
+}
+
+/**
+ * Keep small tables (capital contributions, MPI, shares — at most 8 rows) on
+ * one page: every paragraph in every row except the last gets keepNext. The
+ * MPI table used to break after its first row with the rest on the next page.
+ */
+function keepSmallTablesTogether(xml: string): string {
+  return xml.replace(/<w:tbl>[\s\S]*?<\/w:tbl>/g, (tbl) => {
+    const rows = tbl.match(/<w:tr[ >][\s\S]*?<\/w:tr>/g) || [];
+    if (rows.length < 2 || rows.length > 8) return tbl;
+    let out = tbl;
+    for (const row of rows.slice(0, -1)) {
+      const kept = row.replace(/<w:p([ >])([\s\S]*?)<\/w:p>/g, (p, sp: string, body: string) => {
+        if (/<w:keepNext(?:\s+w:val="(?:1|true|on)")?\s*\/>/.test(body)) return p;
+        if (/<w:pPr>/.test(body)) return `<w:p${sp}${body.replace(/<w:keepNext\s+w:val="0"\s*\/>/, "").replace("<w:pPr>", "<w:pPr><w:keepNext/>")}</w:p>`;
+        // no pPr: insert one right after the <w:p …> start tag
+        const close = body.indexOf(">");
+        return sp === ">" ? `<w:p><w:pPr><w:keepNext/></w:pPr>${body}</w:p>`
+          : `<w:p${sp}${body.slice(0, close + 1)}<w:pPr><w:keepNext/></w:pPr>${body.slice(close + 1)}</w:p>`;
+      });
+      out = out.replace(row, kept);
+    }
+    return out;
+  });
+}
+
 function forceKeepNextBeforeTables(xml: string): string {
   // Collect all <w:tbl> offsets first (so subsequent splices don't shift
   // the regex iterator), then process in REVERSE so earlier splices don't
@@ -6533,25 +6915,45 @@ function forceKeepNextBeforeTables(xml: string): string {
   let m: RegExpExecArray | null;
   while ((m = tblRe.exec(xml))) offsets.push(m.index);
 
+  // Chain keepNext from the table back through any empty separator
+  // paragraphs up to and INCLUDING the paragraph that introduces the table
+  // ("…is as follows:"). Marking only the empty spacer right above the table
+  // still let the intro sentence/heading end a page with its table on the
+  // next (Corp §4.2, §10.6 officers list).
   for (let i = offsets.length - 1; i >= 0; i--) {
-    const tblOffset = offsets[i];
-    const pClose = xml.lastIndexOf("</w:p>", tblOffset);
-    if (pClose < 0) continue;
-    const pStart = paragraphStartBefore(xml, pClose);
-    if (pStart < 0) continue;
-    const para = xml.substring(pStart, pClose + "</w:p>".length);
-    if (/<w:keepNext(?:\s+w:val="1")?\s*\/>/.test(para)) continue;
-
-    let fixed = para;
-    if (/<w:keepNext\s+w:val="0"\s*\/>/.test(fixed)) {
-      fixed = fixed.replace(/<w:keepNext\s+w:val="0"\s*\/>/, "<w:keepNext/>");
-    } else if (/<w:pPr>/.test(fixed)) {
-      fixed = fixed.replace(/<w:pPr>/, "<w:pPr><w:keepNext/>");
-    } else {
-      fixed = fixed.replace(/(<w:p\b[^>]*>)/, "$1<w:pPr><w:keepNext/></w:pPr>");
-    }
-    if (fixed !== para) {
-      xml = xml.substring(0, pStart) + fixed + xml.substring(pClose + "</w:p>".length);
+    let end = offsets[i];
+    for (let hop = 0; hop < 4; hop++) {
+      const pClose = xml.lastIndexOf("</w:p>", end);
+      if (pClose < 0) break;
+      const pStart = paragraphStartBefore(xml, pClose);
+      if (pStart < 0) break;
+      // Stop at a table boundary: the previous block is another table.
+      if (xml.lastIndexOf("</w:tbl>", end) > pClose) break;
+      const para = xml.substring(pStart, pClose + "</w:p>".length);
+      let fixed = para;
+      if (!/<w:keepNext(?:\s+w:val="1")?\s*\/>/.test(para)) {
+        if (/<w:keepNext\s+w:val="0"\s*\/>/.test(fixed)) {
+          fixed = fixed.replace(/<w:keepNext\s+w:val="0"\s*\/>/, "<w:keepNext/>");
+        } else if (/<w:pPr>/.test(fixed)) {
+          fixed = fixed.replace(/<w:pPr>/, "<w:pPr><w:keepNext/>");
+        } else {
+          fixed = fixed.replace(/(<w:p\b[^>]*>)/, "$1<w:pPr><w:keepNext/></w:pPr>");
+        }
+        xml = xml.substring(0, pStart) + fixed + xml.substring(pClose + "</w:p>".length);
+      }
+      const hasText = /<w:t(?:>|\s[^>]*>)[^<]*\S[^<]*<\/w:t>/.test(para);
+      if (hasText) {
+        // The intro paragraph itself must not split across pages either
+        // (Corp §4.2: heading line left at the foot of a page, "…as follows:"
+        // and the table on the next).
+        const now = xml.substring(pStart, xml.indexOf("</w:p>", pStart) + "</w:p>".length);
+        if (!/<w:keepLines(?:\s+w:val="(?:1|true|on)")?\s*\/>/.test(now)) {
+          const kept = now.replace(/<w:keepLines\s+w:val="0"\s*\/>/, "").replace(/<w:pPr>/, "<w:pPr><w:keepLines/>");
+          xml = xml.substring(0, pStart) + kept + xml.substring(pStart + now.length);
+        }
+        break;                         // reached the intro paragraph
+      }
+      end = pStart;
     }
   }
   return xml;
@@ -7065,7 +7467,8 @@ function rewriteSignatureOwnerLabel(
     // owner's full name, then the very next <w:p> after it.
     const pattern = new RegExp(
       `(<w:p\\b[^>]*>[\\s\\S]*?Name:[\\s\\S]*?` +
-        owner.full_name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") +
+        // Names are stored escaped in document.xml (O'Connor -> O&apos;Connor).
+        xmlEscape(owner.full_name).replace(/[.*+?^${}()|[\]\\]/g, "\\$&") +
         `[\\s\\S]*?</w:p>)([\\s\\S]*?)` +
         `(<w:p\\b[^>]*>[\\s\\S]*?</w:p>)`,
     );
@@ -7087,7 +7490,7 @@ function rewriteSignatureOwnerLabel(
       // Two spaces after the colon match the template's "Name:  " format.
       const rewritten = nextPara.replace(
         /<w:t[^>]*>[^<]*<\/w:t>/,
-        `<w:t xml:space="preserve">Title:  ${title}</w:t>`,
+        `<w:t xml:space="preserve">Title:  ${xmlEscape(title)}</w:t>`,
       );
       xml = xml.replace(pattern, `$1$2${rewritten}`);
     } else {
@@ -8051,6 +8454,16 @@ function closeParagraphAndInsert(text: string, pPr: string, rPr: string): string
  * the text we're looking for might span multiple <w:t> elements
  * within the same paragraph.
  */
+/** xmlTextReplace (all occurrences) restricted to paragraphs whose text
+ *  contains `anchor` — for template placeholders whose literal value can
+ *  also occur legitimately elsewhere in the document. */
+function xmlTextReplaceInParagraphsContaining(xml: string, anchor: string, find: string, replace: string): string {
+  return xml.replace(/<w:p[ >][\s\S]*?<\/w:p>/g, (para) => {
+    const text = [...para.matchAll(/<w:t(?:>|\s[^>]*>)([^<]*)<\/w:t>/g)].map((m) => m[1]).join("");
+    return text.includes(anchor) && text.includes(find) ? xmlTextReplace(para, find, replace, true) : para;
+  });
+}
+
 function xmlTextReplace(
   xml: string,
   find: string,
