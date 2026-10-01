@@ -1,6 +1,6 @@
 {
  "table": "Formations",
- "fetched": "2026-09-17",
+ "fetched": "2026-10-01",
  "note": "Refresh with: npx tsx scripts/test-airtable-columns.ts --refresh (needs AIRTABLE_API_KEY in .env.local)",
  "columns": [
   "2848 URL",
@@ -9,6 +9,7 @@
   "Articles of organization LLC  URL",
   "Auto-File Enabled",
   "Autofill",
+  "Autofill Attempts",
   "Business Phone",
   "Business Purpose",
   "Bylaws URL",
@@ -77,6 +78,7 @@
   "Directors Count",
   "Entity Type",
   "Filing Images",
+  "Filing Video",
   "Formation State",
   "Formation Status",
   "Forward Phone",
@@ -491,6 +493,7 @@
   "Stripe Payment ID",
   "Total Payment Amount",
   "Vault Path",
+  "Virtual Office Used",
   "Want Agreement"
  ]
 }

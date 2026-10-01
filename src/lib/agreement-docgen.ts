@@ -377,6 +377,8 @@ function generateLLC(answers: QuestionnaireAnswers): Buffer {
   xml = forceKeepNextBeforeTables(xml);
   xml = keepSmallTablesTogether(xml);
   xml = keepClosingLineWithLastClause(xml);
+  xml = keepTitleHeadingsWithBody(xml);
+  xml = stripTrailingLineBreaks(xml);
   xml = repairXml(xml);
 
   renderedZip.file("word/document.xml", xml);
@@ -652,6 +654,17 @@ function serialNamesKeepingRuns(xml: string, anchor: string, names: string[]): s
     const text = runText(para);
     if (!text.includes(anchor) || !text.includes(`${n1} and ${n2}`)) continue;
     const runs = para.match(/<w:r(?:\s[^>]*)?>[\s\S]*?<\/w:r>/g) || [];
+    // Shape B (§11.1.D): "n1" | (empty runs) | " and n2 " — the connector and
+    // the second name share one formatted run. Extend that run in place, so
+    // the extra names carry the same (underlined) formatting as the template.
+    const textRuns = runs.filter((r) => runText(r) !== "");
+    for (let i = 0; i + 1 < textRuns.length; i++) {
+      const t2 = runText(textRuns[i + 1]!);
+      if (runText(textRuns[i]!).trim() !== n1 || t2.trim() !== `and ${n2}`) continue;
+      const trail = /\s*$/.exec(t2)![0];
+      const list = `, ${n2}` + names.slice(2).map((nm, k, arr) => `${k === arr.length - 1 ? ", and " : ", "}${nm}`).join("") + trail;
+      return xml.replace(para, para.replace(textRuns[i + 1]!, setText(textRuns[i + 1]!, list)));
+    }
     for (let i = 0; i + 2 < runs.length; i++) {
       if (runText(runs[i]!).trim() !== n1 || runText(runs[i + 1]!).trim() !== "and" || runText(runs[i + 2]!).trim() !== n2) continue;
       const name2Run = runs[i + 2]!;
@@ -2329,6 +2342,8 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   xml = forceKeepNextBeforeTables(xml);
   xml = keepSmallTablesTogether(xml);
   xml = keepClosingLineWithLastClause(xml);
+  xml = keepTitleHeadingsWithBody(xml);
+  xml = stripTrailingLineBreaks(xml);
   xml = repairXml(xml);
 
   renderedZip.file("word/document.xml", xml);
@@ -6877,6 +6892,53 @@ function keepClosingLineWithLastClause(xml: string): string {
     const hasText = textOf(p.xml) !== "";
     xml = xml.slice(0, p.at) + addProps(p.xml, hasText) + xml.slice(p.at + p.xml.length);
     if (hasText) break;
+  }
+  return xml;
+}
+
+/**
+ * A justified paragraph that ends with a manual line break (<w:br/>) stretches
+ * its last line across the full width ("INDUCEMENT   TO   THE   PARTIES'…" in
+ * the jury waiver). Drop line breaks that are the last thing in a paragraph.
+ */
+function stripTrailingLineBreaks(xml: string): string {
+  return xml.replace(/<w:p[ >][\s\S]*?<\/w:p>/g, (para) => {
+    let p = para, prev = "";
+    while (p !== prev) {
+      prev = p;
+      // a run whose only content is <w:br/> (optionally with rPr), followed only by empty runs, at paragraph end
+      p = p.replace(/<w:r(?:\s[^>]*)?>(?:<w:rPr>[\s\S]*?<\/w:rPr>)?\s*<w:br\/>\s*<\/w:r>((?:\s*<w:r(?:\s[^>]*)?>(?:<w:rPr>[\s\S]*?<\/w:rPr>)?\s*<\/w:r>)*\s*)<\/w:p>$/, "$1</w:p>");
+      // or a trailing <w:br/> at the end of the last text run
+      p = p.replace(/<w:br\/>(\s*<\/w:r>(?:\s*<w:r(?:\s[^>]*)?>(?:<w:rPr>[\s\S]*?<\/w:rPr>)?\s*<\/w:r>)*\s*<\/w:p>)$/, "$1");
+    }
+    return p;
+  });
+}
+
+/**
+ * Title-only headings ("8. Sale of Assets", "ARTICLE XIII: …") must stay on
+ * the page of the text they introduce: keepNext on the heading and on any
+ * empty separators between it and its body ("8. Sale of Assets" ended a page
+ * with §8 on the next).
+ */
+function keepTitleHeadingsWithBody(xml: string): string {
+  const paras = [...xml.matchAll(/<w:p[ >][\s\S]*?<\/w:p>/g)].map((m) => ({ at: m.index!, xml: m[0] }));
+  const textOf = (p: string) => [...p.matchAll(/<w:t(?:>|\s[^>]*>)([^<]*)<\/w:t>/g)].map((m) => m[1]).join("").trim();
+  // "8. Sale of Assets", "11.9 Meetings.", "11.10 Non-disclosure", "ARTICLE XIII: …"
+  const isTitle = (t: string) => t.length > 0 && t.length <= 80 &&
+    (/^\d{1,2}\.(?:\d{1,2})?\s*[A-Z][^.]*\.?$/.test(t) || /^ARTICLE [IVXL]+\b/.test(t));
+  const targets: number[] = [];
+  paras.forEach((p, i) => {
+    if (!isTitle(textOf(p.xml))) return;
+    targets.push(i);
+    for (let k = i + 1; k < paras.length && k <= i + 4 && !textOf(paras[k]!.xml); k++) targets.push(k);
+  });
+  for (const i of targets.sort((a, b) => b - a)) {
+    const p = paras[i]!;
+    if (/<w:keepNext(?:\s+w:val="(?:1|true|on)")?\s*\/>/.test(p.xml)) continue;
+    let q = p.xml.replace(/<w:keepNext\s+w:val="0"\s*\/>/, "");
+    q = /<w:pPr>/.test(q) ? q.replace("<w:pPr>", "<w:pPr><w:keepNext/>") : q.replace(/^(<w:p[^>]*>)/, "$1<w:pPr><w:keepNext/></w:pPr>");
+    xml = xml.slice(0, p.at) + q + xml.slice(p.at + p.xml.length);
   }
   return xml;
 }

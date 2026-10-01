@@ -32,6 +32,13 @@ async function one(f) {
       // Page k is the k-th page box counted from the top of the document;
       // pick the rendered box whose document offset matches it.
       const handle = await fr.evaluateHandle((k) => { const c = document.getElementById('WACContainer'); const stride = c.scrollHeight / Number(document.body.innerText.match(/Page \d+ of (\d+)/)[1]); const want = stride * k; let best = null, bd = 1e9; for (const el of c.querySelectorAll('.WACPageBorder')) { const docTop = el.getBoundingClientRect().top - c.getBoundingClientRect().top + c.scrollTop; const d = Math.abs(docTop - want); if (d < bd) { bd = d; best = el; } } return best; }, k);
+      // The viewer paints lazily: wait until this page box holds its text and
+      // the "Loading…" placeholder is gone, or the shot catches a blank page.
+      for (let t = 0; t < 30; t++) {
+        const ready = await handle.evaluate((el) => { const tx = el.innerText || ''; return tx.replace(/\s+/g, '').length > 40 && !/Loading/.test(tx) && !el.ownerDocument.querySelector('#WACContainer [class*="Loading"]:not([style*="none"])'); }).catch(() => false);
+        if (ready) break; await page.waitForTimeout(700);
+      }
+      await page.waitForTimeout(400);
       const box = await handle.asElement().boundingBox();
       await page.screenshot({ path: join(out, `p${String(k + 1).padStart(2, '0')}.png`), clip: { x: box.x, y: Math.max(0, box.y), width: box.width, height: Math.min(box.height, 1300 - Math.max(0, box.y)) } });
     }
@@ -39,5 +46,5 @@ async function one(f) {
   } finally { await ctx.close(); aws('s3', 'rm', `s3://avenida-legal-documents/${key}`); }
 }
 const queue = [...files];
-await Promise.all(Array.from({ length: 4 }, async () => { while (queue.length) { const f = queue.shift(); try { await one(f); } catch (e) { console.log('FAIL', f, e.message.slice(0, 120)); } } }));
+await Promise.all(Array.from({ length: 2 }, async () => { while (queue.length) { const f = queue.shift(); try { await one(f); } catch (e) { console.log('FAIL', f, e.message.slice(0, 120)); } } }));
 await browser.close();

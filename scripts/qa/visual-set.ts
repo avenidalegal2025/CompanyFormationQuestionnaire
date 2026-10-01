@@ -77,6 +77,8 @@ function payload(c: Cfg) {
   for (let k = 0; k < c.n; k++) { owners[k] = { fullName: NAMES[k], firstName: NAMES[k].split(" ")[0], lastName: NAMES[k].split(" ")[1], ownership: PCTS[c.n][k], ownershipPercentage: PCTS[c.n][k] }; d.agreement[`${capKey}${k}`] = String(10000 * (k + 1)); }
   for (let k = c.n; k < 6; k++) delete d.agreement[`${capKey}${k}`];
   d.owners = owners; d.ownersCount = c.n;
+  // The fixture's tax partner is not one of these owners; the form only offers owners.
+  d.agreement[isCorp ? "corp_taxOwner" : "llc_taxPartner"] = NAMES[0];
   if (isCorp) { d.admin = { ...(d.admin || {}) }; for (let k = 0; k < c.n; k++) d.admin[`shareholderOfficer${k + 1}Role`] = OFF[k]; for (let k = c.n; k < 6; k++) delete d.admin[`shareholderOfficer${k + 1}Role`]; }
   // voting
   const vkeys = isCorp ? VOTING_KEYS_CORP : VOTING_KEYS_LLC;
