@@ -21,6 +21,38 @@ from datetime import datetime
 # Set display for headless operation
 os.environ["DISPLAY"] = ":1"
 
+# Every invocation (the boot service, a manual run, an ad-hoc loop) must see the
+# same configuration. The systemd unit loads this file via EnvironmentFile, but a
+# hand-started process did not, and silently filed with placeholder RA values.
+# Existing environment variables win; the file only fills what is missing.
+ENV_FILE = os.environ.get("SUNBIZ_ENV_FILE", "/home/ubuntu/.airtable_env")
+
+
+def _load_env_file(path):
+    try:
+        with open(path) as fh:
+            for line in fh:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                if line.startswith("export "):
+                    line = line[len("export "):]
+                key, _, val = line.partition("=")
+                key, val = key.strip(), val.strip().strip('"').strip("'")
+                if key and key not in os.environ:
+                    os.environ[key] = val
+    except FileNotFoundError:
+        pass
+
+
+_load_env_file(ENV_FILE)
+
+# A rehearsal (DRY_RUN fills the form and stops before payment; TEST_CARD uses a
+# card that declines) is NOT a filing. It must never change a record's state —
+# otherwise it "completes" a real paid client with fake data and disarms them,
+# and the real filing never happens (incident 2026-09-30, PIRAGUA LLC).
+REHEARSAL = os.environ.get("DRY_RUN") == "1" or os.environ.get("TEST_CARD") == "1"
+
 from pyairtable import Api
 
 from filing_utils import (
@@ -28,6 +60,7 @@ from filing_utils import (
     stop_screen_recording,
     upload_filing_video,
     VIDEO_AIRTABLE_FIELD,
+    RA_ENV_VARS,
 )
 
 # Configuration - set these environment variables on EC2
@@ -153,7 +186,7 @@ def attach_filing_video(record_id, company_name, rec):
         path = stop_screen_recording(rec)
         url = upload_filing_video(path, company_name.replace(' ', '_'),
                                   dry_run=os.environ.get("DRY_RUN") == "1")
-        if url:
+        if url and not REHEARSAL:
             api = Api(AIRTABLE_API_KEY)
             table = api.table(AIRTABLE_BASE_ID, AIRTABLE_TABLE_NAME)
             table.update(record_id, {VIDEO_AIRTABLE_FIELD: url})
@@ -181,6 +214,23 @@ def process_records(records, dry_run=False):
             print(f"   Status: {record['fields'].get('Formation Status', 'N/A')}")
             print(f"   Email: {record['fields'].get('Customer Email', 'N/A')}")
             success += 1
+            continue
+
+        if REHEARSAL:
+            # Run the real browser flow, but leave the record exactly as found:
+            # still Pending, still armed, no attempt counted, no video link.
+            print(f"   🎭 REHEARSAL — record state will NOT be changed")
+            rec = start_screen_recording(company_name)
+            try:
+                ok = run_autofill(record_id)
+            finally:
+                attach_filing_video(record_id, company_name, rec)
+            outcome = "✅ Rehearsal finished" if ok else "⚠️ Rehearsal failed"
+            print(f"[{timestamp}] {outcome}: {company_name} (record untouched)")
+            if ok:
+                success += 1
+            else:
+                failed += 1
             continue
 
         try:
@@ -269,8 +319,44 @@ def watch_loop():
             time.sleep(60)
 
 
+def acquire_single_instance_lock():
+    """Only one watcher may run at a time. A forgotten loop (2026-06-30 ->
+    2026-09-30) raced the boot service and grabbed every paid record first."""
+    try:
+        import fcntl
+    except ImportError:  # not Linux (local dev) — nothing to guard against
+        return None
+    lock_path = os.environ.get("SUNBIZ_LOCK_FILE", "/tmp/sunbiz-autofill.lock")
+    # Read-only + world-readable: flock works on a read fd, and a lock file
+    # created by root stays usable by ubuntu (sticky /tmp blocks write-opens).
+    try:
+        fd = os.open(lock_path, os.O_RDONLY)
+    except FileNotFoundError:
+        fd = os.open(lock_path, os.O_RDONLY | os.O_CREAT, 0o644)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        print(f"❌ Another autofill watcher is already running (lock {lock_path}). Exiting.")
+        sys.exit(3)
+    return fd  # keep it open for the life of the process
+
+
+def require_real_registered_agent():
+    """A live filing must never name the placeholder RA (JOHN DOE). Refuse to
+    start — before any record is touched, so everything stays armed."""
+    missing = [v for v in RA_ENV_VARS if not os.environ.get(v)]
+    if missing and not REHEARSAL:
+        print(f"❌ LIVE filing refused: Registered Agent not configured ({', '.join(missing)}). "
+              f"Set them in {ENV_FILE}. No records were touched.")
+        sys.exit(2)
+
+
 if __name__ == "__main__":
     args = sys.argv[1:]
+    _lock = acquire_single_instance_lock()
+    require_real_registered_agent()
+    if REHEARSAL:
+        print("🎭 REHEARSAL MODE (DRY_RUN/TEST_CARD) — Airtable records will not be modified")
 
     if "--dry-run" in args:
         run_once(dry_run=True)

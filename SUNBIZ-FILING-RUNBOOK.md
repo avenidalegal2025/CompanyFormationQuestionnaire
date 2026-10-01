@@ -77,16 +77,43 @@ record. Lesson from 2026-09-24: never launch a second manual (sudo) watcher run
 alongside the service — both record at once, and the orphaned one gets killed
 mid-write. One runner at a time.
 
+## Watcher safety rules (since 2026-09-30)
+
+`autofill_watcher.py` enforces these itself, however it is started:
+
+- **A rehearsal never changes a record.** With `DRY_RUN=1` or `TEST_CARD=1` in the
+  environment it runs the real browser flow and uploads the video, but does not set
+  `In Progress`, does not clear `Autofill`, does not count an attempt and does not
+  link the video. Before this, a rehearsal "completed" the record with fake data and
+  disarmed it, so the real filing never ran.
+- **One watcher at a time** (`flock` on `/tmp/sunbiz-autofill.lock`). A second
+  instance exits with code 3.
+- **No live filing with the placeholder Registered Agent.** If any `RA_*` variable
+  is missing and it is not a rehearsal, it exits with code 2 before touching any
+  record. Rehearsals may run without them (they use fake data).
+- **It loads `/home/ubuntu/.airtable_env` itself** (existing env vars win), so a
+  manual run sees the same config as `sunbiz-filing.service`.
+
+Incident that motivated this: a hand-started `/tmp/autofill_loop.sh` (root, since
+2026-06-30, `DRY_RUN=1` hard-coded, no RA env) polled every 15 s, took every paid
+record before the boot service, filed it on SunBiz as "ZZ QA DO NOT FILE LLC" and
+disarmed it. Stopped and renamed `.DISABLED_20260930` on 2026-09-30.
+Never start the watcher in a loop by hand; the boot service is the only runner.
+
+To watch a real record's rehearsal with its real data (stops before payment, record untouched):
+
+```bash
+sudo -u ubuntu bash -c 'cd /home/ubuntu/company-questionnaire;   DRY_RUN=1 REAL_DATA_DRY_RUN=1 DISPLAY=:1 python3 filing_dispatcher.py <record_id>'
+```
+
 ## If the watcher stalls
 
 Manual run for one record (safe to repeat; the form is idempotent until payment):
 
 ```bash
-sudo systemctl stop autofill-watcher
 sudo -u ubuntu bash -c 'cd /home/ubuntu/company-questionnaire; set -a; \
   source /home/ubuntu/.airtable_env; set +a; \
   DISPLAY=:1 python3 filing_dispatcher.py <record_id>'
-sudo systemctl start autofill-watcher
 ```
 
 Dry-run (never pays, never files; add `REAL_DATA_DRY_RUN=1` to see real data in the form):
