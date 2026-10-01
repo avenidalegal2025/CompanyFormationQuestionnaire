@@ -28,9 +28,12 @@ export default function Checkout({ formData, onSuccess, onCancel, skipAgreement 
   useEffect(() => {
     const initStripe = async () => {
       try {
-        // Hardcoded publishable key for testing
-        const publishableKey = 'pk_test_51SGTFyGoKexkldbNsdNd2lWJGuWB58srkRs8UBWOyQoGLkr6ecvAmr1X0ZiWc6ZITQvUx1aKXn3qOWJH1URddSXq00TVfjU31N';
-        
+        // Must come from the environment, never a literal. A hardcoded
+        // pk_test_ key shipped to Production while the server signed sessions
+        // with the LIVE secret key — client and server in different Stripe
+        // modes (found 2026-09-29). Fail loudly rather than half-initialise.
+        const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+
         
         if (publishableKey) {
           const stripe = await loadStripe(publishableKey);
