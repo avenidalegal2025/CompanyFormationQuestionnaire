@@ -54,7 +54,7 @@ export function pairwiseCases(seed = 7): Case[] {
     const params: Param[] = [
       { name: "n", values: [1, 2, 3, 4, 5, 6] },
       ...voteKeys.map((k) => ({ name: k, values: VOTES })),
-      { name: "rofr", values: [true, false] }, { name: "dragTag", values: [true, false] },
+      { name: "rofr", values: [true] /* always on since 2026-10-01 */ }, { name: "dragTag", values: [true, false] },
       { name: "nonCompete", values: [true, false] }, { name: "nonSolicitation", values: [true, false] },
       { name: "heirsForced", values: [true, false] }, { name: "divorce", values: [true, false] },
       { name: "xfer", values: ["free", "majority", "unanimous"] },

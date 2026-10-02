@@ -60,7 +60,7 @@ const FREE = "Sí, podrán transferir libremente sus acciones.";
 
 const CASES: Case[] = [
   // ── LLC ──────────────────────────────────────────────────────────
-  { name: "LLC RoFR", base: LLC_BASE, field: "llc_rofr", a: "Yes", b: "No" },
+  // RoFR is no longer a toggle: always included (Antonio, 2026-10-01).
   { name: "LLC Non-compete", base: LLC_BASE, field: "llc_nonCompete", a: "Yes", b: "No" },
   { name: "LLC Non-solicitation", base: LLC_BASE, field: "llc_nonSolicitation", a: "Yes", b: "No" },
   { name: "LLC Tag/Drag", base: LLC_BASE, field: "llc_tagDragRights", a: "Yes", b: "No" },
@@ -72,7 +72,6 @@ const CASES: Case[] = [
   { name: "LLC Capital Pro-Rata", base: LLC_BASE, field: "llc_additionalContributions", a: "Sí, Pro-Rata", b: "No" },
   { name: "LLC Distribution frequency", base: LLC_BASE, field: "distributionFrequency", a: "Trimestral", b: "Anual" },
   // ── Corp ─────────────────────────────────────────────────────────
-  { name: "Corp RoFR", base: CORP_BASE, field: "corp_rofr", a: "Yes", b: "No" },
   { name: "Corp Non-compete", base: CORP_BASE, field: "corp_nonCompete", a: "Yes", b: "No" },
   { name: "Corp Non-solicitation", base: CORP_BASE, field: "corp_nonSolicitation", a: "Yes", b: "No" },
   { name: "Corp Tag/Drag", base: CORP_BASE, field: "corp_tagDragRights", a: "Yes", b: "No" },

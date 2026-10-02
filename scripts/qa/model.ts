@@ -141,7 +141,7 @@ export function sampleRealistic(r: () => number, i: number): Case {
   return {
     id: `R${String(i).padStart(4, "0")}`, layer: "realistic", entity,
     companyBase: pick(r, COMPANY), owners, votes,
-    rofr: yes(r), rofrDays: pick(r, [30, 60, 90], [2, 1, 1]),
+    rofr: true /* always included since 2026-10-01 */, rofrDays: pick(r, [30, 60, 90], [2, 1, 1]),
     dragTag: yes(r, 0.4), nonCompete: nc, ncYears: pick(r, [1, 2, 3], [1, 3, 1]), ncScope: pick(r, SCOPES, [4, 2, 2, 1]),
     nonSolicitation: nc ? false : yes(r), heirsForced: yes(r), divorce: yes(r),
     xfer: pick(r, ["free", "majority", "unanimous"] as const, [2, 1, 2]),

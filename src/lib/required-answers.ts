@@ -74,12 +74,10 @@ export const AGREEMENT_REQUIRED_ANSWERS: RequiredAnswer[] = [
   { name: "agreement.llc_nonSolicitation", step: 7, when: (v) => llc(v) && a(v).llc_nonCompete !== "Yes" },
 
   // Step 8 — Acciones & Sucesión
-  { name: "agreement.corp_rofr", step: 8, when: corp },
   { name: "agreement.corp_transferToRelatives", step: 8, when: corp },
   { name: "agreement.corp_heirsForcedToSell", step: 8, when: corp },
   { name: "agreement.corp_divorceBuyoutPolicy", step: 8, when: corp },
   { name: "agreement.corp_tagDragRights", step: 8, when: corp },
-  { name: "agreement.llc_rofr", step: 8, when: llc },
   { name: "agreement.llc_heirsForcedToSell", step: 8, when: llc },
   { name: "agreement.llc_transferToRelatives", step: 8, when: llc },
   { name: "agreement.llc_dissolutionDecision", step: 8, when: llc },

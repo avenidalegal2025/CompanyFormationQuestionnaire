@@ -39,46 +39,22 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
           {isCorp ? (
             <>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start first:mt-0 first:pt-0 first:border-0 first:bg-transparent first:p-0 first:rounded-none first:shadow-none">
+                {/* Right of first refusal is always part of the agreement (Antonio,
+                    2026-10-01: no client has ever declined it); only its offer period is asked. */}
                 <label className="label inline-flex items-start gap-5 max-w-prose">
-                  ¿Quiere que los accionistas tengan el derecho de ser los primeros en rechazar una oferta de venta de la compañía?
+                  Período de oferta del derecho de preferencia (días)
                   <InfoTooltip
                     title="Right of First Refusal"
-                    body="El derecho de preferencia permite que los accionistas existentes tengan la primera oportunidad de comprar las acciones de un accionista que desea vender, antes de que se ofrezcan a terceros."
+                    body="El acuerdo siempre incluye el derecho de preferencia: los accionistas existentes tienen la primera oportunidad de comprar las acciones de quien desea vender, antes de que se ofrezcan a terceros. Indique cuántos días tienen para ejercerlo."
                   />
                 </label>
-                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[500px]">
-                  <Controller
-                    name="agreement.corp_rofr"
-                    control={control}
-                    render={({ field }) => (
-                      <SegmentedToggle
-                        value={field.value || ""}
-                        onChange={field.onChange}
-                        options={[
-                          { value: "Yes", label: "Sí" },
-                          { value: "No", label: "No" },
-                        ]}
-                        ariaLabel="Right of first refusal"
-                        name={field.name}
-                      />
-                    )}
-                  />
-                  <RequiredHint form={form} name="agreement.corp_rofr" />
-                </div>
-                {watch("agreement.corp_rofr") === "Yes" && (
-                  <div className="mt-3 md:col-span-2 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
-                    <label className="label flex items-center gap-2">Período de oferta del derecho de preferencia (días)
-                      <InfoTooltip title="Período ROFR" body="Número de días que tienen los accionistas existentes para ejercer su derecho de primera oferta antes de que las acciones puedan ser vendidas a terceros." />
-                    </label>
-                    <div className="mt-3 md:mt-0 md:justify-self-end">
-                      <div className="flex items-center gap-2">
-                        <input type="number" min="1" className="input w-24" 
-                          {...register("agreement.corp_rofrOfferPeriod", { valueAsNumber: true })} />
-                        <span className="text-sm text-gray-500">días</span>
-                      </div>
-                    </div>
+                <div className="mt-3 md:mt-0 md:justify-self-end">
+                  <div className="flex items-center gap-2">
+                    <input type="number" min="1" className="input w-24"
+                      {...register("agreement.corp_rofrOfferPeriod", { valueAsNumber: true })} />
+                    <span className="text-sm text-gray-500">días</span>
                   </div>
-                )}
+                </div>
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[560px_minmax(500px,auto)] md:gap-10 md:items-start">
                 <label className="label inline-flex items-start gap-5 max-w-prose">
@@ -202,46 +178,22 @@ export default function Step9Agreement4({ form, setStep, onSave, onNext, session
           ) : (
             <>
               <div className="mt-16 pt-12 border-t border-gray-200 bg-gray-50/40 rounded-xl p-8 shadow-sm md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start first:mt-0 first:pt-0 first:border-0 first:bg-transparent first:p-0 first:rounded-none first:shadow-none">
+                {/* Right of first refusal is always part of the agreement (Antonio,
+                    2026-10-01: no client has ever declined it); only its offer period is asked. */}
                 <label className="label inline-flex items-start gap-5 max-w-prose">
-                  Derecho de preferencia en venta de participaciones (Right of First Refusal)
+                  Período de oferta del derecho de preferencia (días)
                   <InfoTooltip
                     title="Right of First Refusal"
-                    body="El derecho de preferencia permite que los socios existentes tengan la primera oportunidad de comprar las participaciones de un socio que desea vender, antes de que se ofrezcan a terceros."
+                    body="El acuerdo siempre incluye el derecho de preferencia: los socios existentes tienen la primera oportunidad de comprar las participaciones de quien desea vender, antes de que se ofrezcan a terceros. Indique cuántos días tienen para ejercerlo."
                   />
                 </label>
-                <div className="mt-3 md:mt-0 md:justify-self-end md:w-[500px]">
-                  <Controller
-                    name="agreement.llc_rofr"
-                    control={control}
-                    render={({ field }) => (
-                      <SegmentedToggle
-                        value={field.value || ""}
-                        onChange={field.onChange}
-                        options={[
-                          { value: "Yes", label: "Sí" },
-                          { value: "No", label: "No" },
-                        ]}
-                        ariaLabel="Right of first refusal"
-                        name={field.name}
-                      />
-                    )}
-                  />
-                  <RequiredHint form={form} name="agreement.llc_rofr" />
-                </div>
-                {watch("agreement.llc_rofr") === "Yes" && (
-                  <div className="mt-3 md:col-span-2 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
-                    <label className="label flex items-center gap-2">Período de oferta del derecho de preferencia (días)
-                      <InfoTooltip title="Período ROFR" body="Número de días que tienen los socios existentes para ejercer su derecho de primera oferta antes de que las participaciones puedan ser vendidas a terceros." />
-                    </label>
-                    <div className="mt-3 md:mt-0 md:justify-self-end">
-                      <div className="flex items-center gap-2">
-                        <input type="number" min="1" className="input w-24" 
-                          {...register("agreement.llc_rofrOfferPeriod", { valueAsNumber: true })} />
-                        <span className="text-sm text-gray-500">días</span>
-                      </div>
-                    </div>
+                <div className="mt-3 md:mt-0 md:justify-self-end">
+                  <div className="flex items-center gap-2">
+                    <input type="number" min="1" className="input w-24"
+                      {...register("agreement.llc_rofrOfferPeriod", { valueAsNumber: true })} />
+                    <span className="text-sm text-gray-500">días</span>
                   </div>
-                )}
+                </div>
               </div>
               <div className="mt-16 pt-12 border-t border-gray-200 md:grid md:grid-cols-[560px_minmax(360px,auto)] md:gap-10 md:items-start">
                 <label className="label inline-flex items-start gap-5 max-w-prose">

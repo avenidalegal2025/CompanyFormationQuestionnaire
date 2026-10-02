@@ -1163,7 +1163,7 @@ export function mapQuestionnaireToAirtable(
     record['LLC Manager Restrictions'] = agreement.llc_managerRestrictions;
     record['LLC Deadlock Resolution'] = agreement.llc_deadlockResolution;
     record['LLC Dispute Resolution'] = agreement.llc_disputeResolution;
-    record['LLC ROFR'] = yesNo(agreement.llc_rofr);
+    record['LLC ROFR'] = 'Yes'; // always included (no longer asked)
     record['LLC Incapacity Heirs Policy'] = yesNo((agreement.llc_heirsForcedToSell ?? agreement.llc_incapacityHeirsPolicy));
     // "New Partners" and "New Members" were the same question asked twice in
     // different words (Step 7 "nuevos miembros", Step 9 "nuevos socios"). Only
@@ -1211,7 +1211,7 @@ export function mapQuestionnaireToAirtable(
     record['Corp Shareholder Loans'] = yesNo(agreement.corp_shareholderLoans);
     record['Corp Tax Owner'] = agreement.corp_taxOwner;
     record['Corp Non Compete'] = yesNo(agreement.corp_nonCompete);
-    record['Corp ROFR'] = yesNo(agreement.corp_rofr);
+    record['Corp ROFR'] = 'Yes'; // always included (no longer asked)
     record['Corp Transfer To Relatives'] = agreement.corp_transferToRelatives;
     record['Corp Transfer To Relatives Majority %'] = agreement.corp_transferToRelativesMajority ? agreement.corp_transferToRelativesMajority / 100 : undefined;
     record['Corp Incapacity Heirs Policy'] = yesNo((agreement.corp_heirsForcedToSell ?? agreement.corp_incapacityHeirsPolicy));

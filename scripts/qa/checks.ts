@@ -100,6 +100,31 @@ export function expectations(c: Case, d: Doc): Finding[] {
     const two = /\btwo\b/i.test(bank);
     if (two !== c.bankTwoSigners) fail("X-bank-signers", `answered ${c.bankTwoSigners ? "two" : "one"} signer(s): "${bank.slice(bank.search(/signature/i), bank.search(/signature/i) + 70)}"`);
   }
+  // Antonio's decisions (2026-10-01) — each one a regression guard.
+  const TERM: Record<string, string> = { majority: "Majority", supermajority: "Super Majority", unanimous: "Unanimous" };
+  if (!isCorp) {
+    const major = TERM[c.votes.llc_majorDecisions!]!;
+    const succ = d.paras.find((p) => /decision to purchase a Successor's interest/.test(p)) || "";
+    const sv = /within the discretion of (?:a |the )?(Super Majority|Majority|Unanimous)/.exec(succ.slice(succ.indexOf("decision to purchase a Successor")));
+    if (succ && sv?.[1] !== major) fail("A-successor-vote", `§14.4 successor buyout reads "${sv?.[1]}", major decisions are "${major}"`);
+    if (c.divorce) {
+      const dv = /exercise this option shall be within the discretion of (?:a |the )?(Super Majority|Majority|Unanimous)/.exec(t);
+      if (dv?.[1] !== major) fail("A-divorce-vote", `divorce buyout reads "${dv?.[1]}", major decisions are "${major}"`);
+    }
+    if (/Involuntary/.test(t)) fail("A-llc-involuntary", "LLC uses the undefined term Involuntary Assignee/Transfer");
+    const rm = TERM[c.votes.llc_officerRemovalVoting!]!;
+    const wv = /by the written (Super Majority|Majority|Unanimous) consent of the Members excluding/.exec(t);
+    if (wv && wv[1] !== rm) fail("A-removal-written", `written-consent removal reads "${wv[1]}", removal vote is "${rm}"`);
+    if (/rights and obligations of the deceased Member\. The Successor’s interest shall be subject to the options described in Section 14\.4 below\. To be clear, the incapacity/.test(t))
+      fail("A-incapacity-deceased", "§14.3 incapacity still says \"deceased Member\"");
+  } else {
+    if (/greater than [A-Z ]+PERCENT \(50\.01%\)/.test(t)) fail("A-majority-def", "§1.6 still says greater than ... (50.01%)");
+    if (!/Sections 14\.2 and 14\.3/.test(t)) fail("A-successor-ref", "§1.11 Successor should point to Sections 14.2 and 14.3");
+    if (/Subject to Article 4\.3/.test(t)) fail("A-article-4.3", "13.1.A still says Article 4.3");
+    if (/(?:entire|assets of the) Company\b/.test(t)) fail("A-corp-company", "corporation agreement says \"Company\"");
+    if (c.dragTag && /Majority Shareholders/.test(t) && !/\(the “Majority Shareholders”\)/.test(t)) fail("A-majority-shareholders", "\"Majority Shareholders\" used but never defined");
+  }
+
   // signature blocks: one per owner (+ the corporation's own block)
   const names = d.paras.filter((p) => /^Name:/.test(p)).length;
   const wantNames = c.owners.length + (isCorp ? 1 : 0);

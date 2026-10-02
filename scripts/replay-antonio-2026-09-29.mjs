@@ -214,7 +214,7 @@ async function main() {
   await clickButton(page, 'Continuar');
 
   console.log('== 08 Acciones & Sucesión');
-  await toggle(page, 'Right of first refusal', 'Sí');
+  // Right of first refusal is always included now; only its offer period is asked.
   await typeInto(page.locator('input[name="agreement.llc_rofrOfferPeriod"]'), '40');
   await toggle(page, 'Incapacity heirs policy', 'Sí');
   await page.locator('select[name="agreement.llc_transferToRelatives"]')

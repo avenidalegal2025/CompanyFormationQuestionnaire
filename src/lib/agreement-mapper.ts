@@ -499,9 +499,9 @@ export async function mapFormToDocgenAnswers(
     family_transfer: isCorp
       ? mapFamilyTransfer(agreement.corp_transferToRelatives)
       : mapFamilyTransfer(agreement.llc_transferToRelatives),
-    right_of_first_refusal: isCorp
-      ? agreement.corp_rofr === "Yes"
-      : agreement.llc_rofr === "Yes",
+    // Always included (Antonio, 2026-10-01): the form no longer asks, and an
+    // older draft that answered "No" still gets it.
+    right_of_first_refusal: true,
     rofr_offer_period: isCorp
       ? num(agreement.corp_rofrOfferPeriod) ?? 60
       : num(agreement.llc_rofrOfferPeriod) ?? 60,

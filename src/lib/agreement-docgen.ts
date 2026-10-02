@@ -1041,6 +1041,14 @@ function applyLLCVotingReplacements(
       replace: `substantially all of the assets of the Company as determined by a ${VT("sale_of_company_voting")} of the Members`,
       votingKey: "sale_of_company_voting",
     },
+    // Sec 11.1C - Manager removal by written consent (same sentence as the
+    // meeting vote below). Per Antonio (2026-10-01) it tracks the removal vote
+    // too, instead of the major-decisions sweep.
+    {
+      find: "by the written Majority consent of the Members excluding",
+      replace: `by the written ${VT("officer_removal_voting")} consent of the Members excluding`,
+      votingKey: "officer_removal_voting",
+    },
     // Sec 11.1C - Manager removal
     {
       find: "Majority vote of the Members excluding",
@@ -1142,17 +1150,10 @@ function applyLLCVotingReplacements(
       // by new_member_admission_voting via the targeted replacements above; the
       // major-decisions sweep must NOT override it with the major term.
       if (/may admit new Members/.test(text)) return full;
-      // Protect §14.4 Successor's Interest buyout discretion. The template ships
-      // "…within the discretion of a Majority of the remaining Members." — a
-      // FIXED majority (no questionnaire field governs the successor-buyout
-      // threshold), so the major-decisions sweep must NOT upgrade it. The §19.7
-      // glossary guard above only matches "Majority of the Managers/Members";
-      // this phrase is "Majority of the remaining Members" (note "remaining"),
-      // so it slipped through and rendered "Unanimous consent of the remaining
-      // Members" whenever major_decisions != majority. (2026-06-23 SPICE review.)
-      // "remaining Members" appears as a voting phrase ONLY here, so guarding it
-      // globally is safe.
-      if (/\bMajority of the remaining Members\b/.test(text)) return full;
+      // §14.4 "…within the discretion of a Majority of the remaining Members"
+      // (Successor buyout) is deliberately NOT protected: per Antonio
+      // (2026-10-01) it tracks the questionnaire's vote like every other
+      // company decision.
       // Sweep <w:t> contents with protections.
       return full.replace(
         /<w:t([^>]*)>([^<]*)<\/w:t>/g,
@@ -1200,6 +1201,8 @@ function applyLLCVotingReplacements(
       // of" → "Unanimous consent of" rule above yields "consent of Unanimous
       // consent of" (e.g. Corp §12.1 Removal). Collapse the redundant "consent of".
       updated = updated.replace(/\bconsent of Unanimous consent of\b/g, "Unanimous consent of");
+      // §14.4 "within the discretion of a Majority of …" → keep its article.
+      updated = updated.replace(/\bdiscretion of Unanimous consent of\b/g, "discretion of the Unanimous consent of");
       // "Unanimous" is an adjective, not a noun — bare "by Unanimous" reads
       // wrong (2026-05-19 review). Give it a noun unless one already follows.
       updated = updated.replace(
@@ -1610,13 +1613,18 @@ function removeLLCConditionalSections(
   // needs no renumbering. Without this the toggle is a no-op.
   if (answers.divorce_forced_buyout) {
     const anchor = "shall be exercised by giving notice to the Successor within that time period.";
+    // Per Antonio (2026-10-01): the vote tracks the questionnaire (major
+    // decisions, like the §14.4 Successor buyout it extends), and the clause
+    // avoids "Involuntary Assignee/Transfer", which the LLC never defines.
+    const divorceVote = votingText(answers.major_decisions_voting);
+    const divorceVotePhrase = divorceVote === "Unanimous" ? "the Unanimous consent" : `a ${divorceVote}`;
     const divorceProvision =
       "  In the event of the filing of a petition for dissolution of marriage or legal separation of a Member, " +
-      "the Company shall have the option to purchase any Membership Interest awarded to, or claimed by, the Member’s spouse, " +
-      "former spouse, or any Involuntary Assignee at its fair market value, and such spouse, former spouse, or Involuntary " +
-      "Assignee shall be required to sell such interest upon the Company’s exercise of its option. The Company’s decision to " +
-      "exercise this option shall be within the discretion of the Unanimous consent of the remaining Members, exercisable by " +
-      "giving notice within 60 calendar days after the divorce or Involuntary Transfer.";
+      "the Company shall have the option to purchase any Membership Interest awarded to, or claimed by, the Member’s spouse " +
+      "or former spouse at its fair market value, and such spouse or former spouse shall be required to sell such interest " +
+      "upon the Company’s exercise of its option. The Company’s decision to exercise this option shall be within the " +
+      `discretion of ${divorceVotePhrase} of the remaining Members, exercisable by giving notice within 60 calendar days ` +
+      "after the dissolution of marriage or legal separation.";
     xml = xmlTextReplace(xml, anchor, anchor + divorceProvision);
   }
 
@@ -1788,7 +1796,11 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   const bankSigneesText =
     answers.bank_signees === "two" && officerCountForBank >= 2 ? "two" : "one";
   const majorityPct = answers.majority_threshold || 50;
-  const majorityText = `${numberToWords(majorityPct).toUpperCase()} PERCENT (${majorityPct.toFixed(2)}%)`;
+  // §1.6 reads "greater than X": the 50.01% default means "more than half", so
+  // drop a sub-tenth fraction — "greater than FIFTY PERCENT (50%)", per
+  // Antonio (2026-10-01); words and figure then say the same thing.
+  const majorityShown = majorityPct - Math.floor(majorityPct) <= 0.1 ? Math.floor(majorityPct) : majorityPct;
+  const majorityText = `${numberToWords(majorityShown).toUpperCase()} PERCENT (${Number.isInteger(majorityShown) ? majorityShown : majorityShown.toFixed(2)}%)`;
 
   const doc = new Docxtemplater(zip, {
     delimiters: { start: "{{", end: "}}" },
@@ -2337,6 +2349,16 @@ function generateCorp(answers: QuestionnaireAnswers): Buffer {
   xml = expandSignatureBlockSpacing(xml);
   // Late, so the passes above can still anchor on the template's "50.1%".
   xml = applyMajorityPercent(xml, answers);
+  // §13.x Approved Sale uses "Majority Shareholders" without defining it;
+  // define it where the selling bloc is described (the LLC already does so
+  // with "Majority Selling Members"). Antonio, 2026-10-01.
+  // Edit inside the "…holding at least X% of the Shares " run only: a
+  // cross-run replace would flatten the paragraph and swallow its "13.3" run.
+  xml = xml.replace(/<w:p[ >][\s\S]*?<\/w:p>/g, (para) =>
+    [...para.matchAll(/<w:t(?:>|\s[^>]*>)([^<]*)<\/w:t>/g)].map((m) => m[1]).join("").includes("desire to sell the entirety of their Shares")
+      ? para.replace(/(<w:t(?:>|\s[^>]*>)[^<]*holding at least [\d.]+% of the Shares) (<\/w:t>)/, "$1 (the “Majority Shareholders”) $2")
+      : para,
+  );
   xml = stripBlankParagraphsBeforePageBreak(xml);
   // Last word on pagination: earlier passes rewrite pPr.
   xml = forceKeepNextBeforeTables(xml);
@@ -3117,7 +3139,7 @@ function removeCorpConditionalSections(
   if (!answers.right_of_first_refusal) {
     xml = removeXmlParagraphsContaining(xml, [
       "Right of First Refusal",
-      "Offer.  Subject to Article 4.3",
+      "Offer.  Subject to Sections 4.3",
       "The Transferor shall deliver a notice",
       "Concurrence or Acceptance.  The Offerees shall respond",
       "In the event that a Shareholder has elected to sell its Shares",

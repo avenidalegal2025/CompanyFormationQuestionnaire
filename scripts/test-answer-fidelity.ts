@@ -17,6 +17,7 @@ import * as zlib from "zlib";
 import { fileURLToPath } from "url";
 import { mapFormToDocgenAnswers } from "../src/lib/agreement-mapper.js";
 import { generateDocument } from "../src/lib/agreement-docgen.js";
+import { floridaToday } from "../src/lib/florida-date.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const FIX = path.join(HERE, "fixtures");
@@ -216,10 +217,12 @@ const VOTES: Array<[string, string]> = [
   //    only "September 17": every 1st/2nd/3rd/21st/22nd/23rd/31st came out as
   //    "1th", and every agreement signed after 2026 was dated 2026.
   console.log("\nEffective date:");
-  const today = new Date();
-  const day = today.getUTCDate();
+  // Agreements are dated on Florida's calendar (floridaToday), not UTC — the
+  // two differ every evening from 8 pm (EDT) until midnight.
+  const [year, month, day] = floridaToday().split("-").map(Number) as [number, number, number];
   const suffix = [1, 21, 31].includes(day) ? "st" : [2, 22].includes(day) ? "nd" : [3, 23].includes(day) ? "rd" : "th";
-  const expectedDate = `${today.toLocaleString("en-US", { month: "long", timeZone: "UTC" })} ${day}${suffix}, ${today.getUTCFullYear()}`;
+  const monthName = new Date(Date.UTC(year, month - 1, 15)).toLocaleString("en-US", { month: "long", timeZone: "UTC" });
+  const expectedDate = `${monthName} ${day}${suffix}, ${year}`;
   for (const [base, label] of [[LLC, "LLC"], [CORP, "Corp"]] as const) {
     const t = await text(payload(base, {}));
     const dates = [...t.matchAll(/([A-Z][a-z]+ \d{1,2}(?:st|nd|rd|th), \d{4})/g)].map((m) => m[1]);

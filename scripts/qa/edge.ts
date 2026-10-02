@@ -27,7 +27,7 @@ export function edgeCases(): Case[] {
       out.push({
         id: `E-${entity}-${String(mask).padStart(2, "0")}`, layer: "edge", entity,
         companyBase: "EDGE 15", owners, votes,
-        rofr: bit(0), rofrDays: 15, dragTag: bit(1), nonCompete: bit(2), ncYears: 2, ncScope: "Estado de Florida",
+        rofr: true, rofrDays: 15, dragTag: bit(1), nonCompete: bit(2), ncYears: 2, ncScope: "Estado de Florida",
         nonSolicitation: bit(3), heirsForced: bit(4), divorce: bit(5),
         xfer: (["free", "majority", "unanimous"] as const)[mask % 3],
         bankTwoSigners: true, loans: true, proRata: true, managingMembers: true, specificRoles: false,
