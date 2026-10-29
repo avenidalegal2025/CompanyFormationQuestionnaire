@@ -204,7 +204,7 @@ async function main() {
   await page.locator('select[name="agreement.llc_taxPartner"]').selectOption('Haagen Daaz');
   await toggle(page, 'Non compete covenant', 'Sí');
   await typeInto(page.locator('input[name="agreement.llc_nonCompeteDuration"]'), '2');
-  await typeInto(page.locator('input[name="agreement.llc_nonCompeteScope"]'), 'Estado de Florida');
+  await page.locator('select[name="agreement.llc_nonCompeteScopeType"]').selectOption('state');
   await toggle(page, 'Bank signers', 'Dos firmantes');
   await toggle(page, 'LLC major decisions', 'Unánime');
   await toggle(page, 'LLC minor decisions', 'Mayoría');

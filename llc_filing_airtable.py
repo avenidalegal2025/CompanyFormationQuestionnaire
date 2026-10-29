@@ -297,7 +297,10 @@ def fill_llc_form(driver, wait, data, company_name):
         set_field(driver, "princ_st", llc["principal_address"]["state"])
         human_typing(driver.find_element(By.ID, "princ_zip"), llc["principal_address"]["zip"])
         set_field(driver, "princ_cntry", llc["principal_address"]["country"])
-        driver.find_element(By.TAG_NAME, "body").click()
+        # Blur the focused field (fires its onblur validation) WITHOUT clicking the page:
+        # a body click lands on whatever link sits mid-viewport and, in the small
+        # recording window, opened the "What is a Certified Copy?" popup.
+        driver.execute_script("if (document.activeElement) document.activeElement.blur();")
         time.sleep(1)
         driver.find_element(By.ID, "same_addr_flag").click()
         take_and_upload_screenshot(driver, "03_llc_info_filled", company_name)

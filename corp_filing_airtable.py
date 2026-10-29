@@ -437,7 +437,10 @@ def fill_corp_form(driver, wait, data, company_name):
         set_field(driver, "princ_st", pa["state"])
         human_typing(driver.find_element(By.ID, "princ_zip"), pa["zip"])
         set_field(driver, "princ_cntry", pa["country"])
-        driver.find_element(By.TAG_NAME, "body").click()
+        # Blur the focused field (fires its onblur validation) WITHOUT clicking the page:
+        # a body click lands on whatever link sits mid-viewport and, in the small
+        # recording window, opened the "What is a Certified Copy?" popup.
+        driver.execute_script("if (document.activeElement) document.activeElement.blur();")
         time.sleep(1)
         # Check "same as principal" for mailing address
         driver.find_element(By.ID, "same_addr_flag").click()
