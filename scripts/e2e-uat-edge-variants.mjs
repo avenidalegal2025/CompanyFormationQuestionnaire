@@ -31,7 +31,7 @@ const STRIPE_CARD = '4242424242424242';
 const STRIPE_EXP = '12/29';
 const STRIPE_CVC = '123';
 const STRIPE_ZIP = '33131';
-const PASSWORD = 'EdgeUAT2026!';
+const PASSWORD = process.env.E2E_PASSWORD || 'EdgeUAT2026!';
 const RUN_TAG = (process.env.E2E_RUN_TAG || 'r8').trim();
 
 export const NAMES = [
@@ -322,7 +322,7 @@ function generateMoreVariants() {
 }
 VARIANTS.push(...generateMoreVariants());
 
-function emailFor(v) { return `trimaran.llc+pfx${v.id}${RUN_TAG}@gmail.com`; }
+function emailFor(v) { return process.env.E2E_EMAIL || `trimaran.llc+pfx${v.id}${RUN_TAG}@gmail.com`; }
 function companyNameFor(v) {
   const suffix = v.entity === 'C-Corp' ? 'Corp' : 'LLC';
   return `${v.label} ${suffix}`;
@@ -359,6 +359,8 @@ function makeAgreementData(v) {
       corp_majorSpendingThreshold: '7500',
       corp_officerRemovalVoting: p.removal,
       corp_nonCompete: v.nc,
+      // Territory dropdown (2026-10-29): Type/Detail + the English phrase it composes.
+      ...(v.nc === 'Yes' ? { corp_nonCompeteScopeType: 'city_state', corp_nonCompeteScopeDetail: 'Miami, Florida', corp_nonCompeteScope: 'the area of Miami, Florida' } : {}),
       corp_nonSolicitation: v.ns,
       corp_confidentiality: v.conf,
       corp_taxOwner: NAMES[0],
@@ -383,6 +385,7 @@ function makeAgreementData(v) {
       llc_majorSpendingThreshold: '15000',
       llc_officerRemovalVoting: p.removal,
       llc_nonCompete: v.nc,
+      ...(v.nc === 'Yes' ? { llc_nonCompeteScopeType: 'zip', llc_nonCompeteScopeDetail: '33101', llc_nonCompeteScope: 'the area of ZIP code 33101' } : {}),
       llc_nonSolicitation: v.ns,
       llc_confidentiality: v.conf,
       llc_nonDisparagement: 'Yes',
@@ -758,6 +761,17 @@ async function runVariant(v, log) {
     await page.fill('input[name="password"]', PASSWORD);
     await page.click('button:has-text("Continue")');
     await page.waitForTimeout(5000);
+    // A fixed E2E_EMAIL may already exist: Auth0 answers the signup with an
+    // error banner; fall back to logging in with the same password.
+    if (process.env.E2E_EMAIL && await page.locator('text=Something went wrong').isVisible().catch(() => false)) {
+      log('Signup rejected (account probably exists) — trying Log in');
+      await page.click('a:has-text("Log in")');
+      await page.waitForTimeout(1500);
+      await page.fill('input[name="username"], input[name="email"]', email);
+      await page.fill('input[name="password"]', PASSWORD);
+      await page.click('button:has-text("Continue")');
+      await page.waitForTimeout(5000);
+    }
     if (await page.locator('button:has-text("Accept")').isVisible().catch(() => false)) {
       await page.click('button:has-text("Accept")');
     }
@@ -845,7 +859,7 @@ async function runVariant(v, log) {
 
     // ─── Save to DynamoDB so the webhook can read it ────────────────
     log('Save to DB…');
-    const saved = await page.evaluate(async () => {
+    const saved = await page.evaluate(async (genOnly) => {
       for (const el of document.querySelectorAll('*')) {
         for (const key of Object.keys(el)) {
           if (!key.startsWith('__reactFiber')) continue;
@@ -857,15 +871,43 @@ async function runVariant(v, log) {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: localStorage.getItem('draftId'), data: vals }),
               });
-              return { ok: resp.ok, status: resp.status };
+              let docxB64 = null, genStatus = null;
+              if (genOnly) {
+                // Live deployment generates the agreement without paying: Stripe is
+                // in live mode on prod, so the 4242 card cannot complete checkout.
+                const g = await fetch('/api/agreement/generate', {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ formData: vals, draftId: localStorage.getItem('draftId') }),
+                });
+                genStatus = g.status;
+                if (g.ok) {
+                  const buf = new Uint8Array(await g.arrayBuffer());
+                  let bin = ''; for (let i = 0; i < buf.length; i += 8192) bin += String.fromCharCode(...buf.subarray(i, i + 8192));
+                  docxB64 = btoa(bin);
+                }
+              }
+              return { ok: resp.ok, status: resp.status, genStatus, docxB64 };
             }
             fiber = fiber.return; d++;
           }
         }
       }
       return { ok: false };
-    });
+    }, !!process.env.E2E_GENERATE_ONLY);
+    if (saved.docxB64) {
+      const f = join(DIR, `GEN_v${v.id}_${v.label}_${v.entity}.docx`);
+      writeFileSync(f, Buffer.from(saved.docxB64, 'base64'));
+      log(`  generated live agreement → ${f} (${saved.docxB64.length} b64 chars)`);
+      saved.docxB64 = '[saved]';
+    }
     log(`  save: ${JSON.stringify(saved)}`);
+    if (process.env.E2E_GENERATE_ONLY) {
+      if (saved.genStatus !== 200) result.errors.push(`/api/agreement/generate → ${saved.genStatus}`);
+      else result.downloaded.push('generated-live');
+      result.status = result.errors.length === 0 ? 'PASS' : 'FAIL';
+      await browser.close();
+      return result;
+    }
 
     // ─── Stripe checkout via API (form state flows through naturally) ─
     log('Stripe checkout session…');
