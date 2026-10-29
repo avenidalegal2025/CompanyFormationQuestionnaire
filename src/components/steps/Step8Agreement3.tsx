@@ -6,6 +6,7 @@ import HeroMiami3 from "@/components/HeroMiami3";
 import SegmentedToggle from "@/components/SegmentedToggle";
 import InfoTooltip from "@/components/InfoTooltip";
 import RequiredHint from "@/components/RequiredHint";
+import TerritoryField from "@/components/TerritoryField";
 import type { StepProps } from "./types";
 import { Session } from "next-auth";
 import { handleSaveWithAuth } from "@/lib/auth-helpers";
@@ -20,7 +21,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
   const isCorp = watch("company.entityType") === "C-Corp" || watch("company.entityType") === "S-Corp";
 
   // TODO #1 + #2 (client video review): when the user enables non-compete,
-  // auto-fill duration (2 years) and geographic scope ("Estado de <formation state>")
+  // auto-fill duration (2 years) and geographic scope (the formation state)
   // if they haven't typed anything. The fields stay editable — we just remove
   // the burden of typing a sensible default the lawyer expects.
   const corpNC = watch("agreement.corp_nonCompete");
@@ -54,7 +55,8 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
       setValue("agreement.corp_nonCompeteDuration", 2, { shouldDirty: false });
     }
     if (!corpNCScope) {
-      setValue("agreement.corp_nonCompeteScope", `Estado de ${formationState}`, { shouldDirty: false });
+      setValue("agreement.corp_nonCompeteScopeType", "state", { shouldDirty: false });
+      setValue("agreement.corp_nonCompeteScope", `the State of ${formationState}`, { shouldDirty: false });
     }
   }, [corpNC, formationState, corpNCDuration, corpNCScope, setValue]);
 
@@ -66,7 +68,8 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
       setValue("agreement.llc_nonCompeteDuration", 2, { shouldDirty: false });
     }
     if (!llcNCScope) {
-      setValue("agreement.llc_nonCompeteScope", `Estado de ${formationState}`, { shouldDirty: false });
+      setValue("agreement.llc_nonCompeteScopeType", "state", { shouldDirty: false });
+      setValue("agreement.llc_nonCompeteScope", `the State of ${formationState}`, { shouldDirty: false });
     }
   }, [llcNC, formationState, llcNCDuration, llcNCScope, setValue]);
 
@@ -221,8 +224,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                         <InfoTooltip title="Alcance geográfico" body="Territorio donde se aplicará la restricción. Por defecto usamos el estado de formación. Un alcance más amplio (e.g., EE.UU. completo) es más difícil de defender ante un tribunal." />
                       </label>
                       <div className="md:col-start-2 md:justify-self-end">
-                        <input type="text" className="input w-full" placeholder="ej. Estado de Florida"
-                          {...register("agreement.corp_nonCompeteScope")} />
+                        <TerritoryField form={form} prefix="corp" formationState={formationState} />
                       </div>
                     </div>
                   </>
@@ -412,8 +414,7 @@ export default function Step8Agreement3({ form, setStep, onSave, onNext, session
                         <InfoTooltip title="Alcance geográfico" body="Territorio donde se aplicará la restricción. Por defecto usamos el estado de formación. Un alcance más amplio (e.g., EE.UU. completo) es más difícil de defender ante un tribunal." />
                       </label>
                       <div className="md:col-start-2 md:justify-self-end">
-                        <input type="text" className="input w-full" placeholder="ej. Estado de Florida"
-                          {...register("agreement.llc_nonCompeteScope")} />
+                        <TerritoryField form={form} prefix="llc" formationState={formationState} />
                       </div>
                     </div>
                   </>
